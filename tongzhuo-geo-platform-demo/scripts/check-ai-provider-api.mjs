@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { AiProviderStore } from "../ai-provider-store.mjs";
 
 const dataDir = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-ai-provider-"));
 try {
-  const store = new AiProviderStore({ dataDir });
+  const store = new AiProviderStore({ dataDir, encryptionKey: "unit-test-encryption-key-material" });
   const secret = "sk-demo-1234567890";
   const created = await store.create({ id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", apiKey: secret });
   assert.equal(created.id, "deepseek");
@@ -14,6 +14,13 @@ try {
   assert.equal(created.apiKeyMasked, "sk-d••••••••7890");
   assert.equal(JSON.stringify(created).includes(secret), false);
   assert.equal(JSON.stringify(store.list()).includes(secret), false);
+  const persisted = await readFile(path.join(dataDir, "ai-providers.json"), "utf8");
+  assert.equal(persisted.includes(secret), false);
+  assert.equal(persisted.includes("apiKeyEncrypted"), true);
+
+  const reloadedStore = new AiProviderStore({ dataDir, encryptionKey: "unit-test-encryption-key-material" });
+  await reloadedStore.load();
+  assert.equal(reloadedStore.list()[0].hasApiKey, true);
 
   const updated = await store.update("deepseek", { model: "deepseek-reasoner", apiKey: "sk-demo-updated-1234" });
   assert.equal(updated.model, "deepseek-reasoner");
