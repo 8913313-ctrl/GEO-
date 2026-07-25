@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /geo_admin/
+Disallow: /api/
+
+Sitemap: http://124.221.70.55:18080/sitemap.xml

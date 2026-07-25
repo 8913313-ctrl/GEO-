@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1629" />
+    <meta name="description" content="桐灼 GEO 运营系统后台交互演示" />
+    <title>桐灼 GEO 运营系统</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
+    <div class="app-shell">
+      <div class="sidebar-overlay" data-action="close-sidebar"></div>
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <div>
+            <strong>桐灼 GEO</strong>
+            <small>企业运营系统</small>
+          </div>
+          <button class="icon-button sidebar-close" type="button" data-action="close-sidebar" aria-label="关闭导航">×</button>
+        </div>
+
+        <div class="workspace-switcher">
+          <span class="workspace-avatar">桐</span>
+          <span><b>桐灼科技</b><small>企业独立部署</small></span>
+          <span class="chevron">⌄</span>
+        </div>
+
+        <nav class="nav-main">
+          <a href="#dashboard" data-route="dashboard"><span class="nav-icon" data-icon="home"></span><span>工作台</span></a>
+          <a href="#planning" data-route="planning"><span class="nav-icon" data-icon="compass"></span><span>选题中心</span><i class="nav-count" id="topic-nav-count">4</i></a>
+          <a href="#content" data-route="content"><span class="nav-icon" data-icon="file"></span><span>内容生产</span><i class="nav-count" id="article-nav-count">3</i></a>
+          <a href="#publish" data-route="publish"><span class="nav-icon" data-icon="send"></span><span>发布运营</span><i class="nav-dot warning" id="publish-nav-dot"></i></a>
+          <a href="#assets" data-route="assets"><span class="nav-icon" data-icon="folder"></span><span>内容资产</span></a>
+          <a href="#monitoring" data-route="monitoring"><span class="nav-icon" data-icon="chart"></span><span>效果监测</span></a>
+          <a href="#site" data-route="site"><span class="nav-icon" data-icon="globe"></span><span>官网运营</span></a>
+          <a href="#knowledge" data-route="knowledge"><span class="nav-icon" data-icon="book"></span><span>企业知识</span></a>
+        </nav>
+
+        <div class="nav-spacer"></div>
+        <nav class="nav-secondary">
+          <a href="#assistant" data-route="assistant"><span class="nav-icon" data-icon="monitor"></span><span>发布助手</span><em><i></i>在线</em></a>
+          <a href="#settings" data-route="settings"><span class="nav-icon" data-icon="settings"></span><span>系统设置</span></a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="deploy-badge"><span>私有化部署</span><b>v0.4 演示版</b></div>
+        </div>
+      </aside>
+
+      <div class="main-column">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button menu-button" type="button" data-action="open-sidebar" aria-label="打开导航">
+              <span></span><span></span><span></span>
+            </button>
+            <div>
+              <div class="breadcrumbs"><span>运营中心</span><b>/</b><strong id="breadcrumb-current">工作台</strong></div>
+              <h1 id="page-title">工作台</h1>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button class="assistant-pill" type="button" data-nav="assistant"><i></i><span>发布助手在线</span></button>
+            <button class="soft-button website-link" type="button" data-action="preview-site"><span data-icon="external"></span>预览官网</button>
+            <button class="search-trigger" type="button" data-action="open-search"><span data-icon="search"></span><span>搜索功能</span><kbd>Ctrl K</kbd></button>
+            <button class="icon-button notification-button" type="button" data-action="open-notifications" aria-label="通知"><span data-icon="bell"></span><i></i></button>
+            <button class="avatar-button" type="button" data-action="user-menu" aria-label="用户菜单">王</button>
+          </div>
+        </header>
+
+        <main id="main-content" tabindex="-1">
+          <div id="view" aria-live="polite"></div>
+        </main>
+      </div>
+    </div>
+
+    <div id="modal-root"></div>
+    <div id="toast-root" class="toast-root" aria-live="assertive"></div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

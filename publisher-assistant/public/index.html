@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>桐灼 GEOFlow 本地发布器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">桐</div><div><div class="eyebrow">TONGZHUO / GEO OPERATIONS</div><h1>桐灼本地多平台发布器</h1></div></div>
+      <div class="connection-pill" id="connection-pill"><span class="dot"></span><span id="connection-text">未连接 GEOFlow</span></div>
+    </header>
+
+    <section class="hero">
+      <div><div class="eyebrow accent">LOCAL DISTRIBUTION CONTROL</div><h2>一篇内容，进入桐灼的多平台运营链路。</h2><p>内容和任务来自 GEOFlow，平台账号在本机登录。发布器负责平台编排、结果回写和异常留痕，密码、Cookie 与浏览器登录态不会上传服务器。</p></div>
+      <div class="hero-stat"><strong id="job-count">0</strong><span>待处理任务</span></div>
+    </section>
+
+    <section class="setup-guide" id="setup-guide">
+      <div class="setup-guide-heading"><div><span class="section-kicker">START HERE</span><h3>第一次使用，按这 4 步完成发布</h3></div><span class="setup-mode" id="runtime-mode">正在检查本机运行方式</span></div>
+      <div class="setup-steps">
+        <div class="setup-step"><span>01</span><div><strong>从后台获取连接信息</strong><p>在 GEOFlow 的本地发布器页面生成一次性配对码或 API Token。</p></div></div>
+        <div class="setup-step"><span>02</span><div><strong>绑定客户后台</strong><p>把连接地址和 Token 保存到本机发布器，点击连接。</p></div></div>
+        <div class="setup-step"><span>03</span><div><strong>本地登录账号</strong><p>按账号组为每个平台完成扫码或安全验证，登录态只留在本机。</p></div></div>
+        <div class="setup-step"><span>04</span><div><strong>领取并执行任务</strong><p>已审核文章按后台排期同步到本机，按平台顺序逐个执行。</p></div></div>
+      </div>
+      <div class="runtime-notice" id="runtime-notice" hidden></div>
+    </section>
+
+    <section class="panel account-hub">
+      <div class="panel-heading"><div><span class="section-kicker">01 / ACCOUNTS</span><h3>本地账号中心</h3></div><span class="count-badge" id="account-count-badge">0 个账号</span></div>
+      <p class="panel-desc">一个账号对应一份独立的本机浏览器配置。Cookie、登录态和验证码不会流向 GEOFlow，也不会混用到其他账号组。</p>
+      <div class="account-create-row">
+        <label>平台<select id="account-platform-select"><option value="">选择平台</option></select></label>
+        <label>账号名称<input id="account-label-input" type="text" maxlength="48" placeholder="例如：桐灼知乎主号"></label>
+        <button class="button primary" id="account-create-button">创建并登录</button>
+      </div>
+      <div class="account-list" id="account-list"><div class="loading">正在读取本地账号...</div></div>
+    </section>
+
+    <section class="panel browser-auth-panel" id="browser-auth-panel" hidden>
+      <div class="panel-heading"><div><span class="section-kicker">ACCOUNT AUTHORIZATION</span><h3>平台登录与授权</h3></div><button class="button ghost small" id="close-auth-button">关闭窗口</button></div>
+      <p class="panel-desc">平台页面显示在本机发布器窗口中。请在下方完成账号登录、扫码或安全验证，授权态只保存在当前电脑。</p>
+      <div class="browser-auth-layout">
+        <div class="browser-screen-wrap"><iframe id="browser-desktop" title="本机浏览器" hidden allow="clipboard-read; clipboard-write"></iframe><img id="browser-screen" alt="平台登录页面" hidden><div class="browser-screen-hint">这里显示的是当前电脑上的真实浏览器，可直接点击、输入和拖动验证</div></div>
+        <aside class="browser-auth-controls">
+          <div class="auth-page-meta"><strong id="auth-platform-name">-</strong><span id="auth-page-title">等待授权窗口</span><code id="auth-page-url">-</code></div>
+          <label>输入文字<input id="auth-text-input" type="text" placeholder="点击页面输入框后，在这里输入"></label>
+          <div class="inline-actions auth-action-row"><button class="button primary small" id="auth-type-button">输入到当前焦点</button><button class="button ghost small" id="auth-enter-button">回车</button></div>
+          <div class="inline-actions auth-action-row"><button class="button ghost small" id="auth-scroll-button">向下滚动</button><button class="button ghost small" id="auth-reload-button">刷新页面</button></div>
+          <div class="notice">完成扫码、验证或登录后点击“确认已登录”。后续任务会使用这份本机登录态执行；遇到新的验证会自动暂停。</div>
+          <button class="button primary auth-finish-button" id="auth-finish-button">确认已登录并保留会话</button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="metric-row">
+      <div class="metric"><span class="metric-label">引擎状态</span><strong id="engine-status">待连接</strong><small>本地浏览器适配器</small></div>
+      <div class="metric"><span class="metric-label">平台目录</span><strong id="platform-count">0</strong><small>已接入平台</small></div>
+      <div class="metric"><span class="metric-label">发布模式</span><strong id="mode-status">直接发布</strong><small>可随时切换为草稿</small></div>
+      <div class="metric"><span class="metric-label">本地设备</span><strong id="worker-short">-</strong><small id="worker-id">本机节点</small></div>
+    </section>
+
+    <section class="workspace-grid">
+      <aside class="panel settings-panel">
+        <div class="panel-heading"><div><span class="section-kicker">01 / ENGINE</span><h3>连接与发布策略</h3></div><span class="panel-index">A</span></div>
+        <div class="form-grid">
+          <label>GEOFlow 地址<input id="geoflow-base-url" type="url" placeholder="http://124.221.70.55:18080"></label>
+          <label>API Token<input id="api-token" type="password" placeholder="粘贴后台 Token"><small>只保存到本机配置文件。</small></label>
+          <label class="wide">本地平台适配器<input id="extension-dir" type="text" placeholder="包含 manifest.json 的目录"><small>默认使用本地软件包附带的平台适配器。</small></label>
+          <label class="wide">执行模式<select id="publish-mode"><option value="publish">直接发布（尝试自动确认）</option><option value="draft">仅保存草稿</option></select><small>遇到验证码、风控或页面变化时，自动保留草稿并回写异常。</small></label>
+        </div>
+        <div class="inline-actions"><button class="button primary" id="connect-button">连接 GEOFlow</button><button class="button ghost" id="save-button">保存设置</button><button class="button ghost" id="check-extension-button">检查本机浏览器</button></div>
+        <div class="notice" id="connection-message">请先连接 GEOFlow，再开始处理分发任务。</div>
+      </aside>
+
+      <section class="panel platform-panel">
+        <div class="panel-heading"><div><span class="section-kicker">02 / CHANNELS</span><h3>平台目录</h3></div><span class="count-badge" id="platform-count-badge">0 个平台</span></div>
+        <p class="panel-desc">勾选需要使用的平台，可一次选择多个。平台账号、Cookie 和验证码只保存在本机浏览器。</p>
+        <div class="platform-toolbar">
+          <div><strong id="selected-platform-count">已选 0 个平台</strong><span id="selected-platform-hint">未选择时按 GEOFlow 任务配置执行</span></div>
+          <div class="platform-toolbar-actions"><button class="button ghost small" data-action="select-all">全选</button><button class="button ghost small" data-action="clear-selection">清空</button><button class="button primary small" id="create-selected-accounts-button">为所选平台创建账号</button></div>
+        </div>
+        <div id="platform-catalog" class="platform-groups"><div class="loading">正在读取平台目录...</div></div>
+      </section>
+    </section>
+
+    <section class="panel jobs-panel">
+      <div class="panel-heading"><div><span class="section-kicker">03 / QUEUE</span><h3>发布任务队列</h3></div><div class="inline-actions"><span class="muted" id="queue-updated">等待连接</span><button class="button ghost" id="refresh-button">刷新队列</button></div></div>
+      <div class="table-wrap"><table><thead><tr><th>文章</th><th>渠道</th><th>目标平台</th><th>状态</th><th>操作</th></tr></thead><tbody id="jobs-body"><tr><td colspan="5" class="empty">连接 GEOFlow 后显示待处理任务。</td></tr></tbody></table></div>
+    </section>
+
+    <footer class="footer"><span>桐灼（淄博）网络科技有限公司 / GEO 运营工作台</span><span>Worker <code id="footer-worker">-</code></span></footer>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>

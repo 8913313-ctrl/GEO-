@@ -1,0 +1,41 @@
+# Secrets and runtime state
+**/.env
+**/.env.*
+!**/.env.example
+**/data/
+**/.data/
+**/node_modules/
+**/browser-profile/
+**/*.log
+**/*.pid
+
+# Generated builds and installers
+**/dist/
+**/build/
+**/out/
+**/release/
+**/public/downloads/*.exe
+**/public/downloads/*.zip
+
+# Local caches and temporary profiles
+tmp-electron-profile-final/
+tmp-electron-userdata/
+**/.cache/
+**/coverage/
+
+# Local snapshots are deliberately kept outside the formal source history
+backups/
+
+# Legacy reference copies and non-source deliverables retained locally
+.agents/
+server-integration/
+tongzhuo-product-template/
+make_tongzhuo_ppt.py
+*.zip
+*.pptx
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

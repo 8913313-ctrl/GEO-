@@ -1,0 +1,15 @@
+{
+  "name": "tongzhuo-geoflow-publisher-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "桐灼 GEOFlow 本地多平台发布助手",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "playwright": "1.61.1"
+  }
+}
