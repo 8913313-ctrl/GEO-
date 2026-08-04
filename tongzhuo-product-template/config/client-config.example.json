@@ -1,0 +1,35 @@
+{
+  "customer_slug": "example-company",
+  "company": {
+    "legal_name": "示例（城市）网络科技有限公司",
+    "brand_name": "示例科技",
+    "alternate_name": "示例AI",
+    "description": "面向企业获客的GEO、内容运营与企业AI服务商。",
+    "services": ["GEO优化", "短视频运营", "企业AI落地"]
+  },
+  "website": {
+    "site_url": "https://www.example.com",
+    "workbench_url": "https://www.example.com",
+    "telephone": "",
+    "email": "",
+    "address": "",
+    "robots_enabled": true,
+    "ai_files_enabled": true
+  },
+  "geoflow": {
+    "base_url": "http://127.0.0.1:18080",
+    "admin_path": "geo_admin",
+    "api_token": ""
+  },
+  "publisher_assistant": {
+    "port": 18180,
+    "poll_seconds": 20,
+    "publish_mode": "publish",
+    "browser_channel": "chromium"
+  },
+  "desktop_agent": {
+    "port": 18280,
+    "poll_seconds": 20,
+    "capabilities": ["zhihu", "wechat_mp", "toutiao", "zip-download"]
+  }
+}

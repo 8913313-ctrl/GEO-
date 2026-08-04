@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Short Post Publish Success Fixture</title>
+</head>
+<body data-publish-state="unpublished">
+  <main>
+    <div data-testid="tweetTextarea_0" role="textbox" contenteditable="true"></div>
+    <button data-testid="tweetButton" type="button" onclick="document.body.dataset.publishState = 'sent'; document.querySelector('#publish-success').hidden = false;">Post</button>
+    <p id="publish-success" hidden>Your post was sent</p>
+  </main>
+</body>
+</html>

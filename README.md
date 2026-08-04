@@ -4,7 +4,8 @@
 
 ## 当前工程组成
 
-- `tongzhuo-geo-platform-demo/`：已经冻结的交互与流程演示基线，用于确认页面和业务规则；其中的浏览器状态与运行数据不属于正式生产数据。
+- `tongzhuo-geo-platform-demo/`：交互基线与当前可运行的私有化生产底座；登录、权限、SQLite 工作区、审计、模型凭据加密和发布器 API 已在此目录落地。
+- `geo-data-hub-demo/`：桐灼中央中转平台；统一管理客户私有化实例、爱搜主账号、任务队列、积分账本和结果交付。
 - `publisher-assistant/`：Windows 本地发布助手原型，负责本机平台登录态、任务领取和结果回写。
 - `server-integration-copy/`：既有 GEOFlow 服务器整合模板。
 - `demo-company-homepage/`：官网展示与内容信源原型。
@@ -18,4 +19,8 @@
 
 ## 当前状态
 
-演示版已于 2026-07-26 冻结为代码快照。正式产品化将按以下顺序推进：数据库与业务 API → 账号权限与密钥加密 → 向量 RAG → 审核发布状态机 → 本地发布器 → 官网 CMS → 效果监测与交付运维。
+第一轮生产底座已完成：数据库迁移/WAL、账号角色权限、Cookie Session/CSRF、工作区版本锁、审计日志、API Key 加密、发布器凭据摘要、健康检查、Docker/Compose、备份恢复和自动化检查。后续按业务优先级接入真实 RAG、官网 CMS、私有后台 Relay Client、实时效果证据落库和更多发布平台。
+
+启动与交付说明见 [`tongzhuo-geo-platform-demo/README.md`](tongzhuo-geo-platform-demo/README.md) 和 [`tongzhuo-geo-platform-demo/docs/PRIVATE-DEPLOYMENT.md`](tongzhuo-geo-platform-demo/docs/PRIVATE-DEPLOYMENT.md)。
+
+中央中转平台启动方式见 [`geo-data-hub-demo/README.md`](geo-data-hub-demo/README.md)。它默认运行在 `43280` 端口，客户私有化后台通过服务端 HMAC 请求 `/client/v1/*`，浏览器不直接接触中转站实例密钥或爱搜 Token。

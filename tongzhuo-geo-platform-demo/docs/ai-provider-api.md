@@ -5,10 +5,12 @@
 ## 路由
 
 - `GET /api/ai/providers`：列出供应商（不返回原始密钥）。
-- `POST /api/ai/providers`：创建供应商。请求字段：`id`（可选）、`name`、`baseUrl`、`model`、`apiKey`（可选）、`status`（`enabled` / `disabled`）。
+- `POST /api/ai/providers`：创建供应商。请求字段：`id`（可选）、`name`、`baseUrl`、`model`、`apiKey`（可选）、`kind`（`text` / `image` / `embedding`）、`status`（`enabled` / `disabled`）。
 - `PATCH /api/ai/providers/:id`：部分更新；省略 `apiKey` 表示保留，传空字符串或 `null` 表示清除。
 - `DELETE /api/ai/providers/:id`：删除供应商。
-- `POST /api/ai/providers/:id/test`：向该供应商的 Chat Completions 发起最小真实连接探针；启用且上游返回成功时返回 `passed`，停用、超时或上游失败时返回 `failed`。响应只包含脱敏供应商状态，不返回原始 API Key。
+- `POST /api/ai/providers/:id/test`：按供应商用途发起最小真实连接探针；`kind=text` 调用 Chat Completions，`kind=embedding` 调用 OpenAI-compatible `/embeddings` 并校验向量维度。启用且上游返回成功时返回 `passed`，停用、超时或上游失败时返回 `failed`。响应只包含脱敏供应商状态，不返回原始 API Key。
+
+`kind=embedding` 的供应商用于企业知识库向量化和 RAG 检索，服务端调用其 OpenAI-compatible `/embeddings` 接口。建议通过 `TZ_EMBEDDING_PROVIDER_ID` 固定生产 embedding 供应商，避免模型切换造成同一知识库向量维度不一致。
 
 配置文件默认位于服务端 `data/ai-providers.json`，可通过 `TZ_AI_PROVIDER_DATA_DIR` 指定服务端数据目录。文件中的供应商 API Key 使用 AES-256-GCM 保存为 `apiKeyEncrypted`，不会写入 `apiKey` 明文字段。
 

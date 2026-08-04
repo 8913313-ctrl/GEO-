@@ -1,0 +1,9 @@
+.data/
+node_modules/
+dist/
+config/*.json
+!config/client-config.example.json
+*.log
+*.zip
+.env
+customer-manifest.json

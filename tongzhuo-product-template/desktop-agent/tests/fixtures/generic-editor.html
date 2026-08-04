@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Generic Editor Fixture</title>
+</head>
+<body data-save-state="unsaved">
+  <main>
+    <input name="articleTitle" placeholder="输入标题">
+    <section class="editor">
+      <div class="ql-editor" contenteditable="true" data-placeholder="请输入正文"></div>
+    </section>
+    <button id="save-draft" type="button" onclick="document.body.dataset.saveState = 'saved'; document.querySelector('#save-success').hidden = false;">保存草稿</button>
+    <p id="save-success" data-save-result="draft_saved" hidden>草稿保存成功</p>
+  </main>
+</body>
+</html>

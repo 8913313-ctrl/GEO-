@@ -197,6 +197,29 @@ function questionMentionsSource(question, sourceKeyword) {
   return false;
 }
 
+function existingQuestionsForPrompt(existingQuestions, seeds, limit = 6) {
+  const seedKeys = (seeds || []).map(normalizeQuestionKey).filter(Boolean);
+  if (!seedKeys.length) return [];
+  return (existingQuestions || [])
+    .map((question, index) => {
+      const questionKey = normalizeQuestionKey(question);
+      let relevance = 0;
+      for (const seedKey of seedKeys) {
+        if (questionKey.includes(seedKey)) relevance = Math.max(relevance, 100 + seedKey.length);
+        else {
+          for (let size = Math.min(8, seedKey.length); size >= 3 && relevance < size; size -= 1) {
+            if ([...Array(Math.max(1, seedKey.length - size + 1)).keys()].some((start) => questionKey.includes(seedKey.slice(start, start + size)))) relevance = size;
+          }
+        }
+      }
+      return { question, index, relevance };
+    })
+    .filter((item) => item.relevance >= 3)
+    .sort((left, right) => right.relevance - left.relevance || left.index - right.index)
+    .slice(0, Math.max(0, Number(limit) || 0))
+    .map((item) => item.question);
+}
+
 function cleanProviderError(message, apiKey = "") {
   let safe = String(message || "上游模型请求失败。").replace(/[\r\n\t]+/g, " ").slice(0, 800);
   if (apiKey) safe = safe.split(apiKey).join("[REDACTED]");
@@ -211,9 +234,37 @@ function chatCompletionsUrl(baseUrl) {
   return url.toString();
 }
 
-function isDeepSeekProvider(provider) {
-  const haystack = `${provider?.protocol || ""} ${provider?.name || ""} ${provider?.baseUrl || ""}`.toLowerCase();
+function embeddingsUrl(baseUrl) {
+  const url = new URL(baseUrl);
+  const pathname = url.pathname.replace(/\/+$/, "");
+  url.pathname = /\/embeddings$/i.test(pathname) ? pathname : `${pathname}/embeddings`.replace(/^\/\//, "/");
+  return url.toString();
+}
+
+function isDeepSeekProvider(provider, model = "") {
+  const haystack = `${provider?.protocol || ""} ${provider?.name || ""} ${provider?.baseUrl || ""} ${model}`.toLowerCase();
   return haystack.includes("deepseek");
+}
+
+function shouldSendJsonResponseFormat(provider, model, options = {}) {
+  if (!options.jsonMode) return false;
+  if (options.jsonResponseFormat === true) return true;
+  if (options.jsonResponseFormat === false) return false;
+  // DeepSeek and several OpenAI-compatible gateways can return an empty
+  // message when JSON response_format is forced. The system/user prompts still
+  // require one JSON object, so omit the optional wire-level hint by default.
+  return !isDeepSeekProvider(provider, model);
+}
+
+function waitForRetry(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, Math.max(0, Number(milliseconds) || 0)));
+}
+
+function isRetryableUpstreamError(error) {
+  if (!(error instanceof AiGenerationError)) return false;
+  if (["UPSTREAM_EMPTY_RESPONSE", "UPSTREAM_OUTPUT_TRUNCATED", "UPSTREAM_TIMEOUT", "UPSTREAM_CONNECTION_ERROR"].includes(error.code)) return true;
+  if (error.code !== "UPSTREAM_HTTP_ERROR") return false;
+  return /\b(?:408|409|425|429|500|502|503|504)\b|busy|overload|rate.?limit|temporar|timeout|稍后|繁忙|限流|超时/i.test(String(error.message || ""));
 }
 
 function supportedModelsFromError(message) {
@@ -223,14 +274,47 @@ function supportedModelsFromError(message) {
   return [...new Set((match[1].match(/[A-Za-z0-9][A-Za-z0-9._-]*/g) || []).filter((item) => item.length <= 120))];
 }
 
-function extractMessageContent(payload) {
-  const content = payload?.choices?.[0]?.message?.content;
-  if (typeof content === "string") return content.trim();
-  if (Array.isArray(content)) {
-    return content.map((part) => typeof part === "string" ? part : part?.text || "").join("").trim();
+function compatibleText(value) {
+  if (typeof value === "string") return value.trim();
+  if (!Array.isArray(value)) return "";
+  return value.map((part) => {
+    if (typeof part === "string") return part;
+    if (!isPlainObject(part) || typeof part.text !== "string") return "";
+    const type = optionalString(part.type, 40).toLowerCase();
+    return !type || type === "text" || type === "output_text" ? part.text : "";
+  }).join("").trim();
+}
+
+function compatibleReasoningJson(value) {
+  const source = compatibleText(value);
+  if (!source) return "";
+  const unfenced = source.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try {
+    const parsed = JSON.parse(unfenced);
+    return isPlainObject(parsed) ? unfenced : "";
+  } catch {
+    return "";
   }
-  if (isPlainObject(content)) return JSON.stringify(content);
-  return "";
+}
+
+function extractMessageContent(payload, options = {}) {
+  const choice = payload?.choices?.[0];
+  const candidates = [
+    choice?.message?.content,
+    choice?.text,
+    payload?.output_text
+  ];
+  for (const candidate of candidates) {
+    const text = compatibleText(candidate);
+    if (text) return text;
+  }
+  // A few thinking-model gateways put the final JSON in reasoning_content
+  // while leaving content empty. Accept it only for JSON-mode calls and only
+  // when the entire text is one JSON object (optionally fenced); never scrape
+  // arbitrary reasoning prose for a JSON fragment.
+  const finishReason = optionalString(choice?.finish_reason, 40).toLowerCase();
+  const reasoningFinished = !finishReason || finishReason === "stop";
+  return options.jsonMode && reasoningFinished ? compatibleReasoningJson(choice?.message?.reasoning_content) : "";
 }
 
 function extractJson(text) {
@@ -518,27 +602,19 @@ function questionPrompt(input) {
     questions: [{
       sourceKeyword: "必须原样取自 seeds",
       question: "完整自然问句，以？结尾",
-      dimension: "允许的问题类型",
-      recommendation: 0,
-      business: 0,
-      askability: 0,
-      specificity: 0,
-      businessRelevance: 0,
-      evidenceReadiness: 0,
-      duplicateRisk: 0
+      dimension: "允许的问题类型"
     }]
   };
   return [
     "任务：从种子词生成客户会直接向 AI 输入的问题候选。问题应像真实咨询，而不是文章标题。",
-    "合格问题应在问句本身写清对象、场景、任务或决策；自然短问句已有明确含义时不要强塞背景。只生成问题和评分，不生成意图、阶段、角色、场景说明、预期答案、追问、改写、证据要求或生成理由。",
+    "合格问题应在问句本身写清对象、场景、任务或决策；自然短问句已有明确含义时不要强塞背景。只生成问题，评分由系统统一计算；不生成意图、阶段、角色、场景说明、预期答案、追问、改写、证据要求或生成理由。",
     "禁止使用“关于、浅谈、全面解析、一文读懂、从某角度如何分析、第几轮拓展”等编辑部语言；禁止用虚假榜单、最好、第一或保证结果诱导提问。",
     `每个类型必须返回且最终通过质量门槛 ${input.limitPerDimension} 条。不能用低质量问题凑数；如果某类不足，应重写该类问题。类型说明：${input.dimensions.map((dimension) => `${dimension}=${dimensionGuide[dimension]}`).join("；")}。`,
     `企业业务线与画像：${JSON.stringify(input.businessLine)}`,
     `画像禁用表达（问题不得出现）：${JSON.stringify(input.businessLine.profile?.blockedTerms || [])}`,
     `种子词：${JSON.stringify(input.seeds)}`,
     `已有问题（不得同义重复）：${JSON.stringify(input.existingQuestions)}`,
-    `严格按此 JSON 结构输出，不增加字段：${JSON.stringify(schema)}`,
-    "评分均为 0–100：askability 衡量是否像人直接问 AI；specificity 衡量对象/场景/任务是否明确；businessRelevance 衡量与业务线相关；evidenceReadiness 衡量企业资料是否可能支持回答；duplicateRisk 越高表示越接近已有问题。"
+    `严格按此 JSON 结构输出，不增加字段：${JSON.stringify(schema)}`
   ].join("\n\n");
 }
 
@@ -896,7 +972,10 @@ function normalizeEvidence(value, index) {
     quote: safeString(value.quote || value.excerpt || value.content, `evidence[${index}].quote`, { min: 1, max: 4000 }),
     source: optionalString(value.source || value.sourceName || value.knowledgeBaseName, 300),
     locator: optionalString(value.locator, 300),
-    versionId: optionalString(value.versionId, 128),
+    libraryId: optionalString(value.libraryId || value.knowledgeLibraryId, 180),
+    documentId: optionalString(value.documentId || value.knowledgeDocumentId || value.itemId, 180),
+    versionId: optionalString(value.versionId || value.knowledgeVersionId, 180),
+    chunkId: optionalString(value.chunkId || value.knowledgeChunkId, 180),
     approved
   };
 }
@@ -1092,17 +1171,25 @@ export class AiGenerationService {
     this.runStore = options.runStore || new AiGenerationRunStore(options);
     this.fetchImpl = options.fetchImpl || globalThis.fetch;
     if (typeof this.fetchImpl !== "function") throw new Error("当前 Node.js 运行时不支持 fetch。");
-    this.timeoutMs = clampInteger(options.timeoutMs ?? process.env.TZ_AI_GENERATION_TIMEOUT_MS, 90000, 5000, 180000);
-    this.maxResponseBytes = clampInteger(options.maxResponseBytes ?? process.env.TZ_AI_GENERATION_MAX_RESPONSE_BYTES, 1_500_000, 32_000, 5_000_000);
-    this.maxAttempts = clampInteger(options.maxAttempts ?? process.env.TZ_AI_GENERATION_MAX_ATTEMPTS, 2, 1, 2);
+    this.timeoutMs = clampInteger(options.timeoutMs ?? process.env.TZ_AI_GENERATION_TIMEOUT_MS ?? process.env.TZ_AI_TIMEOUT_MS, 90000, 5000, 180000);
+    this.maxResponseBytes = clampInteger(options.maxResponseBytes ?? process.env.TZ_AI_GENERATION_MAX_RESPONSE_BYTES ?? process.env.TZ_AI_MAX_RESPONSE_BYTES, 1_500_000, 32_000, 5_000_000);
+    this.maxAttempts = clampInteger(options.maxAttempts ?? process.env.TZ_AI_GENERATION_MAX_ATTEMPTS ?? process.env.TZ_AI_MAX_ATTEMPTS, 2, 1, 2);
+    this.upstreamMaxAttempts = clampInteger(options.upstreamMaxAttempts ?? process.env.TZ_AI_UPSTREAM_MAX_ATTEMPTS, 3, 1, 4);
+    this.upstreamRetryBaseMs = clampInteger(options.upstreamRetryBaseMs ?? process.env.TZ_AI_UPSTREAM_RETRY_BASE_MS, 800, 0, 10000);
+    this.questionBatchConcurrency = clampInteger(options.questionBatchConcurrency ?? process.env.TZ_AI_QUESTION_BATCH_CONCURRENCY, 1, 1, 2);
+    this.questionDimensionsPerBatch = clampInteger(options.questionDimensionsPerBatch ?? process.env.TZ_AI_QUESTION_DIMENSIONS_PER_BATCH, 1, 1, 2);
+    // The production reverse proxy waits 120 seconds. Keep one upstream attempt
+    // group below that boundary so a retry can still return a structured error
+    // instead of being replaced by a generic gateway timeout.
+    this.upstreamTotalTimeoutMs = clampInteger(options.upstreamTotalTimeoutMs ?? process.env.TZ_AI_UPSTREAM_TOTAL_TIMEOUT_MS, 55000, 5000, 110000);
   }
 
-  async resolveProvider(providerId, modelOverride = "") {
+  async resolveProvider(providerId, modelOverride = "", expectedKind = "text") {
     await this.providerStore.load();
     const provider = this.providerStore.find(providerId);
     if (!provider) throw new AiGenerationError("AI 供应商不存在。", 404, "PROVIDER_NOT_FOUND");
     if (provider.status !== "enabled") throw new AiGenerationError("AI 供应商已停用。", 409, "PROVIDER_DISABLED");
-    if (provider.kind !== "text") throw new AiGenerationError("所选供应商不是文本生成模型。", 422, "PROVIDER_KIND_MISMATCH");
+    if (provider.kind !== expectedKind) throw new AiGenerationError(expectedKind === "embedding" ? "所选供应商不是 embedding 模型。" : "所选供应商不是文本生成模型。", 422, "PROVIDER_KIND_MISMATCH");
     if (!provider.baseUrl) throw new AiGenerationError("AI 供应商缺少 Base URL。", 422, "PROVIDER_NOT_CONFIGURED");
     const model = optionalString(modelOverride, 120) || provider.model;
     if (!model) throw new AiGenerationError("AI 供应商缺少模型 ID。", 422, "PROVIDER_NOT_CONFIGURED");
@@ -1110,8 +1197,38 @@ export class AiGenerationService {
   }
 
   async callModel(provider, model, messages, options = {}) {
+    let lastError = null;
+    const upstreamTotalTimeoutMs = clampInteger(options.upstreamTotalTimeoutMs, this.upstreamTotalTimeoutMs, 5_000, 110_000);
+    const requestTimeoutMs = clampInteger(options.requestTimeoutMs, this.timeoutMs, 1_000, 180_000);
+    const upstreamMaxAttempts = clampInteger(options.upstreamMaxAttempts, this.upstreamMaxAttempts, 1, 4);
+    const deadline = Date.now() + upstreamTotalTimeoutMs;
+    let maxTokens = clampInteger(options.maxTokens, 4096, 128, 32_000);
+    for (let attempt = 1; attempt <= upstreamMaxAttempts; attempt += 1) {
+      try {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs <= 0 && lastError) throw lastError;
+        return await this.callModelOnce(provider, model, messages, {
+          ...options,
+          maxTokens,
+          requestTimeoutMs: Math.max(1_000, Math.min(requestTimeoutMs, remainingMs))
+        });
+      } catch (error) {
+        lastError = error;
+        if (!isRetryableUpstreamError(error) || attempt >= upstreamMaxAttempts) throw error;
+        if (error.code === "UPSTREAM_OUTPUT_TRUNCATED") {
+          maxTokens = Math.min(32_000, Math.max(maxTokens + 2_000, Math.ceil(maxTokens * 1.5)));
+        }
+        const retryAfterMs = this.upstreamRetryBaseMs * (2 ** (attempt - 1)) + Math.floor(Math.random() * 250);
+        if (Date.now() + retryAfterMs >= deadline) throw error;
+        await waitForRetry(retryAfterMs);
+      }
+    }
+    throw lastError;
+  }
+
+  async callModelOnce(provider, model, messages, options = {}) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), Math.max(1000, Number(options.requestTimeoutMs) || this.timeoutMs));
     const headers = { "Content-Type": "application/json", Accept: "application/json" };
     if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
     const requestBody = {
@@ -1120,7 +1237,14 @@ export class AiGenerationService {
       temperature: options.temperature ?? 0.2,
       max_tokens: options.maxTokens ?? 4096
     };
-    if (options.jsonMode) requestBody.response_format = { type: "json_object" };
+    if (shouldSendJsonResponseFormat(provider, model, options)) requestBody.response_format = { type: "json_object" };
+    if (options.disableThinking === true && isDeepSeekProvider(provider, model)) {
+      // The configured DeepSeek gateway exposes a reasoning mode by default.
+      // Structured GEO calls need the final JSON, not an unbounded hidden
+      // reasoning trace; disabling it also prevents token starvation.
+      requestBody.enable_thinking = false;
+      requestBody.thinking = { type: "disabled" };
+    }
     let response;
     try {
       response = await this.fetchImpl(chatCompletionsUrl(provider.baseUrl), {
@@ -1139,24 +1263,40 @@ export class AiGenerationService {
       if (!response.ok) {
         const upstreamMessage = payload?.error?.message || payload?.message || `HTTP ${response.status}`;
         const supportedModels = supportedModelsFromError(upstreamMessage);
-        if (isDeepSeekProvider(provider) && supportedModels.length && !options.modelFallbackAttempt) {
+        if (isDeepSeekProvider(provider, model) && supportedModels.length && !options.modelFallbackAttempt) {
           const fallbackModel = supportedModels.includes("deepseek-v4-flash") ? "deepseek-v4-flash" : supportedModels[0];
           if (fallbackModel && fallbackModel !== model) {
-            return this.callModel(provider, fallbackModel, messages, { ...options, modelFallbackAttempt: true });
+            return this.callModelOnce(provider, fallbackModel, messages, { ...options, modelFallbackAttempt: true });
           }
         }
         throw new AiGenerationError(`上游模型请求失败：${cleanProviderError(upstreamMessage, provider.apiKey)}`, 502, "UPSTREAM_HTTP_ERROR");
       }
-      const content = extractMessageContent(payload);
-      if (!content) throw new AiGenerationError("上游模型没有返回可用内容。", 502, "UPSTREAM_EMPTY_RESPONSE");
+      const finishReason = optionalString(payload?.choices?.[0]?.finish_reason, 40).toLowerCase();
+      const usage = normalizeUsage(payload.usage);
+      const requestId = optionalString(cleanProviderError(response.headers?.get?.("x-request-id") || payload.id, provider.apiKey), 200);
+      const content = extractMessageContent(payload, options);
+      if (!content) {
+        const truncated = finishReason === "length";
+        const error = new AiGenerationError(
+          truncated ? "上游模型输出因长度限制被截断。" : "上游模型没有返回可用内容。",
+          502,
+          truncated ? "UPSTREAM_OUTPUT_TRUNCATED" : "UPSTREAM_EMPTY_RESPONSE",
+          [finishReason ? `finishReason=${finishReason}` : "finishReason=missing", usage?.completionTokens != null ? `completionTokens=${usage.completionTokens}` : ""].filter(Boolean)
+        );
+        error.finishReason = finishReason;
+        error.usage = usage;
+        error.requestId = requestId;
+        throw error;
+      }
       if (provider.apiKey && content.includes(provider.apiKey)) {
         throw new AiGenerationError("上游模型响应包含敏感凭据，已拒绝返回。", 502, "UPSTREAM_SENSITIVE_DATA_ECHO");
       }
       return {
         content,
         model,
-        usage: normalizeUsage(payload.usage),
-        requestId: optionalString(cleanProviderError(response.headers?.get?.("x-request-id") || payload.id, provider.apiKey), 200)
+        finishReason,
+        usage,
+        requestId
       };
     } catch (error) {
       if (error instanceof AiGenerationError) throw error;
@@ -1167,10 +1307,62 @@ export class AiGenerationService {
     }
   }
 
+  async callEmbeddingProbe(provider, model) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const headers = { "Content-Type": "application/json", Accept: "application/json" };
+    if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
+    let response;
+    try {
+      response = await this.fetchImpl(embeddingsUrl(provider.baseUrl), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ model, input: "GEO knowledge-base connection probe" }),
+        signal: controller.signal
+      });
+      const text = await readLimitedResponse(response, this.maxResponseBytes);
+      let payload;
+      try {
+        payload = text ? JSON.parse(text) : {};
+      } catch {
+        throw new AiGenerationError("Embedding 上游返回了无效 JSON。", 502, "UPSTREAM_INVALID_RESPONSE");
+      }
+      if (!response.ok) {
+        const upstreamMessage = payload?.error?.message || payload?.message || `HTTP ${response.status}`;
+        throw new AiGenerationError(`Embedding 请求失败：${cleanProviderError(upstreamMessage, provider.apiKey)}`, 502, "UPSTREAM_HTTP_ERROR");
+      }
+      const first = Array.isArray(payload?.data) ? payload.data[0] : null;
+      const embedding = first?.embedding;
+      if (!Array.isArray(embedding) || !embedding.length || embedding.some((value) => !Number.isFinite(Number(value)))) {
+        throw new AiGenerationError("Embedding 上游未返回可用的向量。", 502, "UPSTREAM_EMPTY_RESPONSE");
+      }
+      if (provider.apiKey && JSON.stringify(payload).includes(provider.apiKey)) {
+        throw new AiGenerationError("Embedding 响应包含敏感凭据，已拒绝返回。", 502, "UPSTREAM_SENSITIVE_DATA_ECHO");
+      }
+      return {
+        model: optionalString(payload.model, 120) || model,
+        dimensions: embedding.length,
+        usage: normalizeUsage(payload.usage),
+        requestId: optionalString(cleanProviderError(response.headers?.get?.("x-request-id") || payload.id, provider.apiKey), 200)
+      };
+    } catch (error) {
+      if (error instanceof AiGenerationError) throw error;
+      if (error?.name === "AbortError") throw new AiGenerationError("Embedding 上游请求超时。", 504, "UPSTREAM_TIMEOUT");
+      throw new AiGenerationError(`无法连接 Embedding 上游：${cleanProviderError(error?.message, provider.apiKey)}`, 502, "UPSTREAM_CONNECTION_ERROR");
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   async generate(operation, input, prompt, validator, options = {}) {
     const { provider, model } = await this.resolveProvider(input.providerId, input.model);
+    const { systemPrompt, generationTotalTimeoutMs: requestedGenerationTotalTimeoutMs, ...modelOptions } = options;
     const runId = `AIRUN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const startedAt = Date.now();
+    const generationTotalTimeoutMs = requestedGenerationTotalTimeoutMs == null
+      ? null
+      : clampInteger(requestedGenerationTotalTimeoutMs, 110_000, 5_000, 180_000);
+    const generationDeadline = generationTotalTimeoutMs ? startedAt + generationTotalTimeoutMs : null;
     let attempts = 0;
     let usage = null;
     let effectiveModel = model;
@@ -1181,15 +1373,27 @@ export class AiGenerationService {
         const repair = lastContractError
           ? `\n\n上一次输出未通过校验：${lastContractError.details.join("；")}。请重新完整输出，仍然只能输出一个 JSON 对象。`
           : "";
+        const remainingGenerationMs = generationDeadline ? generationDeadline - Date.now() : null;
+        if (remainingGenerationMs != null && remainingGenerationMs < 5_000) {
+          throw new AiGenerationError("AI 生成已超过本次任务总时限。", 504, "UPSTREAM_TIMEOUT");
+        }
+        const perAttemptOptions = { ...modelOptions, jsonMode: true };
+        if (remainingGenerationMs != null) {
+          perAttemptOptions.upstreamTotalTimeoutMs = Math.min(Number(modelOptions.upstreamTotalTimeoutMs) || this.upstreamTotalTimeoutMs, remainingGenerationMs);
+          perAttemptOptions.requestTimeoutMs = Math.min(Number(modelOptions.requestTimeoutMs) || this.timeoutMs, remainingGenerationMs);
+        }
         const response = await this.callModel(provider, model, [
-          { role: "system", content: generationSystemPrompt() },
+          { role: "system", content: optionalString(systemPrompt, 30000) || generationSystemPrompt() },
           { role: "user", content: prompt + repair }
-        ], { ...options, jsonMode: true });
+        ], perAttemptOptions);
         effectiveModel = response.model || effectiveModel;
         usage = response.usage || usage;
         upstreamRequestId = response.requestId || upstreamRequestId;
         try {
-          const result = validator(extractJson(response.content), input);
+          if (response.finishReason === "length") {
+            throw new ContractValidationError(["模型输出因长度限制被截断。请严格压缩章节、建议和字段内容，并返回完整 JSON 对象。"]);
+          }
+          const result = validator(extractJson(response.content), input, { attempt: attempts, maxAttempts: this.maxAttempts });
           const completedAt = Date.now();
           const run = {
             id: runId,
@@ -1219,6 +1423,8 @@ export class AiGenerationService {
       const safeError = error instanceof AiGenerationError
         ? error
         : new AiGenerationError(`AI 生成失败：${cleanProviderError(error?.message || "内部校验异常。")}`, 500, "AI_GENERATION_ERROR");
+      usage = safeError.usage || usage;
+      upstreamRequestId = safeError.requestId || upstreamRequestId;
       const completedAt = Date.now();
       await this.runStore.append({
         id: runId,
@@ -1230,6 +1436,11 @@ export class AiGenerationService {
         attempts,
         errorCode: safeError.code,
         errorMessage: cleanProviderError(safeError.message, provider.apiKey),
+        errorDetails: Array.isArray(safeError.details)
+          ? safeError.details.slice(0, 12).map((item) => cleanProviderError(String(item), provider.apiKey))
+          : [],
+        usage,
+        upstreamRequestId,
         inputSummary: options.inputSummary || {},
         startedAt: new Date(startedAt).toISOString(),
         completedAt: new Date(completedAt).toISOString(),
@@ -1241,14 +1452,27 @@ export class AiGenerationService {
 
   async generateQuestions(payload) {
     const input = questionRequest(payload);
-    // Eight dimensions by five questions is too large for one context window
-    // on many OpenAI-compatible providers.  Split it into small independent
-    // batches so the UI does not sit on one long retry, while preserving one
-    // merged result for the caller.
-    if (input.dimensions.length > 2) {
+    const batchStartedAt = Date.now();
+    // Eight dimensions by five questions is too large for one dependable JSON
+    // response on many OpenAI-compatible providers. One dimension and one
+    // round-robin seed per request is the production-safe unit proven against
+    // slow reasoning gateways. The queue stays sequential because those same
+    // gateways can stall parallel calls.
+    if (input.dimensions.length > this.questionDimensionsPerBatch) {
       const chunks = [];
-      for (let index = 0; index < input.dimensions.length; index += 2) chunks.push(input.dimensions.slice(index, index + 2));
-      const batchResults = await Promise.all(chunks.map((dimensions) => this.generateQuestions({ ...payload, dimensions })));
+      for (let index = 0; index < input.dimensions.length; index += this.questionDimensionsPerBatch) {
+        chunks.push(input.dimensions.slice(index, index + this.questionDimensionsPerBatch));
+      }
+      const batchResults = [];
+      for (let index = 0; index < chunks.length; index += this.questionBatchConcurrency) {
+        const window = chunks.slice(index, index + this.questionBatchConcurrency);
+        const results = await Promise.all(window.map((dimensions, windowIndex) => {
+          const batchIndex = index + windowIndex;
+          const seeds = input.seeds.length > 1 ? [input.seeds[batchIndex % input.seeds.length]] : input.seeds;
+          return this.generateQuestions({ ...payload, seeds, dimensions });
+        }));
+        batchResults.push(...results);
+      }
       const questions = batchResults.flatMap((result) => result.questions || []);
       const firstRun = batchResults[0]?.run || {};
       const usage = batchResults.reduce((total, result) => {
@@ -1259,6 +1483,7 @@ export class AiGenerationService {
           totalTokens: Number(total.totalTokens || 0) + Number(current.totalTokens || 0)
         };
       }, {});
+      const batchCompletedAt = Date.now();
       const run = {
         ...firstRun,
         id: `AIRUN-BATCH-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
@@ -1269,17 +1494,21 @@ export class AiGenerationService {
         usage,
         inputSummary: { businessLineId: input.businessLine.id, seedCount: input.seeds.length, dimensions: input.dimensions, limitPerDimension: input.limitPerDimension, batchCount: chunks.length },
         outputSummary: { questionCount: questions.length, rejectedCount: batchResults.reduce((count, result) => count + Number(result.rejected?.length || 0), 0) },
-        completedAt: new Date().toISOString()
+        startedAt: new Date(batchStartedAt).toISOString(),
+        completedAt: new Date(batchCompletedAt).toISOString(),
+        durationMs: batchCompletedAt - batchStartedAt
       };
       await this.runStore.append(run);
       const generationRunIds = batchResults.map((result) => result.generationRunId || result.runId).filter(Boolean);
       return { run, generationRunId: run.id, runId: run.id, generationRunIds, questions, customerQuestions: questions, items: questions, rejected: batchResults.flatMap((result) => result.rejected || []) };
     }
-    const result = await this.generate("questions", input, questionPrompt(input), (raw, request) => validateQuestionResponse(normalizeQuestionModelResponse(raw, request), request), {
+    const promptInput = { ...input, existingQuestions: existingQuestionsForPrompt(input.existingQuestions, input.seeds) };
+    const result = await this.generate("questions", input, questionPrompt(promptInput), (raw, request) => validateQuestionResponse(normalizeQuestionModelResponse(raw, request), request), {
       temperature: 0.35,
-      maxTokens: 6000,
+      maxTokens: 4000,
       inputSummary: { businessLineId: input.businessLine.id, seedCount: input.seeds.length, dimensions: input.dimensions, limitPerDimension: input.limitPerDimension },
       outputSummary: (result) => ({ questionCount: result.questions.length, rejectedCount: result.rejected.length })
+      ,disableThinking: true
     });
     const questions = result.questions.map((question) => ({
       ...question,
@@ -1372,9 +1601,14 @@ export class AiGenerationService {
     const input = articleRequest(payload);
     const result = await this.generate("article", input, articlePrompt(input), (raw, request) => validateArticleResponse(normalizeArticleModelResponse(raw, request), request), {
       temperature: 0.25,
-      maxTokens: 10000,
+      maxTokens: 6000,
+      generationTotalTimeoutMs: 110_000,
+      upstreamTotalTimeoutMs: 105_000,
+      requestTimeoutMs: 95_000,
+      upstreamMaxAttempts: 2,
       inputSummary: { businessLineId: input.businessLine.id, topicId: input.topic.id, coreQuestion: input.topic.coreQuestion, evidenceCount: input.evidence.length, contentType: input.contentType },
       outputSummary: (result) => ({ title: result.title, citationCount: result.usedEvidenceIds.length, omittedClaimCount: result.omittedClaims.length })
+      ,disableThinking: true
     });
     const article = {
       title: result.title,
@@ -1389,7 +1623,14 @@ export class AiGenerationService {
         quote: evidence.quote,
         source: evidence.source,
         locator: evidence.locator,
+        libraryId: evidence.libraryId,
+        knowledgeLibraryId: evidence.libraryId,
+        documentId: evidence.documentId,
+        knowledgeDocumentId: evidence.documentId,
         versionId: evidence.versionId,
+        knowledgeVersionId: evidence.versionId,
+        chunkId: evidence.chunkId,
+        knowledgeChunkId: evidence.chunkId,
         supportStatus: "supported"
       })),
       omittedClaims: result.omittedClaims,
@@ -1413,21 +1654,30 @@ export class AiGenerationService {
   }
 
   async testProvider(providerId) {
-    const { provider, model } = await this.resolveProvider(providerId);
+    await this.providerStore.load();
+    const configuredProvider = this.providerStore.find(providerId);
+    const expectedKind = configuredProvider?.kind === "embedding" ? "embedding" : "text";
+    const { provider, model } = await this.resolveProvider(providerId, "", expectedKind);
     const testedAt = nowIso();
     try {
-      const response = await this.callModel(provider, model, [
-        { role: "system", content: "只回复 JSON，不要解释。" },
-        { role: "user", content: "输出 {\"ok\":true}，用于连接探针。" }
-      ], { temperature: 0, maxTokens: 128, jsonMode: true });
+      const response = provider.kind === "embedding"
+        ? await this.callEmbeddingProbe(provider, model)
+        : await this.callModel(provider, model, [
+          { role: "system", content: "只回复 JSON，不要解释。" },
+          { role: "user", content: "输出 {\"ok\":true}，用于连接探针。" }
+        ], { temperature: 0, maxTokens: 128, jsonMode: true });
       if (response.model && response.model !== model && typeof this.providerStore.setModel === "function") {
         await this.providerStore.setModel(provider.id, response.model);
       }
-      const message = response.model && response.model !== model
-        ? `真实模型连接测试通过，已自动切换到可用模型 ${response.model}。`
-        : "真实模型连接测试通过。";
+      const message = provider.kind === "embedding"
+        ? response.model && response.model !== model
+          ? `Embedding 连接测试通过（${response.dimensions} 维），已自动切换到可用模型 ${response.model}。`
+          : `Embedding 连接测试通过（${response.dimensions} 维）。`
+        : response.model && response.model !== model
+          ? `真实模型连接测试通过，已自动切换到可用模型 ${response.model}。`
+          : "真实模型连接测试通过。";
       const publicProvider = await this.providerStore.recordConnectionTest(provider.id, "passed", message, testedAt);
-      return { status: "passed", testedAt, message, requestId: response.requestId || "", provider: publicProvider };
+      return { status: "passed", testedAt, message, requestId: response.requestId || "", dimensions: response.dimensions || null, provider: publicProvider };
     } catch (error) {
       const message = cleanProviderError(error?.message || "真实模型连接测试失败。", provider.apiKey);
       const publicProvider = await this.providerStore.recordConnectionTest(provider.id, "failed", message, testedAt);

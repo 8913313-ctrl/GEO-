@@ -1,0 +1,8 @@
+# This Dockerfile has a dedicated, minimal build context.  The admin image
+# continues to use the root .dockerignore and retains the research package.
+**
+!package.json
+!package-lock.json
+!*.mjs
+!public-site/
+!public-site/**

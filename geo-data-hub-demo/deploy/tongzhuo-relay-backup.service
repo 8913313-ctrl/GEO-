@@ -1,0 +1,24 @@
+[Unit]
+Description=Backup Tongzhuo relay SQLite database
+After=tongzhuo-relay.service
+
+[Service]
+Type=oneshot
+User=tongzhuo-relay
+Group=tongzhuo-relay
+WorkingDirectory=/srv/tongzhuo-relay/app
+EnvironmentFile=/srv/tongzhuo-relay/.env
+ExecStart=/usr/bin/node /srv/tongzhuo-relay/app/scripts/backup-relay.mjs
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/tongzhuo-relay/data /srv/tongzhuo-relay/backups
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+StandardOutput=journal
+StandardError=journal

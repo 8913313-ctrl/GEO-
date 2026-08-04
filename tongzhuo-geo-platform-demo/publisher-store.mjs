@@ -1,12 +1,27 @@
 import crypto from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { secretDigest, verifySecret } from "./production-secrets.mjs";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const configuredDataDir = String(process.env.TZ_PUBLISHER_DATA_DIR || "").trim();
-const dataDir = configuredDataDir ? path.resolve(configuredDataDir) : path.join(rootDir, "data");
-const statePath = path.join(dataDir, "publisher-state.json");
+const defaultDataDir = configuredDataDir ? path.resolve(configuredDataDir) : path.join(rootDir, "data");
+
+/**
+ * Domain errors from the publisher integration carry an HTTP status and a
+ * stable code. This keeps authentication/pairing failures out of the 500
+ * bucket while preserving the user-facing message.
+ */
+export class PublisherError extends Error {
+  constructor(message, status = 400, code = "PUBLISHER_ERROR", details = undefined) {
+    super(message);
+    this.name = "PublisherError";
+    this.status = status;
+    this.code = code;
+    if (details !== undefined) this.details = details;
+  }
+}
 
 const PLATFORM_ALIASES = {
   wechat: "wechat_mp",
@@ -40,11 +55,11 @@ export const PUBLISHER_PLATFORMS = [
   { id: "oschina", name: "开源中国", category: "self_media", accountMode: "local", support: "manual", enabled: true, executionMode: "assistant_confirm", requiresManualConfirmation: true, manualReason: "需在开源中国后台确认发布", loginUrl: "https://www.oschina.net/", editorUrl: "https://my.oschina.net/" },
   { id: "segmentfault", name: "SegmentFault", category: "self_media", accountMode: "local", support: "manual", enabled: true, executionMode: "assistant_confirm", requiresManualConfirmation: true, manualReason: "需在 SegmentFault 编辑器确认发布", loginUrl: "https://segmentfault.com/user/login", editorUrl: "https://segmentfault.com/write" },
   { id: "cnblogs", name: "博客园", category: "self_media", accountMode: "local", support: "manual", enabled: true, executionMode: "assistant_confirm", requiresManualConfirmation: true, manualReason: "需在博客园编辑器确认发布", loginUrl: "https://account.cnblogs.com/signin", editorUrl: "https://i.cnblogs.com/posts/edit" },
-  { id: "sohufocus", name: "搜狐焦点", category: "self_media", accountMode: "local", support: "planned", enabled: false, executionMode: "planned", requiresManualConfirmation: true, loginUrl: "https://mp.focus.cn/", editorUrl: "https://mp.focus.cn/" },
-  { id: "x", name: "X（Twitter）", category: "self_media", accountMode: "local", support: "planned", enabled: false, executionMode: "planned", requiresManualConfirmation: true, loginUrl: "https://x.com/login", editorUrl: "https://x.com/compose/post" },
-  { id: "eastmoney", name: "东方财富", category: "self_media", accountMode: "local", support: "planned", enabled: false, executionMode: "planned", requiresManualConfirmation: true, loginUrl: "https://www.eastmoney.com/", editorUrl: "https://www.eastmoney.com/" },
-  { id: "smzdm", name: "什么值得买", category: "self_media", accountMode: "local", support: "planned", enabled: false, executionMode: "planned", requiresManualConfirmation: true, loginUrl: "https://www.smzdm.com/", editorUrl: "https://post.smzdm.com/" },
-  { id: "netease", name: "网易号", category: "self_media", accountMode: "local", support: "planned", enabled: false, executionMode: "planned", requiresManualConfirmation: true, loginUrl: "https://mp.163.com/", editorUrl: "https://mp.163.com/" }
+  { id: "sohufocus", name: "搜狐焦点", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.focus.cn/", editorUrl: "https://mp.focus.cn/" },
+  { id: "x", name: "X（Twitter）", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://x.com/login", editorUrl: "https://x.com/compose/post" },
+  { id: "eastmoney", name: "东方财富", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://www.eastmoney.com/", editorUrl: "https://www.eastmoney.com/" },
+  { id: "smzdm", name: "什么值得买", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://www.smzdm.com/", editorUrl: "https://post.smzdm.com/" },
+  { id: "netease", name: "网易号", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.163.com/", editorUrl: "https://mp.163.com/" }
 ];
 
 function platformRuntimeContract(platform) {
@@ -166,7 +181,7 @@ function now() {
 }
 
 function token(prefix) {
-  return `${prefix}-${crypto.randomBytes(12).toString("hex")}`;
+  return `${prefix}-${crypto.randomBytes(32).toString("hex")}`;
 }
 
 function canonicalPlatformId(id) {
@@ -175,7 +190,38 @@ function canonicalPlatformId(id) {
 }
 
 function emptyState() {
-  return { version: 1, nextJobId: 1, pairings: [], devices: [], jobs: [] };
+  return { version: 2, nextJobId: 1, pairings: [], devices: [], jobs: [] };
+}
+
+function migrateDeviceCredentials(device) {
+  if (!device || typeof device !== "object") return false;
+  let changed = false;
+  if (Object.prototype.hasOwnProperty.call(device, "token")) {
+    const rawToken = String(device.token || "");
+    if (rawToken && !device.tokenDigest) device.tokenDigest = secretDigest(rawToken);
+    delete device.token;
+    changed = true;
+  }
+  if (Object.prototype.hasOwnProperty.call(device, "deviceSecret")) {
+    const rawSecret = String(device.deviceSecret || "");
+    if (rawSecret && !device.deviceSecretDigest) device.deviceSecretDigest = secretDigest(rawSecret);
+    delete device.deviceSecret;
+    changed = true;
+  }
+  return changed;
+}
+
+function migratePublisherState(rawState) {
+  const state = { ...emptyState(), ...(rawState && typeof rawState === "object" ? rawState : {}) };
+  state.pairings = Array.isArray(state.pairings) ? state.pairings : [];
+  state.devices = Array.isArray(state.devices) ? state.devices : [];
+  state.jobs = Array.isArray(state.jobs) ? state.jobs : [];
+  let changed = state.version !== 2;
+  state.devices.forEach((device) => {
+    if (migrateDeviceCredentials(device)) changed = true;
+  });
+  state.version = 2;
+  return { state, changed };
 }
 
 function cleanAccountGroups(groups = []) {
@@ -225,6 +271,7 @@ function publicJob(job, { forWorker = false } = {}) {
   return {
     id: job.id,
     articleId: job.articleId,
+    localArticleId: job.localArticleId || job.payload?.article?.localArticleId || job.articleId,
     articleTitle: job.articleTitle,
     version: job.version,
     account_group_id: job.account_group_id,
@@ -246,17 +293,48 @@ function publicJob(job, { forWorker = false } = {}) {
 }
 
 export class PublisherStore {
-  constructor() {
+  constructor(options = {}) {
+    this.dataDir = path.resolve(options.dataDir || defaultDataDir);
+    this.statePath = path.join(this.dataDir, options.fileName || "publisher-state.json");
+    this.webPublisher = typeof options.webPublisher === "function" ? options.webPublisher : null;
+    this.publicationObserver = typeof options.publicationObserver === "function" ? options.publicationObserver : null;
+    this.dueJobsPromise = null;
     this.state = emptyState();
     this.loaded = false;
   }
 
+  setWebPublisher(webPublisher) {
+    this.webPublisher = typeof webPublisher === "function" ? webPublisher : null;
+    return this;
+  }
+
+  setPublicationObserver(publicationObserver) {
+    this.publicationObserver = typeof publicationObserver === "function" ? publicationObserver : null;
+    return this;
+  }
+
+  async notifyPublicationObserver(job) {
+    if (!this.publicationObserver) return null;
+    try {
+      return await this.publicationObserver(job);
+    } catch (error) {
+      // Publishing has already completed at this point. Tracking failures are
+      // retried by the idempotent content-asset sync path and must not turn a
+      // successful external publication into a failed publisher result.
+      console.error("publisher_publication_tracking_failed", { jobId: job?.id, code: error?.code || "PUBLICATION_TRACKING_FAILED", message: error?.message || String(error) });
+      return null;
+    }
+  }
+
   async load() {
     if (this.loaded) return this;
-    await mkdir(dataDir, { recursive: true });
+    await mkdir(this.dataDir, { recursive: true });
     try {
-      this.state = { ...emptyState(), ...JSON.parse(await readFile(statePath, "utf8")) };
-    } catch {
+      const { state, changed } = migratePublisherState(JSON.parse(await readFile(this.statePath, "utf8")));
+      this.state = state;
+      if (changed) await this.save();
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
       this.state = emptyState();
       await this.save();
     }
@@ -265,10 +343,18 @@ export class PublisherStore {
   }
 
   async save() {
-    await mkdir(dataDir, { recursive: true });
-    const tempPath = `${statePath}.tmp`;
-    await writeFile(tempPath, JSON.stringify(this.state, null, 2), "utf8");
-    await rename(tempPath, statePath);
+    await mkdir(this.dataDir, { recursive: true });
+    this.state.devices = Array.isArray(this.state.devices) ? this.state.devices : [];
+    this.state.devices.forEach((device) => migrateDeviceCredentials(device));
+    this.state.version = 2;
+    const tempPath = `${this.statePath}.${process.pid}.${Date.now()}.tmp`;
+    await writeFile(tempPath, JSON.stringify(this.state, null, 2), { encoding: "utf8", mode: 0o600 });
+    try {
+      await chmod(tempPath, 0o600);
+    } catch {
+      // Windows does not implement POSIX mode bits; deployment ACLs still apply.
+    }
+    await rename(tempPath, this.statePath);
   }
 
   platforms() {
@@ -289,7 +375,7 @@ export class PublisherStore {
     await this.load();
     const code = String(body.pairing_code || "").trim().toUpperCase();
     const pairing = this.state.pairings.find((item) => item.code === code && item.status === "active" && new Date(item.expiresAt).getTime() > Date.now());
-    if (!pairing) throw new Error("配对码无效或已过期，请从发布运营重新生成。");
+    if (!pairing) throw new PublisherError("配对码无效或已过期，请从发布运营重新生成。", 409, "PAIRING_CODE_INVALID");
     const deviceId = String(body.device_id || `DEV-${crypto.randomBytes(4).toString("hex").toUpperCase()}`);
     const existing = this.state.devices.find((item) => item.id === deviceId);
     const device = existing || { id: deviceId, sessions: {}, accountGroups: [] };
@@ -301,23 +387,29 @@ export class PublisherStore {
     device.connectionMode = String(body.connection_mode || "paired");
     device.pairedAt = now();
     device.lastHeartbeatAt = now();
-    device.deviceSecret = String(body.device_secret || "");
-    device.token = token("pub");
+    const pairingToken = token("pub");
+    const deviceSecret = String(body.device_secret || token("dev"));
+    device.tokenDigest = secretDigest(pairingToken);
+    device.deviceSecretDigest = secretDigest(deviceSecret);
+    delete device.token;
+    delete device.deviceSecret;
     device.accountGroups = cleanAccountGroups(body.meta?.account_groups);
     device.activeGroupId = body.meta?.active_group_id || device.accountGroups[0]?.id || "group-default";
     if (!existing) this.state.devices.push(device);
     pairing.status = "used";
     pairing.deviceId = deviceId;
     await this.save();
-    return { device_id: deviceId, pairing_token: device.token, device_secret: device.deviceSecret, paired_at: device.pairedAt };
+    return { device_id: deviceId, pairing_token: pairingToken, device_secret: deviceSecret, paired_at: device.pairedAt };
   }
 
   authenticate(headers = {}) {
     const raw = String(headers.authorization || "");
     const bearer = raw.replace(/^Bearer\s+/i, "").trim();
     const workerId = String(headers["x-publisher-worker"] || "").trim();
-    const device = this.state.devices.find((item) => item.id === workerId && bearer && (item.token === bearer || item.deviceSecret === bearer));
-    if (!device) throw new Error("发布器尚未完成配对，请先在发布运营生成配对码。");
+    const device = this.state.devices.find((item) => item.id === workerId && bearer && (
+      verifySecret(bearer, item.tokenDigest) || verifySecret(bearer, item.deviceSecretDigest)
+    ));
+    if (!device) throw new PublisherError("发布器尚未完成配对，请先在发布运营生成配对码。", 401, "PUBLISHER_AUTH_REQUIRED");
     return device;
   }
 
@@ -396,6 +488,16 @@ export class PublisherStore {
   }
 
   async processDueJobs() {
+    if (this.dueJobsPromise) return this.dueJobsPromise;
+    this.dueJobsPromise = this.processDueJobsOnce();
+    try {
+      return await this.dueJobsPromise;
+    } finally {
+      this.dueJobsPromise = null;
+    }
+  }
+
+  async processDueJobsOnce() {
     const timestamp = Date.now();
     let changed = false;
     for (const job of this.state.jobs) {
@@ -404,12 +506,13 @@ export class PublisherStore {
       if (Number.isFinite(dueAt) && dueAt > timestamp) continue;
       const targets = job.targetPlatforms || job.platforms || [];
       if (targets.includes("web")) {
-        job.results = {
-          ...(job.results || {}),
-          web: { state: "published", message: "官网 CMS 已完成服务器发布", remote_url: job.webUrl || "", updated_at: now() }
-        };
+        job.results = { ...(job.results || {}), web: { state: "publishing", message: "正在发布到官网", remote_url: "", updated_at: now() } };
+        job.updatedAt = now();
+        await this.save();
+        await this.publishWebTarget(job);
       }
-      job.status = (job.workerPlatforms || job.platforms || []).length ? "queued" : "success";
+      const hasWorkerTargets = (job.workerPlatforms || job.platforms || []).length > 0;
+      job.status = hasWorkerTargets ? "queued" : job.results?.web?.state === "published" ? "success" : "failed";
       job.updatedAt = now();
       changed = true;
     }
@@ -417,7 +520,50 @@ export class PublisherStore {
     return changed;
   }
 
-  async createJobs(body = {}) {
+  async publishWebTarget(job) {
+    const updatedAt = now();
+    if (!this.webPublisher) {
+      job.results = {
+        ...(job.results || {}),
+        web: { state: "failed", code: "WEB_PUBLISHER_NOT_CONFIGURED", message: "官网发布服务尚未接通，未执行发布。", remote_url: "", updated_at: updatedAt }
+      };
+      return job.results.web;
+    }
+    try {
+      const result = await this.webPublisher({
+        jobId: job.id,
+        articleId: job.contentArticleId || job.articleId,
+        versionId: job.contentVersionId || null,
+        expectedRevision: job.contentRevision,
+        category: job.webPublication?.category || "",
+        metadata: job.webPublication?.metadata || {},
+        actor: job.webPublication?.actor || null,
+        requestMetadata: job.webPublication?.requestMetadata || null
+      });
+      const publishedArticle = result?.article || result?.data?.article || null;
+      if (publishedArticle?.status !== "published") {
+        const error = new Error("官网内容服务未返回已发布状态。");
+        error.code = "WEB_PUBLISH_NOT_CONFIRMED";
+        throw error;
+      }
+      const metadata = publishedArticle.metadata || {};
+      const site = metadata.site || {};
+      const remoteUrl = String(result?.remoteUrl || result?.url || metadata.siteUrl || site.url || job.webUrl || "");
+      job.results = {
+        ...(job.results || {}),
+        web: { state: "published", message: "官网内容已完成正式发布", remote_url: remoteUrl, article_id: publishedArticle.id || job.articleId, version_id: result?.version?.id || job.contentVersionId || null, published_at: metadata.sitePublishedAt || site.publishedAt || updatedAt, updated_at: updatedAt }
+      };
+      await this.notifyPublicationObserver(job);
+    } catch (error) {
+      job.results = {
+        ...(job.results || {}),
+        web: { state: "failed", code: String(error?.code || "WEB_PUBLISH_FAILED"), message: String(error?.message || "官网发布失败。"), remote_url: "", updated_at: updatedAt }
+      };
+    }
+    return job.results.web;
+  }
+
+  async createJobs(body = {}, context = {}) {
     await this.load();
     const article = body.article || {};
     const rawPlatforms = [...new Set((body.platformOrder || body.platforms || []).map(canonicalPlatformId))];
@@ -452,8 +598,14 @@ export class PublisherStore {
     const job = {
       id: this.state.nextJobId++,
       articleId: String(body.articleId || article.id || ""),
+      localArticleId: String(body.localArticleId || article.localArticleId || body.articleId || article.id || ""),
       articleTitle: String(body.articleTitle || article.title || "未命名文章"),
       version: String(body.version || article.version || "v1"),
+      contentArticleId: String(body.contentArticleId || body.articleId || article.id || ""),
+      contentVersionId: String(body.contentVersionId || body.versionId || "") || null,
+      contentRevision: body.contentRevision === undefined || body.contentRevision === null || body.contentRevision === ""
+        ? body.expectedRevision === undefined || body.expectedRevision === null || body.expectedRevision === "" ? null : Number(body.expectedRevision)
+        : Number(body.contentRevision),
       account_group_id: groupId,
       group_id: groupId,
       group_name: groupName,
@@ -465,6 +617,7 @@ export class PublisherStore {
       payload: {
         article: {
           id: String(article.id || body.articleId || ""),
+          localArticleId: String(body.localArticleId || article.localArticleId || body.articleId || article.id || ""),
           title: String(article.title || body.articleTitle || "未命名文章"),
           version: String(article.version || body.version || "v1"),
           excerpt: String(article.excerpt || ""),
@@ -476,16 +629,36 @@ export class PublisherStore {
         interval_minutes: Math.max(5, Number(body.intervalMinutes || 60)),
         platform_policies: platformDetails(requestedPlatforms)
       },
-      status: scheduled ? "scheduled" : platforms.length ? "queued" : "success",
+      status: scheduled ? "scheduled" : platforms.length ? "queued" : hasWeb ? "publishing" : "success",
       createdAt: now(),
       updatedAt: now(),
       scheduledAt: body.scheduledAt || null,
       webUrl,
+      webPublication: hasWeb ? {
+        category: String(body.siteCategory || article.siteCategory || article.category || ""),
+        metadata: {
+          ...(body.siteMetadata && typeof body.siteMetadata === "object" ? body.siteMetadata : {}),
+          siteSlug: String(body.siteSlug || article.siteSlug || ""),
+          siteCategory: String(body.siteCategory || article.siteCategory || article.category || ""),
+          siteCategoryId: String(body.siteCategoryId || article.siteCategoryId || ""),
+          siteCategorySlug: String(body.siteCategorySlug || article.siteCategorySlug || ""),
+          siteAuthor: String(body.siteAuthor || article.siteAuthor || article.author || ""),
+          siteExcerpt: String(body.siteExcerpt || article.siteExcerpt || article.excerpt || "")
+        },
+        actor: context.actor ? { userId: context.actor.userId || context.actor.id || context.actor.user?.id || null } : null,
+        requestMetadata: context.requestMetadata || null
+      } : null,
       claimedBy: null,
-      results: hasWeb ? { web: scheduled ? { state: "queued", message: "官网服务器发布已排期", remote_url: "" } : { state: "published", message: "官网 CMS 已完成服务器发布", remote_url: webUrl, updated_at: now() } } : {}
+      results: hasWeb ? { web: scheduled ? { state: "queued", message: "官网服务器发布已排期", remote_url: "" } : { state: "publishing", message: "正在发布到官网", remote_url: "", updated_at: now() } } : {}
     };
     this.state.jobs.push(job);
     await this.save();
+    if (hasWeb && !scheduled) {
+      await this.publishWebTarget(job);
+      if (!platforms.length) job.status = job.results.web?.state === "published" ? "success" : "failed";
+      job.updatedAt = now();
+      await this.save();
+    }
     return publicJob(job);
   }
 
@@ -523,15 +696,20 @@ export class PublisherStore {
     const job = this.state.jobs.find((item) => Number(item.id) === Number(id));
     if (!job) throw new Error("发布任务不存在。");
     job.claimedBy = device.id;
-    job.status = String(body.state || "result_unknown");
+    const workerState = String(body.state || "result_unknown");
     const incomingResults = body.platform_results || body.results;
     if (incomingResults && typeof incomingResults === "object" && !Array.isArray(incomingResults)) {
-      job.results = { ...(job.results || {}), ...incomingResults };
+      const workerResults = { ...incomingResults };
+      if ((job.targetPlatforms || []).includes("web")) delete workerResults.web;
+      job.results = { ...(job.results || {}), ...workerResults };
     }
+    const webFailed = (job.targetPlatforms || []).includes("web") && job.results?.web?.state === "failed";
+    job.status = webFailed && ["success", "published"].includes(workerState) ? "partial_failed" : workerState;
     job.message = String(body.message || "");
     job.stateSummary = body.state_summary || {};
     job.updatedAt = now();
     await this.save();
+    await this.notifyPublicationObserver(job);
     return publicJob(job);
   }
 

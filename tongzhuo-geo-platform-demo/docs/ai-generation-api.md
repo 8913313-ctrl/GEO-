@@ -1,6 +1,6 @@
-# Demo AI 生成接口
+# AI 生成接口
 
-这组接口只服务于 `tongzhuo-geo-platform-demo`。它不会修改正式 Laravel 覆盖层，也不会把浏览器 `localStorage` 迁移成服务端业务数据库。
+这组接口服务于 `tongzhuo-geo-platform-demo` 的私有化生产底座。它不会修改正式 Laravel 覆盖层；工作区兼容状态仍可由浏览器保存，但知识版本、RAG 检索证据和模型运行元数据由服务端保存并审计。
 
 模型密钥只从服务端 `data/ai-providers.json` 读取。请求、响应、错误详情和运行记录都不会返回原始 API Key。每次运行只把脱敏元数据追加到 `data/ai-generation-runs.json`，前端仍负责把确认后的问题、选题和文章写入当前 demo state。
 
@@ -117,6 +117,23 @@
 }
 ```
 
+如果希望由服务端真实检索知识，而不是由调用方自行整理 `approvedEvidence`，在同一个请求中加入：
+
+```json
+{
+  "useRag": true,
+  "rag": {
+    "enabled": true,
+    "businessLineId": "BL-GEO",
+    "query": "制造企业做 GEO 优化时，应该先整理哪些企业资料？",
+    "topK": 8,
+    "minScore": 0.08
+  }
+}
+```
+
+服务端会先从已审核、已索引且当前业务线可见的知识片段中做向量 + 关键词混合检索，再把命中证据合并到模型上下文。响应会额外返回 `data.rag.runId`、`embeddingModel`、`resultCount` 和 `knowledgeGap`，方便文章生成记录追溯本次召回。
+
 严格知识模式只接受标记为 `approved`、`verified`、`published` 或 `supportStatus=supported` 的证据。使用 `approvedEvidence` 字段时，服务会将这些条目视为前端已经完成审核；正式系统仍应在服务端重新校验租户、知识版本和权限。没有已审核证据时返回 `NO_APPROVED_EVIDENCE`。
 
 文章模型必须返回 JSON，其中 `html` 使用现有 GEO 证据页的六个固定 section：
@@ -164,4 +181,4 @@
 
 主要错误码：`INVALID_INPUT`、`PROVIDER_NOT_FOUND`、`PROVIDER_DISABLED`、`PROVIDER_KIND_MISMATCH`、`NO_APPROVED_EVIDENCE`、`UPSTREAM_TIMEOUT`、`UPSTREAM_CONNECTION_ERROR`、`UPSTREAM_HTTP_ERROR`、`UPSTREAM_RESPONSE_TOO_LARGE`、`MODEL_CONTRACT_INVALID`。
 
-默认上游超时为 90 秒，最大响应体为 1.5 MB，契约失败时最多自动重试一次。可以通过 `TZ_AI_GENERATION_TIMEOUT_MS`、`TZ_AI_GENERATION_MAX_RESPONSE_BYTES` 和 `TZ_AI_GENERATION_MAX_ATTEMPTS` 调整。
+默认上游超时为 90 秒，最大响应体为 1.5 MB，契约失败时最多自动重试一次。可以通过 `TZ_AI_GENERATION_TIMEOUT_MS`、`TZ_AI_GENERATION_MAX_RESPONSE_BYTES` 和 `TZ_AI_GENERATION_MAX_ATTEMPTS` 调整。上游繁忙、限流、连接失败、超时或空响应会在 `TZ_AI_UPSTREAM_TOTAL_TIMEOUT_MS` 总预算内重试；重试次数和退避可用 `TZ_AI_UPSTREAM_MAX_ATTEMPTS`、`TZ_AI_UPSTREAM_RETRY_BASE_MS` 调整。问题词包默认按 4 类一批、最多 2 批并发，可用 `TZ_AI_QUESTION_DIMENSIONS_PER_BATCH`、`TZ_AI_QUESTION_BATCH_CONCURRENCY` 调整。

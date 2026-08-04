@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "datasetVersion": "2.0.1",
+  "sourceCommit": "81ba1566f70f114e9202b798f8d4525a9329ebd3",
+  "sourceRepository": "https://github.com/yaojingang/geo-citation-lab",
+  "notices": {
+    "LICENSE": {
+      "sha256": "d522487c616500014fccc599237eeca335920fd9e5d898c2ea0666a30b4fd8e2",
+      "sizeBytes": 1032
+    },
+    "LICENSE-CODE": {
+      "sha256": "e6f1c158e7a9e3e4b1d4cc03f2365ae564a1283010ca38fe5ed4cd02bb5b0c51",
+      "sizeBytes": 1102
+    },
+    "LICENSE-CONTENT": {
+      "sha256": "38d1a559c740d3adca9a9fa6b9fb58bc1e1a269f3098653cc5925873b61d9380",
+      "sizeBytes": 976
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "eb55becf6fd21e88e09e111f8da2ee2ce63da66f0a966ea52efc18896ec16873",
+      "sizeBytes": 1484
+    }
+  },
+  "attribution": "GEO Citation Lab contributors, GEO Citation Lab, https://github.com/yaojingang/geo-citation-lab, CC BY 4.0",
+  "thirdPartyPolicy": "The notice does not grant additional rights to third-party titles, URLs, snippets, data, papers, fonts or trademarks."
+}

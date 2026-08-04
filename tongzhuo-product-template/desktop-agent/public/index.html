@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>桐灼 GEO 发布器</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-titlebar">
+      <div class="app-titlebar-brand">
+        <div class="brand-mark" aria-hidden="true">TZ</div>
+        <div class="titlebar-product">
+          <strong>桐灼 GEO 发布器</strong>
+          <span>本地发布工作台</span>
+        </div>
+      </div>
+      <div class="titlebar-context">
+        <span class="titlebar-label">当前工作区</span>
+        <select id="workspaceSelect" aria-label="当前账号组"></select>
+        <span class="status-tag" id="topConnectionState">未绑定</span>
+        <button class="icon-button" id="refreshButton" type="button" aria-label="刷新" title="刷新">↻</button>
+      </div>
+    </header>
+
+    <div class="app-frame">
+      <aside class="sidebar">
+        <div class="sidebar-heading">
+          <span>工作空间</span>
+          <button class="icon-button sidebar-add" id="createGroupButton" type="button" aria-label="新建账号组" title="新建账号组">+</button>
+        </div>
+        <nav class="nav-list" aria-label="主导航">
+          <div class="nav-section-label">运行</div>
+          <button class="nav-item is-active" type="button" data-view="overview"><span class="nav-icon">⌂</span><span>工作台</span></button>
+          <button class="nav-item" type="button" data-view="jobs"><span class="nav-icon">≡</span><span>发布任务</span><span class="nav-count" id="navJobCount">0</span></button>
+          <button class="nav-item" type="button" data-view="platforms"><span class="nav-icon">▣</span><span>平台窗口</span><span class="nav-count" id="navWindowCount">0</span></button>
+          <div class="nav-section-label">配置</div>
+          <button class="nav-item" type="button" data-view="accounts"><span class="nav-icon">◎</span><span>平台账号</span></button>
+          <button class="nav-item" type="button" data-view="settings"><span class="nav-icon">⚙</span><span>节点设置</span></button>
+          <div class="nav-section-label">维护</div>
+          <button class="nav-item" type="button" data-view="logs"><span class="nav-icon">≋</span><span>诊断日志</span></button>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <section class="node-card" aria-label="节点状态">
+          <div class="node-card-top"><span class="status-dot" id="sideStatusDot"></span><strong id="sideConnectionState">未绑定</strong></div>
+          <div class="node-name" id="sideDeviceName">-</div>
+          <div class="node-meta">本机节点 · <span id="sideAgentVersion">-</span></div>
+        </section>
+        <div class="sidebar-footer">数据和登录态保存在本机</div>
+      </aside>
+
+      <main class="main-shell">
+        <header class="topbar">
+          <div>
+            <div class="page-kicker" id="pageKicker">工作台</div>
+            <h1 id="pageTitle">发布控制台</h1>
+            <p class="page-subtitle" id="pageSubtitle">管理平台窗口、发布任务和节点运行状态。</p>
+          </div>
+        </header>
+
+        <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
+
+        <section class="page-view is-visible" id="view-overview" data-page="overview">
+          <section class="command-bar">
+            <div class="command-copy">
+              <span class="command-label">发布工作台</span>
+              <strong>准备开始发布</strong>
+              <span>完成节点配对后，窗口、账号和任务都在这里集中管理。</span>
+            </div>
+            <div class="command-actions">
+              <button class="button button-primary" type="button" data-view="jobs"><span class="button-icon">+</span>新建发布任务</button>
+              <button class="button button-secondary" type="button" data-action="poll"><span class="button-icon">↓</span>拉取任务</button>
+            </div>
+          </section>
+
+          <section class="metric-rail" aria-label="运行概览">
+            <div class="metric-cell"><span class="metric-label">节点状态</span><strong id="statConnection">未绑定</strong><small id="statConnectionHint">等待配对</small></div>
+            <div class="metric-cell"><span class="metric-label">已登录账号</span><strong id="statReadyAccounts">0 / 0</strong><small id="statReadyAccountsHint">当前账号组</small></div>
+            <div class="metric-cell"><span class="metric-label">活动窗口</span><strong id="statOpenWindows">0</strong><small id="statOpenWindowsHint">可重复打开</small></div>
+            <div class="metric-cell"><span class="metric-label">任务队列</span><strong id="statJobs">0</strong><small id="statJobsHint">当前没有任务</small></div>
+          </section>
+
+          <div class="workbench-grid">
+            <section class="panel panel-primary" aria-labelledby="openWindowsTitle">
+              <div class="panel-head">
+                <div><span class="panel-kicker">LIVE WINDOWS</span><h2 id="openWindowsTitle">活动窗口</h2></div>
+                <button class="text-button" type="button" data-view="platforms">管理窗口</button>
+              </div>
+              <div class="window-list" id="overviewWindowList"><div class="empty-state">还没有打开的平台窗口。进入“平台窗口”后即可打开。</div></div>
+            </section>
+
+            <section class="panel" aria-labelledby="queuePreviewTitle">
+              <div class="panel-head">
+                <div><span class="panel-kicker">QUEUE</span><h2 id="queuePreviewTitle">最近任务</h2></div>
+                <button class="text-button" type="button" data-view="jobs">查看全部</button>
+              </div>
+              <div class="compact-list" id="overviewJobList"><div class="empty-state">暂无任务，绑定节点后点击“拉取任务”。</div></div>
+            </section>
+          </div>
+
+          <section class="panel platform-monitor" aria-labelledby="healthTitle">
+            <div class="panel-head">
+              <div><span class="panel-kicker">PLATFORM MONITOR</span><h2 id="healthTitle">平台状态</h2></div>
+              <div class="panel-head-meta" id="platformHealthSummary">0 个平台</div>
+            </div>
+            <div class="health-grid" id="overviewPlatformList"><div class="empty-state">正在读取平台目录。</div></div>
+          </section>
+        </section>
+
+        <section class="page-view" id="view-platforms" data-page="platforms" hidden>
+          <div class="page-toolbar">
+            <div><div class="section-label">PLATFORM WINDOWS</div><h2>平台窗口</h2><p>每个平台使用独立的本地 Profile；窗口可以重复打开、聚焦和关闭。</p></div>
+            <div class="toolbar-actions"><button class="button button-secondary" type="button" data-action="check-all"><span class="button-icon">✓</span>检测账号</button></div>
+          </div>
+          <div class="filter-bar">
+            <label class="search-field"><span>⌕</span><input id="platformSearch" type="search" placeholder="搜索平台名称"></label>
+            <select id="platformFilter" aria-label="平台筛选"><option value="all">全部平台</option><option value="ready">已登录</option><option value="open">有打开窗口</option><option value="needs_login">待登录</option><option value="export">本地导出</option></select>
+            <span class="filter-result" id="platformFilterResult">0 个平台</span>
+          </div>
+          <div class="platform-layout">
+            <div class="platform-grid" id="platformGrid"><div class="empty-state">正在读取平台目录。</div></div>
+            <aside class="panel open-window-side">
+              <div class="panel-head"><div><span class="panel-kicker">WINDOWS</span><h3>窗口列表</h3></div><span class="count-badge" id="platformWindowCount">0</span></div>
+              <div class="window-list" id="platformWindowList"><div class="empty-state">没有活动窗口。</div></div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="page-view" id="view-accounts" data-page="accounts" hidden>
+          <div class="page-toolbar"><div><div class="section-label">ACCOUNT GROUPS</div><h2>平台账号</h2><p>按客户或业务线隔离登录态；每个平台对应一个本地浏览器 Profile。</p></div><button class="button button-primary" id="accountsCreateGroupButton" type="button"><span class="button-icon">+</span>新建账号组</button></div>
+          <div class="account-group-list" id="accountGroupList"><div class="empty-state">正在读取本地账号组。</div></div>
+        </section>
+
+        <section class="page-view" id="view-jobs" data-page="jobs" hidden>
+          <div class="page-toolbar"><div><div class="section-label">PUBLISH QUEUE</div><h2>发布任务</h2><p>选择目标平台后执行，真实发布回执会回写 GEOFlow。</p></div><button class="button button-primary" type="button" data-action="poll"><span class="button-icon">↓</span>拉取任务</button></div>
+          <div class="job-list" id="jobList"><div class="empty-state">暂无任务。</div></div>
+        </section>
+
+        <section class="page-view" id="view-settings" data-page="settings" hidden>
+          <div class="page-toolbar"><div><div class="section-label">NODE SETTINGS</div><h2>节点设置</h2><p>连接 GEOFlow，并控制任务轮询和自动执行策略。</p></div><span class="status-tag" id="settingsConnectionState">未绑定</span></div>
+          <div class="settings-grid">
+            <section class="panel"><form id="settingsForm" class="settings-form">
+              <div class="form-row"><label><span>节点名称</span><input name="deviceName" placeholder="运营电脑"></label><label><span>后台配对码</span><input name="pairingCode" placeholder="后台生成的临时配对码"></label></div>
+              <div class="form-row"><label><span>轮询间隔（秒）</span><input name="pollSeconds" type="number" min="10" max="3600"></label><label><span>单任务重试次数</span><input name="maxJobAttempts" type="number" min="1" max="10"></label></div>
+              <label class="toggle-row"><input name="autoRun" type="checkbox"><span><strong>自动处理已领取任务</strong><small>节点会自动领取并执行队列中的任务</small></span></label>
+              <details class="advanced-settings"><summary>高级连接设置</summary><div class="form-row"><label><span>GEOFlow 地址</span><input name="geoflowBaseUrl" placeholder="https://example.com"></label><label><span>连接模式</span><select name="connectionMode"><option value="paired">配对模式</option><option value="token">兼容模式</option></select></label></div></details>
+              <div class="form-actions"><button class="button button-primary" type="submit">保存设置</button><button class="button button-secondary" id="registerButton" type="button">重新绑定</button></div>
+            </form></section>
+            <section class="panel device-detail"><div class="panel-head"><div><span class="panel-kicker">DEVICE</span><h3>本机信息</h3></div></div><dl id="deviceDetailList"></dl><div class="notice notice-soft">登录态、账号组和浏览器 Profile 都保存在当前电脑，不会写入安装包。</div></section>
+          </div>
+        </section>
+
+        <section class="page-view" id="view-logs" data-page="logs" hidden>
+          <div class="page-toolbar"><div><div class="section-label">DIAGNOSTICS</div><h2>诊断日志</h2><p>检查本地服务、节点凭证和平台执行能力。</p></div><div class="toolbar-actions"><button class="button button-secondary" id="diagnosticsButton" type="button">运行诊断</button><button class="button button-secondary" id="supportBundleButton" type="button">导出支持包</button></div></div>
+          <div class="diagnostics-head"><span class="status-tag" id="diagnosticsSummary">待处理</span><span class="panel-head-meta" id="diagnosticsGeneratedAt">-</span></div>
+          <div class="diagnostics-grid" id="diagnosticsList"><div class="empty-state">正在读取诊断结果。</div></div>
+          <section class="panel log-surface"><div class="panel-head"><div><span class="panel-kicker">RUNTIME LOG</span><h3>运行日志</h3></div><button class="text-button danger-text" id="clearLogsButton" type="button">清空日志</button></div><div class="log-list" id="logList"><div class="empty-state">暂无运行日志。</div></div></section>
+        </section>
+
+        <footer class="app-statusbar"><span><i class="status-dot is-ok"></i>本地服务运行中</span><span>浏览器 Profile 保存在本机</span><span class="statusbar-spacer"></span><span>桐灼 GEO · Desktop Agent</span></footer>
+      </main>
+    </div>
+  </div>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

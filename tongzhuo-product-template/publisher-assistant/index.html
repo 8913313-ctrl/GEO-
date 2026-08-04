@@ -1,0 +1,63 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>桐灼 GEOFlow 发布助手</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">桐</div><div><div class="eyebrow">TONGZHUO / GEO OPERATIONS</div><h1>桐灼本地发布助手</h1></div></div>
+      <div class="connection-pill" id="connection-pill"><span class="dot"></span><span id="connection-text">未连接 GEOFlow</span></div>
+    </header>
+
+    <section class="hero">
+      <div><div class="eyebrow accent">LOCAL DISTRIBUTION CONTROL</div><h2>一篇内容，进入桐灼的多平台运营链路。</h2><p>内容和任务来自 GEOFlow，账号登录态只留在本地浏览器。发布助手负责平台编排、结果回写和异常留痕。</p></div>
+      <div class="hero-stat"><strong id="job-count">0</strong><span>待处理任务</span></div>
+    </section>
+
+    <section class="metric-row">
+      <div class="metric"><span class="metric-label">引擎状态</span><strong id="engine-status">待连接</strong><small>本地浏览器适配器</small></div>
+      <div class="metric"><span class="metric-label">平台目录</span><strong id="platform-count">0</strong><small>已接入平台</small></div>
+      <div class="metric"><span class="metric-label">发布模式</span><strong id="mode-status">直接发布</strong><small>可随时切换为草稿</small></div>
+      <div class="metric"><span class="metric-label">工作节点</span><strong id="worker-short">-</strong><small id="worker-id">本机节点</small></div>
+    </section>
+
+    <section class="workspace-grid">
+      <aside class="panel settings-panel">
+        <div class="panel-heading"><div><span class="section-kicker">01 / ENGINE</span><h3>连接与发布策略</h3></div><span class="panel-index">A</span></div>
+        <div class="form-grid">
+          <label>GEOFlow 地址<input id="geoflow-base-url" type="url" placeholder="https://www.example.com"></label>
+          <label>API Token<input id="api-token" type="password" placeholder="粘贴本地 Token"><small>只保存到本机配置文件。</small></label>
+          <label class="wide">本地平台适配器<input id="extension-dir" type="text" placeholder="包含 manifest.json 的目录"><small>默认使用桐灼随助手附带的本地平台适配器。</small></label>
+          <label class="wide">执行模式<select id="publish-mode"><option value="publish">直接发布（尝试自动确认）</option><option value="draft">仅保存草稿</option></select><small>遇到验证码、风控或页面变化时，自动保留草稿并回写异常。</small></label>
+        </div>
+        <div class="inline-actions"><button class="button primary" id="connect-button">连接 GEOFlow</button><button class="button ghost" id="save-button">保存设置</button><button class="button ghost" id="check-extension-button">检测本地适配器</button></div>
+        <div class="notice" id="connection-message">请先连接 GEOFlow，再开始处理分发任务。</div>
+      </aside>
+
+      <section class="panel platform-panel">
+        <div class="panel-heading"><div><span class="section-kicker">02 / CHANNELS</span><h3>平台目录</h3></div><span class="count-badge" id="platform-count-badge">0 个平台</span></div>
+        <p class="panel-desc">勾选需要使用的平台，可一次选择多个。平台账号、Cookie 和验证码只保存在本地浏览器。</p>
+        <div class="platform-toolbar">
+          <div><strong id="selected-platform-count">已选 0 个平台</strong><span id="selected-platform-hint">未选择时按 GEOFlow 任务配置执行</span></div>
+          <div class="platform-toolbar-actions"><button class="button ghost small" data-action="select-all">全选</button><button class="button ghost small" data-action="clear-selection">清空</button><button class="button primary small" id="login-selected-button">批量打开登录页</button></div>
+        </div>
+        <div id="platform-catalog" class="platform-groups"><div class="loading">正在读取平台目录...</div></div>
+      </section>
+    </section>
+
+    <section class="panel jobs-panel">
+      <div class="panel-heading"><div><span class="section-kicker">03 / QUEUE</span><h3>发布任务队列</h3></div><div class="inline-actions"><span class="muted" id="queue-updated">等待连接</span><button class="button ghost" id="refresh-button">刷新队列</button></div></div>
+      <div class="table-wrap"><table><thead><tr><th>文章</th><th>渠道</th><th>目标平台</th><th>状态</th><th>操作</th></tr></thead><tbody id="jobs-body"><tr><td colspan="5" class="empty">连接 GEOFlow 后显示待处理任务。</td></tr></tbody></table></div>
+    </section>
+
+    <footer class="footer"><span>桐灼（淄博）网络科技有限公司 / GEO 运营工作台</span><span>Worker <code id="footer-worker">-</code></span></footer>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
+

@@ -1,0 +1,28 @@
+[Unit]
+Description=Tongzhuo relay operational readiness and AIDSO probe
+After=tongzhuo-relay.service
+Wants=tongzhuo-relay.service
+
+[Service]
+Type=oneshot
+User=tongzhuo-relay
+Group=tongzhuo-relay
+WorkingDirectory=/srv/tongzhuo-relay/app
+EnvironmentFile=/srv/tongzhuo-relay/.env
+# Set TZ_RELAY_URL to the internal HTTPS proxy URL that is explicitly allowed
+# by Nginx. The script reads the administrator credential from the existing
+# TZ_RELAY_ADMIN_TOKEN_FILE or Secret Manager injection; it never logs it.
+ExecStart=/usr/bin/node /srv/tongzhuo-relay/app/scripts/check-relay-ops.mjs
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/tongzhuo-relay/data /srv/tongzhuo-relay/backups
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+StandardOutput=journal
+StandardError=journal

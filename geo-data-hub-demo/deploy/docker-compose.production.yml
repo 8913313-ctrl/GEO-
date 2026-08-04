@@ -1,0 +1,60 @@
+services:
+  relay:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: tongzhuo/geo-relay:0.1.0
+    env_file:
+      - ../.env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 43280
+      TZ_RELAY_DATA_DIR: /srv/tongzhuo-relay/data
+      TZ_RELAY_DATABASE_PATH: /srv/tongzhuo-relay/data/tongzhuo-relay.sqlite
+      TZ_RELAY_SEED_DEMO: "0"
+      TZ_RELAY_AIDSO_MODE: real
+      TZ_RELAY_ALLOW_INSECURE_ADMIN: "0"
+      TZ_RELAY_REQUIRE_HTTPS_FOR_ADMIN: "1"
+    ports:
+      - "${TZ_RELAY_BIND_ADDRESS:-127.0.0.1}:43280:43280"
+    volumes:
+      - relay-data:/srv/tongzhuo-relay/data
+      # Keep recovery artifacts outside the read-only container filesystem and
+      # independent from the live SQLite volume.
+      - relay-backups:/srv/tongzhuo-relay/backups
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    stop_grace_period: 20s
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:43280/health/ready')
+          .then((response) => process.exit(response.ok ? 0 : 1))
+          .catch(() => process.exit(1))
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  relay-data:
+    name: ${TZ_RELAY_DATA_VOLUME:-tongzhuo-relay-data}
+  relay-backups:
+    name: ${TZ_RELAY_BACKUP_VOLUME:-tongzhuo-relay-backups}

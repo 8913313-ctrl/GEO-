@@ -1,4 +1,35 @@
-# 系统架构（0.4 演示确认版）
+# 系统架构（0.5 私有化生产底座）
+
+> 本文同时保留 0.4 页面与业务规则，新增内容标记为“生产底座”。当前工程已经可以作为单企业私有化部署的运行基线；尚未接入的官网 CMS、效果监测采样和完整平台适配器仍按本文末尾的交付边界分阶段实施。
+
+## 生产底座当前实现
+
+```text
+浏览器 / 本地发布助手
+          │ HTTPS + Cookie Session / 设备 Token
+          ▼
+Node HTTP API（当前可运行基线）
+  ├─ 首次管理员初始化、登录、登出、CSRF
+  ├─ admin / operator / reviewer / viewer 权限
+  ├─ 工作区保存、SQLite 乐观锁和修订历史
+  ├─ 成员管理与审计日志
+  ├─ 模型供应商配置（API Key AES-256-GCM 加密）
+  ├─ 企业知识库（版本、审核、分块、embedding、混合检索、引用）
+  ├─ 发布器配对、心跳、账号组、任务和结果
+  └─ /health/live、/health/ready、/api/v1/auth/status
+          ▼
+SQLite（WAL + 外键 + 迁移）
+  ├─ users / sessions
+  ├─ workspace_state / workspace_revisions / business_records
+  ├─ knowledge_libraries / knowledge_documents / knowledge_document_versions
+  ├─ knowledge_chunks / knowledge_index_jobs / knowledge_retrieval_runs
+  └─ audit_logs
+
+客户 Windows 电脑
+  └─ 本地发布助手（Token/设备密钥仅以摘要形式留在服务端）
+```
+
+生产底座与页面演示使用同一个工作区状态模型，浏览器缓存只作为服务暂时不可用时的容错，不再作为正式数据源。服务器端 API 是登录、权限、版本冲突、审计和发布门禁的最终裁决点。
 
 ## 产品定位
 
@@ -364,3 +395,22 @@ MonitorQuestion（监测问题与业务线）
 - 平台提交后断网时标记为「结果待核验」，不能直接盲目重发。
 - 本地助手只主动发起 HTTPS 请求，服务器不反向连接客户电脑。
 - 服务端只保存设备、账号别名、平台类型、可用状态和结果，不保存平台登录凭据。
+
+## 生产底座与后续交付边界
+
+当前工程已经落地的底座能力：
+
+- SQLite 单机数据库：迁移表、WAL、外键、忙等待、工作区修订和乐观锁。
+- 内部账号体系：首次管理员初始化、Cookie Session、CSRF、scrypt 密码摘要、四级角色权限、成员管理和审计日志。
+- 配置安全：模型 API Key 使用 AES-256-GCM 加密保存；发布器 Token 与设备密钥只保存摘要，旧版明文状态会在读取时迁移。
+- 运行运维：`/health/live`、`/health/ready`、Docker / Compose、Nginx 参考配置、备份与恢复脚本、生产 API 自动化检查。
+- 业务边界：服务端工作区 API 是最终数据源；发布器配对、会话同步、平台任务和审核门禁已经有明确接口。
+
+尚需在底座之上逐步接入的业务实现：
+
+- 企业知识的 PDF/Office 专用解析器、OCR 队列、版本化知识资产、异步索引/重试和可插拔外部向量数据库适配已接入；私有化部署时仍需配置实际 OCR 服务或远程向量后端。
+- 官网 CMS 的页面、栏目、文章发布与公开信源同步。
+- 效果监测的真实多平台采样、原回答存证、引用统计和趋势任务。
+- 各内容平台的真实浏览器自动化适配、验证码/风控处理和发布结果核验。
+
+这些后续模块都必须复用当前账号权限、工作区版本、审计、知识范围和发布快照规则，不能重新建立一套绕过生产底座的演示数据通道。

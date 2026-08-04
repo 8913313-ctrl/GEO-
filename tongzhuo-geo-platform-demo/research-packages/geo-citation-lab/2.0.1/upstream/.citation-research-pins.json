@@ -1,0 +1,33 @@
+{
+  "artifacts": {
+    "duckdb": {
+      "minimumSizeBytes": 41943040,
+      "repositoryPath": "03-cn-geo-citation-dataset/data/catalog/cn_geo.duckdb",
+      "sha256": "60ce886643d9cb3ae7a28ca136a855637159f20aaaa38564b7e861440b74c913",
+      "sizeBytes": 42790912
+    },
+    "manifest": {
+      "minimumSizeBytes": 16000,
+      "repositoryPath": "03-cn-geo-citation-dataset/data/manifest.json",
+      "sha256": "8d6b27fabdb2b5b446ba097f66301e4e77d1d0633427ac4fd160655369a0de5b",
+      "sizeBytes": 24362
+    },
+    "parquet": {
+      "minimumSizeBytes": 83886080,
+      "repositoryPath": "03-cn-geo-citation-dataset/data/curated/citation_observations/release_date=2026-07-14/part-0001.parquet",
+      "sha256": "9e59d9e1fc625f4f343ee5d9e17b4a3a86e3d2a356fd300cf86634fab74078c7",
+      "sizeBytes": 84912022
+    }
+  },
+  "datasetVersion": "2.0.1",
+  "derived": {
+    "builtAt": "2026-07-28T03:29:15+00:00",
+    "relativeName": "derived/citation-research.sqlite",
+    "schemaVersion": 1,
+    "sha256": "ffa70bf08ee8bdbb47391ea13959e3852b19907027cef03374344d1519f2247f",
+    "sizeBytes": 455598080
+  },
+  "schemaVersion": 1,
+  "sourceCommit": "81ba1566f70f114e9202b798f8d4525a9329ebd3",
+  "sourceRepository": "https://github.com/yaojingang/geo-citation-lab"
+}

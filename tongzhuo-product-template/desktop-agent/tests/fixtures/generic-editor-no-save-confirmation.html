@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Generic Editor Without Save Confirmation Fixture</title>
+</head>
+<body data-save-state="unsaved">
+  <main>
+    <input name="articleTitle" placeholder="输入标题">
+    <section class="editor">
+      <div class="ql-editor" contenteditable="true" data-placeholder="请输入正文"></div>
+    </section>
+    <button id="save-draft" type="button" onclick="document.body.dataset.saveState = 'clicked';">保存草稿</button>
+  </main>
+</body>
+</html>

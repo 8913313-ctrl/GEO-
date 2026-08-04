@@ -1,0 +1,120 @@
+{
+  "manifestVersion": 1,
+  "packageId": "geo-citation-lab",
+  "name": "GEO Citation Lab",
+  "repo": "https://github.com/yaojingang/geo-citation-lab",
+  "datasetVersion": "2.0.1",
+  "releasedAt": "2026-07-14",
+  "status": "ready",
+  "sourceCommit": "81ba1566f70f114e9202b798f8d4525a9329ebd3",
+  "checksum": "ffa70bf08ee8bdbb47391ea13959e3852b19907027cef03374344d1519f2247f",
+  "statistics": {
+    "citations": 214119,
+    "questions": 620,
+    "platformsOrTerminals": 12,
+    "sources": 9878,
+    "pages": 107659
+  },
+  "artifacts": {
+    "upstreamManifest": {
+      "included": true,
+      "bytes": 24362,
+      "sha256": "8d6b27fabdb2b5b446ba097f66301e4e77d1d0633427ac4fd160655369a0de5b"
+    },
+    "cn_geo.duckdb": {
+      "includedInBuildWorkspace": true,
+      "includedInPrivateDelivery": false,
+      "bytes": 42790912,
+      "sha256": "60ce886643d9cb3ae7a28ca136a855637159f20aaaa38564b7e861440b74c913"
+    },
+    "citation_observations.parquet": {
+      "includedInBuildWorkspace": true,
+      "includedInPrivateDelivery": false,
+      "bytes": 84912022,
+      "rows": 214119,
+      "sha256": "9e59d9e1fc625f4f343ee5d9e17b4a3a86e3d2a356fd300cf86634fab74078c7"
+    },
+    "citation-research.sqlite": {
+      "included": true,
+      "readOnlyRuntime": true,
+      "bytes": 455598080,
+      "sha256": "ffa70bf08ee8bdbb47391ea13959e3852b19907027cef03374344d1519f2247f"
+    },
+    "responses.parquet": {
+      "included": false,
+      "declaredState": "empty",
+      "rowCount": 0
+    }
+  },
+  "capabilities": {
+    "questionMatching": true,
+    "citationObservationQuery": true,
+    "platformSourceAndPageAggregation": true,
+    "evidenceTraceability": true,
+    "completeResponses": false,
+    "reliableResponseIds": false,
+    "modelVersionTraceability": false,
+    "normalizedCollectionTime": false,
+    "realTimeCustomerMonitoring": false
+  },
+  "licenses": {
+    "code": {
+      "spdx": "MIT",
+      "scope": "repository_code"
+    },
+    "originalReportsAndContent": {
+      "spdx": "CC-BY-4.0",
+      "scope": "original_reports_and_content",
+      "attributionRequired": true
+    },
+    "thirdParty": {
+      "policy": "retain_original_licenses",
+      "licenseOverride": false
+    }
+  },
+  "limitations": [
+    {
+      "code": "RESPONSES_PARQUET_EMPTY",
+      "description": "responses.parquet is empty and is not included as a usable response dataset."
+    },
+    {
+      "code": "COMPLETE_RESPONSES_UNAVAILABLE",
+      "description": "Complete model answers are unavailable."
+    },
+    {
+      "code": "RESPONSE_ID_UNRELIABLE",
+      "description": "A reliable, stable response_id is unavailable."
+    },
+    {
+      "code": "MODEL_VERSION_UNAVAILABLE",
+      "description": "The model version used for each response is unavailable."
+    },
+    {
+      "code": "COLLECTION_TIME_NOT_NORMALIZED",
+      "description": "Collection timestamps are not normalized into one comparable time field."
+    },
+    {
+      "code": "NOT_REAL_TIME_CUSTOMER_MONITORING",
+      "description": "This fixed research package is not real-time monitoring data for any customer."
+    }
+  ],
+  "allowedUse": [
+    "offline research context",
+    "aggregate methodology review",
+    "diagnostic hypothesis design"
+  ],
+  "prohibitedClaims": [
+    "customer real-time citation count",
+    "customer AI ranking or platform coverage",
+    "customer traffic, leads or conversion",
+    "guaranteed GEO outcome"
+  ],
+  "attribution": {
+    "sourceName": "GEO Citation Lab",
+    "sourceRepo": "https://github.com/yaojingang/geo-citation-lab",
+    "upstreamSource": "WENDAOstudy/cn-geo-citation-dataset",
+    "datasetVersion": "2.0.1",
+    "releasedAt": "2026-07-14",
+    "modifications": "Pinned-source verification and deterministic conversion to a read-only SQLite research database for private deployment."
+  }
+}

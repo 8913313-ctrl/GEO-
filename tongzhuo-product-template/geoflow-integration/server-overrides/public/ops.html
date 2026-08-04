@@ -1,0 +1,169 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>桐灼 GEO 运营工作台｜内容与增长运营</title>
+  <meta name="description" content="桐灼 GEO 运营工作台演示，统一管理官网内容、行业资讯、服务案例、客户线索、分发任务和 AI 可读性。">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <link rel="stylesheet" href="ops.css">
+</head>
+<body>
+  <div class="ops-app">
+    <aside class="ops-sidebar">
+      <a class="ops-logo" href="index.html" aria-label="返回桐灼官网">
+        <img src="assets/logo-mark-blue.png" alt="">
+        <div><strong>桐灼 GEOFlow</strong><span>企业增长运营工作台</span></div>
+      </a>
+      <nav class="ops-nav" aria-label="运营后台导航">
+        <span class="ops-nav-label">WORKSPACE</span>
+        <a class="active" href="#overview">总览 <span>01</span></a>
+        <a href="#content">官网内容 <span>12</span></a>
+        <a href="#products">产品中心 <span>03</span></a>
+        <a href="#cases">服务案例 <span>06</span></a>
+        <span class="ops-nav-label">GROWTH</span>
+        <a href="#issues">问题地图 <span>04</span></a>
+        <a href="#insights">新闻动态 <span>08</span></a>
+        <a href="#leads">客户线索 <span>09</span></a>
+        <a href="#distribution">分发任务 <span>03</span></a>
+        <a href="#ai-audit">AI 可读性 <span>86</span></a>
+      </nav>
+      <div class="ops-side-footer">
+        <div>桐灼（淄博）网络科技有限公司</div>
+        <a href="index.html">返回官网 →</a>
+      </div>
+    </aside>
+
+    <main class="ops-main">
+      <header class="ops-topbar">
+        <div class="ops-breadcrumb">工作台 / <strong>运营总览</strong></div>
+        <div class="ops-top-actions">
+          <button class="ops-icon-button" type="button" data-toast="已刷新工作台数据">刷新数据</button>
+          <button class="ops-user" type="button" data-toast="当前为桐灼运营管理员"><span class="ops-avatar">桐</span>运营管理员</button>
+        </div>
+      </header>
+
+      <div class="ops-content" id="overview">
+        <div class="ops-heading">
+          <div>
+            <h1>运营总览</h1>
+            <p>从企业信源、内容生产到客户线索，查看桐灼官网与 GEOFlow 的核心运营状态。</p>
+          </div>
+          <div class="ops-heading-actions">
+            <a class="ops-button secondary" href="/insights.html">查看官网资讯</a>
+            <button class="ops-button" type="button" data-toast="已创建一篇新的资讯草稿">新建内容</button>
+          </div>
+        </div>
+
+        <section class="ops-kpis" aria-label="核心数据">
+          <article class="ops-kpi"><div class="ops-kpi-top"><span>官网有效页面</span><b>+2</b></div><strong>24</strong><small class="up">结构化页面持续完善</small></article>
+          <article class="ops-kpi"><div class="ops-kpi-top"><span>本月发布内容</span><b>+6</b></div><strong>18</strong><small class="up">官网与行业资讯同步</small></article>
+          <article class="ops-kpi"><div class="ops-kpi-top"><span>有效客户线索</span><b>+4</b></div><strong>09</strong><small class="up">待跟进 3 条</small></article>
+          <article class="ops-kpi"><div class="ops-kpi-top"><span>AI 可读性评分</span><b>稳定</b></div><strong>86</strong><small>官网信源完整度良好</small></article>
+        </section>
+
+        <div class="ops-grid">
+          <section class="ops-panel" id="content">
+            <div class="ops-panel-head"><div><h2>内容与信源增长</h2><p>官网页面、行业资讯和案例内容的持续积累</p></div><a class="ops-panel-link" href="#insights">内容管理 →</a></div>
+            <div class="ops-chart" aria-label="内容与线索趋势图">
+              <svg viewBox="0 0 640 190" role="img" aria-label="内容与线索趋势">
+                <defs><linearGradient id="ops-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#0f766e" stop-opacity=".24"/><stop offset="100%" stop-color="#0f766e" stop-opacity="0"/></linearGradient></defs>
+                <path d="M0 154 C48 150 56 132 104 137 S160 112 206 123 S264 88 310 104 S364 74 410 88 S466 49 514 68 S570 37 640 44 L640 190 L0 190 Z" fill="url(#ops-area)"/>
+                <path d="M0 154 C48 150 56 132 104 137 S160 112 206 123 S264 88 310 104 S364 74 410 88 S466 49 514 68 S570 37 640 44" fill="none" stroke="#0f766e" stroke-width="3"/>
+                <path d="M0 174 C48 170 58 160 104 163 S160 151 206 158 S266 137 310 146 S364 127 410 139 S468 115 514 128 S574 104 640 112" fill="none" stroke="#ee6c4d" stroke-width="2" stroke-dasharray="6 6"/>
+              </svg>
+            </div>
+            <div class="ops-chart-legend"><span>内容资产</span><span>有效线索</span><span>近 30 天</span></div>
+          </section>
+
+          <section class="ops-panel" id="ai-audit">
+            <div class="ops-panel-head"><div><h2>AI 可读性健康度</h2><p>面向搜索与 AI 抓取的官网结构检查</p></div><a class="ops-panel-link" href="#content">查看报告 →</a></div>
+            <div class="ops-health">
+              <div class="ops-score"><div><strong>86</strong><span>良好</span></div></div>
+              <div class="ops-health-list">
+                <div class="ops-health-row"><span>主体信息</span><div class="ops-progress"><i style="width:94%"></i></div><strong>94</strong></div>
+                <div class="ops-health-row"><span>服务结构</span><div class="ops-progress"><i style="width:88%"></i></div><strong>88</strong></div>
+                <div class="ops-health-row"><span>内容新鲜度</span><div class="ops-progress"><i style="width:76%"></i></div><strong>76</strong></div>
+                <div class="ops-health-row"><span>证据与案例</span><div class="ops-progress"><i style="width:82%"></i></div><strong>82</strong></div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <section class="ops-panel" id="insights" style="margin-top:16px">
+          <div class="ops-panel-head"><div><h2>最近内容</h2><p>文章发布后可进入官网行业资讯，并创建分发任务</p></div><a class="ops-panel-link" href="/insights.html">打开资讯页 →</a></div>
+          <div class="ops-tabs" role="tablist">
+            <button class="ops-tab active" type="button" data-filter="all">全部</button>
+            <button class="ops-tab" type="button" data-filter="GEO">GEO 优化</button>
+            <button class="ops-tab" type="button" data-filter="VIDEO">短视频运营</button>
+            <button class="ops-tab" type="button" data-filter="AI">企业 AI</button>
+          </div>
+          <div class="ops-table-wrap">
+            <table class="ops-table">
+              <thead><tr><th>内容标题</th><th>栏目</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead>
+              <tbody id="ops-content-rows">
+                <tr data-category="GEO"><td><div class="ops-title"><span class="ops-type">GEO</span>企业官网如何成为 AI 搜索中的可信答案来源？</div></td><td>GEO 优化</td><td><span class="ops-status">已发布</span></td><td>今天 09:40</td><td><a class="ops-action" href="article-geo-source.html">查看</a></td></tr>
+                <tr data-category="VIDEO"><td><div class="ops-title"><span class="ops-type">短</span>工业品短视频如何从展示产品转向回答客户问题</div></td><td>短视频运营</td><td><span class="ops-status">已发布</span></td><td>昨天 16:20</td><td><a class="ops-action" href="/insights.html">查看</a></td></tr>
+                <tr data-category="AI"><td><div class="ops-title"><span class="ops-type">AI</span>企业 AI 落地，先从一个高频业务场景开始</div></td><td>企业 AI</td><td><span class="ops-status pending">待审核</span></td><td>昨天 11:05</td><td><button class="ops-action" type="button" data-toast="已打开内容审核">审核</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="ops-grid">
+          <section class="ops-panel" id="leads">
+            <div class="ops-panel-head"><div><h2>客户线索</h2><p>官网联系方式表单进入后台后的跟进队列</p></div><a class="ops-panel-link" href="#leads">线索管理 →</a></div>
+            <div class="ops-feed">
+              <div class="ops-feed-item"><div class="ops-feed-icon">01</div><div><strong>制造企业 · 关注 GEO 优化</strong><span>希望解决官网信息分散、客户搜索不到的问题</span></div><time class="ops-feed-time">12 分钟前</time></div>
+              <div class="ops-feed-item"><div class="ops-feed-icon">02</div><div><strong>工业品品牌 · 关注短视频运营</strong><span>已有产品素材，需要建立持续内容和线索承接</span></div><time class="ops-feed-time">昨天</time></div>
+              <div class="ops-feed-item"><div class="ops-feed-icon">03</div><div><strong>服务企业 · 关注企业 AI 落地</strong><span>想把内部资料整理成团队可使用的知识助手</span></div><time class="ops-feed-time">昨天</time></div>
+            </div>
+          </section>
+
+          <section class="ops-panel" id="distribution">
+            <div class="ops-panel-head"><div><h2>分发任务</h2><p>官网发布与本地发布执行器的同步状态</p></div><a class="ops-panel-link" href="#distribution">任务中心 →</a></div>
+            <div class="ops-feed">
+              <div class="ops-feed-item"><div class="ops-feed-icon">官</div><div><strong>官网行业资讯同步</strong><span><span class="ops-status">已完成</span> · 文章 GEO-20260717</span></div><time class="ops-feed-time">09:42</time></div>
+              <div class="ops-feed-item"><div class="ops-feed-icon">知</div><div><strong>知乎专栏发布任务</strong><span><span class="ops-status pending">待执行</span> · 等待本地设备在线</span></div><time class="ops-feed-time">09:45</time></div>
+              <div class="ops-feed-item"><div class="ops-feed-icon">多</div><div><strong>多平台分发包</strong><span><span class="ops-status pending">人工确认</span> · 3 个目标平台</span></div><time class="ops-feed-time">昨天</time></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="ops-panel" id="products" style="margin-top:16px">
+          <div class="ops-panel-head"><div><h2>网站内容资产</h2><p>产品中心、案例和问题地图都是官网长期信源的一部分</p></div><a class="ops-panel-link" href="products.html">查看产品中心 →</a></div>
+          <div class="ops-kpis">
+            <article class="ops-kpi"><div class="ops-kpi-top"><span>产品页面</span><b>完整</b></div><strong>03</strong><small>GEO · 短视频 · 企业 AI</small></article>
+            <article class="ops-kpi" id="cases"><div class="ops-kpi-top"><span>服务案例</span><b>持续更新</b></div><strong>06</strong><small>可验证的服务过程和结果</small></article>
+            <article class="ops-kpi" id="issues"><div class="ops-kpi-top"><span>问题地图</span><b>已覆盖</b></div><strong>04</strong><small>看不见 · 不信任 · 不转化 · 不复用</small></article>
+            <article class="ops-kpi"><div class="ops-kpi-top"><span>团队与资质</span><b>已建立</b></div><strong>06</strong><small>团队角色、能力与交付标准</small></article>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <div class="ops-toast" role="status" aria-live="polite"></div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const toast = document.querySelector('.ops-toast');
+      let timer;
+      const showToast = (message) => {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(timer);
+        timer = setTimeout(() => toast.classList.remove('show'), 2200);
+      };
+      document.querySelectorAll('[data-toast]').forEach((button) => button.addEventListener('click', () => showToast(button.dataset.toast)));
+      document.querySelectorAll('.ops-tab').forEach((tab) => tab.addEventListener('click', () => {
+        document.querySelectorAll('.ops-tab').forEach((item) => item.classList.remove('active'));
+        tab.classList.add('active');
+        const filter = tab.dataset.filter;
+        document.querySelectorAll('#ops-content-rows tr').forEach((row) => {
+          row.hidden = filter !== 'all' && row.dataset.category !== filter;
+        });
+      }));
+    });
+  </script>
+</body>
+</html>
+

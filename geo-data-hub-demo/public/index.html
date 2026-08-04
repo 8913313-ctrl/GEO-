@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#091426" />
+    <meta name="description" content="桐灼 GEO 中央数据服务运营后台" />
+    <title>桐灼 GEO 数据服务</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
+    <div class="app-shell">
+      <button class="sidebar-overlay" type="button" data-action="close-sidebar" aria-label="关闭导航"></button>
+      <aside class="sidebar" aria-label="主导航">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span><b>桐灼 GEO</b><small>中央运营后台</small></span>
+          <button class="icon-button sidebar-close" type="button" data-action="close-sidebar" aria-label="关闭导航" data-icon="close"></button>
+        </div>
+        <div class="environment-card">
+          <span class="environment-icon">中</span>
+          <span><b>中央运营平台</b><small id="relay-service-status"><i></i>正在连接中转服务</small></span>
+          <em>私有实例接入</em>
+        </div>
+        <nav class="nav" id="nav">
+          <p>运营</p>
+          <a href="#dashboard" data-route="dashboard"><span data-icon="dashboard"></span><b>运营总览</b></a>
+          <a href="#customers" data-route="customers"><span data-icon="users"></span><b>客户中心</b><em id="nav-customer-count">—</em></a>
+          <a href="#instances" data-route="instances"><span data-icon="server"></span><b>部署实例</b><em id="nav-instance-count">—</em></a>
+          <p>交易与数据</p>
+          <a href="#billing" data-route="billing"><span data-icon="wallet"></span><b>积分与订单</b><i class="nav-dot"></i></a>
+          <a href="#jobs" data-route="jobs"><span data-icon="activity"></span><b>查询任务</b><em id="nav-job-count">—</em></a>
+          <a href="#providers" data-route="providers"><span data-icon="database"></span><b>上游数据源</b></a>
+          <p>经营</p>
+          <a href="#analytics" data-route="analytics"><span data-icon="chart"></span><b>经营分析</b></a>
+          <a href="#settings" data-route="settings"><span data-icon="settings"></span><b>系统设置</b></a>
+        </nav>
+        <div class="sidebar-footer">
+          <span><i></i>数据服务在线</span>
+          <small id="relay-gateway-version">Relay API · 正在连接</small>
+        </div>
+      </aside>
+
+      <div class="main-column">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button class="icon-button menu-button" type="button" data-action="open-sidebar" aria-label="打开导航" data-icon="menu"></button>
+            <span class="page-location"><small>桐灼中央数据服务</small><b id="topbar-title">运营总览</b></span>
+          </div>
+          <div class="topbar-actions">
+            <button class="upstream-pill" type="button" data-route-link="providers"><i></i><span id="relay-upstream-title">爱搜中转服务</span><b id="relay-upstream-balance">—</b><small>上游积分</small></button>
+            <button class="search-button" type="button" data-action="focus-search"><span data-icon="search"></span><span>搜索客户、实例或任务</span><kbd>Ctrl K</kbd></button>
+            <button class="icon-button notification-button" type="button" data-action="show-notifications" aria-label="通知" data-icon="bell"><i></i></button>
+            <button class="account-button" type="button" data-action="account-menu"><span>管</span><b>当前管理员</b><small>运营权限</small><i data-icon="chevron"></i></button>
+          </div>
+        </header>
+        <main id="main" tabindex="-1"><div id="view"></div></main>
+      </div>
+    </div>
+
+    <div id="modal-root"></div>
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <script src="/app.js"></script>
+  </body>
+</html>

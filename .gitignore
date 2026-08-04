@@ -22,17 +22,44 @@ tmp-electron-profile-final/
 tmp-electron-userdata/
 **/.cache/
 **/coverage/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.tmp
+.tmp*/
+**/.tmp*/
+.tmp-*
+**/.tmp-*
 
 # Local snapshots are deliberately kept outside the formal source history
 backups/
+private-delivery-releases/
 
 # Legacy reference copies and non-source deliverables retained locally
 .agents/
 server-integration/
-tongzhuo-product-template/
 make_tongzhuo_ppt.py
 *.zip
+*.tar
+*.tar.gz
+*.bundle
 *.pptx
+
+# Codex and deployment scratch files can contain host-specific paths or tokens
+.codex-*
+**/.codex-*
+
+# Product template source is backed up, but generated/runtime artifacts stay local
+tongzhuo-product-template/**/node_modules/
+tongzhuo-product-template/**/.data/
+tongzhuo-product-template/**/vendor/
+tongzhuo-product-template/**/release/
+tongzhuo-product-template/**/*.log
+tongzhuo-product-template/**/*.pid
+
+# Third-party research mirrors are pinned by metadata, not vendored as nested Git repositories
+tongzhuo-geo-platform-demo/research-packages/**/repository-mirror-*/
+tongzhuo-geo-platform-demo/research-packages/**/.updates/
 
 # Editor and operating-system files
 .DS_Store

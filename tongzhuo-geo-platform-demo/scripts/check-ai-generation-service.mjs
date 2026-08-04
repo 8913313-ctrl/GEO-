@@ -3,6 +3,8 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
+  AI_GENERATION_DIMENSIONS,
+  AiGenerationError,
   AiGenerationService,
   AiGenerationRunStore,
   ContractValidationError
@@ -46,6 +48,13 @@ function upstreamResponse(content, options = {}) {
     choices: [{ message: { role: "assistant", content: JSON.stringify(content) } }],
     usage: { prompt_tokens: 120, completion_tokens: 240, total_tokens: 360 }
   }), { status: options.status || 200, headers: { "Content-Type": "application/json", "x-request-id": "req-demo-001" } });
+}
+
+function compatibleChatResponse(payload, options = {}) {
+  return new Response(JSON.stringify(payload), {
+    status: options.status || 200,
+    headers: { "Content-Type": "application/json", "x-request-id": options.requestId || "req-compatible-001" }
+  });
 }
 
 const businessLine = {
@@ -189,6 +198,9 @@ try {
   assert.equal(calls[0].options.body.includes("askerRole"), false);
   assert.equal(calls[0].options.body.includes("triggerScenario"), false);
   assert.equal(calls[0].options.body.includes("followUpQuestions"), false);
+  assert.equal(JSON.parse(calls[0].options.body).enable_thinking, false);
+  assert.deepEqual(JSON.parse(calls[0].options.body).thinking, { type: "disabled" });
+  assert.equal(JSON.parse(calls[2].options.body).enable_thinking, false);
   calls.forEach(({ url, options }) => {
     assert.equal(url, "https://api.deepseek.com/v1/chat/completions");
     assert.equal(options.headers.Authorization, `Bearer ${secret}`);
@@ -198,6 +210,60 @@ try {
   const persisted = await readFile(path.join(dataDir, "ai-generation-runs.json"), "utf8");
   assert.equal(persisted.includes(secret), false);
   assert.equal(JSON.parse(persisted).runs.length, 3);
+
+  let contractResponseCount = 0;
+  const validationContexts = [];
+  const contractRetryService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 2,
+    timeoutMs: 5000,
+    fetchImpl: async () => {
+      contractResponseCount += 1;
+      return contractResponseCount === 1
+        ? compatibleChatResponse({ choices: [{ message: { role: "assistant", content: "not-json" }, finish_reason: "stop" }] })
+        : upstreamResponse({ ok: true });
+    }
+  });
+  const contractRetry = await contractRetryService.generate(
+    "contract-attempt-context",
+    { providerId: provider.id },
+    "Return JSON.",
+    (raw, _input, context) => {
+      validationContexts.push(context);
+      return { ok: raw.ok === true };
+    }
+  );
+  assert.equal(contractRetry.ok, true);
+  assert.equal(contractRetry.run.attempts, 2);
+  assert.equal(contractResponseCount, 2);
+  assert.deepEqual(validationContexts, [{ attempt: 2, maxAttempts: 2 }], "the validator must receive the real model attempt even when the first response never reached it");
+
+  let truncatedResponseCount = 0;
+  const truncatedRequestBodies = [];
+  const truncatedRetryService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 2,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5000,
+    fetchImpl: async (_url, options) => {
+      truncatedRequestBodies.push(JSON.parse(options.body));
+      truncatedResponseCount += 1;
+      return truncatedResponseCount === 1
+        ? compatibleChatResponse({ choices: [{ message: { role: "assistant", content: '{"ok":' }, finish_reason: "length" }] })
+        : compatibleChatResponse({ choices: [{ message: { role: "assistant", content: '{"ok":true}' }, finish_reason: "stop" }] });
+    }
+  });
+  const truncatedRetry = await truncatedRetryService.generate(
+    "truncated-output-repair",
+    { providerId: provider.id },
+    "Return JSON.",
+    (raw) => raw
+  );
+  assert.equal(truncatedRetry.ok, true);
+  assert.equal(truncatedRetry.run.attempts, 2);
+  assert.match(truncatedRequestBodies[1].messages[1].content, /长度限制被截断/);
 
   const probeService = new AiGenerationService({
     providerStore,
@@ -242,6 +308,322 @@ try {
   );
   const persistedAfterFailures = await readFile(path.join(dataDir, "ai-generation-runs.json"), "utf8");
   assert.equal(persistedAfterFailures.includes(secret), false);
+
+  let retryCalls = 0;
+  const retryService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 3,
+    upstreamRetryBaseMs: 0,
+    timeoutMs: 5000,
+    fetchImpl: async () => {
+      retryCalls += 1;
+      if (retryCalls === 1) {
+        return new Response(JSON.stringify({ error: { message: "Service is too busy, please retry later." } }), { status: 503, headers: { "Content-Type": "application/json" } });
+      }
+      if (retryCalls === 2) {
+        return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: "" } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+      return upstreamResponse(questionResult);
+    }
+  });
+  const retriedQuestions = await retryService.generateQuestions({
+    providerId: provider.id,
+    businessLine,
+    seeds: ["制造业 GEO"],
+    dimensions: ["question"],
+    limitPerDimension: 1,
+    existingQuestions: []
+  });
+  assert.equal(retriedQuestions.questions.length, 1);
+  assert.equal(retryCalls, 3);
+
+  let questionBatchCalls = 0;
+  const batchedQuestionResult = {
+    questions: AI_GENERATION_DIMENSIONS.map((dimension) => ({
+      sourceKeyword: "GEO优化服务",
+      question: `制造业企业评估GEO优化服务时，应该重点判断哪些${dimension}条件？`,
+      dimension,
+      recommendation: 80,
+      business: 82,
+      askability: 90,
+      specificity: 82,
+      businessRelevance: 90,
+      evidenceReadiness: 80,
+      duplicateRisk: 5
+    }))
+  };
+  const questionBatchService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5_000,
+    fetchImpl: async () => {
+      questionBatchCalls += 1;
+      return upstreamResponse(batchedQuestionResult);
+    }
+  });
+  assert.equal(questionBatchService.questionBatchConcurrency, 1, "question batches must default to a gateway-safe sequential queue");
+  const batchedQuestions = await questionBatchService.generateQuestions({
+    providerId: provider.id,
+    businessLine,
+    seeds: ["GEO优化服务"],
+    dimensions: AI_GENERATION_DIMENSIONS,
+    limitPerDimension: 1,
+    existingQuestions: []
+  });
+  assert.equal(questionBatchCalls, 8, "eight dimensions must be split into eight finite single-dimension batches");
+  assert.equal(batchedQuestions.questions.length, 8);
+  assert.equal(batchedQuestions.generationRunIds.length, 8);
+
+  let boundedQuestionPromptBody;
+  const boundedQuestionPromptService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5_000,
+    fetchImpl: async (_url, options) => {
+      boundedQuestionPromptBody = JSON.parse(options.body);
+      return upstreamResponse(questionResult);
+    }
+  });
+  await boundedQuestionPromptService.generateQuestions({
+    providerId: provider.id,
+    businessLine,
+    seeds: ["制造业 GEO"],
+    dimensions: ["question"],
+    limitPerDimension: 1,
+    existingQuestions: Array.from({ length: 100 }, (_, index) => `制造业 GEO 历史问题-${index}？`)
+  });
+  const boundedQuestionPrompt = boundedQuestionPromptBody.messages[1].content;
+  assert.ok((boundedQuestionPrompt.match(/历史问题-/g) || []).length <= 6, "the model prompt must not repeat the full historical question library");
+  assert.ok(!boundedQuestionPrompt.includes("历史问题-99"));
+
+  const generationBudgetCalls = [];
+  const generationBudgetService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    upstreamRetryBaseMs: 0,
+    upstreamTotalTimeoutMs: 55_000,
+    timeoutMs: 5_000,
+    fetchImpl: async () => { throw new Error("callModelOnce is replaced by this check"); }
+  });
+  generationBudgetService.callModelOnce = async (_provider, model, _messages, options = {}) => {
+    generationBudgetCalls.push(options);
+    if (generationBudgetCalls.length === 1) {
+      throw new AiGenerationError("temporary upstream connection failure", 502, "UPSTREAM_CONNECTION_ERROR");
+    }
+    return { content: JSON.stringify({ ok: true }), model, usage: null, requestId: "budget-probe" };
+  };
+  const budgetResult = await generationBudgetService.generate(
+    "generation_budget_probe",
+    { providerId: provider.id },
+    "Return one JSON object.",
+    (raw) => raw,
+    {
+      upstreamTotalTimeoutMs: 105_000,
+      requestTimeoutMs: 100_000,
+      upstreamMaxAttempts: 2,
+      maxTokens: 128
+    }
+  );
+  assert.equal(budgetResult.ok, true);
+  assert.equal(generationBudgetCalls.length, 2, "one generation call must be able to override the upstream attempt limit");
+  assert.equal(generationBudgetCalls[0].requestTimeoutMs, 100_000, "one generation call must override both the total and per-request time budgets");
+  assert.equal(generationBudgetCalls[1].requestTimeoutMs, 100_000);
+
+  const articleBudgetCalls = [];
+  const articleBudgetService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5_000,
+    fetchImpl: async () => { throw new Error("callModel is replaced by this check"); }
+  });
+  articleBudgetService.callModel = async (_provider, model, _messages, options = {}) => {
+    articleBudgetCalls.push(options);
+    return { content: JSON.stringify(articleResult), finishReason: "stop", model, usage: null, requestId: "article-budget-probe" };
+  };
+  await articleBudgetService.generateArticle({
+    providerId: provider.id,
+    businessLine,
+    contentType: "深度文章",
+    topic: { id: "TOP-BUDGET", title: coreQuestion, geoBrief: { coreQuestion } },
+    writingAgent: { id: "WA-BUDGET", strictKnowledge: true, citationsRequired: true, minWords: 800, maxWords: 1600 },
+    evidence: [{ id: "CIT-1", marker: "K1", claim: "企业资料需要审核", quote: "企业资料应保留来源、版本和审核状态。", status: "verified" }]
+  });
+  assert.equal(articleBudgetCalls.length, 1);
+  assert.equal(articleBudgetCalls[0].maxTokens, 6_000);
+  assert.equal(articleBudgetCalls[0].upstreamTotalTimeoutMs, 105_000);
+  assert.equal(articleBudgetCalls[0].requestTimeoutMs, 95_000);
+  assert.equal(articleBudgetCalls[0].upstreamMaxAttempts, 2);
+
+  const compatibilityBodies = [];
+  const compatibilityPayloads = [
+    {
+      choices: [{ message: { role: "assistant", content: "", reasoning_content: JSON.stringify({ ok: true }) } }]
+    },
+    {
+      choices: [{ message: { role: "assistant", content: null }, text: JSON.stringify({ ok: true }) }]
+    },
+    {
+      output_text: [{ type: "output_text", text: JSON.stringify({ ok: true }) }]
+    },
+    {
+      choices: [{ message: { role: "assistant", content: "", reasoning_content: JSON.stringify({ ok: false }) }, text: JSON.stringify({ ok: true }) }]
+    }
+  ];
+  let compatibilityIndex = 0;
+  const compatibilityService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5_000,
+    fetchImpl: async (_url, options) => {
+      compatibilityBodies.push(JSON.parse(options.body));
+      return compatibleChatResponse(compatibilityPayloads[compatibilityIndex++]);
+    }
+  });
+  for (let index = 0; index < compatibilityPayloads.length; index += 1) {
+    const result = await compatibilityService.generate(
+      `response_compatibility_probe_${index}`,
+      { providerId: provider.id },
+      "Return one JSON object.",
+      (raw) => raw,
+      { maxTokens: 128 }
+    );
+    assert.equal(result.ok, true);
+  }
+  assert.ok(compatibilityBodies.every((body) => !Object.hasOwn(body, "response_format")), "DeepSeek-compatible gateways must not be forced into the response_format path");
+
+  const genericProvider = {
+    id: "generic-openai",
+    name: "Generic OpenAI Compatible",
+    baseUrl: "https://api.openai.example/v1",
+    model: "gpt-test",
+    protocol: "openai_compatible",
+    kind: "text",
+    status: "enabled",
+    apiKey: "sk-generic-test"
+  };
+  const genericProviderStore = {
+    async load() {},
+    find(id) { return id === genericProvider.id ? genericProvider : null; }
+  };
+  let genericBody;
+  const genericService = new AiGenerationService({
+    providerStore: genericProviderStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5_000,
+    fetchImpl: async (_url, options) => {
+      genericBody = JSON.parse(options.body);
+      return upstreamResponse({ ok: true });
+    }
+  });
+  const genericResult = await genericService.generate(
+    "generic_response_format_probe",
+    { providerId: genericProvider.id },
+    "Return one JSON object.",
+    (raw) => raw,
+    { maxTokens: 128 }
+  );
+  assert.equal(genericResult.ok, true);
+  assert.deepEqual(genericBody.response_format, { type: "json_object" }, "non-DeepSeek OpenAI-compatible providers retain JSON response_format");
+
+  const unsafeCompatibilityService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5_000,
+    fetchImpl: async () => compatibleChatResponse({ choices: [{ message: { content: { raw: secret } } }] })
+  });
+  await assert.rejects(
+    () => unsafeCompatibilityService.generate(
+      "response_compatibility_invalid_probe",
+      { providerId: provider.id },
+      "Return one JSON object.",
+      (raw) => raw,
+      { maxTokens: 128 }
+    ),
+    (error) => error.code === "UPSTREAM_EMPTY_RESPONSE" && !error.message.includes(secret)
+  );
+  const reasoningProseService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5_000,
+    fetchImpl: async () => compatibleChatResponse({ choices: [{ message: { content: "", reasoning_content: "I considered the request, but did not produce the final object." } }] })
+  });
+  await assert.rejects(
+    () => reasoningProseService.generate(
+      "response_compatibility_reasoning_prose_probe",
+      { providerId: provider.id },
+      "Return one JSON object.",
+      (raw) => raw,
+      { maxTokens: 128 }
+    ),
+    (error) => error.code === "UPSTREAM_EMPTY_RESPONSE"
+  );
+
+  const truncatedEmptyBodies = [];
+  let truncatedEmptyCalls = 0;
+  const truncatedEmptyRetryService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 2,
+    upstreamRetryBaseMs: 0,
+    timeoutMs: 5_000,
+    fetchImpl: async (_url, options) => {
+      truncatedEmptyBodies.push(JSON.parse(options.body));
+      truncatedEmptyCalls += 1;
+      return truncatedEmptyCalls === 1
+        ? compatibleChatResponse({ choices: [{ finish_reason: "length", message: { content: "", reasoning_content: "unfinished reasoning" } }], usage: { completion_tokens: 4_500 } })
+        : compatibleChatResponse({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ ok: true }) } }] });
+    }
+  });
+  const recoveredTruncatedEmpty = await truncatedEmptyRetryService.generate(
+    "truncated-empty-recovery",
+    { providerId: provider.id },
+    "Return one JSON object.",
+    (raw) => raw,
+    { maxTokens: 4_500 }
+  );
+  assert.equal(recoveredTruncatedEmpty.ok, true);
+  assert.equal(truncatedEmptyBodies.length, 2);
+  assert.equal(truncatedEmptyBodies[0].max_tokens, 4_500);
+  assert.ok(truncatedEmptyBodies[1].max_tokens > truncatedEmptyBodies[0].max_tokens, "a truncated empty response must retry with a larger completion budget");
+  const truncatedReasoningService = new AiGenerationService({
+    providerStore,
+    runStore,
+    maxAttempts: 1,
+    upstreamMaxAttempts: 1,
+    timeoutMs: 5_000,
+    fetchImpl: async () => compatibleChatResponse({ choices: [{ finish_reason: "length", message: { content: "", reasoning_content: JSON.stringify({ ok: true }) } }] })
+  });
+  await assert.rejects(
+    () => truncatedReasoningService.generate(
+      "response_compatibility_truncated_reasoning_probe",
+      { providerId: provider.id },
+      "Return one JSON object.",
+      (raw) => raw,
+      { maxTokens: 128 }
+    ),
+    (error) => error.code === "UPSTREAM_OUTPUT_TRUNCATED" && error.finishReason === "length"
+  );
+  const persistedCompatibility = await readFile(path.join(dataDir, "ai-generation-runs.json"), "utf8");
+  assert.equal(persistedCompatibility.includes(secret), false, "raw compatible responses must never be persisted");
 
   console.log("AI generation service check passed");
 } finally {

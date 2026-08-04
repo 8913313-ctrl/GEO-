@@ -2,9 +2,10 @@ import crypto from "node:crypto";
 import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ProductionSecrets, ProductionSecretsError } from "./production-secrets.mjs";
 
 const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
-const ENCRYPTED_SECRET_PREFIX = "enc:v1:";
+const LEGACY_ENCRYPTED_SECRET_PREFIX = "enc:v1:";
 
 class AiProviderError extends Error {
   constructor(message, status = 400) {
@@ -114,77 +115,97 @@ export class AiProviderStore {
     const dataDir = options.dataDir || process.env.TZ_AI_PROVIDER_DATA_DIR || path.join(moduleRoot, "data");
     this.dataDir = path.resolve(dataDir);
     this.statePath = path.join(this.dataDir, options.fileName || "ai-providers.json");
-    this.keyPath = path.join(this.dataDir, options.keyFileName || ".encryption-key");
-    this.encryptionKeyMaterial = String(options.encryptionKey || process.env.TZ_SECRETS_KEY || "").trim();
-    this.cipherKey = null;
+    this.legacyKeyPath = path.join(this.dataDir, options.legacyKeyFileName || options.keyFileName || ".encryption-key");
+    this.legacyKeyMaterial = String(options.encryptionKey || process.env.TZ_SECRETS_KEY || "").trim();
+    const compatibilityMasterKey = options.masterKey === undefined && options.encryptionKey
+      ? crypto.createHash("sha256").update(String(options.encryptionKey), "utf8").digest()
+      : options.masterKey;
+    this.secrets = options.secrets || new ProductionSecrets({
+      dataDir: this.dataDir,
+      ...(compatibilityMasterKey === undefined ? {} : { masterKey: compatibilityMasterKey }),
+      ...(Object.prototype.hasOwnProperty.call(options, "masterKeyEnvironmentValue")
+        ? { environmentValue: options.masterKeyEnvironmentValue }
+        : {})
+    });
+    this.legacyCipherKey = null;
     this.state = null;
     this.writeQueue = Promise.resolve();
   }
 
-  async ensureCipherKey() {
-    if (this.cipherKey) return this.cipherKey;
-    let material = this.encryptionKeyMaterial;
+  async loadLegacyCipherKey(required = false) {
+    if (this.legacyCipherKey) return this.legacyCipherKey;
+    let material = this.legacyKeyMaterial;
     if (!material) {
       try {
-        material = (await readFile(this.keyPath, "utf8")).trim();
+        material = (await readFile(this.legacyKeyPath, "utf8")).trim();
       } catch (error) {
-        if (error?.code !== "ENOENT") throw new AiProviderError("AI 密钥加密主密钥无法读取。", 500);
+        if (error?.code !== "ENOENT") throw new AiProviderError("旧版 AI 密钥加密主密钥无法读取。", 500);
       }
     }
     if (!material) {
-      material = crypto.randomBytes(32).toString("base64url");
-      await mkdir(this.dataDir, { recursive: true });
-      const temporaryPath = `${this.keyPath}.${process.pid}.${Date.now()}.tmp`;
-      await writeFile(temporaryPath, material, { encoding: "utf8", mode: 0o600 });
-      try {
-        await chmod(temporaryPath, 0o600);
-      } catch {
-        // Windows may not support POSIX mode bits; the key file remains ignored and server-local.
-      }
-      await rename(temporaryPath, this.keyPath);
+      if (required) throw new AiProviderError("发现旧版加密密钥，但缺少旧版主密钥，无法完成自动迁移。", 500);
+      return null;
     }
-    if (material.length < 16) throw new AiProviderError("AI 密钥加密主密钥长度不足。", 500);
-    this.cipherKey = crypto.createHash("sha256").update(material, "utf8").digest();
-    return this.cipherKey;
+    this.legacyCipherKey = crypto.createHash("sha256").update(material, "utf8").digest();
+    return this.legacyCipherKey;
   }
 
-  encryptSecret(value) {
-    const secret = String(value || "");
-    if (!secret) return "";
-    if (!this.cipherKey) throw new AiProviderError("AI 密钥加密主密钥尚未初始化。", 500);
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv("aes-256-gcm", this.cipherKey, iv);
-    const encrypted = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return `${ENCRYPTED_SECRET_PREFIX}${iv.toString("base64url")}:${tag.toString("base64url")}:${encrypted.toString("base64url")}`;
-  }
-
-  decryptSecret(value) {
+  decryptLegacySecret(value) {
     const encrypted = String(value || "");
-    if (!encrypted) return "";
-    if (!encrypted.startsWith(ENCRYPTED_SECRET_PREFIX)) return encrypted;
-    if (!this.cipherKey) throw new AiProviderError("AI 密钥加密主密钥尚未初始化。", 500);
+    if (!encrypted.startsWith(LEGACY_ENCRYPTED_SECRET_PREFIX) || !this.legacyCipherKey) {
+      throw new AiProviderError("旧版 AI 密钥格式无效或主密钥尚未加载。", 500);
+    }
     const parts = encrypted.split(":");
     if (parts.length !== 5 || parts[0] !== "enc" || parts[1] !== "v1") throw new AiProviderError("AI 供应商密钥格式无效。", 500);
     try {
-      const decipher = crypto.createDecipheriv("aes-256-gcm", this.cipherKey, Buffer.from(parts[2], "base64url"));
+      const decipher = crypto.createDecipheriv("aes-256-gcm", this.legacyCipherKey, Buffer.from(parts[2], "base64url"));
       decipher.setAuthTag(Buffer.from(parts[3], "base64url"));
       return Buffer.concat([decipher.update(Buffer.from(parts[4], "base64url")), decipher.final()]).toString("utf8");
     } catch {
-      throw new AiProviderError("AI 供应商密钥无法解密，请检查服务端加密主密钥。", 500);
+      throw new AiProviderError("旧版 AI 供应商密钥无法解密，请检查迁移前的服务端主密钥。", 500);
     }
+  }
+
+  secretContext(providerId) {
+    return `ai-provider:${providerId}:api-key`;
+  }
+
+  decryptStoredSecret(provider) {
+    const encrypted = provider?.apiKeyEncrypted;
+    if (encrypted && typeof encrypted === "object") {
+      try {
+        return this.secrets.decryptSecret(encrypted, this.secretContext(provider.id));
+      } catch (error) {
+        const message = error instanceof ProductionSecretsError ? error.message : "AI 供应商密钥无法解密。";
+        throw new AiProviderError(message, 500);
+      }
+    }
+    if (typeof encrypted === "string" && encrypted.startsWith(LEGACY_ENCRYPTED_SECRET_PREFIX)) {
+      return this.decryptLegacySecret(encrypted);
+    }
+    if (typeof encrypted === "string" && encrypted) return encrypted;
+    return String(provider?.apiKey || "");
   }
 
   async load() {
     if (this.state) return this.state;
-    await this.ensureCipherKey();
+    try {
+      await this.secrets.load();
+    } catch (error) {
+      const message = error instanceof ProductionSecretsError ? error.message : "服务端主密钥无法加载。";
+      throw new AiProviderError(message, 500);
+    }
     try {
       const raw = await readFile(this.statePath, "utf8");
       const parsed = JSON.parse(raw);
       const providers = Array.isArray(parsed?.providers) ? parsed.providers : [];
+      const hasLegacyEncryptedSecret = providers.some((provider) => typeof provider?.apiKeyEncrypted === "string" && provider.apiKeyEncrypted.startsWith(LEGACY_ENCRYPTED_SECRET_PREFIX));
+      if (hasLegacyEncryptedSecret) await this.loadLegacyCipherKey(true);
       this.state = { schemaVersion: 1, providers: providers.map((provider) => this.normalizeStored(provider)).filter(Boolean) };
-      if (providers.some((provider) => provider?.apiKey && !provider?.apiKeyEncrypted)) await this.persist();
+      const needsMigration = providers.some((provider) => Object.prototype.hasOwnProperty.call(provider || {}, "apiKey") || typeof provider?.apiKeyEncrypted === "string");
+      if (needsMigration) await this.persist();
     } catch (error) {
+      if (error instanceof AiProviderError) throw error;
       if (error?.code !== "ENOENT") throw new AiProviderError("AI 供应商配置文件无法读取。", 500);
       this.state = defaultState();
     }
@@ -204,7 +225,7 @@ export class AiProviderStore {
       model: model || "default",
       protocol: inferProtocol(provider.protocol, baseUrl),
       kind: normalizeKind(provider.kind),
-      apiKey: this.decryptSecret(provider.apiKeyEncrypted || provider.apiKey || ""),
+      apiKey: this.decryptStoredSecret(provider),
       models: Array.isArray(provider.models) ? provider.models.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 50) : [],
       status: normalizeStatus(provider.status),
       connectionStatus: ["passed", "failed", "untested"].includes(provider.connectionStatus) ? provider.connectionStatus : "untested",
@@ -216,12 +237,20 @@ export class AiProviderStore {
   }
 
   async persist() {
-    await this.ensureCipherKey();
+    try {
+      await this.secrets.load();
+    } catch (error) {
+      const message = error instanceof ProductionSecretsError ? error.message : "服务端主密钥无法加载。";
+      throw new AiProviderError(message, 500);
+    }
     const payload = JSON.stringify({
       ...this.state,
       providers: (this.state?.providers || []).map((provider) => {
         const { apiKey, apiKeyEncrypted: _apiKeyEncrypted, ...persisted } = provider;
-        return { ...persisted, ...(apiKey ? { apiKeyEncrypted: this.encryptSecret(apiKey) } : {}) };
+        return {
+          ...persisted,
+          ...(apiKey ? { apiKeyEncrypted: this.secrets.encryptSecret(apiKey, this.secretContext(provider.id)) } : {})
+        };
       })
     }, null, 2);
     await mkdir(this.dataDir, { recursive: true });

@@ -1,0 +1,32 @@
+{
+  "name": "tongzhuo-geo-data-hub-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "桐灼 GEO 中央数据服务运营后台",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "precheck": "node --check scripts/check-relay-deployment-tooling.mjs && node --check scripts/generate-relay-secrets.mjs && node --check scripts/render-nginx-config.mjs && node --check scripts/check-production-deployment.mjs && node --check scripts/verify-relay-backup.mjs && node scripts/check-relay-deployment-tooling.mjs",
+    "mcp:serve": "node --env-file-if-exists=.env relay-mcp-server.mjs",
+    "check": "node --check server.mjs && node --check relay-store.mjs && node --check relay-api.mjs && node --check relay-bootstrap.mjs && node --check aidso-client.mjs && node --check managed-aidso-client.mjs && node --check relay-config.mjs && node --check relay-worker.mjs && node --check relay-mcp-server.mjs && node --check public/app.js && node --check scripts/backup-relay.mjs && node --check scripts/restore-relay.mjs && node --check scripts/check-relay-ops.mjs && node --check scripts/check-relay-ops-alerts.mjs && node --check scripts/check-relay-admin-session.mjs && node --check scripts/check-relay-admin-rbac.mjs && node --check scripts/check-relay-http.mjs && node --check scripts/check-relay-mcp.mjs && node --check scripts/check-relay-backup-restore.mjs && node --check scripts/check-relay-production-server.mjs && node --check scripts/check-relay-admin-ui.mjs && node --check scripts/rotate-admin-token.mjs && node scripts/check-relay-foundation.mjs && node scripts/check-relay-production.mjs && node scripts/check-relay-admin-session.mjs && node scripts/check-relay-admin-rbac.mjs && node scripts/check-relay-http.mjs && node scripts/check-relay-mcp.mjs && node scripts/check-relay-multitenant.mjs && node scripts/check-relay-backup-restore.mjs && node scripts/check-relay-production-server.mjs && node scripts/check-relay-ops-alerts.mjs && node scripts/check-relay-admin-ui.mjs",
+    "check:relay": "node scripts/check-relay-foundation.mjs",
+    "check:production": "node scripts/check-relay-production.mjs",
+    "check:admin-session": "node scripts/check-relay-admin-session.mjs",
+    "check:admin-rbac": "node --check scripts/check-relay-admin-rbac.mjs && node scripts/check-relay-admin-rbac.mjs",
+    "check:http": "node --check scripts/check-relay-http.mjs && node scripts/check-relay-http.mjs",
+    "check:mcp": "node --check relay-mcp-server.mjs && node scripts/check-relay-mcp.mjs",
+    "check:multitenant": "node --check scripts/check-relay-multitenant.mjs && node scripts/check-relay-multitenant.mjs",
+    "check:backup-restore": "node --check scripts/check-relay-backup-restore.mjs && node scripts/check-relay-backup-restore.mjs",
+    "check:production-server": "node --check scripts/check-relay-production-server.mjs && node scripts/check-relay-production-server.mjs",
+    "check:deployment-tooling": "node --check scripts/check-relay-deployment-tooling.mjs && node scripts/check-relay-deployment-tooling.mjs",
+    "check:admin-ui": "node --check public/app.js && node --check scripts/check-relay-admin-ui.mjs && node scripts/check-relay-admin-ui.mjs",
+    "ops:check": "node scripts/check-relay-ops.mjs",
+    "ops:backup": "node scripts/backup-relay.mjs",
+    "ops:verify-backup": "node scripts/verify-relay-backup.mjs",
+    "ops:restore": "node scripts/restore-relay.mjs",
+    "ops:generate-secrets": "node scripts/generate-relay-secrets.mjs",
+    "ops:rotate-admin-token": "node scripts/rotate-admin-token.mjs",
+    "ops:render-nginx": "node scripts/render-nginx-config.mjs",
+    "ops:preflight": "node scripts/check-production-deployment.mjs"
+  }
+}

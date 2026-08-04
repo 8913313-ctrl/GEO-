@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Toutiao Editor Fixture</title>
+</head>
+<body data-save-state="unsaved" data-publish-state="unpublished">
+  <main>
+    <div class="article-title">
+      <input placeholder="请输入文章标题">
+    </div>
+    <article class="ProseMirror" contenteditable="true" data-placeholder="请输入正文"></article>
+    <button id="save-draft" type="button" onclick="document.body.dataset.saveState = 'saved'; document.querySelector('#save-success').hidden = false;">保存草稿</button>
+    <p id="save-success" data-save-result="draft_saved" hidden>草稿保存成功</p>
+    <button id="publish-article" type="button" onclick="document.querySelector('#confirm-dialog').hidden = false;">发布</button>
+    <section id="confirm-dialog" role="dialog" hidden>
+      <button type="button" onclick="document.body.dataset.publishState = 'published'; document.querySelector('#publish-success').hidden = false;">确定</button>
+    </section>
+    <p id="publish-success" hidden>发布成功</p>
+  </main>
+</body>
+</html>

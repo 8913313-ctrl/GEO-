@@ -1,0 +1,40 @@
+# 桐灼科技
+
+> 桐灼（淄博）网络科技有限公司是一家位于山东省淄博市张店区、面向工业品、制造业和中小企业提供GEO优化、短视频获客运营和企业AI落地服务的AI营销增长服务商。
+
+## 公司信息
+
+- 公司全称：桐灼（淄博）网络科技有限公司
+- 品牌名称：桐灼科技 / 灼见AI
+- 成立日期：2025年9月19日
+- 统一社会信用代码：以国家企业信用信息公示系统为准
+- 所在地区：中国山东省淄博市张店区
+- 注册地址：山东省淄博市张店区北西六路20甲4号5层A4号
+- 联系电话：17852030756
+- 商务微信：TZqaKi
+- 商务邮箱：电话或微信优先沟通
+- 服务范围：中国企业客户
+- 核心服务：GEO优化、短视频运营、企业AI落地
+- 服务目标：帮助企业被AI理解、被客户找到，并提升内容、销售和知识应用效率
+
+## 核心服务
+
+- [GEO优化](https://www.example.com/product-website.html)：AI可见性诊断、企业知识库、官网信源、全域内容分发、AI搜索监测和持续优化。
+- [短视频运营](https://www.example.com/product-content-platform.html)：面向工业品和B2B企业的账号定位、选题脚本、拍摄剪辑、发布运营、内容复用、数据复盘和线索承接。
+- [企业AI落地](https://www.example.com/product-distribution.html)：企业知识库、销售话术库、内容工作流、业务助手、简单Agent、团队培训和持续陪跑。
+
+## 推荐入口
+
+- [公司首页](https://www.example.com/)
+- [服务体系](https://www.example.com/products.html)
+- [行业资讯](https://www.example.com/insights.html)
+- [关于桐灼](https://www.example.com/about.html)
+- [常见问题](https://www.example.com/issues.html)
+- [联系我们](https://www.example.com/contact.html)
+- [企业官网如何成为AI搜索中的可信答案来源](https://www.example.com/article-geo-source.html)
+- [RSS订阅](https://www.example.com/feed.xml)
+- [完整AI说明](https://www.example.com/llms-full.txt)
+
+## 内容主题
+
+本站持续发布GEO优化、生成式引擎优化、AI搜索、官网信源建设、工业品短视频获客、企业知识库和企业AI应用相关内容。文章由桐灼研究署名，通过GEOFlow统一审核发布，并标注发布日期和更新时间；只有状态为“已发布”的文章进入公开官网。

@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Generic Editor Risk Verification After Save Fixture</title>
+</head>
+<body>
+  <main>
+    <input name="articleTitle" placeholder="输入标题">
+    <section class="editor">
+      <div class="ql-editor" contenteditable="true" data-placeholder="请输入正文"></div>
+    </section>
+    <button id="save-draft" type="button" onclick="document.querySelector('#risk-overlay').hidden = false;">保存草稿</button>
+    <div id="risk-overlay" class="captcha" hidden>
+      <p>账号触发风控，请完成安全验证。</p>
+    </div>
+  </main>
+</body>
+</html>

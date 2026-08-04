@@ -3,52 +3,59 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b1629" />
-    <meta name="description" content="桐灼 GEO 运营系统后台交互演示" />
+    <meta name="theme-color" content="#f5f8ff" />
+    <meta name="description" content="桐灼 GEO 企业私有化运营系统" />
     <title>桐灼 GEO 运营系统</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/product-ui.css?v=20260814" />
+    <link rel="stylesheet" href="/geo-dashboard.css?v=20260803" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到主要内容</a>
     <div class="app-shell">
       <div class="sidebar-overlay" data-action="close-sidebar"></div>
       <aside class="sidebar" aria-label="主导航">
-        <div class="brand">
-          <div class="brand-mark" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </div>
-          <div>
-            <strong>桐灼 GEO</strong>
-            <small>企业运营系统</small>
-          </div>
+        <div class="brand brand-logo-lockup">
+          <img class="brand-logo-image" src="/assets/zhuojian-ai-brand.png" alt="灼见 AI" />
           <button class="icon-button sidebar-close" type="button" data-action="close-sidebar" aria-label="关闭导航">×</button>
-        </div>
-
-        <div class="workspace-switcher">
-          <span class="workspace-avatar">桐</span>
-          <span><b>桐灼科技</b><small>企业独立部署</small></span>
-          <span class="chevron">⌄</span>
         </div>
 
         <nav class="nav-main">
           <a href="#dashboard" data-route="dashboard"><span class="nav-icon" data-icon="home"></span><span>工作台</span></a>
-          <a href="#planning" data-route="planning"><span class="nav-icon" data-icon="compass"></span><span>选题中心</span><i class="nav-count" id="topic-nav-count">4</i></a>
-          <a href="#content" data-route="content"><span class="nav-icon" data-icon="file"></span><span>内容生产</span><i class="nav-count" id="article-nav-count">3</i></a>
+          <a href="#planning" data-route="planning"><span class="nav-icon" data-icon="compass"></span><span>选题中心</span></a>
+          <a href="#content" data-route="content"><span class="nav-icon" data-icon="file"></span><span>内容生产</span></a>
           <a href="#publish" data-route="publish"><span class="nav-icon" data-icon="send"></span><span>发布运营</span><i class="nav-dot warning" id="publish-nav-dot"></i></a>
           <a href="#assets" data-route="assets"><span class="nav-icon" data-icon="folder"></span><span>内容资产</span></a>
-          <a href="#monitoring" data-route="monitoring"><span class="nav-icon" data-icon="chart"></span><span>效果监测</span></a>
+          <a href="#monitoring" data-route="monitoring"><span class="nav-icon" data-icon="chart"></span><span>运营诊断</span></a>
+          <details class="nav-effect-group" data-effect-nav-group>
+            <summary class="nav-effect-toggle" aria-controls="effect-nav-items">
+              <span class="nav-icon" data-icon="monitor"></span><span>AI效果检测</span><i class="nav-effect-chevron">⌄</i>
+            </summary>
+            <div class="nav-effect-items" id="effect-nav-items">
+              <a href="#effect-search" data-route="effect-search" data-effect-nav><span class="nav-icon" data-icon="search"></span><span>实时搜索</span></a>
+              <a href="#effect-diagnostic" data-route="effect-diagnostic" data-effect-nav><span class="nav-icon" data-icon="target"></span><span>品牌诊断</span></a>
+              <a href="#effect-monitor" data-route="effect-monitor" data-effect-nav><span class="nav-icon" data-icon="chart"></span><span>品牌监测</span></a>
+            </div>
+          </details>
           <a href="#site" data-route="site"><span class="nav-icon" data-icon="globe"></span><span>官网运营</span></a>
           <a href="#knowledge" data-route="knowledge"><span class="nav-icon" data-icon="book"></span><span>企业知识</span></a>
         </nav>
 
         <div class="nav-spacer"></div>
+        <section class="sidebar-promo" aria-label="灼见 GEO 产品介绍">
+          <div class="sidebar-promo-visual" aria-hidden="true"><i></i><span></span><b></b></div>
+          <strong>灼见 AI GEO</strong>
+          <p>让每一次内容创造，都能为品牌 AI 搜索占据先机</p>
+          <button type="button" data-nav="planning">了解更多 <span>→</span></button>
+        </section>
         <nav class="nav-secondary">
           <a href="#assistant" data-route="assistant"><span class="nav-icon" data-icon="monitor"></span><span>发布助手</span><em><i></i>在线</em></a>
+          <a class="docs-nav-link" href="/usage-guide.html" target="_blank" rel="noopener"><span class="nav-icon" data-icon="book"></span><span>使用文档</span></a>
           <a href="#settings" data-route="settings"><span class="nav-icon" data-icon="settings"></span><span>系统设置</span></a>
         </nav>
 
         <div class="sidebar-footer">
-          <div class="deploy-badge"><span>私有化部署</span><b>v0.4 演示版</b></div>
+          <div class="deploy-badge"><span>私有化部署</span><b>桐灼科技</b></div>
         </div>
       </aside>
 
@@ -81,6 +88,7 @@
     <div id="modal-root"></div>
     <div id="toast-root" class="toast-root" aria-live="assertive"></div>
 
-    <script src="/app.js"></script>
+    <script src="/auth-bootstrap.js"></script>
+    <script src="/app.js?v=20260815"></script>
   </body>
 </html>

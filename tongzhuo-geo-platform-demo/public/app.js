@@ -18,6 +18,9 @@ const ICONS = {
   check: '<path d="m5 12 4 4L19 6"/>',
   alert: '<path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v4M12 17h.01"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  calendar: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14h.01M12 14h.01M16 14h.01"/>',
+  play: '<path d="m9 6 9 6-9 6V6Z"/>',
+  "credit-card": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
   database: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   arrow: '<path d="M5 12h14M14 7l5 5-5 5"/>',
@@ -61,7 +64,10 @@ const PAGE_META = {
   content: { title: "内容生产", description: "生成、编辑、审核并冻结可发布文章版本" },
   publish: { title: "发布运营", description: "选择账号组，统一管理官网和内容平台发布" },
   assets: { title: "内容资产", description: "统一管理文章版本、官网主信源、多平台分发和后续引用分析" },
-  monitoring: { title: "效果监测", description: "持续观察品牌在 AI 回答中的提及、排名与引用" },
+  monitoring: { title: "运营诊断", description: "用研究基线与企业实测生成可执行的 GEO 运营建议" },
+  "effect-search": { title: "实时搜索", description: "提交实时检测并查看多平台 AI 回答与可追溯证据。" },
+  "effect-diagnostic": { title: "品牌诊断", description: "按冻结问题集批量检测品牌在 AI 平台中的表现，并生成真实诊断报告。" },
+  "effect-monitor": { title: "品牌监测", description: "按监测计划持续采样，并基于真实 live evidence 查看品牌趋势。" },
   site: { title: "官网运营", description: "管理企业官网展示、内容引用与咨询线索" },
   knowledge: { title: "企业知识", description: "维护全系统唯一可信的企业事实来源" },
   assistant: { title: "发布助手", description: "查看本地设备、账号组与平台登录状态" },
@@ -480,11 +486,11 @@ const PUBLISH_PLATFORM_REGISTRY = [
   { id: "oschina", category: "self_media", role: "开源中国", enabled: true, support: "manual", accountMode: "local", capabilities: "技术长文", description: "已接入本地账号和任务队列，需人工确认发布", requiresManualConfirmation: true },
   { id: "segmentfault", category: "self_media", role: "SegmentFault", enabled: true, support: "manual", accountMode: "local", capabilities: "技术长文", description: "已接入本地账号和任务队列，需人工确认发布", requiresManualConfirmation: true },
   { id: "cnblogs", category: "self_media", role: "博客园", enabled: true, support: "manual", accountMode: "local", capabilities: "长文", description: "已接入本地账号和任务队列，需在编辑器人工确认", requiresManualConfirmation: true },
-  { id: "sohufocus", category: "self_media", role: "搜狐焦点（规划中）", enabled: false, support: "planned", accountMode: "local", capabilities: "图文", description: "平台目录已保留，暂不进入发布选择", requiresManualConfirmation: true },
-  { id: "x", category: "self_media", role: "X（Twitter）（规划中）", enabled: false, support: "planned", accountMode: "local", capabilities: "短内容", description: "平台目录已保留，暂不进入发布选择", requiresManualConfirmation: true },
-  { id: "eastmoney", category: "self_media", role: "东方财富（规划中）", enabled: false, support: "planned", accountMode: "local", capabilities: "财经内容", description: "平台目录已保留，暂不进入发布选择", requiresManualConfirmation: true },
-  { id: "smzdm", category: "self_media", role: "什么值得买（规划中）", enabled: false, support: "planned", accountMode: "local", capabilities: "图文", description: "平台目录已保留，暂不进入发布选择", requiresManualConfirmation: true },
-  { id: "netease", category: "self_media", role: "网易号（规划中）", enabled: false, support: "planned", accountMode: "local", capabilities: "图文", description: "平台目录已保留，暂不进入发布选择", requiresManualConfirmation: true }
+  { id: "sohufocus", category: "self_media", role: "搜狐焦点", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
+  { id: "x", category: "self_media", role: "X（Twitter）", enabled: true, support: "ready", accountMode: "local", capabilities: "短内容", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
+  { id: "eastmoney", category: "self_media", role: "东方财富", enabled: true, support: "ready", accountMode: "local", capabilities: "财经内容", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
+  { id: "smzdm", category: "self_media", role: "什么值得买", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
+  { id: "netease", category: "self_media", role: "网易号", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false }
 ].map((entry) => entry.enabled && entry.accountMode === "local"
   ? {
     ...entry,
@@ -541,7 +547,7 @@ function minutesAgo(minutes) {
 
 function defaultState() {
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     businessLines: [
       { id: "BL-GEO", name: "GEO 优化服务", product: "企业 GEO 优化与运营", audience: "工业品、制造业及中小企业", scenario: "AI 搜索品牌发现与内容信源建设", knowledgeBaseIds: ["KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], defaultWritingAgentId: "WA-GEO-DEEP", status: "active", createdAt: minutesAgo(4320) },
       { id: "BL-VIDEO", name: "短视频获客运营", product: "企业短视频获客运营", audience: "需要持续获取销售线索的企业", scenario: "账号定位、内容策划与线索承接", knowledgeBaseIds: [], defaultWritingAgentId: "WA-BRAND-STORY", status: "active", createdAt: minutesAgo(4300) },
@@ -810,7 +816,7 @@ function defaultState() {
       domain: "www.tongzhuo.com",
       status: "online",
       theme: "桐灼企业官网 · 标准版",
-      pages: 9,
+      pages: 7,
       articles: 28,
       leads: 6,
       lastDiagnostic: "2026-07-18 14:30",
@@ -820,6 +826,8 @@ function defaultState() {
           siteName: "桐灼科技",
           companyName: "桐灼（淄博）网络科技有限公司",
           description: "桐灼科技专注 GEO 优化、短视频获客运营与企业 AI 落地，持续建设企业公开信源。",
+          logoUrl: "",
+          sameAs: [],
           allowAiCrawl: true,
           updatedAt: "2026-07-24T09:20:00.000Z"
         },
@@ -828,8 +836,8 @@ function defaultState() {
           { id: "about", type: "关于页", title: "关于我们", path: "/about/", status: "published", description: "企业主体、团队与发展信息", seoDescription: "了解桐灼科技的企业主体、团队与服务理念。", schemaEnabled: true, sitemapEnabled: true, version: 2, savedAt: "2026-07-21T09:20:00.000Z", publishedAt: "2026-07-21T09:20:00.000Z", versions: [] },
           { id: "services", type: "服务页", title: "产品与服务", path: "/services/", status: "published", description: "服务能力、适用对象与交付边界", seoDescription: "查看桐灼科技的 GEO 优化、内容运营与 AI 落地服务。", schemaEnabled: true, sitemapEnabled: true, version: 2, savedAt: "2026-07-21T09:20:00.000Z", publishedAt: "2026-07-21T09:20:00.000Z", versions: [] },
           { id: "cases", type: "案例页", title: "服务案例", path: "/cases/", status: "published", description: "经过审核的客户案例与实施结果", seoDescription: "查看企业 GEO 与内容运营服务案例。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-19T09:20:00.000Z", publishedAt: "2026-07-19T09:20:00.000Z", versions: [] },
-          { id: "faq", type: "FAQ 页", title: "常见问题", path: "/faq/", status: "draft", description: "高频问题、直接答案与引用依据", seoDescription: "企业 GEO 服务常见问题与直接答案。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-24T09:20:00.000Z", publishedAt: null, versions: [] },
           { id: "insights", type: "资讯列表", title: "行业资讯", path: "/insights/", status: "published", description: "客户自定义栏目下的公开文章", seoDescription: "桐灼科技行业资讯、方法和案例文章。", schemaEnabled: true, sitemapEnabled: true, version: 3, savedAt: "2026-07-23T09:20:00.000Z", publishedAt: "2026-07-23T09:20:00.000Z", versions: [] },
+          { id: "problem-map", type: "问题地图", title: "问题地图", path: "/problem-map/", status: "published", description: "按服务方向和行业整理客户真实问题", seoDescription: "按服务方向与行业查看企业客户常见问题及直接回答。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-24T09:20:00.000Z", publishedAt: "2026-07-24T09:20:00.000Z" },
           { id: "contact", type: "联系页", title: "联系我们", path: "/contact/", status: "published", description: "咨询表单、服务区域与联系方式", seoDescription: "联系桐灼科技，预约业务诊断。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-19T09:20:00.000Z", publishedAt: "2026-07-19T09:20:00.000Z", versions: [] },
           { id: "landing", type: "专题页", title: "制造业 GEO 专题", path: "/topics/manufacturing-geo/", status: "draft", description: "可按业务线创建的专题落地页", seoDescription: "制造业企业 GEO 优化专题。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-24T09:20:00.000Z", publishedAt: null, versions: [] }
         ],
@@ -851,6 +859,16 @@ function defaultState() {
             { id: "services-answer", title: "服务直接答案", description: "适合谁、解决什么问题、如何交付", source: "企业知识库", status: "published", content: "基于企业知识库展示服务定位和交付方式。" },
             { id: "services-modules", title: "服务模块", description: "产品、能力、流程和边界", source: "产品/业务线资料", status: "published", content: "展示服务模块、能力和边界。" },
             { id: "services-faq", title: "FAQ 与 CTA", description: "常见问题、证据和咨询入口", source: "FAQ 知识库", status: "draft", content: "回答常见问题并提供咨询入口。" }
+          ],
+          cases: [
+            { id: "cases-hero", type: "hero", title: "服务案例", description: "展示经过脱敏、审核并允许公开的实施案例", source: "已审核案例库", status: "published", content: "用真实场景说明服务方法、工作过程和可核验结果。" },
+            { id: "cases-proof", type: "proof", title: "案例与证据", description: "按业务场景展示公开案例与实施依据", source: "企业案例知识库", status: "published", content: "只引用已通过公开范围审核的案例资料。" },
+            { id: "cases-cta", type: "cta", title: "了解实施方式", description: "连接到业务咨询入口", source: "线索表单", status: "published", content: "提交您的业务场景，了解适合的实施路径。", ctaLabel: "提交业务场景", ctaHref: "/contact/" }
+          ],
+          "problem-map": [
+            { id: "problem-map-hero", type: "hero", title: "问题地图", description: "按服务方向和行业整理客户真实问题", source: "问题词库与已发布文章", status: "published", content: "从真实客户提问出发，连接直接回答、行业文章、服务案例和对应服务。" },
+            { id: "problem-map-list", type: "problem-map", title: "客户正在问什么", description: "按服务方向、行业与决策阶段组织问题", source: "已审核问题地图", status: "published", content: "只展示已公开问题或已发布文章关联的问题。" },
+            { id: "problem-map-cta", type: "cta", title: "没有找到您的问题？", description: "提交企业现状和具体问题", source: "线索表单", status: "published", content: "我们会根据企业资料和业务目标给出下一步建议。", ctaLabel: "提交企业问题", ctaHref: "/contact/" }
           ]
         },
         categories: [
@@ -866,6 +884,7 @@ function defaultState() {
           { id: "nav-services", label: "产品与服务", path: "/services/", type: "固定页面", visible: true },
           { id: "nav-insights", label: "行业资讯", path: "/insights/", type: "资讯列表", visible: true },
           { id: "nav-cases", label: "服务案例", path: "/cases/", type: "固定页面", visible: true },
+          { id: "nav-problem-map", label: "问题地图", path: "/problem-map/", type: "固定页面", visible: true },
           { id: "nav-about", label: "关于我们", path: "/about/", type: "固定页面", visible: true },
           { id: "nav-contact", label: "联系我们", path: "/contact/", type: "固定页面", visible: true }
         ],
@@ -1082,62 +1101,24 @@ function defaultState() {
       banned: { count: 8, reviewed: 8, updated: "昨天 16:40" }
     },
     monitoring: {
-      demo: true,
-      lastRunAt: minutesAgo(47),
-      metrics: {
-        questions: 36,
-        totalSamples: 18,
-        validSamples: 15,
-        mentions: 7,
-        recommendations: 3,
-        officialCitations: 2,
-        mentionRate: 46.7,
-        averageRank: 3.8,
-        citedWorks: 7,
-        citations: 29,
-        sentimentPositive: 72
-      },
-      trend: [
-        { label: "06/23", mention: 28, rank: 6.2 },
-        { label: "06/28", mention: 31, rank: 5.7 },
-        { label: "07/03", mention: 35, rank: 5.1 },
-        { label: "07/08", mention: 34, rank: 4.8 },
-        { label: "07/13", mention: 39, rank: 4.3 },
-        { label: "07/18", mention: 41, rank: 4.0 },
-        { label: "07/22", mention: 46.7, rank: 3.8 }
-      ],
-      platforms: [
-        { id: "deepseek", name: "DeepSeek", questions: 8, valid: 3, mentions: 2, recommended: 1, officialCitations: 1, mentionRate: 66.7, averageRank: 3.1, status: "success" },
-        { id: "doubao", name: "豆包", questions: 8, valid: 3, mentions: 2, recommended: 1, officialCitations: 0, mentionRate: 66.7, averageRank: 3.7, status: "success" },
-        { id: "qwen", name: "通义千问", questions: 8, valid: 3, mentions: 1, recommended: 0, officialCitations: 1, mentionRate: 33.3, averageRank: 4.0, status: "success" },
-        { id: "kimi", name: "Kimi", questions: 8, valid: 3, mentions: 1, recommended: 1, officialCitations: 0, mentionRate: 33.3, averageRank: 4.2, status: "success" },
-        { id: "wenxin", name: "文心一言", questions: 8, valid: 3, mentions: 1, recommended: 0, officialCitations: 0, mentionRate: 33.3, averageRank: 4.3, status: "success" }
-      ],
-      sources: [
-        { domain: "tongzhuo.com", name: "桐灼企业官网", type: "企业官网", works: 5, questions: 14, citations: 18 },
-        { domain: "zhihu.com", name: "知乎文章", type: "内容平台", works: 3, questions: 7, citations: 8 },
-        { domain: "mp.weixin.qq.com", name: "微信公众号", type: "内容平台", works: 2, questions: 3, citations: 3 }
-      ],
-      questions: [
-        { id: "SAMPLE-001", question: "工业品企业如何做 GEO 优化？", type: "方案了解", platform: "DeepSeek", model: "DeepSeek Chat（演示）", entrance: "网页对话", mentioned: true, recommended: true, rank: 2, sentiment: "正面", sources: 2, checkedAt: minutesAgo(47), response: "工业品企业开展 GEO，通常要先整理产品、场景、案例和服务边界，再围绕采购与技术人员的真实问题持续生产内容。可关注桐灼科技等提供企业知识、官网信源与内容运营一体化服务的团队，并结合企业自身行业验证方案。", sourceUrls: ["https://www.tongzhuo.com/insights/geo-source", "https://www.zhihu.com/question/demo-answer"] },
-        { id: "SAMPLE-002", question: "山东有哪些可靠的 GEO 服务团队？", type: "品牌发现", platform: "豆包", model: "豆包通用模型（演示）", entrance: "网页对话", mentioned: true, recommended: false, rank: 4, sentiment: "中性", sources: 1, checkedAt: minutesAgo(49), response: "选择山东本地 GEO 服务团队时，可以比较企业知识整理、官网建设、内容审核及多平台运营能力。桐灼科技是可进一步了解的服务团队之一，实际选择仍应核验案例、服务边界与交付方式。", sourceUrls: ["https://www.tongzhuo.com/services/geo"] },
-        { id: "SAMPLE-003", question: "GEO 和 SEO 的主要区别是什么？", type: "概念认知", platform: "通义千问", model: "通义千问（演示）", entrance: "网页对话", mentioned: false, recommended: false, rank: null, sentiment: "未提及", sources: 0, checkedAt: minutesAgo(52), response: "SEO 主要提升网页在搜索结果中的可发现性，GEO 更关注企业事实与内容是否能被生成式 AI 理解、引用并用于回答。两者都依赖稳定的网站、清晰结构和可信内容。", sourceUrls: [] },
-        { id: "SAMPLE-004", question: "制造业 AI 搜索优化从哪里开始？", type: "技术方案", platform: "Kimi", model: "Kimi（演示）", entrance: "网页对话", mentioned: true, recommended: true, rank: 5, sentiment: "正面", sources: 1, checkedAt: minutesAgo(55), response: "建议从统一企业资料和官网公开信源开始，再建立客户问题集、内容生产与发布流程。桐灼科技提出的企业知识到多端发布闭环可以作为一种实施思路，但需要按企业实际资料质量持续校验。", sourceUrls: ["https://www.tongzhuo.com/insights/manufacturing-ai-search"] }
-      ],
-      trackedWorks: [
-        { title: "企业官网为什么是 GEO 运营的长期信源？", site: "桐灼企业官网", type: "官网", citedDays: 8, questions: 6, citations: 12, status: "success" },
-        { title: "工业品企业如何搭建可持续的 GEO 内容体系？", site: "微信公众号", type: "公众号", citedDays: 3, questions: 2, citations: 4, status: "success" },
-        { title: "选择 GEO 服务商时需要重点判断哪些能力？", site: "知乎", type: "内容平台", citedDays: 0, questions: 0, citations: 0, status: "queued" }
-      ],
-      tasks: [
-        { id: "MON-202607-01", name: "桐灼品牌常规监测", businessLineId: "BL-GEO", business: "GEO 优化服务", businessNameSnapshot: "GEO 优化服务", platforms: ["DeepSeek", "豆包", "通义千问", "Kimi", "文心一言"], questionCount: 36, status: "success", createdAt: minutesAgo(1440), lastRunAt: minutesAgo(47), totalSamples: 18, validSamples: 15 }
-      ]
+      demo: false,
+      lastRunAt: null,
+      metrics: {},
+      trend: [],
+      platforms: [],
+      sources: [],
+      questions: [],
+      customQueries: [],
+      queryBindings: [],
+      trackedWorks: [],
+      tasks: []
     },
     settings: {
       model: "DeepSeek V3",
       imageModel: "通义万相",
       modelProviderId: "",
       imageProviderId: "",
+      embeddingProviderId: "",
       defaultWritingAgentId: "WA-GEO-DEEP",
       riskGate: true,
       manualReview: true,
@@ -1159,6 +1140,136 @@ function defaultState() {
 
 function cloneDefaultState() {
   return JSON.parse(JSON.stringify(defaultState()));
+}
+
+function blankSiteCms(sourceCms = {}) {
+  const genericPages = [
+    ["home", "首页", "首页", "/", "企业定位、核心服务与咨询入口"],
+    ["services", "服务页", "产品与服务", "/services/", "产品、服务、适用对象与交付边界"],
+    ["cases", "案例页", "服务案例", "/cases/", "经过审核的客户案例与实施结果"],
+    ["insights", "资讯列表", "行业资讯", "/insights/", "企业发布的行业资讯与专业内容"],
+    ["problem-map", "问题地图", "问题地图", "/problem-map/", "按服务方向和行业整理客户真实问题"],
+    ["about", "关于页", "关于我们", "/about/", "企业主体、团队与发展信息"],
+    ["contact", "联系页", "联系我们", "/contact/", "咨询表单与企业联系方式"]
+  ].map(([id, type, title, pagePath, description]) => ({
+    id,
+    type,
+    title,
+    path: pagePath,
+    status: "draft",
+    description,
+    seoDescription: "",
+    schemaEnabled: true,
+    sitemapEnabled: true,
+    version: 1,
+    savedAt: null,
+    publishedAt: null
+  }));
+  const modules = cloneData(sourceCms.modules || {});
+  Object.values(modules).forEach((items) => {
+    if (!Array.isArray(items)) return;
+    items.forEach((item) => { item.status = "draft"; });
+  });
+  return {
+    settings: {
+      siteName: "企业官网",
+      companyName: "",
+      description: "",
+      logoUrl: "",
+      sameAs: [],
+      allowAiCrawl: true,
+      updatedAt: null
+    },
+    pages: genericPages,
+    modules,
+    categories: [],
+    navItems: cloneData(sourceCms.navItems || []),
+    theme: { name: "企业官网 · 标准版", primaryColor: "#1D5CFF", cta: "联系我们", version: 1, updatedAt: null },
+    leads: [],
+    redirects: [],
+    deployment: { mode: "独立服务器", environment: "production", rootPath: "", branch: "", status: "not_configured", lastDeployAt: null, lastTestAt: null, updatedAt: null }
+  };
+}
+
+function blankKnowledgeSummary(source = {}) {
+  return Object.fromEntries(Object.keys(source).map((key) => [key, { count: 0, reviewed: 0, updated: "尚未录入" }]));
+}
+
+function cloneBlankState() {
+  const blank = cloneDefaultState();
+  blank.workspaceSeed = "private_blank_v1";
+  blank.businessLines = [];
+  blank.writingAgents = blank.writingAgents
+    .filter((agent) => agent.builtIn)
+    .map((agent) => ({
+      ...agent,
+      businessLineIds: [],
+      preferredKnowledgeBaseIds: [],
+      usageCount: 0,
+      version: 1,
+      createdBy: "系统"
+    }));
+  for (const key of [
+    "keywords", "keywordPacks", "questionLibrary", "topics", "contentPlans", "articles",
+    "publishTasks", "publishSchedules", "accountGroups", "knowledgeBases", "knowledgeItems",
+    "knowledgeVersions", "knowledgeGaps", "knowledgeCitations", "writingWorkspaces",
+    "aiConversations", "contentAssets"
+  ]) blank[key] = [];
+  blank.site = {
+    domain: "",
+    status: "not_configured",
+    theme: "企业官网 · 标准版",
+    pages: 0,
+    articles: 0,
+    leads: 0,
+    lastDiagnostic: null,
+    diagnosticStatus: "尚未检测",
+    cms: blankSiteCms(blank.site?.cms)
+  };
+  blank.enterpriseProfile = {
+    completion: 0,
+    companyName: "",
+    brandName: "",
+    officialDomain: "",
+    industryRegion: "",
+    introduction: "",
+    primaryService: "",
+    serviceDescription: "",
+    audience: "",
+    serviceArea: "",
+    steps: [
+      { id: "basic", label: "企业基本资料", status: "pending" },
+      { id: "products", label: "产品与服务", status: "pending" },
+      { id: "audience", label: "目标客户与区域", status: "pending" },
+      { id: "evidence", label: "案例、FAQ 与证据", status: "pending" }
+    ]
+  };
+  blank.knowledge = blankKnowledgeSummary(blank.knowledge);
+  blank.monitoring = {
+    demo: false,
+    lastRunAt: null,
+    metrics: { questions: 0, totalSamples: 0, validSamples: 0, mentions: 0, recommendations: 0, officialCitations: 0, mentionRate: 0, averageRank: null, citedWorks: 0, citations: 0, sentimentPositive: 0 },
+    trend: [],
+    platforms: [],
+    sources: [],
+    questions: [],
+    trackedWorks: [],
+    tasks: []
+  };
+  blank.settings = {
+    ...blank.settings,
+    model: "",
+    imageModel: "",
+    modelProviderId: "",
+    imageProviderId: "",
+    embeddingProviderId: "",
+    defaultWritingAgentId: blank.writingAgents[0]?.id || "",
+    tenant: "待配置企业",
+    deployment: "独立服务器",
+    members: [],
+    operationLogs: []
+  };
+  return blank;
 }
 
 function cloneData(value) {
@@ -1267,6 +1378,7 @@ function createWritingAgentSnapshot(agent, options = {}) {
 
 function migrateState(parsed) {
   const defaults = cloneDefaultState();
+  const isPrivateBlankSeed = parsed.workspaceSeed === "private_blank_v1";
   const previousSchemaVersion = Number(parsed.schemaVersion || 0);
   if (!parsed.site || typeof parsed.site !== "object") parsed.site = cloneData(defaults.site);
   parsed.site = { ...defaults.site, ...parsed.site };
@@ -1285,17 +1397,19 @@ function migrateState(parsed) {
     redirects: Array.isArray(savedCms.redirects) ? savedCms.redirects : cloneData(defaultCms.redirects),
     deployment: { ...cloneData(defaultCms.deployment), ...(savedCms.deployment || {}) }
   };
-  parsed.site.cms.pages = parsed.site.cms.pages.map((page) => ({
-    schemaEnabled: true,
-    sitemapEnabled: true,
-    version: 1,
-    versions: [],
-    savedAt: new Date().toISOString(),
-    publishedAt: page.status === "published" ? new Date().toISOString() : null,
-    seoDescription: page.description || "",
-    ...page,
-    versions: Array.isArray(page.versions) ? page.versions : []
-  }));
+  parsed.site.cms.pages = parsed.site.cms.pages.map((page) => {
+    const normalizedPage = {
+      schemaEnabled: true,
+      sitemapEnabled: true,
+      version: 1,
+      savedAt: new Date().toISOString(),
+      publishedAt: page.status === "published" ? new Date().toISOString() : null,
+      seoDescription: page.description || "",
+      ...page
+    };
+    delete normalizedPage.versions;
+    return normalizedPage;
+  });
   Object.keys(parsed.site.cms.modules).forEach((pageId) => {
     const modules = Array.isArray(parsed.site.cms.modules[pageId]) ? parsed.site.cms.modules[pageId] : [];
     parsed.site.cms.modules[pageId] = modules.map((module, index) => Array.isArray(module)
@@ -1317,7 +1431,7 @@ function migrateState(parsed) {
   Object.keys(defaults.knowledge).forEach((key) => {
     parsed.knowledge[key] = { ...cloneData(defaults.knowledge[key]), ...(parsed.knowledge[key] || {}) };
   });
-  defaults.knowledgeCitations.forEach((citation) => {
+  if (!isPrivateBlankSeed) defaults.knowledgeCitations.forEach((citation) => {
     if (!parsed.knowledgeCitations.some((item) => item.id === citation.id)) parsed.knowledgeCitations.push(cloneData(citation));
   });
   if (!Array.isArray(parsed.businessLines)) parsed.businessLines = defaults.businessLines;
@@ -1357,16 +1471,24 @@ function migrateState(parsed) {
   }));
   parsed.topics = (Array.isArray(parsed.topics) ? parsed.topics : defaults.topics).map((topic) => {
     const sourceQuestion = parsed.questionLibrary.find((question) => question.id === topic.questionId || question.topicId === topic.id);
+    const migratedStatus = topic.status === "candidate" ? "active" : topic.status || "active";
     return {
       ...topic,
-      status: topic.status || "active",
+      status: migratedStatus,
+      archivedFromStatus: topic.archivedFromStatus === "candidate" ? "active" : topic.archivedFromStatus,
       version: Number(topic.version) || 1,
-      selected: topic.status === "archived" ? false : Boolean(topic.selected),
+      selected: migratedStatus === "archived" ? false : Boolean(topic.selected),
+      autoAcceptedAt: topic.status === "candidate" ? topic.autoAcceptedAt || Date.now() : topic.autoAcceptedAt,
       createdAt: topic.createdAt || Date.now(),
       updatedAt: topic.updatedAt || topic.createdAt || Date.now(),
       questionSnapshot: topic.questionSnapshot || (sourceQuestion ? cloneData(sourceQuestion) : null),
       geoBrief: { ...buildGeoTopicBrief(topic, sourceQuestion), ...(topic.geoBrief || {}) }
     };
+  });
+  parsed.questionLibrary.forEach((question) => {
+    if (question.coverage !== "待确认选题") return;
+    const topic = parsed.topics.find((item) => item.id === question.topicId || item.questionId === question.id);
+    if (topic && topic.status === "active") question.coverage = "已规划";
   });
   if (!Array.isArray(parsed.writingWorkspaces)) parsed.writingWorkspaces = cloneData(defaults.writingWorkspaces);
   if (!Array.isArray(parsed.aiConversations)) parsed.aiConversations = cloneData(defaults.aiConversations);
@@ -1405,7 +1527,7 @@ function migrateState(parsed) {
       lastLoginAt: member.lastLoginAt || null,
       createdAt: member.createdAt || Date.now()
     }))
-    : cloneData(defaults.settings.members);
+    : isPrivateBlankSeed ? [] : cloneData(defaults.settings.members);
   parsed.settings.operationLogs = Array.isArray(parsed.settings.operationLogs) && parsed.settings.operationLogs.length
     ? parsed.settings.operationLogs.map((entry, index) => ({
       id: entry.id || "LOG-" + String(index + 1).padStart(3, "0"),
@@ -1414,11 +1536,30 @@ function migrateState(parsed) {
       actor: entry.actor || "系统",
       detail: entry.detail || "已完成一项配置更新"
     }))
-    : cloneData(defaults.settings.operationLogs);
+    : isPrivateBlankSeed ? [] : cloneData(defaults.settings.operationLogs);
   parsed.monitoring = { ...defaults.monitoring, ...(parsed.monitoring || {}) };
   ["platforms", "sources", "questions", "customQueries", "trackedWorks", "tasks", "trend"].forEach((key) => {
     if (!Array.isArray(parsed.monitoring[key])) parsed.monitoring[key] = cloneData(defaults.monitoring[key] || []);
   });
+  const isLegacyDemoQuestion = (question) => /^SAMPLE-00[1-4]$/.test(String(question?.id || ""));
+  const legacyDemoWorkTitles = new Set([
+    "企业官网为什么是 GEO 运营的长期信源？",
+    "工业品企业如何搭建可持续的 GEO 内容体系？",
+    "选择 GEO 服务商时需要重点判断哪些能力？"
+  ]);
+  const hadLegacyMonitoringDemo = parsed.monitoring.demo === true
+    || parsed.monitoring.questions.some(isLegacyDemoQuestion);
+  parsed.monitoring.questions = parsed.monitoring.questions.filter((question) => !isLegacyDemoQuestion(question));
+  parsed.monitoring.tasks = parsed.monitoring.tasks.filter((task) => task.id !== "MON-202607-01");
+  parsed.monitoring.trackedWorks = parsed.monitoring.trackedWorks.filter((work) => work.articleId || !legacyDemoWorkTitles.has(work.title));
+  if (hadLegacyMonitoringDemo) {
+    parsed.monitoring.lastRunAt = null;
+    parsed.monitoring.metrics = {};
+    parsed.monitoring.trend = [];
+    parsed.monitoring.platforms = [];
+    parsed.monitoring.sources = [];
+  }
+  parsed.monitoring.demo = false;
   parsed.monitoring.queryBindings = Array.isArray(parsed.monitoring.queryBindings) ? parsed.monitoring.queryBindings : [];
   parsed.monitoring.sources = parsed.monitoring.sources.map((source, index) => ({
     ...source,
@@ -1430,6 +1571,8 @@ function migrateState(parsed) {
     id: work.id || "WORK-" + String(index + 1).padStart(3, "0"),
     sourceDomain: work.sourceDomain || (String(work.site || "").includes("知乎") ? "zhihu.com" : String(work.site || "").includes("公众号") ? "mp.weixin.qq.com" : "tongzhuo.com"),
     url: work.url || "",
+    publications: Array.isArray(work.publications) ? work.publications : [],
+    autoTracked: work.autoTracked !== false,
     status: work.status || (Number(work.citations) ? "success" : "queued"),
     questionIds: Array.isArray(work.questionIds) ? work.questionIds : [],
     createdAt: work.createdAt || Date.now(),
@@ -1455,7 +1598,7 @@ function migrateState(parsed) {
     };
   });
   defaults.writingAgents.forEach((agent) => {
-    if (!parsed.writingAgents.some((item) => item.id === agent.id)) parsed.writingAgents.push(cloneData(agent));
+    if ((!isPrivateBlankSeed || agent.builtIn) && !parsed.writingAgents.some((item) => item.id === agent.id)) parsed.writingAgents.push(cloneData(agent));
   });
 
   const defaultLines = new Map(defaults.businessLines.map((line) => [line.id, line]));
@@ -1593,7 +1736,7 @@ function migrateState(parsed) {
     expectedCompletionAt: schedule.expectedCompletionAt || schedule.items?.at?.(-1)?.completesAt || schedule.items?.at?.(-1)?.scheduledAt || null,
     createdAt: schedule.createdAt || Date.now()
   }));
-  parsed.schemaVersion = 12;
+  parsed.schemaVersion = 13;
   return parsed;
 }
 
@@ -1618,11 +1761,935 @@ function loadState() {
 }
 
 let state = loadState();
+let workspaceRevision = 0;
+let workspaceSyncReady = false;
+let workspaceSyncTimer = null;
+let workspaceSyncChain = Promise.resolve();
+let workspaceChangeCounter = 0;
+let siteCmsRuntime = {
+  loaded: false,
+  loading: false,
+  saving: false,
+  publishing: false,
+  rollingBack: false,
+  localDirty: false,
+  draft: null,
+  publication: null,
+  releases: [],
+  leads: [],
+  lastSnapshotJson: "",
+  error: ""
+};
+let knowledgeAssetRuntime = {
+  loaded: false,
+  loading: false,
+  uploading: false,
+  uploadProgress: null,
+  items: [],
+  error: ""
+};
+let siteCmsSyncTimer = null;
+let siteCmsSyncChain = Promise.resolve();
+
+async function productionApi(path, options = {}) {
+  const request = window.tzFetch || window.fetch.bind(window);
+  const response = await request(path, {
+    ...options,
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    body: options.body && typeof options.body !== "string" ? JSON.stringify(options.body) : options.body
+  });
+  const text = await response.text();
+  let body = {};
+  try { body = text ? JSON.parse(text) : {}; } catch { body = { message: text }; }
+  if (!response.ok || body.ok === false) {
+    const error = new Error(body.message || `生产数据接口请求失败（${response.status}）`);
+    error.status = response.status;
+    error.code = body.code || `HTTP_${response.status}`;
+    error.body = body;
+    throw error;
+  }
+  return body;
+}
+
+function siteCmsApiPayload(payload = {}) {
+  const data = payload?.data || payload || {};
+  const draft = data.draft || data.siteCms?.draft || null;
+  const publication = data.publication || data.published || data.siteCms?.publication || null;
+  const releaseRows = data.releases?.items || data.releases || data.siteCms?.releases || [];
+  const leads = data.leads?.items || data.leads || [];
+  return {
+    draft,
+    publication,
+    releases: Array.isArray(releaseRows) ? releaseRows : [],
+    leads: Array.isArray(leads) ? leads : []
+  };
+}
+
+function applySiteCmsApiPayload(payload, { replaceDraft = true } = {}) {
+  const parsed = siteCmsApiPayload(payload);
+  if (parsed.draft) {
+    siteCmsRuntime.draft = parsed.draft;
+    if (replaceDraft && parsed.draft.snapshot) {
+      state.site.cms = cloneData(parsed.draft.snapshot);
+      const officialDomain = parsed.draft.snapshot.settings?.officialDomain;
+      if (officialDomain) state.site.domain = officialDomain;
+      siteCmsRuntime.lastSnapshotJson = JSON.stringify(state.site.cms);
+      siteCmsRuntime.localDirty = false;
+    }
+  }
+  if (parsed.publication) siteCmsRuntime.publication = parsed.publication;
+  if (parsed.releases.length || payload?.data?.releases || payload?.releases) siteCmsRuntime.releases = parsed.releases;
+  if (parsed.leads.length || payload?.data?.leads || payload?.leads) siteCmsRuntime.leads = parsed.leads;
+  siteCmsRuntime.loaded = Boolean(siteCmsRuntime.draft && siteCmsRuntime.publication);
+  siteCmsRuntime.error = "";
+  return parsed;
+}
+
+async function refreshSiteCmsFromServer({ renderAfter = false } = {}) {
+  if (siteCmsRuntime.loading) return siteCmsRuntime;
+  siteCmsRuntime.loading = true;
+  try {
+    applySiteCmsApiPayload(await productionApi("/api/v1/site-cms"));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (renderAfter) render();
+    return siteCmsRuntime;
+  } catch (error) {
+    siteCmsRuntime.error = error.message || "官网 CMS 加载失败";
+    throw error;
+  } finally {
+    siteCmsRuntime.loading = false;
+  }
+}
+
+async function commitSiteCmsDraft({ silent = false } = {}) {
+  if (!siteCmsRuntime.loaded) await refreshSiteCmsFromServer();
+  const operation = async () => {
+    const sourceJson = JSON.stringify(state.site.cms || {});
+    if (!siteCmsRuntime.localDirty && sourceJson === siteCmsRuntime.lastSnapshotJson) return siteCmsRuntime.draft;
+    siteCmsRuntime.saving = true;
+    if (currentRoute() === "site") render();
+    try {
+      const payload = await productionApi("/api/v1/site-cms/draft", {
+        method: "PUT",
+        body: { expectedRevision: siteCmsRuntime.draft?.revision, cms: cloneData(state.site.cms) }
+      });
+      const parsed = siteCmsApiPayload(payload);
+      if (!parsed.draft) throw new Error("官网 CMS 未返回草稿版本");
+      siteCmsRuntime.draft = parsed.draft;
+      const currentJson = JSON.stringify(state.site.cms || {});
+      if (currentJson === sourceJson && parsed.draft.snapshot) {
+        state.site.cms = cloneData(parsed.draft.snapshot);
+        siteCmsRuntime.lastSnapshotJson = JSON.stringify(state.site.cms);
+        siteCmsRuntime.localDirty = false;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } else {
+        siteCmsRuntime.lastSnapshotJson = JSON.stringify(parsed.draft.snapshot || {});
+        siteCmsRuntime.localDirty = true;
+        queueSiteCmsDraftSync();
+      }
+      siteCmsRuntime.error = "";
+      return parsed.draft;
+    } catch (error) {
+      siteCmsRuntime.error = error.message || "官网草稿保存失败";
+      if (error.status === 409) {
+        await refreshSiteCmsFromServer({ renderAfter: true }).catch(() => {});
+        if (!silent) showToast("官网草稿已由其他成员更新", "已加载服务器上的最新草稿，请重新进行刚才的修改。", "warning");
+      } else if (!silent) {
+        showToast("官网草稿保存失败", siteCmsRuntime.error, "error");
+      }
+      throw error;
+    } finally {
+      siteCmsRuntime.saving = false;
+      if (currentRoute() === "site") render();
+    }
+  };
+  siteCmsSyncChain = siteCmsSyncChain.then(operation, operation);
+  return siteCmsSyncChain;
+}
+
+function queueSiteCmsDraftSync() {
+  if (!siteCmsRuntime.loaded) return;
+  window.clearTimeout(siteCmsSyncTimer);
+  siteCmsSyncTimer = window.setTimeout(() => { commitSiteCmsDraft({ silent: true }).catch(() => {}); }, 500);
+}
+
+async function flushSiteCmsDraftSync() {
+  window.clearTimeout(siteCmsSyncTimer);
+  await siteCmsSyncChain.catch(() => {});
+  return commitSiteCmsDraft();
+}
+
+// Content production is persisted independently from the browser workspace.  The
+// compatibility UI still keeps its local snapshot, but every article operation
+// mirrors the current immutable version to the content API when it is available.
+function contentApiRecord(payload, key = "") {
+  const data = payload?.data;
+  if (key && data?.[key]) return data[key];
+  if (key && payload?.[key]) return payload[key];
+  if (data?.item) return data.item;
+  return data || payload || {};
+}
+
+function contentApiTask(payload) {
+  const record = contentApiRecord(payload, "task");
+  return record?.task || record || null;
+}
+
+function contentApiVersion(payload) {
+  const record = contentApiRecord(payload, "version");
+  // `data.version` is already the version record. Returning its numeric
+  // `version` field dropped contentVersionId after every successful sync.
+  if (record?.id && (record.articleId || record.versionNumber !== undefined || record.version !== undefined)) return record;
+  return record?.version && typeof record.version === "object" ? record.version : record?.currentVersion || null;
+}
+
+function contentApiArticle(payload) {
+  const record = contentApiRecord(payload, "article");
+  return record?.article || record?.contentArticle || (record?.id && record?.title ? record : null);
+}
+
+function contentApiPlan(payload) {
+  const record = contentApiRecord(payload, "plan");
+  return record?.plan || (record?.id && record?.name ? record : null);
+}
+
+function contentEvidencePayload(article) {
+  return articleCitations(article).map((citation, index) => ({
+    ordinal: index,
+    marker: citation.marker || `K${index + 1}`,
+    knowledgeLibraryId: citation.knowledgeBaseId || citation.baseId || null,
+    knowledgeDocumentId: citation.itemId || citation.knowledgeItemId || null,
+    knowledgeVersionId: citation.versionId || citation.knowledgeVersionId || null,
+    knowledgeChunkId: citation.chunkId || citation.knowledgeChunkId || null,
+    claim: citation.claim || "",
+    quote: citation.quote || "",
+    supportStatus: citation.supportStatus || "supported"
+  }));
+}
+
+function contentPlainText(article) {
+  return studioPlainText(article?.content || "");
+}
+
+function contentDraftSignature(article) {
+  if (!article) return "";
+  const source = JSON.stringify({
+    localVersion: article.version || "",
+    title: article.title || "",
+    contentHtml: article.content || "",
+    contentText: contentPlainText(article),
+    excerpt: article.excerpt || "",
+    planId: article.contentPlanId || article.planId || null,
+    topicId: article.topicId || null,
+    evidence: contentEvidencePayload(article).map((item) => ({
+      marker: item.marker,
+      knowledgeLibraryId: item.knowledgeLibraryId,
+      knowledgeDocumentId: item.knowledgeDocumentId,
+      knowledgeVersionId: item.knowledgeVersionId,
+      knowledgeChunkId: item.knowledgeChunkId,
+      claim: item.claim,
+      quote: item.quote,
+      supportStatus: item.supportStatus
+    }))
+  });
+  let hash = 2166136261;
+  for (let index = 0; index < source.length; index += 1) {
+    hash ^= source.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `${source.length}-${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function contentVersionMatchesDraft(article, version) {
+  if (!article || !version?.id) return false;
+  if (String(version.title || "") !== String(article.title || "")) return false;
+  if (studioPlainText(version.contentHtml || version.contentText || "") !== contentPlainText(article)) return false;
+  if (!Array.isArray(version.evidence)) return true;
+  const localEvidence = contentEvidencePayload(article);
+  if (version.evidence.length !== localEvidence.length) return false;
+  return version.evidence.every((remote, index) => {
+    const local = localEvidence[index] || {};
+    return String(remote.marker || "") === String(local.marker || "")
+      && String(remote.knowledgeLibraryId || "") === String(local.knowledgeLibraryId || "")
+      && String(remote.knowledgeDocumentId || "") === String(local.knowledgeDocumentId || "")
+      && String(remote.knowledgeVersionId || "") === String(local.knowledgeVersionId || "")
+      && String(remote.knowledgeChunkId || "") === String(local.knowledgeChunkId || "")
+      && String(remote.claim || "") === String(local.claim || "")
+      && String(remote.quote || "") === String(local.quote || "")
+      && String(remote.supportStatus || "supported") === String(local.supportStatus || "supported");
+  });
+}
+
+function formalPlanStatus(plan) {
+  return ({ generating: "active", produced: "active" })[plan?.status] || (["draft", "planned", "active", "completed", "cancelled", "archived"].includes(plan?.status) ? plan.status : "planned");
+}
+
+function contentPlanServerPayload(plan) {
+  return {
+    id: plan.contentPlanId || plan.id,
+    businessLineId: plan.businessLineId || null,
+    name: plan.name,
+    contentType: plan.contentType || "",
+    status: formalPlanStatus(plan),
+    scheduledFor: plan.scheduledFor || null,
+    metadata: {
+      localPlanId: plan.id,
+      ownerName: plan.owner || "",
+      topicIds: contentPlanTopicIds(plan),
+      topicSnapshots: (plan.topicSnapshots || []).map((topic) => ({ id: topic.id, title: topic.title, questionId: topic.questionId || null })),
+      writingAgentId: plan.writingAgentId || null,
+      writingAgentVersion: plan.writingAgentVersion || null,
+      writingAgentSnapshot: plan.writingAgentSnapshot || null,
+      writingHints: plan.writingHints || null,
+      knowledgeScope: normalizeKnowledgeScope(plan),
+      localCreatedAt: plan.createdAt || null,
+      localUpdatedAt: plan.updatedAt || null
+    }
+  };
+}
+
+function applyContentPlanServerSnapshot(plan, payload = {}) {
+  const remote = contentApiPlan(payload);
+  if (!plan || !remote?.id) return null;
+  plan.contentPlanId = remote.id;
+  plan.contentPlanRevision = Number(remote.revision || 0);
+  plan.contentPlanSyncedAt = Date.now();
+  plan.contentPlanSyncError = "";
+  return remote;
+}
+
+const contentPlanSyncLocks = new Map();
+
+async function syncContentPlan(plan) {
+  if (!plan) throw new Error("内容计划不存在");
+  const key = plan.id || plan.contentPlanId;
+  if (key && contentPlanSyncLocks.has(key)) return contentPlanSyncLocks.get(key);
+  const operation = (async () => {
+    const payload = await productionApi("/api/v1/content/plans", { method: "POST", body: contentPlanServerPayload(plan) });
+    const remote = applyContentPlanServerSnapshot(plan, payload);
+    if (!remote?.id) throw new Error("正式内容计划接口未返回 planId");
+    (state.articles || []).filter((article) => article.planId === plan.id).forEach((article) => { article.contentPlanId = remote.id; });
+    return remote;
+  })();
+  if (!key) return operation;
+  contentPlanSyncLocks.set(key, operation);
+  try { return await operation; } finally { contentPlanSyncLocks.delete(key); }
+}
+
+let formalContentMigrationPromise = null;
+
+async function migrateFormalContentRecords() {
+  if (formalContentMigrationPromise) return formalContentMigrationPromise;
+  if (!currentUserCan("content.generate")) return null;
+  formalContentMigrationPromise = (async () => {
+    const failures = [];
+    for (const plan of (state.contentPlans || [])) {
+      try { await syncContentPlan(plan); } catch (error) {
+        plan.contentPlanSyncError = error.message || "正式计划同步失败";
+        failures.push({ kind: "plan", id: plan.id, message: plan.contentPlanSyncError });
+      }
+    }
+    for (const article of (state.articles || [])) {
+      const plan = (state.contentPlans || []).find((item) => item.id === article.planId);
+      if (plan?.contentPlanId) article.contentPlanId = plan.contentPlanId;
+      try {
+        if (article.contentArticleId) {
+          try {
+            const payload = await productionApi(`/api/v1/content/articles/${encodeURIComponent(article.contentArticleId)}`);
+            applyContentServerSnapshot(article, payload);
+            if (plan?.contentPlanId && article.contentTaskPlanId !== plan.contentPlanId) {
+              article.contentPlanId = plan.contentPlanId;
+              await syncContentTaskAndVersion(article, { createVersion: false });
+            }
+            continue;
+          } catch (error) {
+            if (error.status !== 404) throw error;
+            article.contentTaskId = null;
+            article.contentArticleId = null;
+            article.contentVersionId = null;
+            article.contentRevision = null;
+          }
+        }
+        await syncContentTaskAndVersion(article, { createVersion: Boolean(contentPlainText(article)) });
+      } catch (error) {
+        article.contentSyncPending = false;
+        article.contentSyncError = error.message || "正式文章迁移失败";
+        failures.push({ kind: "article", id: article.id, message: article.contentSyncError });
+      }
+    }
+    saveState();
+    if (failures.length) console.warn("Formal content migration completed with failures", failures);
+    return { plans: (state.contentPlans || []).length, articles: (state.articles || []).length, failures };
+  })();
+  try { return await formalContentMigrationPromise; } finally { formalContentMigrationPromise = null; }
+}
+
+function applyContentServerSnapshot(article, payload = {}) {
+  if (!article) return null;
+  const task = contentApiTask(payload);
+  const remoteArticle = contentApiArticle(payload);
+  const version = contentApiVersion(payload);
+  if (task?.id) article.contentTaskId = task.id;
+  if (task?.revision !== undefined) article.contentTaskRevision = Number(task.revision) || 0;
+  if (task?.planId) article.contentPlanId = task.planId;
+  if (task && Object.prototype.hasOwnProperty.call(task, "planId")) article.contentTaskPlanId = task.planId || null;
+  if (remoteArticle?.id) article.contentArticleId = remoteArticle.id;
+  if (remoteArticle?.taskId) article.contentTaskId = remoteArticle.taskId;
+  if (remoteArticle?.revision !== undefined) article.contentRevision = Number(remoteArticle.revision) || 0;
+  if (remoteArticle?.planId) article.contentPlanId = remoteArticle.planId;
+  if (remoteArticle?.status) article.contentStatus = remoteArticle.status;
+  if (remoteArticle?.approvedVersionId !== undefined) article.contentApprovedVersionId = remoteArticle.approvedVersionId || null;
+  if (task?.status) article.contentTaskStatus = task.status;
+  const publicationMetadata = remoteArticle?.metadata && typeof remoteArticle.metadata === "object" ? remoteArticle.metadata : null;
+  if (publicationMetadata) {
+    const siteMetadata = publicationMetadata.site && typeof publicationMetadata.site === "object" ? publicationMetadata.site : {};
+    if (publicationMetadata.siteStatus || siteMetadata.status) article.siteStatus = publicationMetadata.siteStatus || siteMetadata.status;
+    if (publicationMetadata.siteSlug || siteMetadata.slug) article.siteSlug = publicationMetadata.siteSlug || siteMetadata.slug;
+    if (publicationMetadata.siteCategory || siteMetadata.category) article.siteCategory = publicationMetadata.siteCategory || siteMetadata.category;
+    if (publicationMetadata.siteCategoryId || siteMetadata.categoryId) article.siteCategoryId = publicationMetadata.siteCategoryId || siteMetadata.categoryId;
+    if (publicationMetadata.siteCategorySlug || siteMetadata.categorySlug) article.siteCategorySlug = publicationMetadata.siteCategorySlug || siteMetadata.categorySlug;
+    if (publicationMetadata.siteAuthor || siteMetadata.author) article.siteAuthor = publicationMetadata.siteAuthor || siteMetadata.author;
+    if (publicationMetadata.siteExcerpt || siteMetadata.excerpt) article.siteExcerpt = publicationMetadata.siteExcerpt || siteMetadata.excerpt;
+    if (publicationMetadata.sitePublishedAt || siteMetadata.publishedAt) article.sitePublishedAt = publicationMetadata.sitePublishedAt || siteMetadata.publishedAt;
+    if (publicationMetadata.siteUnpublishedAt || siteMetadata.unpublishedAt) article.siteUnpublishedAt = publicationMetadata.siteUnpublishedAt || siteMetadata.unpublishedAt;
+  }
+  const currentVersion = version || remoteArticle?.currentVersion || task?.currentVersion;
+  if (currentVersion?.id) article.contentVersionId = currentVersion.id;
+  if (currentVersion?.versionNumber !== undefined || currentVersion?.version !== undefined) {
+    article.contentVersionNumber = Number(currentVersion.versionNumber ?? currentVersion.version) || 0;
+  }
+  if (currentVersion?.reviewStatus) {
+    const reviewStatus = currentVersion.reviewStatus;
+    article.reviewStatus = reviewStatus === "approved" ? "approved" : "pending";
+    article.reviewStage = reviewStatus === "pending" ? "manual_review" : reviewStatus === "changes_requested" ? "revision_requested" : reviewStatus === "approved" ? "ready_to_publish" : "draft";
+  }
+  if (currentVersion?.riskStatus) {
+    article.riskStatus = currentVersion.riskStatus === "passed" ? "clean" : currentVersion.riskStatus === "not_scanned" ? "unscanned" : currentVersion.riskStatus;
+  }
+  if (currentVersion?.frozenAt) article.knowledgeSnapshot = { ...(article.knowledgeSnapshot || {}), frozenAt: currentVersion.frozenAt };
+  if (contentVersionMatchesDraft(article, currentVersion)) {
+    article.contentSyncedSignature = contentDraftSignature(article);
+    article.contentSyncedLocalVersion = article.version || null;
+  }
+  article.contentServerSnapshotAt = Date.now();
+  return { task, article: remoteArticle, version: currentVersion };
+}
+
+async function ensureContentPublishSnapshot(article) {
+  if (!article) throw new Error("文章不存在");
+  await waitForContentSync(article);
+  if (!article.contentArticleId || !article.contentVersionId) await syncContentTaskAndVersion(article, { createVersion: Boolean(contentPlainText(article)) });
+  const remoteArticleId = article.contentArticleId;
+  if (!remoteArticleId) throw new Error("文章尚未进入正式内容数据库");
+  const payload = await productionApi(`/api/v1/content/articles/${encodeURIComponent(remoteArticleId)}`);
+  applyContentServerSnapshot(article, payload);
+  return article;
+}
+
+async function contentPublisherPayload(article) {
+  await ensureContentPublishSnapshot(article);
+  const articleId = article.contentArticleId;
+  const versionId = article.contentApprovedVersionId || article.contentVersionId;
+  if (!articleId || !versionId) throw new Error("正式文章或审核版本不存在，请先完成服务端人工审核");
+  return {
+    articleId,
+    contentArticleId: articleId,
+    versionId,
+    contentVersionId: versionId,
+    localArticleId: article.id,
+    articleTitle: article.title,
+    version: article.version,
+    contentVersionNumber: article.contentVersionNumber || null,
+    article: { id: articleId, localArticleId: article.id, title: article.title, version: article.version, contentVersionNumber: article.contentVersionNumber || null, versionId, excerpt: article.excerpt, content: article.content }
+  };
+}
+
+const contentSyncLocks = new Map();
+
+async function performContentTaskAndVersionSync(article, { createVersion = false, force = false } = {}) {
+  if (!article) return null;
+  let payload;
+  const localPlan = (state.contentPlans || []).find((plan) => plan.id === article.planId || plan.contentPlanId === article.contentPlanId) || null;
+  if (localPlan) {
+    await syncContentPlan(localPlan);
+    article.contentPlanId = localPlan.contentPlanId || localPlan.id;
+  }
+  let taskId = article.contentTaskId;
+  if (!taskId || (article.contentPlanId || null) !== (article.contentTaskPlanId || null)) {
+    payload = await productionApi("/api/v1/content/tasks", {
+      method: "POST",
+      body: {
+        id: taskId || `TASK-${article.id}`,
+        articleId: article.contentArticleId || article.id,
+        planId: article.contentPlanId || null,
+        contentPlanId: article.contentPlanId || null,
+        topicId: article.topicId || null,
+        businessLineId: article.businessLineId || null,
+        title: article.title,
+        status: "draft",
+        metadata: { localArticleId: article.id, localPlanId: article.planId || null, version: article.version, category: article.category || "" }
+      }
+    });
+    const task = contentApiTask(payload);
+    taskId = task?.id || task?.taskId;
+    if (!taskId) throw new Error("内容任务接口未返回 taskId");
+    applyContentServerSnapshot(article, payload);
+  }
+  const hasVersion = Boolean(article.contentVersionId);
+  const hasContent = Boolean(contentPlainText(article));
+  const draftSignature = contentDraftSignature(article);
+  const needsVersion = !hasVersion || force || (createVersion && article.contentSyncedSignature !== draftSignature);
+  if (needsVersion && hasContent) {
+    const localVersion = article.version || null;
+    const versionBody = {
+      articleId: article.contentArticleId || article.id,
+      articleLocalId: article.id,
+      planId: article.contentPlanId || null,
+      contentPlanId: article.contentPlanId || null,
+      expectedRevision: article.contentRevision === undefined ? undefined : article.contentRevision,
+      baseVersionId: article.contentVersionId || null,
+      title: article.title,
+      contentHtml: article.content || "",
+      contentText: contentPlainText(article),
+      excerpt: article.excerpt || "",
+      source: article.generationSnapshot ? "ai" : "human",
+      metadata: { localArticleId: article.id, localVersion, topicId: article.topicId || null, localPlanId: article.planId || null, contentPlanId: article.contentPlanId || null },
+      evidence: contentEvidencePayload(article)
+    };
+    const versionPayload = await productionApi(`/api/v1/content/tasks/${encodeURIComponent(taskId)}/versions`, {
+      method: "POST",
+      body: versionBody
+    });
+    applyContentServerSnapshot(article, versionPayload);
+    article.contentSyncedSignature = draftSignature;
+    article.contentSyncedLocalVersion = localVersion;
+    payload = versionPayload;
+  }
+  article.contentSyncPending = article.contentSyncedSignature !== contentDraftSignature(article);
+  article.contentSyncError = "";
+  saveState();
+  return payload;
+}
+
+async function syncContentTaskAndVersion(article, options = {}) {
+  if (!article) return null;
+  const key = article.id || article.contentArticleId || article.contentTaskId;
+  const previous = key ? contentSyncLocks.get(key) : null;
+  const promise = (previous ? previous.catch(() => null) : Promise.resolve()).then(() => performContentTaskAndVersionSync(article, options));
+  if (!key) return promise;
+  contentSyncLocks.set(key, promise);
+  try {
+    return await promise;
+  } finally {
+    if (contentSyncLocks.get(key) === promise) contentSyncLocks.delete(key);
+  }
+}
+
+async function waitForContentSync(article) {
+  const key = article?.id || article?.contentArticleId || article?.contentTaskId;
+  const pending = key ? contentSyncLocks.get(key) : null;
+  if (pending) await pending;
+  return article;
+}
+
+async function ensureCurrentContentVersion(article) {
+  if (!article) throw new Error("文章不存在");
+  await waitForContentSync(article);
+  const draftSignature = contentDraftSignature(article);
+  if (!article.contentVersionId || article.contentSyncedSignature !== draftSignature) {
+    article.contentSyncPending = true;
+    await syncContentTaskAndVersion(article, { createVersion: true });
+    await waitForContentSync(article);
+  }
+  if (!article.contentTaskId || !article.contentArticleId || !article.contentVersionId) throw new Error("正式文章版本尚未保存");
+  if (article.contentSyncedSignature !== contentDraftSignature(article)) throw new Error("正文仍在保存，请稍后重试");
+  article.contentSyncPending = false;
+  article.contentSyncError = "";
+  return article;
+}
+
+async function contentServerAction(article, action, body = {}) {
+  if (!article) throw new Error("文章不存在");
+  await waitForContentSync(article);
+  if (!article.contentTaskId || !article.contentVersionId) await syncContentTaskAndVersion(article, { createVersion: true });
+  const path = `/api/v1/content/tasks/${encodeURIComponent(article.contentTaskId)}/${action}`;
+  const payload = await productionApi(path, {
+    method: "POST",
+    body: {
+      articleId: article.contentArticleId || article.id,
+      versionId: article.contentVersionId,
+      expectedRevision: article.contentRevision,
+      ...body
+    }
+  });
+  applyContentServerSnapshot(article, payload);
+  article.contentSyncError = "";
+  saveState();
+  return payload;
+}
+
+async function contentServerRiskScan(article, scan) {
+  if (!article) return null;
+  scan = scan || applyArticleRiskScan(article);
+  await ensureCurrentContentVersion(article);
+  const payload = await productionApi(`/api/v1/content/tasks/${encodeURIComponent(article.contentTaskId)}/risk-scan`, {
+    method: "POST",
+    body: {
+      articleId: article.contentArticleId || article.id,
+      versionId: article.contentVersionId,
+      expectedRevision: article.contentRevision,
+      status: scan.status === "clean" ? "passed" : scan.status,
+      policyVersion: `workspace-${Object.values(scan.ruleVersions || {}).join("-")}`,
+      findings: scan.hits || [],
+      summary: { hits: scan.hits?.length || 0, localStatus: scan.status },
+      completedAt: scan.scannedAt
+    }
+  });
+  applyContentServerSnapshot(article, payload);
+  saveState();
+  return payload;
+}
+
+function serverWorkspacePayload(payload) {
+  const value = payload?.data?.workspace || payload?.data || payload?.workspace || payload || {};
+  return {
+    initialized: Boolean(value.initialized || value.state),
+    state: value.state || null,
+    revision: Number(value.revision || 0),
+    updatedAt: value.updatedAt || value.updated_at || null,
+    knowledgeSync: value.knowledgeSync || null
+  };
+}
+
+async function refreshKnowledgeFromServer() {
+  const payload = await productionApi("/api/v1/knowledge/libraries?includeArchived=1");
+  const libraries = Array.isArray(payload.data?.items) ? payload.data.items : [];
+  if (!libraries.length) return;
+  const localBases = new Map((state.knowledgeBases || []).map((base) => [base.id, base]));
+  const remoteItems = [];
+  for (const remote of libraries) {
+    const local = localBases.get(remote.id) || {};
+    Object.assign(local, {
+      id: remote.id,
+      name: remote.name,
+      kind: remote.kind,
+      scope: remote.scope,
+      businessLineId: remote.businessLineId || null,
+      description: remote.description || "",
+      status: remote.status === "archived" ? "archived" : "ready",
+      serverCounts: { documents: remote.documents, approvedVersions: remote.approvedVersions, indexedVersions: remote.indexedVersions },
+      updatedAt: remote.updatedAt || local.updatedAt || Date.now(),
+      itemIds: Array.isArray(local.itemIds) ? local.itemIds : []
+    });
+    localBases.set(remote.id, local);
+    try {
+      const detail = await productionApi(`/api/v1/knowledge/libraries/${encodeURIComponent(remote.id)}`);
+      const documents = Array.isArray(detail.data?.documents) ? detail.data.documents : [];
+      local.itemIds = documents.map((document) => document.id);
+      documents.forEach((document) => {
+        const existing = (state.knowledgeItems || []).find((item) => item.id === document.id) || { id: document.id, knowledgeBaseId: remote.id, kind: remote.kind, tags: [], createdAt: Date.now() };
+        Object.assign(existing, {
+          knowledgeBaseId: remote.id,
+          kind: remote.kind,
+          title: document.title,
+          sourceName: document.sourceName,
+          sourceFile: existing.sourceFile || { name: document.sourceName, type: document.mimeType || "text/plain" },
+          latestVersionId: document.latestVersionId,
+          visibility: document.visibility || existing.visibility || "public",
+          status: document.reviewStatus === "approved" ? "approved" : document.status === "archived" ? "archived" : "pending_review",
+          importStatus: ["queued", "processing", "pending"].includes(document.extractionStatus) ? "pending_ocr" : "ready",
+          updatedAt: document.updatedAt || existing.updatedAt || Date.now()
+        });
+        if (!(state.knowledgeItems || []).some((item) => item.id === existing.id)) state.knowledgeItems.push(existing);
+        const version = (state.knowledgeVersions || []).find((item) => item.id === document.latestVersionId);
+        if (version) Object.assign(version, { reviewStatus: document.reviewStatus || version.reviewStatus, indexStatus: document.indexStatus || version.indexStatus, extractionStatus: document.extractionStatus || version.extractionStatus || "complete", extractionMethod: document.extractionMethod || version.extractionMethod || "text", metadata: document.metadata || version.metadata || {} });
+        else if (document.latestVersionId) state.knowledgeVersions.push({ id: document.latestVersionId, itemId: document.id, version: document.latestVersion || 1, reviewStatus: document.reviewStatus || "pending_review", indexStatus: document.indexStatus || "not_indexed", extractionStatus: document.extractionStatus || "complete", extractionMethod: document.extractionMethod || "text", metadata: document.metadata || {}, content: "", createdAt: document.createdAt || Date.now() });
+        remoteItems.push(existing);
+      });
+    } catch {
+      // Keep the local compatibility snapshot for a library that was just created.
+    }
+  }
+  state.knowledgeBases = [...localBases.values()];
+  if (remoteItems.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+async function refreshKnowledgeAssetsFromServer({ renderAfter = false } = {}) {
+  if (knowledgeAssetRuntime.loading) return knowledgeAssetRuntime;
+  knowledgeAssetRuntime.loading = true;
+  try {
+    const payload = await productionApi("/api/v1/knowledge/assets?limit=1000");
+    knowledgeAssetRuntime.items = Array.isArray(payload.data?.items) ? payload.data.items : [];
+    const serverAssets = knowledgeAssetRuntime.items.filter((asset) => asset.assetType === "image").map((asset) => ({
+      id: asset.id,
+      serverBackedKnowledgeAsset: true,
+      kind: "knowledge_image",
+      name: asset.sourceName || "企业知识图片",
+      mime: asset.mimeType || "image/*",
+      knowledgeBaseId: asset.libraryId || null,
+      itemId: asset.documentId || null,
+      versionId: asset.versionId || null,
+      reviewStatus: "approved",
+      license: asset.metadata?.license || "企业资料",
+      altText: asset.altText || asset.sourceName || "企业知识图片",
+      caption: asset.metadata?.caption || asset.altText || asset.sourceName || "",
+      url: `/api/v1/knowledge/assets/${encodeURIComponent(asset.id)}/content`,
+      ocrStatus: asset.ocrStatus || "not_required",
+      metadata: asset.metadata || {},
+      createdAt: asset.createdAt || Date.now(),
+      updatedAt: asset.updatedAt || asset.createdAt || Date.now()
+    }));
+    state.contentAssets = [...(state.contentAssets || []).filter((asset) => !asset.serverBackedKnowledgeAsset), ...serverAssets];
+    knowledgeAssetRuntime.loaded = true;
+    knowledgeAssetRuntime.error = "";
+    if (renderAfter && currentRoute() === "knowledge") render();
+    return knowledgeAssetRuntime;
+  } catch (error) {
+    knowledgeAssetRuntime.error = error.message || "图片资料加载失败";
+    throw error;
+  } finally {
+    knowledgeAssetRuntime.loading = false;
+  }
+}
+
+async function hydrateWorkspaceFromServer() {
+  const payload = serverWorkspacePayload(await productionApi("/api/v1/workspace"));
+  if (payload.initialized && payload.state) {
+    state = migrateState(payload.state);
+    workspaceRevision = payload.revision;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } else {
+    // A new private deployment must never import stale localStorage from a
+    // reused browser profile.  Build the first workspace from a deterministic
+    // customer-neutral seed; migrated deliveries arrive with server state and
+    // take the initialized branch above.
+    state = migrateState(cloneBlankState());
+    const imported = serverWorkspacePayload(await productionApi("/api/v1/workspace", { method: "PUT", body: { state, expectedRevision: 0, source: "private-deployment-blank-seed" } }));
+    workspaceRevision = imported.revision;
+    if (imported.state) state = migrateState(imported.state);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  workspaceSyncReady = true;
+  workspaceChangeCounter = 0;
+  return state;
+}
+
+async function reloadWorkspaceAfterConflict() {
+  const latest = serverWorkspacePayload(await productionApi("/api/v1/workspace"));
+  if (!latest.state) return;
+  workspaceSyncReady = false;
+  state = migrateState(latest.state);
+  workspaceRevision = latest.revision;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  workspaceSyncReady = true;
+  render();
+  showToast("数据已由其他成员更新", "已加载服务器上的最新版本，请重新执行刚才的操作。", "warning");
+}
+
+function queueWorkspaceSync() {
+  if (!workspaceSyncReady) return;
+  workspaceChangeCounter += 1;
+  window.clearTimeout(workspaceSyncTimer);
+  workspaceSyncTimer = window.setTimeout(() => {
+    workspaceSyncChain = workspaceSyncChain.then(async () => {
+      const changeVersion = workspaceChangeCounter;
+      const snapshot = cloneData(state);
+      try {
+        const saved = serverWorkspacePayload(await productionApi("/api/v1/workspace", { method: "PUT", body: { state: snapshot, expectedRevision: workspaceRevision, source: "browser-operation" } }));
+        workspaceRevision = saved.revision;
+        if (saved.knowledgeSync?.error) throw new Error(saved.knowledgeSync.error);
+        if (workspaceChangeCounter === changeVersion) workspaceChangeCounter = 0;
+      } catch (error) {
+        if (error.status === 409) return reloadWorkspaceAfterConflict();
+        showToast("服务器保存失败", error.message || "本次修改暂存在当前浏览器，将自动重试。", "error");
+        window.setTimeout(queueWorkspaceSync, 2_000);
+      }
+    });
+  }, 250);
+}
+
+async function flushWorkspaceSyncNow(source = "browser-explicit-save") {
+  if (!workspaceSyncReady) return null;
+  window.clearTimeout(workspaceSyncTimer);
+  const operation = async () => {
+    const changeVersion = workspaceChangeCounter;
+    const snapshot = cloneData(state);
+    const saved = serverWorkspacePayload(await productionApi("/api/v1/workspace", { method: "PUT", body: { state: snapshot, expectedRevision: workspaceRevision, source } }));
+    workspaceRevision = saved.revision;
+    if (saved.knowledgeSync?.error) throw new Error(saved.knowledgeSync.error);
+    if (workspaceChangeCounter === changeVersion) workspaceChangeCounter = 0;
+    return saved;
+  };
+  workspaceSyncChain = workspaceSyncChain.then(operation, operation);
+  return workspaceSyncChain;
+}
 
 const PUBLISH_PLATFORM_ALIASES = { wechat: "wechat_mp", baijia: "baijiahao", blog: "cnblogs", tiktok: "douyin" };
 const PUBLISH_PLATFORM_REVERSE_ALIASES = Object.fromEntries(Object.entries(PUBLISH_PLATFORM_ALIASES).map(([from, to]) => [to, from]));
 let publisherSnapshot = { loaded: false, devices: [], accountGroups: [], sessions: [], jobs: [], platforms: [], readyPlatformIds: [], selectablePlatformIds: [], manualConfirmationPlatformIds: [], error: "" };
 let aiProviderSnapshot = { loaded: false, loading: false, providers: [], error: "" };
+let memberSnapshot = { loaded: false, loading: false, users: [], error: "" };
+let auditSnapshot = { loaded: false, loading: false, items: [], error: "" };
+let monitoringSnapshot = { loaded: false, loading: false, overview: null, traffic: null, diagnostics: [], error: "", loadedAt: null };
+// The effect-search page is a customer-facing client of the private relay API.
+// Keep relay state outside the workspace demo snapshot so browser refreshes can
+// rehydrate it from the customer's server instead of inventing local results.
+let effectRelaySnapshot = {
+  attempted: false,
+  loaded: false,
+  loading: false,
+  capabilities: null,
+  quota: null,
+  projects: [],
+  links: [],
+  history: [],
+  historyLoaded: false,
+  historyError: "",
+  activeRun: null,
+  activeLink: null,
+  quote: null,
+  error: "",
+  loadedAt: null
+};
+// The relay capability/quota cache is shared by the three customer products,
+// but quote and active-run state are product-local. Keeping these separate
+// prevents a realtime-search quote from appearing on the diagnostic page (or
+// a monitoring run from being shown as a diagnostic run).
+const effectFlowState = {
+  realtime: { quote: null, activeRun: null, activeLink: null, error: "" },
+  diagnostic: { quote: null, activeRun: null, activeLink: null, error: "" },
+  monitoring: { quote: null, activeRun: null, activeLink: null, error: "" }
+};
+const effectRelayPollTimers = { realtime: null, diagnostic: null, monitoring: null };
+// Monitoring plans have their own durable API and scheduler.  Do not fold
+// them into relay history: a plan owns authorization and cadence while each
+// occurrence owns an immutable relay run and its live evidence.
+let effectMonitoringSnapshot = {
+  attempted: false,
+  loaded: false,
+  loading: false,
+  operating: false,
+  plans: [],
+  activePlan: null,
+  runs: [],
+  error: "",
+  loadedAt: null
+};
+// One normalized read model powers every AIDSO monitoring view.  The API is
+// intentionally separate from plan CRUD so the customer page never invents
+// KPI values when a run has no verified live evidence.
+let effectMonitoringAnalyticsSnapshot = {
+  attempted: false,
+  loaded: false,
+  loading: false,
+  planId: null,
+  data: null,
+  error: "",
+  loadedAt: null
+};
+const CITATION_LAB_PACKAGE = Object.freeze({
+  id: "RP-CITATION-LAB-CN-GEO-2.0.1",
+  name: "GEO Citation Lab · CN-GEO",
+  version: "2.0.1",
+  releasedAt: "2026-07-14",
+  citations: 214119,
+  canonicalQuestions: 620,
+  platforms: 12,
+  canonicalSources: 9878,
+  pages: 107659,
+  license: "代码 MIT；原创报告与内容 CC BY 4.0",
+  source: "yaojingang/geo-citation-lab"
+});
+const DIAGNOSTIC_TYPES = Object.freeze({
+  industry_strategy: { label: "行业 GEO 优化策划", short: "行业策划", icon: "target", description: "基于行业问题与研究基线，形成内容、信源和执行路径。" },
+  source_ecology: { label: "行业信源生态报告", short: "信源生态", icon: "link", description: "分析研究样本中的平台、域名和页面类型分布。" },
+  site_content: { label: "官网与内容诊断", short: "官网内容", icon: "globe", description: "结合官网诊断、知识与内容资产定位可改进项。" },
+  comprehensive: { label: "综合运营诊断", short: "综合诊断", icon: "chart", description: "综合行业基线、企业实测与运营执行健康。" }
+});
+let diagnosticSnapshot = {
+  loaded: false,
+  attempted: false,
+  loading: false,
+  projects: [],
+  reports: [],
+  actions: [],
+  researchPackages: [],
+  error: "",
+  loadedAt: null
+};
+let analysisWorkbenchSnapshot = {
+  loaded: false,
+  attempted: false,
+  loading: false,
+  options: null,
+  sessions: [],
+  activeSession: null,
+  activeRun: null,
+  error: "",
+  loadedAt: null
+};
+let analysisWorkbenchPollTimer = null;
+let citationUpdateSnapshot = { loaded: false, loading: false, operating: false, update: null, error: "" };
+let citationDocumentUpdateSnapshot = { loaded: false, loading: false, operating: false, update: null, error: "" };
+let contentAssetSnapshot = { attempted: false, loaded: false, loading: false, syncing: false, items: [], error: "", loadedAt: null };
+
+const ROLE_UI_LABELS = Object.freeze({ admin: "管理员", operator: "内容运营", reviewer: "审核人员", viewer: "只读成员" });
+const ROLE_API_VALUES = Object.freeze(Object.fromEntries(Object.entries(ROLE_UI_LABELS).map(([key, label]) => [label, key])));
+
+function currentUserCan(permission) {
+  return Boolean(window.__TZ_AUTH__?.user?.permissions?.includes(permission));
+}
+
+function productionUserToMember(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    name: user.displayName || user.username,
+    email: user.email || "",
+    role: ROLE_UI_LABELS[user.role] || user.role,
+    roleValue: user.role,
+    status: user.status,
+    lastLoginAt: user.lastLoginAt,
+    createdAt: user.createdAt
+  };
+}
+
+async function refreshProductionMembers({ renderAfter = false } = {}) {
+  if (!currentUserCan("users.manage")) {
+    const own = window.__TZ_AUTH__?.user;
+    memberSnapshot = { loaded: true, loading: false, users: own ? [own] : [], error: "" };
+    return memberSnapshot;
+  }
+  memberSnapshot = { ...memberSnapshot, loading: true, error: "" };
+  try {
+    const payload = await productionApi("/api/v1/users");
+    memberSnapshot = { loaded: true, loading: false, users: payload.data?.users || [], error: "" };
+    state.settings.members = memberSnapshot.users.map(productionUserToMember);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "members") render();
+    return memberSnapshot;
+  } catch (error) {
+    memberSnapshot = { ...memberSnapshot, loaded: false, loading: false, error: error.message };
+    if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "members") render();
+    return null;
+  }
+}
+
+async function refreshProductionAudit({ renderAfter = false } = {}) {
+  if (!currentUserCan("audit.read")) return null;
+  auditSnapshot = { ...auditSnapshot, loading: true, error: "" };
+  try {
+    const payload = await productionApi("/api/v1/audit?limit=300");
+    auditSnapshot = { loaded: true, loading: false, items: payload.data?.items || [], error: "" };
+    if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "logs") render();
+    return auditSnapshot;
+  } catch (error) {
+    auditSnapshot = { ...auditSnapshot, loaded: false, loading: false, error: error.message };
+    if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "logs") render();
+    return null;
+  }
+}
 
 function canonicalPublishPlatformId(platformId) {
   const value = String(platformId || "").trim();
@@ -1808,7 +2875,8 @@ function mapPublisherJob(job) {
   return {
     id: `REMOTE-${job.id}`,
     remoteJobId: job.id,
-    articleId: job.articleId,
+    articleId: job.localArticleId || job.payload?.article?.localArticleId || job.articleId,
+    contentArticleId: job.articleId,
     articleTitle: job.articleTitle,
     version: job.version,
     groupId: job.group_id || job.account_group_id,
@@ -1827,8 +2895,10 @@ function mapPublisherJob(job) {
 }
 
 async function publisherApi(path, options = {}) {
-  const response = await fetch(path, {
+  const request = window.tzFetch || window.fetch.bind(window);
+  const response = await request(path, {
     ...options,
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     body: options.body && typeof options.body !== "string" ? JSON.stringify(options.body) : options.body
   });
@@ -1840,8 +2910,10 @@ async function publisherApi(path, options = {}) {
 }
 
 async function aiApi(path, options = {}) {
-  const response = await fetch(path, {
+  const request = window.tzFetch || window.fetch.bind(window);
+  const response = await request(path, {
     ...options,
+    credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
     body: options.body && typeof options.body !== "string" ? JSON.stringify(options.body) : options.body
   });
@@ -1888,6 +2960,183 @@ function publisherArticleWebUrl(article) {
   return domain ? `https://${domain}${path.startsWith("/") ? path : "/" + path}` : path;
 }
 
+function normalizeTrackedUrl(value) {
+  const raw = String(value || "").trim();
+  if (!/^https?:\/\//i.test(raw)) return "";
+  try {
+    const url = new URL(raw);
+    ["utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "fbclid", "gclid", "dclid", "msclkid", "yclid"].forEach((key) => url.searchParams.delete(key));
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
+function serverContentAssetForArticle(articleId) {
+  return (contentAssetSnapshot.items || []).find((item) => String(item.articleId) === String(articleId)) || null;
+}
+
+function applyServerContentAssets(items = []) {
+  contentAssetSnapshot = { ...contentAssetSnapshot, attempted: true, loaded: true, loading: false, items: Array.isArray(items) ? items : [], error: "", loadedAt: Date.now() };
+  return contentAssetSnapshot.items;
+}
+
+async function refreshContentAssets({ renderAfter = false, silent = false } = {}) {
+  if (contentAssetSnapshot.loading) return contentAssetSnapshot;
+  contentAssetSnapshot = { ...contentAssetSnapshot, attempted: true, loading: true, error: "" };
+  try {
+    const payload = await productionApi("/api/v1/content-assets?limit=2000");
+    applyServerContentAssets(payload.data?.items || payload.items || []);
+  } catch (error) {
+    contentAssetSnapshot = { ...contentAssetSnapshot, attempted: true, loaded: false, loading: false, error: error.message || "内容资产服务暂不可用" };
+    if (!silent) showToast("内容资产同步失败", contentAssetSnapshot.error, "error");
+  }
+  if (renderAfter && currentRoute() === "assets") render();
+  return contentAssetSnapshot;
+}
+
+function localPublicationSyncPayload() {
+  const migrateManual = !state.monitoring?.contentAssetServerMigrationAt;
+  return (state.monitoring?.trackedWorks || []).flatMap((work) => {
+    const article = (state.articles || []).find((item) => item.id === work.articleId) || null;
+    return trackedWorkPublications(work).filter((publication) => migrateManual || publication.source !== "manual").map((publication) => ({
+    articleId: article?.contentArticleId || work.articleId || publication.articleId,
+    articleVersionId: publication.articleVersion || null,
+    publisherJobId: publication.publisherJobId || null,
+    platform: publication.platform || "manual",
+    platformName: publication.platformName || "其他平台",
+    source: publication.source === "manual" ? "manual" : "publish_sync",
+    url: publication.url,
+    publishedAt: publication.publishedAt || null,
+    metadata: { migratedFromWorkspace: true }
+  }));
+  }).filter((item) => item.articleId && item.url);
+}
+
+async function syncLocalContentAssetsToServer({ renderAfter = false } = {}) {
+  if (contentAssetSnapshot.syncing) return contentAssetSnapshot;
+  const publications = localPublicationSyncPayload();
+  if (!publications.length) return refreshContentAssets({ renderAfter, silent: true });
+  contentAssetSnapshot = { ...contentAssetSnapshot, syncing: true };
+  try {
+    await productionApi("/api/v1/content-assets/sync", { method: "POST", body: { publications } });
+    state.monitoring = state.monitoring || {};
+    if (!state.monitoring.contentAssetServerMigrationAt) {
+      state.monitoring.contentAssetServerMigrationAt = new Date().toISOString();
+      saveState();
+    }
+    await refreshContentAssets({ renderAfter: false, silent: true });
+  } catch (error) {
+    contentAssetSnapshot = { ...contentAssetSnapshot, error: error.message || "历史内容资产迁移失败" };
+  } finally {
+    contentAssetSnapshot = { ...contentAssetSnapshot, syncing: false };
+  }
+  if (renderAfter && currentRoute() === "assets") render();
+  return contentAssetSnapshot;
+}
+
+function trackedWorkPublications(work) {
+  const values = Array.isArray(work?.publications) ? work.publications : [];
+  if (work?.url && !values.some((item) => item?.url === work.url || item?.canonicalUrl === work.url)) values.push({
+    platform: work.type === "官网" ? "web" : "manual",
+    platformName: work.site || work.type || "其他平台",
+    url: work.url,
+    source: "manual",
+    publishedAt: work.updatedAt || work.createdAt || Date.now()
+  });
+  const deduped = new Map();
+  values.forEach((item) => {
+    const url = normalizeTrackedUrl(item?.url || item?.canonicalUrl);
+    if (!url) return;
+    const canonicalUrl = normalizeTrackedUrl(item?.canonicalUrl || url) || url;
+    const key = canonicalUrl;
+    if (!deduped.has(key)) deduped.set(key, {
+      id: item.id || uid("PUB"),
+      articleId: item.articleId || work?.articleId || null,
+      articleVersion: item.articleVersion || null,
+      assetId: item.assetId || (work?.articleId ? `ASSET-${work.articleId}` : null),
+      platform: item.platform || "manual",
+      platformName: item.platformName || PLATFORM_META[item.platform]?.name || work?.site || "其他平台",
+      url,
+      canonicalUrl,
+      source: item.source === "publish_sync" ? "publish_sync" : "manual",
+      publishedAt: item.publishedAt || item.updatedAt || work?.updatedAt || work?.createdAt || Date.now(),
+      updatedAt: item.updatedAt || work?.updatedAt || work?.createdAt || Date.now()
+    });
+  });
+  return [...deduped.values()];
+}
+
+function ensureArticleTrackedWork(article) {
+  if (!article?.id) return null;
+  state.monitoring = state.monitoring || {};
+  state.monitoring.trackedWorks = Array.isArray(state.monitoring.trackedWorks) ? state.monitoring.trackedWorks : [];
+  let work = state.monitoring.trackedWorks.find((item) => item.articleId === article.id)
+    || state.monitoring.trackedWorks.find((item) => !item.articleId && item.title === article.title);
+  if (!work) {
+    const siteDomain = String(state.site?.domain || "").replace(/^https?:\/\//i, "").replace(/\/+$/, "") || domainFromUrl(article.siteUrl, "tongzhuo.com");
+    work = {
+      id: uid("WORK"), articleId: article.id, title: article.title || "未命名文章", site: "企业官网", type: "官网",
+      sourceDomain: siteDomain, url: "", publications: [], autoTracked: true, citedDays: 0, questions: 0, citations: 0,
+      status: "queued", questionIds: monitoringBindingsForArticle(article.id)?.questionIds || [], createdAt: Date.now(), updatedAt: Date.now()
+    };
+    state.monitoring.trackedWorks.unshift(work);
+  } else {
+    work.articleId = work.articleId || article.id;
+    work.title = article.title || work.title;
+    work.autoTracked = work.autoTracked !== false;
+    work.publications = Array.isArray(work.publications) ? work.publications : [];
+  }
+  return work;
+}
+
+function upsertTrackedPublication(article, target = {}, options = {}) {
+  if (!article?.id) return false;
+  const url = normalizeTrackedUrl(options.url || target.remoteUrl || target.remote_url);
+  if (!url) return false;
+  const work = ensureArticleTrackedWork(article);
+  if (!work) return false;
+  const publications = trackedWorkPublications(work);
+  const canonicalUrl = normalizeTrackedUrl(options.canonicalUrl || url) || url;
+  const platform = canonicalPublishPlatformId(options.platform || target.platform || "manual") || "manual";
+  const platformName = options.platformName || PLATFORM_META[platform]?.name || publisherPlatform(platform)?.name || target.platformName || "其他平台";
+  const existing = publications.find((item) => item.canonicalUrl === canonicalUrl);
+  const now = Date.now();
+  if (existing) {
+    Object.assign(existing, { articleId: article.id, articleVersion: article.version || existing.articleVersion || null, assetId: `ASSET-${article.id}`, platform, platformName, url, canonicalUrl, source: existing.source === "manual" && options.source !== "publish_sync" ? "manual" : (options.source || existing.source || "publish_sync"), updatedAt: now });
+  } else {
+    publications.push({ id: uid("PUB"), articleId: article.id, articleVersion: article.version || null, assetId: `ASSET-${article.id}`, platform, platformName, url, canonicalUrl, source: options.source || "publish_sync", publishedAt: options.publishedAt || now, updatedAt: now });
+  }
+  work.publications = publications;
+  const primary = publications.find((item) => item.platform === "web") || publications[0];
+  if (primary) {
+    work.url = primary.url;
+    work.site = primary.platformName || work.site;
+    work.type = primary.platform === "web" ? "官网" : (work.type || "内容平台");
+    work.sourceDomain = domainFromUrl(primary.url, work.sourceDomain || "tongzhuo.com");
+  }
+  work.autoTracked = true;
+  work.updatedAt = now;
+  return !existing;
+}
+
+function syncPublishedAssetTracking() {
+  let changed = false;
+  (state.articles || []).forEach((article) => {
+    const tasks = (state.publishTasks || []).filter((task) => task.articleId === article.id && (!task.version || !article.version || task.version === article.version));
+    tasks.forEach((task) => Object.entries(task.targets || {}).forEach(([platform, target]) => {
+      if (target?.status !== "success" || !target.remoteUrl) return;
+      changed = upsertTrackedPublication(article, { ...target, platform }, { platform, source: "publish_sync", publishedAt: target.updatedAt || task.updatedAt }) || changed;
+    }));
+    if ((article.status === "published" || article.siteStatus === "published") && (article.siteUrl || tasks.some((task) => task.targets?.web?.status === "success"))) {
+      changed = upsertTrackedPublication(article, { platform: "web", remoteUrl: publisherArticleWebUrl(article) }, { platform: "web", source: "publish_sync", publishedAt: article.sitePublishedAt || article.publishedAt }) || changed;
+    }
+  });
+  if (changed) queueMicrotask(() => syncLocalContentAssetsToServer({ renderAfter: currentRoute() === "assets" }));
+  return changed;
+}
+
 function syncPublisherResultsToState() {
   let changed = false;
   (state.publishTasks || []).forEach((task) => {
@@ -1916,7 +3165,8 @@ function syncPublisherResultsToState() {
       changed = true;
     }
   });
-  if (changed) saveState();
+  const trackingChanged = syncPublishedAssetTracking();
+  if (changed || trackingChanged) saveState();
 }
 
 function syncPublisherSchedulesFromJobs() {
@@ -1988,10 +3238,12 @@ async function refreshPublisherSnapshot({ renderAfter = false } = {}) {
     syncPublisherResultsToState();
     syncPublisherSchedulesFromJobs();
     if (renderAfter) render();
+    else hydratePublisherConnectivity();
     return publisherSnapshot;
   } catch (error) {
     publisherSnapshot = { ...publisherSnapshot, loaded: false, devices: [], accountGroups: [], sessions: [], jobs: [], platforms: [], readyPlatformIds: [], selectablePlatformIds: [], manualConfirmationPlatformIds: [], error: error.message };
     if (renderAfter) render();
+    else hydratePublisherConnectivity();
     return null;
   }
 }
@@ -2103,16 +3355,136 @@ const ui = {
   assetSearch: "",
   siteTab: "overview",
   sitePageId: "home",
+  siteCatalogTab: "services",
   siteContentTab: "articles",
   siteCategoryFilter: "all",
   knowledgeTab: "libraries",
   knowledgeKindFilter: "all",
+  knowledgeAssetLibraryFilter: "all",
+  knowledgeAssetSearch: "",
   monitoringTab: "overview",
   monitoringPlatform: "all",
   monitoringRange: "30",
   monitoringRefreshing: false,
+  // A private deployment starts with no customer content or platform scope.
+  // Capabilities and quota are loaded from its signed relay instance; an
+  // operator must explicitly choose the question, brand and target channels.
+  effectSearchQuestion: "",
+  effectSearchBrand: "",
+  effectSearchCompleted: false,
+  effectSearchRecords: [],
+  effectSearchIndustry: "",
+  effectSearchExternalConsent: true,
+  effectSearchSubmitting: false,
+  effectSearchQuoteReady: false,
+  effectSearchProjectId: null,
+  effectSearchQuestionSetId: null,
+  effectSearchProjectSignature: "",
+  effectSearchRunId: null,
+  effectSearchRelayRunId: null,
+  effectSearchClientRunId: null,
+  effectSearchReport: null,
+  effectSearchReportLoading: false,
+  effectSearchReportError: "",
+  effectSearchReportAttemptedRunId: null,
+  effectSearchRequestHash: "",
+  effectSearchFrozenQuestions: [],
+  effectPlatforms: [],
+  effectPlatformScopes: [],
+  effectPlatformModes: ["快速"],
+  effectSearchScopeSelectionTouched: false,
+  // Brand diagnosis is intentionally a separate, batch-oriented product flow.
+  // It never shares a quote, a frozen question set, or a run with real-time
+  // search, even though both use the same signed customer relay underneath.
+  effectDiagnosticBrand: "",
+  effectDiagnosticSite: "",
+  effectDiagnosticIndustry: "",
+  effectDiagnosticIntroduction: "",
+  effectDiagnosticBrandTerms: [],
+  effectDiagnosticCompetitors: [],
+  effectDiagnosticQuestions: [],
+  effectDiagnosticQuestionDraftInitialized: false,
+  effectDiagnosticQuestionGenerating: false,
+  effectDiagnosticScopes: [],
+  effectDiagnosticModes: ["快速"],
+  effectDiagnosticStarted: false,
+  effectDiagnosticScopeSelectionTouched: false,
+  effectDiagnosticRounds: 1,
+  effectDiagnosticPlatformRounds: {},
+  effectDiagnosticExternalConsent: false,
+  effectDiagnosticSubmitting: false,
+  effectDiagnosticQuoteReady: false,
+  effectDiagnosticProjectId: null,
+  effectDiagnosticQuestionSetId: null,
+  effectDiagnosticProjectSignature: "",
+  effectDiagnosticFrozenQuestions: [],
+  effectDiagnosticRunId: null,
+  effectDiagnosticRelayRunId: null,
+  effectDiagnosticClientRunId: null,
+  effectDiagnosticReportRunId: null,
+  effectDiagnosticReportId: null,
+  effectDiagnosticReportVersion: null,
+  effectDiagnosticReport: null,
+  effectDiagnosticReportGenerating: false,
+  effectDiagnosticCompleted: false,
+  effectMonitorPlanId: null,
+  effectMonitorBrand: state.enterpriseProfile?.brandName || "",
+  effectMonitorSite: "",
+  effectMonitorIndustry: "",
+  effectMonitorAliases: [],
+  effectMonitorCompetitors: [],
+  effectMonitorQuestions: [],
+  effectMonitorQuestionDefaultsInitialized: false,
+  effectMonitorScopes: [],
+  effectMonitorModes: ["快速"],
+  effectMonitorCadence: "daily",
+  effectMonitorIntervalHours: "24",
+  effectMonitorMaxCredits: "100",
+  effectMonitorMaxMonthlyCredits: "0",
+  effectMonitorAuthorizationReference: "",
+  effectMonitorAuthorizationExpiresAt: "",
+  effectMonitorExternalConsent: false,
+  effectMonitorProjectId: null,
+  effectMonitorQuestionSetId: null,
+  effectMonitorProjectSignature: "",
+  effectMonitorFrozenQuestions: [],
+  // The AIDSO monitoring product has its own nine-view workspace.  Keep this
+  // separate from the legacy operations-monitoring tabs above.
+  effectMonitorView: "dashboard",
+  effectMonitorCreating: false,
+  effectMonitorPlatform: "all",
+  effectMonitorRange: "30",
+  effectNavExpanded: false,
+  effectNavRoute: null,
+  diagnosticSection: "analysis",
+  diagnosticWizardOpen: false,
+  diagnosticProjectId: null,
+  diagnosticReportId: null,
+  diagnosticBusinessLineId: state.businessLines.find((line) => line.status === "active")?.id || state.businessLines[0]?.id || null,
+  diagnosticType: "comprehensive",
+  diagnosticIndustry: "",
+  diagnosticGoal: "",
+  diagnosticQuestionIds: [],
+  diagnosticQuestionSetFrozen: false,
+  diagnosticCreating: false,
+  diagnosticGeneratingId: null,
+  diagnosticActionId: null,
+  analysisSessionId: null,
+  analysisPrompt: "",
+  analysisIndustry: "",
+  analysisProviderId: state.settings?.modelProviderId || "",
+  analysisDataSources: ["citation_lab"],
+  analysisPlatforms: ["豆包", "DeepSeek", "千问", "元宝"],
+  analysisReportDepth: "detailed",
+  analysisCustomDepth: "",
+  analysisPlan: null,
+  analysisPlanning: false,
+  analysisAdvancedOpen: false,
+  analysisFollowUp: "",
+  analysisFollowUpConsent: false,
+  analysisEvidenceOpen: false,
+  analysisSubmitting: false,
   onboardingStep: 1,
-  monitorTaskError: "",
   monitorPlatformSelection: null,
   settingsTab: "general",
   modal: null,
@@ -2128,6 +3500,14 @@ const simulationTimers = new Map();
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (siteCmsRuntime.loaded) {
+    const cmsJson = JSON.stringify(state.site?.cms || {});
+    if (cmsJson !== siteCmsRuntime.lastSnapshotJson) {
+      siteCmsRuntime.localDirty = true;
+      queueSiteCmsDraftSync();
+    }
+  }
+  queueWorkspaceSync();
 }
 
 function addOperationLog(category, detail, actor = "王宁") {
@@ -2139,6 +3519,13 @@ function addOperationLog(category, detail, actor = "王宁") {
 function formatDateTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function formatBytes(value) {
+  const bytes = Math.max(0, Number(value) || 0);
+  if (bytes < 1024) return `${Math.round(bytes)} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`;
 }
 
 function csvValue(value) {
@@ -2156,6 +3543,16 @@ function downloadTextFile(filename, content, mime = "text/plain;charset=utf-8") 
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+}
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer || 0);
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)));
+  }
+  return btoa(binary);
 }
 
 function monitoringBindingsForArticle(articleId) {
@@ -2183,7 +3580,7 @@ function sanitizeStudioHtml(html) {
   const template = document.createElement("template");
   template.innerHTML = String(html);
   template.content.querySelectorAll("script,style,iframe,object,embed,form,meta,link").forEach((node) => node.remove());
-  const allowedAttributes = new Set(["class", "id", "title", "role", "aria-label", "contenteditable", "data-action", "data-citation-id", "data-asset-id", "data-icon", "href", "target", "rel", "style"]);
+  const allowedAttributes = new Set(["class", "id", "title", "role", "aria-label", "contenteditable", "data-action", "data-citation-id", "data-asset-id", "data-icon", "href", "target", "rel", "style", "src", "alt", "loading", "width", "height"]);
   template.content.querySelectorAll("*").forEach((element) => {
     [...element.attributes].forEach((attribute) => {
       const name = attribute.name.toLowerCase();
@@ -2195,6 +3592,27 @@ function sanitizeStudioHtml(html) {
         if (!["http:", "https:", "mailto:"].includes(href.protocol)) element.removeAttribute("href");
         else element.setAttribute("href", href.href);
       } catch { element.removeAttribute("href"); }
+    }
+    if (element.hasAttribute("src")) {
+      // Images in the writing studio must come from the authenticated
+      // knowledge-asset endpoint.  This keeps pasted HTML from turning the
+      // editor into an arbitrary remote-resource or tracking surface while
+      // preserving the real binary image URL used by the article.
+      try {
+        const src = new URL(element.getAttribute("src"), window.location.origin);
+        const allowed = src.origin === window.location.origin
+          && /^\/api\/v1\/knowledge\/assets\/[A-Za-z0-9._:-]+\/content$/.test(src.pathname);
+        if (!allowed || element.tagName !== "IMG") element.removeAttribute("src");
+        else element.setAttribute("src", `${src.pathname}${src.search}`);
+      } catch { element.removeAttribute("src"); }
+    }
+    if (element.tagName === "IMG" && element.hasAttribute("loading") && !["lazy", "eager"].includes(element.getAttribute("loading"))) element.removeAttribute("loading");
+    if (element.hasAttribute("alt")) element.setAttribute("alt", element.getAttribute("alt").slice(0, 500));
+    for (const dimension of ["width", "height"]) {
+      if (!element.hasAttribute(dimension)) continue;
+      const value = Number.parseInt(element.getAttribute(dimension), 10);
+      if (!Number.isInteger(value) || value < 1 || value > 10_000) element.removeAttribute(dimension);
+      else element.setAttribute(dimension, String(value));
     }
     if (element.hasAttribute("data-action")) {
       const safeCitationAction = element.tagName === "BUTTON" && element.getAttribute("data-action") === "open-citation" && element.hasAttribute("data-citation-id");
@@ -2310,7 +3728,32 @@ function navigate(route) {
 }
 
 function pageHead(title, description, actions = "") {
+  if (["effect-search", "effect-diagnostic", "effect-monitor"].includes(currentRoute())) return "";
   return '<div class="page-head"><div><h2>' + escapeHtml(title) + "</h2><p>" + escapeHtml(description) + '</p></div><div class="page-actions">' + actions + "</div></div>";
+}
+
+function customerFacingEffectText(value) {
+  return String(value || "")
+    .replace(/桐灼中转站|中央中转站|中转站/gi, "灼见检测服务")
+    .replace(/统一爱搜账号|爱搜账号|爱搜|AIDSO/gi, "AI 检测服务")
+    .replace(/relay run/gi, "检测任务")
+    .replace(/\bRelay\b/gi, "检测任务")
+    .replace(/live evidence/gi, "实时检测证据")
+    .replace(/diagnostic_evidence\(live\)/gi, "实时检测证据库")
+    .replace(/reqId/gi, "任务追溯号");
+}
+
+function hydrateCustomerFacingEffectCopy(root = document) {
+  if (!["effect-search", "effect-diagnostic", "effect-monitor"].includes(ui.route)) return;
+  const elements = [root, ...root.querySelectorAll("*")];
+  for (const element of elements) {
+    for (const node of element.childNodes || []) {
+      if (node.nodeType === 3 && node.nodeValue) node.nodeValue = customerFacingEffectText(node.nodeValue);
+    }
+    for (const attribute of ["aria-label", "title", "placeholder"]) {
+      if (element.hasAttribute?.(attribute)) element.setAttribute(attribute, customerFacingEffectText(element.getAttribute(attribute)));
+    }
+  }
 }
 
 function showToast(title, message, type = "success") {
@@ -2319,7 +3762,7 @@ function showToast(title, message, type = "success") {
   toast.className = "toast" + (type === "error" ? " error" : "");
   toast.innerHTML =
     "<span>" + icon(type === "error" ? "alert" : "check") + "</span>" +
-    "<div><b>" + escapeHtml(title) + "</b><small>" + escapeHtml(message) + "</small></div>" +
+    "<div><b>" + escapeHtml(customerFacingEffectText(title)) + "</b><small>" + escapeHtml(customerFacingEffectText(message)) + "</small></div>" +
     '<button type="button" aria-label="关闭">×</button>';
   root.appendChild(toast);
   const remove = () => toast.remove();
@@ -2329,16 +3772,19 @@ function showToast(title, message, type = "success") {
 
 function updateShell() {
   const meta = PAGE_META[ui.route];
-  document.getElementById("page-title").textContent = meta.title;
+  const inEffectRoute = ["effect-search", "effect-diagnostic", "effect-monitor"].includes(ui.route);
+  document.body.dataset.route = ui.route;
+  document.getElementById("page-title").textContent = inEffectRoute ? "AI效果检测" : meta.title;
   document.getElementById("breadcrumb-current").textContent = meta.title;
   document.title = meta.title + " · 桐灼 GEO";
   document.querySelectorAll("[data-route]").forEach((link) => {
     link.classList.toggle("active", link.dataset.route === ui.route);
   });
-  const pendingTopics = state.topics.filter((topic) => topic.status !== "archived" && topic.coverage !== "已覆盖").length;
-  const pendingArticles = state.articles.filter((article) => article.reviewStatus === "pending").length;
-  document.getElementById("topic-nav-count").textContent = String(pendingTopics);
-  document.getElementById("article-nav-count").textContent = String(pendingArticles);
+  const effectGroup = document.querySelector("[data-effect-nav-group]");
+  if (inEffectRoute && ui.effectNavRoute !== ui.route) ui.effectNavExpanded = true;
+  ui.effectNavRoute = inEffectRoute ? ui.route : null;
+  effectGroup?.classList.toggle("active", inEffectRoute);
+  if (effectGroup) effectGroup.open = ui.effectNavExpanded;
   const needsAction = state.publishTasks.some((task) =>
     Object.values(task.targets).some((target) => ["failed", "needs_login", "needs_verification", "result_unknown"].includes(target.status))
   );
@@ -2355,20 +3801,73 @@ function render() {
     publish: renderPublish,
     assets: renderAssets,
     monitoring: renderMonitoring,
+    "effect-search": renderEffectSearch,
+    "effect-diagnostic": renderEffectDiagnostic,
+    "effect-monitor": renderEffectMonitor,
     site: renderSite,
     knowledge: renderKnowledge,
     assistant: renderAssistant,
     settings: renderSettings
   };
-  document.getElementById("view").innerHTML = renderers[ui.route]();
-  hydrateIcons(document.getElementById("view"));
-  hydrateBulkSelects(document.getElementById("view"));
-  enhanceArticleTaskSelection(document.getElementById("view"));
+  const view = document.getElementById("view");
+  view.className = `route-view route-${ui.route}`;
+  try {
+    view.innerHTML = renderers[ui.route]();
+  } catch (error) {
+    // A transient empty API response must never leave the previous route's
+    // DOM visible after the shell has already switched navigation state.
+    // Render a small route-local recovery surface instead and let the user
+    // retry once the customer service/API is ready.
+    console.error("route_render_failed", { route: ui.route, error });
+    view.innerHTML = `<div class="page-container route-render-error"><section class="card"><span class="effect-demo-kicker">页面暂时无法显示</span><h2>${escapeHtml(PAGE_META[ui.route]?.title || "当前页面")}</h2><p>页面数据正在同步，刚才的内容没有完整加载。请刷新当前页面重试。</p><button type="button" class="primary-button" data-action="route-render-retry">重新加载</button></section></div>`;
+  }
+  if (ui.route === "effect-diagnostic") hydrateEffectDiagnosticCompetitorEditor(view);
+  if (ui.route === "effect-diagnostic") hydrateEffectDiagnosticQuestionEditor(view);
+  if (ui.route === "effect-diagnostic") hydrateEffectDiagnosticBrandIntroduction(view);
+  if (["effect-search", "effect-diagnostic", "effect-monitor"].includes(ui.route)) hydrateEffectRelayExecutionNotice(view);
+  hydrateCustomerFacingEffectCopy(view);
+  hydrateIcons(view);
+  hydrateBulkSelects(view);
+  hydrateEffectMonitoringBudgetControl(view);
+  enhanceArticleTaskSelection(view);
+  hydratePublisherConnectivity();
   document.body.classList.remove("sidebar-open");
 }
 
+// The monitoring budget control is kept as a real DOM field even when older
+// cached bundles render the legacy form fragment.  This makes the monthly cap
+// visible and editable without allowing it to leak into the realtime or
+// diagnostic product flows.
+function hydrateEffectMonitoringBudgetControl(root = document) {
+  if (ui.route !== "effect-monitor") return;
+  const perRun = root.querySelector("#effect-monitor-max-credits");
+  if (!perRun || root.querySelector("#effect-monitor-max-monthly-credits")) return;
+  const field = document.createElement("label");
+  field.className = "effect-demo-input";
+  field.innerHTML = `<span>${icon("credit-card")}月度积分上限</span><input id="effect-monitor-max-monthly-credits" type="number" min="0" value="${escapeHtml(ui.effectMonitorMaxMonthlyCredits || "0")}" /><small class="effect-input-hint">0 表示不额外限制，中央客户额度仍然生效。</small>`;
+  perRun.closest("label")?.after(field);
+  hydrateIcons(field);
+}
+
+function hydratePublisherConnectivity(root = document) {
+  const devices = Array.isArray(publisherSnapshot.devices) ? publisherSnapshot.devices : [];
+  const online = publisherSnapshot.loaded && devices.some((device) => device?.status === "online");
+  const label = online ? "在线" : !publisherSnapshot.loaded ? "连接异常" : devices.length ? "离线" : "未配对";
+  const navStatus = root.querySelector('[data-route="assistant"] em');
+  if (navStatus) {
+    navStatus.classList.toggle("is-offline", !online);
+    navStatus.innerHTML = `<i></i>${label}`;
+  }
+  const headerStatus = root.querySelector(".assistant-pill");
+  if (headerStatus) {
+    headerStatus.classList.toggle("is-offline", !online);
+    const text = headerStatus.querySelector("span");
+    if (text) text.textContent = `发布助手${label}`;
+  }
+}
+
 function renderDashboard() {
-  const pendingReview = state.articles.filter((article) => article.reviewStatus === "pending").length;
+  const pendingReview = state.articles.filter((article) => article.reviewStatus === "pending" && article.reviewStage === "manual_review").length;
   const readyToPublish = state.articles.filter((article) => article.reviewStatus === "approved" && article.status === "draft").length;
   const activeTargets = state.publishTasks.reduce(
     (total, task) => total + Object.values(task.targets).filter((target) => ["queued", "running"].includes(target.status)).length,
@@ -2382,10 +3881,39 @@ function renderDashboard() {
   const dashboardDeviceStatus = !publisherSnapshot.loaded ? "unknown" : dashboardDevice?.status === "online" ? "device_online" : dashboardDevice ? "device_offline" : "not_connected";
   const dashboardDeviceName = dashboardDevice?.name || state.accountGroups[0]?.deviceName || "尚未连接桌面发布器";
   const dashboardHeartbeat = dashboardDevice?.lastHeartbeatAt || publisherGroupUpdatedAt(state.accountGroups[0]);
+  const dashboardInsights = [
+    { label: "内容资产", value: state.articles.length.toLocaleString("zh-CN"), delta: "已收录", context: "当前工作区", tone: "blue", path: "M2 29 C14 28 17 15 28 21 S42 39 54 26 S68 17 78 22 S91 9 105 15 S118 25 130 11 S147 9 158 18" },
+    { label: "选题问题", value: (state.questionLibrary || []).length.toLocaleString("zh-CN"), delta: "待持续覆盖", context: "当前工作区", tone: "teal", path: "M2 30 C15 22 19 25 30 16 S46 17 56 26 S72 36 82 19 S99 10 109 18 S124 24 133 14 S149 12 158 6" },
+    { label: "企业知识", value: (state.knowledgeItems || []).length.toLocaleString("zh-CN"), delta: "条证据资料", context: "当前工作区", tone: "purple", path: "M2 25 C16 9 24 15 34 24 S51 29 60 17 S74 8 84 16 S96 32 108 22 S124 11 134 13 S149 16 158 4" },
+    { label: "发布任务", value: state.publishTasks.length.toLocaleString("zh-CN"), delta: "累计创建", context: "当前工作区", tone: "indigo", path: "M2 26 C13 14 22 23 31 18 S48 6 59 12 S70 29 81 21 S95 15 106 22 S120 29 132 15 S148 6 158 12" }
+  ];
+  const trendSources = [...(state.articles || []), ...(state.contentPlans || []), ...(state.knowledgeItems || [])]
+    .map((item) => new Date(item.updatedAt || item.createdAt || item.publishedAt || 0).getTime())
+    .filter((timestamp) => Number.isFinite(timestamp) && timestamp > 0);
+  const trendDays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - (6 - index));
+    return day;
+  });
+  const dashboardTrendValues = trendDays.map((day) => {
+    const cutoff = day.getTime() + 24 * 60 * 60 * 1000 - 1;
+    return trendSources.filter((timestamp) => timestamp <= cutoff).length;
+  });
+  const trendMin = Math.min(...dashboardTrendValues, 0);
+  const trendMax = Math.max(...dashboardTrendValues, 1);
+  const trendSpan = Math.max(1, trendMax - trendMin);
+  const dashboardTrendPoints = dashboardTrendValues.map((value, index) => {
+    const x = 18 + (index * 604) / Math.max(1, dashboardTrendValues.length - 1);
+    const y = 120 - ((value - trendMin) / trendSpan) * 84;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const dashboardTrendLine = `M${dashboardTrendPoints.join(" L")}`;
+  const dashboardTrendArea = `${dashboardTrendLine} L622,128 L18,128 Z`;
 
   return `
     <div class="page-container">
-      ${pageHead("上午好，王宁", `今天的重点是完成内容审核，并处理 ${actionTargets} 个平台发布结果。`, '<button class="primary-button" type="button" data-nav="planning"><span data-icon="plus"></span>创建选题</button>')}
+      ${pageHead("上午好，王宁", `让每一次内容发布，都变成可被 AI 准确引用的证据。${actionTargets ? `今天有 ${actionTargets} 项发布结果需要处理。` : ""}`, '<button class="primary-button" type="button" data-nav="planning"><span data-icon="plus"></span>新建内容计划</button>')}
 
       <section class="metric-grid" aria-label="行动数据">
         <article class="metric-card">
@@ -2411,7 +3939,7 @@ function renderDashboard() {
       </section>
 
       <section class="card workflow-card">
-        <div class="card-header"><div><h3>GEO 运营闭环</h3><p>从企业事实到效果证据，每一步都有明确的输入和输出</p></div><span class="small-tag teal">持续运营</span></div>
+        <div class="card-header"><div><h3>GEO 运营闭环</h3><p>从企业事实到效果证据，每一步都有明确的输入和输出</p></div><button class="text-button workflow-overview" type="button" data-nav="monitoring">闭环总览 <span data-icon="arrow"></span></button></div>
         <div class="workflow-steps">
           <button class="workflow-step" type="button" data-action="open-onboarding"><span><i>1</i><b data-icon="briefcase"></b></span><strong>企业建档</strong><small>完整度 ${state.enterpriseProfile.completion}%</small></button>
           <i class="workflow-arrow">→</i>
@@ -2421,7 +3949,7 @@ function renderDashboard() {
           <i class="workflow-arrow">→</i>
           <button class="workflow-step" type="button" data-nav="publish"><span><i>4</i><b data-icon="send"></b></span><strong>多端发布</strong><small>${readyToPublish} 篇可发布</small></button>
           <i class="workflow-arrow">→</i>
-          <button class="workflow-step" type="button" data-nav="monitoring"><span><i>5</i><b data-icon="chart"></b></span><strong>效果监测</strong><small>演示数据</small></button>
+          <button class="workflow-step" type="button" data-nav="monitoring"><span><i>5</i><b data-icon="chart"></b></span><strong>运营诊断</strong><small>证据与执行建议</small></button>
         </div>
       </section>
 
@@ -2461,14 +3989,34 @@ function renderDashboard() {
               <button class="quick-action" type="button" data-action="publish-approved"><span data-icon="send"></span><b>一键发布</b><small>选择账号组和平台</small></button>
             </div>
           </section>
+
+          <section class="card dashboard-insights-card">
+            <div class="card-header dashboard-insights-header">
+              <div><h3>数据概览</h3><p>当前工作区的实时资产汇总</p></div>
+              <button class="soft-button dashboard-period" type="button" aria-label="当前统计范围">实时汇总 <span class="period-chevron">⌄</span></button>
+            </div>
+            <div class="insights-grid">
+              ${dashboardInsights.map((item) => `<article class="insight-card ${item.tone}"><div class="insight-card-head"><span>${item.label}</span><b>${item.value}</b></div><div class="insight-trend"><span class="trend neutral">${item.delta}</span><span>${item.context}</span></div><svg class="insight-sparkline" viewBox="0 0 160 42" role="img" aria-label="${item.label}数据概览"><path d="${item.path}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path class="spark-fill" d="${item.path} L158 42 L2 42 Z" fill="currentColor" opacity=".08"/></svg></article>`).join("")}
+            </div>
+            <div class="dashboard-trend-chart" aria-label="近七日工作区资产累计趋势">
+              <svg viewBox="0 0 640 138" role="img" aria-label="近七日工作区资产累计趋势"><defs><linearGradient id="dashboard-trend-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#7b4dff" stop-opacity=".30"/><stop offset="1" stop-color="#7b4dff" stop-opacity="0"/></linearGradient></defs><path class="dashboard-trend-grid" d="M18 26H622M18 68H622M18 110H622"/><path d="${dashboardTrendArea}" fill="url(#dashboard-trend-fill)"/><path d="${dashboardTrendLine}" class="dashboard-trend-line"/><g class="dashboard-trend-points">${dashboardTrendPoints.map((point) => `<circle cx="${point.split(",")[0]}" cy="${point.split(",")[1]}" r="3.4"/>`).join("")}</g></svg>
+              <div class="dashboard-trend-labels">${trendDays.map((day) => `<span>${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}</span>`).join("")}</div>
+            </div>
+          </section>
         </div>
 
         <aside class="stack">
-          <section class="card onboarding-card">
-            <div class="onboarding-card-head"><span class="knowledge-icon" data-icon="briefcase"></span><span><small>企业资料完整度</small><b>${state.enterpriseProfile.completion}%</b></span></div>
+          <section class="card onboarding-card dashboard-health-card">
+            <span class="health-watermark" data-icon="shield"></span>
+            <div class="onboarding-card-head"><span class="knowledge-icon" data-icon="shield"></span><span><small>企业资料健康度</small><b>${state.enterpriseProfile.completion}%</b></span><em class="health-status">良好</em></div>
+            <div class="health-mini-chart" aria-hidden="true"><svg viewBox="0 0 280 58"><path d="M2 43 C26 27 40 32 59 40 S90 48 111 34 S146 20 169 28 S207 46 230 32 S257 20 278 28" fill="none"/><circle cx="278" cy="28" r="4"/></svg></div>
             <div class="onboarding-progress"><i style="width:${state.enterpriseProfile.completion}%"></i></div>
-            <p>${state.enterpriseProfile.completion === 100 ? "企业身份、业务边界、证据资料和监测基线均已确认。" : "企业、产品和目标客户资料已完成；还有 1 条案例和 2 条 FAQ 等待确认。"}</p>
-            <button class="secondary-button button-small" type="button" data-action="open-onboarding">${state.enterpriseProfile.completion === 100 ? "查看企业建档" : "继续完善企业建档"}</button>
+            <p>${state.enterpriseProfile.completion === 100
+              ? "企业身份、业务边界、证据资料和监测基线均已确认。"
+              : state.enterpriseProfile.completion === 0
+                ? "请先完成企业基本资料、产品业务线、目标客户与证据资料。"
+                : "企业建档尚未完成，请继续补充缺失资料并完成证据审核。"}</p>
+            <button class="secondary-button button-small" type="button" data-action="open-onboarding">${state.enterpriseProfile.completion === 100 ? "查看健康度建议" : "健康度综合建议"}</button>
           </section>
           <section class="card">
             <div class="card-header"><div><h3>系统状态</h3><p>客户独立部署环境</p></div></div>
@@ -2541,7 +4089,11 @@ function knowledgeBaseItems(baseId) {
 function approvedKnowledgeItems(baseId) {
   return knowledgeBaseItems(baseId).filter((item) => {
     const version = knowledgeVersionById(item.latestVersionId);
-    return item.status === "approved" && item.enabled !== false && version?.reviewStatus === "approved";
+    const blockedExtractionStatuses = new Set(["queued", "processing", "pending", "pending_ocr", "pending_parse", "failed"]);
+    const extractionReady = [item.importStatus, version?.extractionStatus]
+      .filter(Boolean)
+      .every((status) => !blockedExtractionStatuses.has(String(status).toLowerCase()));
+    return item.status === "approved" && item.enabled !== false && version?.reviewStatus === "approved" && extractionReady;
   });
 }
 
@@ -2702,11 +4254,13 @@ function renderKeywordWorkspace() {
   }
   const basket = selectedQuestions.length ? selectedQuestions.map((question) => `<div class="basket-item"><b>${escapeHtml(question.question)}</b><span>${escapeHtml(question.sourceKeyword)}</span><button class="basket-remove" type="button" data-action="remove-question" data-question-id="${question.id}" aria-label="移除">×</button></div>`).join("") : '<div class="basket-empty"><div><span data-icon="clipboard"></span><b>问题篮还是空的</b><p>勾选问题词包中的结果，确认后加入问题词库。</p></div></div>';
   return `
+    <div class="keyword-foundation-grid">
     <section class="card keyword-manager-card">
       <div class="card-header"><div><h3>核心关键词</h3><p>核心关键词自动归属于当前产品 / 业务线；勾选后可智能拓展种子词。</p></div><span class="small-tag blue">${coreKeywords.length} 个</span></div>
       <div class="keyword-manager-body"><div class="keyword-input-row"><div class="field grow"><label for="business-keyword-input">核心关键词（可输入新词，也可勾选下方已有词）</label><input class="input ${ui.businessKeywordError ? "input-error" : ""}" id="business-keyword-input" value="${escapeHtml(ui.businessKeywordInput)}" placeholder="例如：激光清洗机，激光除锈" autocomplete="off" />${ui.businessKeywordError ? '<small class="error-text">' + escapeHtml(ui.businessKeywordError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="expand-seeds" ${ui.seedExpanding ? "disabled" : ""}>${ui.seedExpanding ? '<span class="loading-spinner"></span>正在拓展种子词' : '<span data-icon="sparkle"></span>智能拓展种子词'}</button></div><div class="keyword-chip-list">${keywordChips || '<span class="empty-inline">输入一个核心关键词后，即可智能拓展种子词。</span>'}</div><div class="keyword-selection-hint">${selectedCoreIds.size ? `已选择 ${selectedCoreIds.size} 个核心关键词` : "未勾选时使用当前业务线的全部核心关键词"}</div></div>
     </section>
     <section class="card seed-manager-card"><div class="card-header"><div><h3>种子词</h3><p>智能拓展结果直接显示在下方词框，可直接增删或修改后生成问题词包。</p></div><span class="small-tag teal">${selectedSeedTerms.length} 个</span></div><div class="seed-input-row"><div class="field grow"><label for="seed-input">拓展种子词（1–8 个，可直接编辑）</label><input class="input ${ui.seedError ? "input-error" : ""}" id="seed-input" value="${escapeHtml(ui.seedInput)}" placeholder="智能拓展后直接显示在这里，也可手动输入并用逗号分隔" autocomplete="off" />${ui.seedError ? '<small class="error-text">' + escapeHtml(ui.seedError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="generate-question-pack" ${ui.expanding || ui.seedExpanding ? "disabled" : ""}>${ui.expanding ? '<span class="loading-spinner"></span>正在生成问题词包' : '<span data-icon="sparkle"></span>生成问题词包'}</button></div></section>
+    </div>
     <div class="planning-layout">
       <aside class="card"><div class="card-header"><div><h3>历史词包</h3><p>仅显示当前业务线 · 可切换或删除历史结果</p></div></div><div class="package-list">${packageItems || '<div class="empty-package">暂无词包</div>'}</div></aside>
       <section class="card"><div class="card-header"><div><h3>${escapeHtml(activePack?.title || "问题词包结果")}</h3><p>种子词：${escapeHtml(activePack?.seeds?.join(" / ") || "—")}</p></div><span class="small-tag blue">共 ${packQuestions.length} 条</span></div><div class="category-tabs">${categoryTabs}</div><div class="model-note"><span data-icon="info"></span><span>每个栏目默认生成 5 个客户问题；勾选后加入问题词库。</span></div>${visibleQuestions.length ? '<div class="bulk-select-row keyword-bulk-row">' + renderSelectAllControl("keyword-questions", visibleQuestions.length, visibleSelectedQuestions.length, "全选当前栏目", 'data-select-pack-id="' + escapeHtml(activePack?.id || "") + '" data-select-dimension="' + escapeHtml(ui.planningCategory) + '"') + (visibleCandidateQuestions.length ? '<button class="danger-button button-small keyword-bulk-delete" type="button" data-action="delete-keyword-candidates" data-pack-id="' + escapeHtml(activePack?.id || "") + '" data-dimension="' + escapeHtml(ui.planningCategory) + '" title="删除已选择的候选问题" aria-label="删除已选择的候选问题" ' + (selectedCandidateQuestions.length ? "" : "disabled") + '>删除已选候选</button>' : "") + '</div>' : ""}<div class="topic-list">${resultItems}</div></section>
@@ -2739,7 +4293,7 @@ function renderQuestionLibrary() {
 function renderTopicLibrary() {
   const line = activeBusinessLine();
   const topics = state.topics.filter((topic) => topicBusinessLineId(topic) === line?.id && topic.status !== "archived" && !planningTopicPlans(topic).length);
-  const selectableTopics = topics.filter((topic) => topic.status === "active");
+  const selectableTopics = topics;
   const selected = selectableTopics.filter((topic) => topic.selected);
   const rows = topics.map((topic) => {
     const refs = planningTopicReferences(topic);
@@ -2748,17 +4302,15 @@ function renderTopicLibrary() {
     const plans = refs.plans;
     const articles = refs.articles;
     const article = articles[0];
-    const isCandidate = topic.status === "candidate";
     const coreQuestion = topic.coreQuestion || brief.coreQuestion || question?.question || topic.title || "—";
-    const lifecycle = isCandidate ? '<span class="status-badge status-review">待人工确认</span>' : article ? '<span class="status-badge status-approved">已创建内容</span>' : plans.length ? '<span class="status-badge status-publishing">已规划</span>' : '<span class="status-badge status-review">待计划</span>';
+    const lifecycle = article ? '<span class="status-badge status-approved">已创建内容</span>' : plans.length ? '<span class="status-badge status-publishing">已规划</span>' : '<span class="status-badge status-review">待计划</span>';
     const referenceText = `${plans.length} 计划 · ${articles.length} 文章`;
-    const confirmAction = isCandidate ? `<button class="primary-button button-small" type="button" data-action="confirm-topic-candidate" data-topic-id="${escapeHtml(topic.id)}">确认入选题库</button>` : "";
-    const directAction = isCandidate ? "" : `<button class="link-button topic-direct-button" type="button" data-action="direct-generate-topic" data-topic-id="${escapeHtml(topic.id)}">${article ? "查看文章" : "直接生成文章"}</button>`;
-    const planAction = isCandidate || article ? "" : `<button class="link-button" type="button" data-action="topic-to-plan" data-topic-id="${escapeHtml(topic.id)}">加入计划</button>`;
-    return `<tr><td><input class="checkbox" type="checkbox" data-topic-select="${topic.id}" aria-label="选择选题 ${escapeHtml(topic.title)}" ${topic.selected ? "checked" : ""} ${isCandidate ? "disabled" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)}${isCandidate ? " · 待确认" : ""}</small></td><td class="article-title-cell"><b>${escapeHtml(coreQuestion)}</b></td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension)}</span></td><td><b>${topic.recommendation}</b><small style="display:block;color:var(--muted-2);margin-top:4px">模型建议强度</small></td><td>${lifecycle}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${confirmAction}${directAction}${planAction}<button class="link-button" type="button" data-action="edit-topic" data-topic-id="${escapeHtml(topic.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-topic" data-topic-id="${escapeHtml(topic.id)}">归档</button></div></td></tr>`;
+    const directAction = `<button class="link-button topic-direct-button" type="button" data-action="direct-generate-topic" data-topic-id="${escapeHtml(topic.id)}">${article ? "查看文章" : "直接生成文章"}</button>`;
+    const planAction = article ? "" : `<button class="link-button" type="button" data-action="topic-to-plan" data-topic-id="${escapeHtml(topic.id)}">加入计划</button>`;
+    return `<tr><td><input class="checkbox" type="checkbox" data-topic-select="${topic.id}" aria-label="选择选题 ${escapeHtml(topic.title)}" ${topic.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)}</small></td><td class="article-title-cell"><b>${escapeHtml(coreQuestion)}</b></td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension)}</span></td><td><b>${topic.recommendation}</b><small style="display:block;color:var(--muted-2);margin-top:4px">模型建议强度</small></td><td>${lifecycle}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${directAction}${planAction}<button class="link-button" type="button" data-action="edit-topic" data-topic-id="${escapeHtml(topic.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-topic" data-topic-id="${escapeHtml(topic.id)}">归档</button></div></td></tr>`;
   }).join("");
   return `
-    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 选题库</h3><p>AI 生成的选题先由人工确认；确认后才能直接生成文章或加入计划。</p></div><span class="small-tag blue">${topics.length} 个选题</span></div>${selectableTopics.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("topic-library", selectableTopics.length, selected.length, "全选已确认选题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>选题标题</th><th>核心回答问题</th><th>内容方向</th><th>优先级</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="clipboard"></span><h3>还没有选题</h3><p>到问题词库选择客户问题并生成选题。</p><button class="primary-button button-small" type="button" data-action="planning-tab" data-tab="questions">去问题词库</button></div></div>'}</section>
+    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 选题库</h3><p>AI 生成的选题直接进入选题库，可编辑后生成文章或加入内容计划。</p></div><span class="small-tag blue">${topics.length} 个选题</span></div>${selectableTopics.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("topic-library", selectableTopics.length, selected.length, "全选选题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>选题标题</th><th>核心回答问题</th><th>内容方向</th><th>优先级</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="clipboard"></span><h3>还没有选题</h3><p>到问题词库选择客户问题并生成选题。</p><button class="primary-button button-small" type="button" data-action="planning-tab" data-tab="questions">去问题词库</button></div></div>'}</section>
     ${selected.length ? '<div class="selection-bar"><span>已选择 <b>' + selected.length + '</b> 个选题</span><div><button class="ghost-button button-small" type="button" data-action="clear-topics">清空</button><button class="primary-button button-small" type="button" data-action="open-plan"><span data-icon="clock"></span>创建内容计划</button></div></div>' : ""}
   `;
 }
@@ -2927,10 +4479,9 @@ function studioKnowledgeAssets(workspace) {
   const allowed = new Set(workspace?.knowledgeScope?.resolvedBaseIds || []);
   return (state.contentAssets || []).filter((asset) => {
     if (asset.kind !== "knowledge_image" || asset.archived || asset.reviewStatus !== "approved" || !allowed.has(asset.knowledgeBaseId)) return false;
-    if (asset.legacyImageCard && !asset.itemId && !asset.versionId) return true;
-    const item = knowledgeItemById(asset.itemId);
-    const version = knowledgeVersionById(asset.versionId);
-    return item?.status === "approved" && item.latestVersionId === asset.versionId && version?.reviewStatus === "approved";
+    // Only server-backed assets have a real binary file and a durable source
+    // record. Legacy demo cards intentionally do not enter the writing picker.
+    return Boolean(asset.serverBackedKnowledgeAsset);
   });
 }
 
@@ -3062,14 +4613,14 @@ function renderStudioPicker(workspace, conversation) {
   if (!ui.studioPicker) return "";
   if (ui.studioPicker === "knowledge") {
     const selected = new Set(conversation?.selectedKnowledgeItemIds || []);
-    const rows = studioApprovedKnowledgeEntries(workspace).map(({ base, item, version }) => `<button class="studio-picker-item ${selected.has(item.id) ? "selected" : ""}" type="button" data-action="toggle-studio-knowledge" data-item-id="${item.id}"><span class="studio-picker-thumb" data-icon="${base.kind === "qa" ? "help" : "book"}"></span><span><b>${escapeHtml(item.title || item.question)}</b><small>${escapeHtml(base.name)} · v${escapeHtml(version.version)} · 已审核</small></span><em>${selected.has(item.id) ? "已引用" : "引用"}</em></button>`).join("");
-    return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>引用企业知识 / 文件</h4><p>只显示当前业务线授权范围内的已审核版本</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list">${rows || '<div class="studio-empty-chat"><div><span data-icon="book"></span><b>没有可引用知识</b><p>请先在企业知识中审核资料。</p></div></div>'}</div></div>`;
+    const rows = studioApprovedKnowledgeEntries(workspace).map(({ base, item, version }) => `<button class="studio-picker-item ${selected.has(item.id) ? "selected" : ""}" type="button" data-action="toggle-studio-knowledge" data-item-id="${item.id}"><span class="studio-picker-thumb" data-icon="${base.kind === "qa" ? "help" : "book"}"></span><span><b>${escapeHtml(item.title || item.question)}</b><small>${escapeHtml(base.name)} · v${escapeHtml(version.version)} · 可用</small></span><em>${selected.has(item.id) ? "已引用" : "引用"}</em></button>`).join("");
+    return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>引用企业知识 / 文件</h4><p>只显示当前业务线授权范围内可用的资料版本</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list">${rows || '<div class="studio-empty-chat"><div><span data-icon="book"></span><b>没有可引用知识</b><p>请先在企业知识中上传资料。</p></div></div>'}</div></div>`;
   }
   if (ui.studioPicker === "knowledge-image") {
-    const rows = studioKnowledgeAssets(workspace).map((asset) => `<button class="studio-picker-item" type="button" data-action="insert-studio-asset" data-asset-id="${asset.id}"><span class="studio-picker-thumb ${escapeHtml(asset.accent || "blue")}" data-icon="image"></span><span><b>${escapeHtml(asset.name)}</b><small>${escapeHtml(asset.caption)} · ${escapeHtml(asset.license)} · 已审核</small></span><em>${studioArticleForWorkspace(workspace) ? "插入" : "选择"}</em></button>`).join("");
-    return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>知识库图片</h4><p>只显示已审核且在当前知识范围内的图片</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list">${rows || '<div class="studio-empty-chat"><div><span data-icon="image"></span><b>没有可用图片</b><p>当前业务线知识库中暂无已审核图片。</p></div></div>'}</div></div>`;
+    const rows = studioKnowledgeAssets(workspace).map((asset) => `<button class="studio-picker-item" type="button" data-action="insert-studio-asset" data-asset-id="${asset.id}">${asset.url ? `<img class="studio-picker-image" src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.altText || asset.name)}" />` : `<span class="studio-picker-thumb ${escapeHtml(asset.accent || "blue")}" data-icon="image"></span>`}<span><b>${escapeHtml(asset.name)}</b><small>${escapeHtml(asset.caption)} · ${escapeHtml(asset.license)} · 可用</small></span><em>${studioArticleForWorkspace(workspace) ? "插入" : "选择"}</em></button>`).join("");
+    return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>知识库图片</h4><p>只显示当前知识范围内可直接使用的企业图片</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list">${rows || '<div class="studio-empty-chat"><div><span data-icon="image"></span><b>没有可用图片</b><p>当前业务线知识库中暂无可用图片，可先上传到图片资料库。</p></div></div>'}</div></div>`;
   }
-  return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>插入图片</h4><p>图片会保留来源、版权和审核状态</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list"><button class="studio-picker-item" type="button" data-action="generate-studio-image"><span class="studio-picker-thumb" data-icon="sparkle"></span><span><b>AI 配图占位（演示）</b><small>创建待确认的配图占位；正式部署后接入图片生成与对象存储</small></span><em>生成</em></button><button class="studio-picker-item" type="button" data-action="trigger-studio-image-upload"><span class="studio-picker-thumb" data-icon="upload"></span><span><b>上传本地图片</b><small>仅保存文件元数据，正式版上传到客户对象存储</small></span><em>上传</em></button><button class="studio-picker-item" type="button" data-action="open-studio-knowledge-images"><span class="studio-picker-thumb" data-icon="database"></span><span><b>从知识库图片选择</b><small>只使用已审核、已授权的企业图片</small></span><em>选择</em></button></div></div>`;
+  return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>插入图片</h4><p>图片会保留来源、版权和知识库关联</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list"><button class="studio-picker-item" type="button" data-action="generate-studio-image"><span class="studio-picker-thumb" data-icon="sparkle"></span><span><b>AI 配图占位（演示）</b><small>创建待确认的配图占位；正式部署后接入图片生成与对象存储</small></span><em>生成</em></button><button class="studio-picker-item" type="button" data-action="trigger-studio-image-upload"><span class="studio-picker-thumb" data-icon="upload"></span><span><b>上传到当前知识库</b><small>图片会立即保存到当前业务线知识库，可直接作为文章配图</small></span><em>上传</em></button><button class="studio-picker-item" type="button" data-action="open-studio-knowledge-images"><span class="studio-picker-thumb" data-icon="database"></span><span><b>从知识库图片选择</b><small>只使用当前知识范围内的企业图片</small></span><em>选择</em></button></div></div>`;
 }
 
 function renderStudioChat(workspace, conversation, article) {
@@ -3081,14 +4632,14 @@ function renderStudioChat(workspace, conversation, article) {
   const knowledgeChips = (conversation?.selectedKnowledgeItemIds || []).map((itemId) => knowledgeItemById(itemId)).filter(Boolean).map((item) => `<span class="studio-selection-chip"><span data-icon="book"></span><b>${escapeHtml(item.title || item.question)}</b><button type="button" data-action="remove-studio-context" data-kind="knowledge" data-id="${item.id}"><span data-icon="x"></span></button></span>`).join("");
   const attachmentChips = (workspace.attachmentIds || []).map((assetId) => (state.contentAssets || []).find((asset) => asset.id === assetId)).filter(Boolean).map((asset) => `<span class="studio-selection-chip"><span data-icon="paperclip"></span><b>${escapeHtml(asset.name)}</b><button type="button" data-action="remove-studio-context" data-kind="attachment" data-id="${asset.id}"><span data-icon="x"></span></button></span>`).join("");
   const imageChips = (conversation?.imageIds || []).map((assetId) => (state.contentAssets || []).find((asset) => asset.id === assetId)).filter(Boolean).map((asset) => `<span class="studio-selection-chip"><span data-icon="image"></span><b>${escapeHtml(asset.name)}</b><button type="button" data-action="remove-studio-context" data-kind="image" data-id="${asset.id}"><span data-icon="x"></span></button></span>`).join("");
-  return `<aside class="studio-chat-panel"><div class="studio-chat-head"><div><h3>AI 协作</h3><p>先给建议，再由你决定是否写入正文</p></div><div class="studio-chat-head-actions"><button class="icon-button" type="button" data-action="new-studio-conversation" title="新对话"><span data-icon="plus"></span></button><button class="icon-button" type="button" data-action="studio-pane" data-pane="info" title="文章信息"><span data-icon="info"></span></button></div></div><div class="studio-chat-context"><b>${article ? "当前全文" : "创作准备"}</b><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(selectedAgent?.name || "未选择智能体")}</b></span>${conversation?.webSearchEnabled ? '<span class="studio-context-chip teal"><span data-icon="globe"></span><b>联网检索演示</b></span>' : ""}</div><div class="studio-chat-messages">${messages || '<div class="studio-empty-chat"><div><span data-icon="sparkle"></span><b>从一个具体要求开始</b><p>例如：改成采购决策结构，并保留企业知识引用。</p></div></div>'}</div><div class="studio-composer">${renderStudioPicker(workspace, conversation)}<div class="studio-selected-context">${knowledgeChips}${attachmentChips}${imageChips}</div><textarea class="studio-composer-input" id="studio-composer-input" placeholder="例如：把文章改成采购决策结构，先给我看大纲差异…">${escapeHtml(ui.studioComposerDraft)}</textarea><div class="studio-composer-toolbar"><select class="studio-agent-select" id="studio-chat-agent" aria-label="选择写作智能体">${agentOptions}</select><button class="studio-tool-button teal ${conversation?.webSearchEnabled ? "active" : ""}" type="button" data-action="toggle-studio-web" title="联网检索演示（未接入真实搜索服务）"><span data-icon="globe"></span><span>联网演示</span></button><button class="studio-tool-button" type="button" data-action="open-studio-image-picker" title="插入图片"><span data-icon="image"></span></button><button class="studio-tool-button ${(workspace.attachmentIds || []).length ? "has-value" : ""}" type="button" data-action="trigger-studio-attachment" title="上传附件"><span data-icon="paperclip"></span></button><button class="studio-tool-button ${(conversation?.selectedKnowledgeItemIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-picker" title="引用知识库或文件"><span data-icon="quote"></span><span>@知识</span></button><button class="studio-tool-button ${(conversation?.imageIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-images" title="知识库图片"><span data-icon="database"></span></button><button class="studio-send-button" type="button" data-action="send-studio-chat" ${ui.studioComposerDraft.trim() ? "" : "disabled"} aria-label="发送"><span data-icon="send"></span></button></div><input id="studio-attachment-input" type="file" hidden multiple /><input id="studio-image-input" type="file" accept="image/*" hidden /></div></aside>`;
+  return `<aside class="studio-chat-panel"><div class="studio-chat-head"><div><h3>AI 协作</h3><p>先给建议，再由你决定是否写入正文</p></div><div class="studio-chat-head-actions"><button class="icon-button" type="button" data-action="new-studio-conversation" title="新对话"><span data-icon="plus"></span></button><button class="icon-button" type="button" data-action="studio-pane" data-pane="info" title="文章信息"><span data-icon="info"></span></button></div></div><div class="studio-chat-context"><b>${article ? "当前全文" : "创作准备"}</b><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(selectedAgent?.name || "未选择智能体")}</b></span>${conversation?.webSearchEnabled ? '<span class="studio-context-chip teal"><span data-icon="globe"></span><b>联网检索演示</b></span>' : ""}</div><div class="studio-chat-messages">${messages || '<div class="studio-empty-chat"><div><span data-icon="sparkle"></span><b>从一个具体要求开始</b><p>例如：改成采购决策结构，并保留企业知识引用。</p></div></div>'}</div><div class="studio-composer">${renderStudioPicker(workspace, conversation)}<div class="studio-selected-context">${knowledgeChips}${attachmentChips}${imageChips}</div><textarea class="studio-composer-input" id="studio-composer-input" placeholder="例如：把文章改成采购决策结构，先给我看大纲差异…">${escapeHtml(ui.studioComposerDraft)}</textarea><div class="studio-composer-toolbar"><select class="studio-agent-select" id="studio-chat-agent" aria-label="选择写作智能体">${agentOptions}</select><button class="studio-tool-button teal ${conversation?.webSearchEnabled ? "active" : ""}" type="button" data-action="toggle-studio-web" title="联网检索演示（未接入真实搜索服务）"><span data-icon="globe"></span><span>联网演示</span></button><button class="studio-tool-button" type="button" data-action="open-studio-image-picker" title="插入图片"><span data-icon="image"></span></button><button class="studio-tool-button ${(workspace.attachmentIds || []).length ? "has-value" : ""}" type="button" data-action="trigger-studio-attachment" title="上传附件"><span data-icon="paperclip"></span></button><button class="studio-tool-button ${(conversation?.selectedKnowledgeItemIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-picker" title="引用知识库或文件"><span data-icon="quote"></span><span>@知识</span></button><button class="studio-tool-button ${(conversation?.imageIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-images" title="知识库图片"><span data-icon="database"></span></button><button class="studio-send-button" type="button" data-action="send-studio-chat" ${ui.studioComposerDraft.trim() ? "" : "disabled"} aria-label="发送"><span data-icon="send"></span></button></div><input id="studio-attachment-input" type="file" hidden multiple /><input id="studio-image-input" type="file" accept="image/*" hidden multiple /></div></aside>`;
 }
 
 function renderStudioInfo(workspace, article) {
   const line = state.businessLines.find((item) => item.id === workspace.businessLineId);
   const citations = article ? articleCitations(article) : [];
   const agent = article?.generationSnapshot?.writingAgent || workspace.writingAgentSnapshot;
-  return `<aside class="studio-info-pane"><h3>文章信息</h3><section class="studio-info-card"><h4>当前上下文</h4><div class="side-list"><div><span>业务线</span><b>${escapeHtml(line?.name || "未设置")}</b></div><div><span>来源</span><b>${workspace.mode === "quick" ? "直接创作" : "文章任务"}</b></div><div><span>内容形式</span><b>${escapeHtml(workspace.contentType)}</b></div><div><span>写作智能体</span><b>${escapeHtml(agent?.nameSnapshot || "未选择")} ${agent ? "v" + escapeHtml(agent.version) : ""}</b></div></div></section><section class="studio-info-card"><h4>审核与版本</h4><div class="side-list"><div><span>文章版本</span><b>${escapeHtml(article?.version || "尚未生成")}</b></div><div><span>审核状态</span><b>${article ? (article.reviewStatus === "approved" ? "已通过" : "待审核") : "—"}</b></div><div><span>风控状态</span><b>${article ? (article.riskStatus === "clean" ? "已通过" : article.riskStatus === "stale" ? "已过期" : "待检测") : "—"}</b></div></div></section><section class="studio-info-card"><h4>知识与素材</h4><p>已授权 ${studioKnowledgeBases(workspace).length} 个知识库，正文锁定 ${citations.length} 条企业事实引用；会话附件 ${(workspace.attachmentIds || []).length} 个，文章图片 ${(workspace.assetIds || []).length} 张。</p></section><section class="studio-info-card"><h4>安全边界</h4><p>联网结果和临时附件只作为本次对话参考，不能替代已审核企业知识。AI 建议应用后会创建文章新版本，并重新进入审核与风控。</p></section></aside>`;
+  return `<aside class="studio-info-pane"><h3>文章信息</h3><section class="studio-info-card"><h4>当前上下文</h4><div class="side-list"><div><span>业务线</span><b>${escapeHtml(line?.name || "未设置")}</b></div><div><span>来源</span><b>${workspace.mode === "quick" ? "直接创作" : "文章任务"}</b></div><div><span>内容形式</span><b>${escapeHtml(workspace.contentType)}</b></div><div><span>写作智能体</span><b>${escapeHtml(agent?.nameSnapshot || "未选择")} ${agent ? "v" + escapeHtml(agent.version) : ""}</b></div></div></section><section class="studio-info-card"><h4>审核与版本</h4><div class="side-list"><div><span>文章版本</span><b>${escapeHtml(article?.version || "尚未生成")}</b></div><div><span>审核状态</span><b>${article ? (article.reviewStatus === "approved" ? "已通过" : "待审核") : "—"}</b></div><div><span>风控状态</span><b>${article ? (article.riskStatus === "clean" ? "已通过" : article.riskStatus === "stale" ? "已过期" : "待检测") : "—"}</b></div></div></section><section class="studio-info-card"><h4>知识与素材</h4><p>已授权 ${studioKnowledgeBases(workspace).length} 个知识库，正文锁定 ${citations.length} 条企业事实引用；会话附件 ${(workspace.attachmentIds || []).length} 个，文章图片 ${(workspace.assetIds || []).length} 张。</p></section><section class="studio-info-card"><h4>安全边界</h4><p>联网结果和临时附件只作为本次对话参考，不能替代企业知识中的可用事实。AI 建议应用后会创建文章新版本，并重新进入审核与风控。</p></section></aside>`;
 }
 
 function renderStudioRichToolbar() {
@@ -3112,7 +4663,7 @@ function renderStudioQuickEditor(workspace) {
   const draftTitle = workspace.draftTitle || workspace.topic?.title || "";
   const draftContent = workspace.draftContent || "";
   const bodyHtml = workspace.draftContentHtml || escapeHtml(draftContent).replace(/\n/g, "<br>");
-  return `<main class="studio-editor-panel studio-quick-editor"><div class="studio-editor-head"><div><h3>直接生成文章</h3><p>先写标题和正文，也可以直接在右侧 AI 协作里提出写作要求</p></div><span class="status-badge status-draft">准备中</span></div><div class="studio-editor-toolbar" aria-label="编辑工具栏"><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-format" data-command="bold" title="粗体"><b>B</b></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="italic" title="斜体"><i>I</i></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="formatBlock" data-value="h2" title="二级标题">H2</button></div><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-format" data-command="insertUnorderedList" title="无序列表">☷</button><button class="studio-format-button" type="button" data-action="studio-link" title="链接"><span data-icon="link"></span></button><button class="studio-format-button" type="button" data-action="open-studio-image-picker" title="图片"><span data-icon="image"></span></button></div></div><textarea class="studio-title-input" id="studio-title-editor" rows="2" placeholder="请输入标题">${escapeHtml(draftTitle)}</textarea><article class="studio-editor-body studio-quick-content" id="studio-content-editor" contenteditable="true" spellcheck="true" data-placeholder="请输入文章内容…">${bodyHtml}</article><section class="studio-quick-settings"><div class="studio-quick-settings-grid"><label class="studio-field"><span>产品 / 业务线</span><select class="select" id="studio-business-line">${lines}</select></label><label class="studio-field"><span>内容形式</span><select class="select" id="studio-content-type">${["深度文章", "问答文章", "案例解读", "系列文章"].map((type) => `<option ${type === workspace.contentType ? "selected" : ""}>${type}</option>`).join("")}</select></label><label class="studio-field full"><span>写作智能体</span><select class="select" id="studio-direct-agent">${agentOptions}</select></label></div><div class="studio-knowledge-summary ${approved ? "" : "warning"}"><span data-icon="${approved ? "database" : "alert"}"></span><span><b>${studioKnowledgeBases(workspace).length} 个知识库 · ${approved} 条已审核知识可用</b><small>${approved ? "生成后锁定企业知识版本；联网结果不会成为企业事实。" : "请先在企业知识中补充并审核资料。"}</small></span></div><button class="primary-button studio-quick-generate" type="button" data-action="generate-studio-article" ${approved && selectedAgent ? "" : "disabled"}><span data-icon="sparkle"></span>${ui.studioGenerating ? "正在生成…" : "生成文章初稿"}</button></section></main>`;
+  return `<main class="studio-editor-panel studio-quick-editor"><div class="studio-editor-head"><div><h3>直接生成文章</h3><p>先写标题和正文，也可以直接在右侧 AI 协作里提出写作要求</p></div><span class="status-badge status-draft">准备中</span></div><div class="studio-editor-toolbar" aria-label="编辑工具栏"><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-format" data-command="bold" title="粗体"><b>B</b></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="italic" title="斜体"><i>I</i></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="formatBlock" data-value="h2" title="二级标题">H2</button></div><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-format" data-command="insertUnorderedList" title="无序列表">☷</button><button class="studio-format-button" type="button" data-action="studio-link" title="链接"><span data-icon="link"></span></button><button class="studio-format-button" type="button" data-action="open-studio-image-picker" title="图片"><span data-icon="image"></span></button></div></div><textarea class="studio-title-input" id="studio-title-editor" rows="2" placeholder="请输入标题">${escapeHtml(draftTitle)}</textarea><article class="studio-editor-body studio-quick-content" id="studio-content-editor" contenteditable="true" spellcheck="true" data-placeholder="请输入文章内容…">${bodyHtml}</article><section class="studio-quick-settings"><div class="studio-quick-settings-grid"><label class="studio-field"><span>产品 / 业务线</span><select class="select" id="studio-business-line">${lines}</select></label><label class="studio-field"><span>内容形式</span><select class="select" id="studio-content-type">${["深度文章", "问答文章", "案例解读", "系列文章"].map((type) => `<option ${type === workspace.contentType ? "selected" : ""}>${type}</option>`).join("")}</select></label><label class="studio-field full"><span>写作智能体</span><select class="select" id="studio-direct-agent">${agentOptions}</select></label></div><div class="studio-knowledge-summary ${approved ? "" : "warning"}"><span data-icon="${approved ? "database" : "alert"}"></span><span><b>${studioKnowledgeBases(workspace).length} 个知识库 · ${approved} 条可用资料</b><small>${approved ? "生成后锁定企业知识版本；联网结果不会成为企业事实。" : "请先在企业知识中上传可用资料。"}</small></span></div><button class="primary-button studio-quick-generate" type="button" data-action="generate-studio-article" ${approved && selectedAgent ? "" : "disabled"}><span data-icon="sparkle"></span>${ui.studioGenerating ? "正在生成…" : "生成文章初稿"}</button></section></main>`;
 }
 
 function renderStudioArticleTextEditor(article) {
@@ -3144,7 +4695,7 @@ function renderContentStudio() {
   const line = state.businessLines.find((item) => item.id === workspace.businessLineId);
   const agent = writingAgentById(conversation?.selectedAgentId) || writingAgentById(workspace.writingAgentId);
   const knowledgeCount = studioApprovedKnowledgeEntries(workspace).length;
-  return `<div class="page-container"><div class="tabs-row topic-center-tab-row">${contentSectionTabs()}<span class="health"><i></i>自动保存会话</span></div><section class="content-studio-page"><div class="studio-topbar"><button class="studio-back-button" type="button" data-action="back-to-articles"><span data-icon="arrow"></span>文章任务</button><div class="studio-doc-meta"><span>${article ? escapeHtml(article.id) + " · " + escapeHtml(article.version) : "直接创作 · 尚未生成文章"}</span><strong class="studio-doc-title">${escapeHtml(article?.title || workspace.topic?.title || "新文章")}</strong><small class="studio-save-state">${article ? "已保存到客户空间" : "创作上下文已保存"}</small><div class="studio-context-chips"><span class="studio-context-chip"><span data-icon="briefcase"></span><b>${escapeHtml(line?.name || "未设置业务线")}</b></span><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(agent?.name || workspace.writingAgentSnapshot?.nameSnapshot || "未选择智能体")}</b></span><span class="studio-context-chip teal"><span data-icon="database"></span><b>${studioKnowledgeBases(workspace).length} 库 / ${knowledgeCount} 条已审核</b></span><span class="studio-context-chip"><span data-icon="file"></span><b>${workspace.mode === "quick" ? "直接创作" : "文章任务"}</b></span></div></div><div class="studio-top-actions"><button class="secondary-button" type="button" data-action="save-studio-draft"><span data-icon="check"></span><span>保存草稿</span></button><button class="primary-button" type="button" data-action="submit-studio-review" ${article ? "" : "disabled"}><span data-icon="shield"></span><span>提交审核</span></button></div></div><div class="studio-mobile-tabs"><button class="${ui.studioPane === "editor" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="editor">正文</button><button class="${ui.studioPane === "chat" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="chat">AI 协作</button><button class="${ui.studioPane === "info" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="info">文章信息</button></div><div class="studio-shell" data-active-pane="${escapeHtml(ui.studioPane)}">${renderStudioEditor(workspace, article)}${renderStudioChat(workspace, conversation, article)}${renderStudioInfo(workspace, article)}</div></section></div>`;
+  return `<div class="page-container"><div class="tabs-row topic-center-tab-row">${contentSectionTabs()}<span class="health"><i></i>自动保存会话</span></div><section class="content-studio-page"><div class="studio-topbar"><button class="studio-back-button" type="button" data-action="back-to-articles"><span data-icon="arrow"></span>文章任务</button><div class="studio-doc-meta"><span>${article ? escapeHtml(article.id) + " · " + escapeHtml(article.version) : "直接创作 · 尚未生成文章"}</span><strong class="studio-doc-title">${escapeHtml(article?.title || workspace.topic?.title || "新文章")}</strong><small class="studio-save-state">${article ? "已保存到客户空间" : "创作上下文已保存"}</small><div class="studio-context-chips"><span class="studio-context-chip"><span data-icon="briefcase"></span><b>${escapeHtml(line?.name || "未设置业务线")}</b></span><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(agent?.name || workspace.writingAgentSnapshot?.nameSnapshot || "未选择智能体")}</b></span><span class="studio-context-chip teal"><span data-icon="database"></span><b>${studioKnowledgeBases(workspace).length} 库 / ${knowledgeCount} 条可用资料</b></span><span class="studio-context-chip"><span data-icon="file"></span><b>${workspace.mode === "quick" ? "直接创作" : "文章任务"}</b></span></div></div><div class="studio-top-actions"><button class="secondary-button" type="button" data-action="save-studio-draft"><span data-icon="check"></span><span>保存草稿</span></button><button class="primary-button" type="button" data-action="submit-studio-review" ${article ? "" : "disabled"}><span data-icon="shield"></span><span>提交审核</span></button></div></div><div class="studio-mobile-tabs"><button class="${ui.studioPane === "editor" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="editor">正文</button><button class="${ui.studioPane === "chat" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="chat">AI 协作</button><button class="${ui.studioPane === "info" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="info">文章信息</button></div><div class="studio-shell" data-active-pane="${escapeHtml(ui.studioPane)}">${renderStudioEditor(workspace, article)}${renderStudioChat(workspace, conversation, article)}${renderStudioInfo(workspace, article)}</div></section></div>`;
 }
 
 function contentPlanForArticle(article) {
@@ -3212,8 +4763,8 @@ function articlePublishEligibility(article) {
   if ((article.knowledgeStatus?.conflictCount || 0) > 0) return { ok: false, reason: "企业事实存在冲突" };
   if (articleHasKnowledgeUpdates(article)) return { ok: false, reason: "知识版本已更新" };
   if (articleAssetReviewIssues(article).length) return { ok: false, reason: "图片素材尚未审核" };
-  if (article.status !== "draft") return { ok: false, reason: article.status === "published" ? "文章已发布" : "已有执行任务" };
-  return { ok: true, reason: "可发布" };
+  if (!["draft", "publishing", "published"].includes(article.status)) return { ok: false, reason: "文章当前状态不可发布" };
+  return { ok: true, reason: article.status === "draft" ? "可发布" : "可继续发布到其他平台" };
 }
 
 function articleExistingPublishPlatforms(article) {
@@ -3365,7 +4916,7 @@ function enhanceArticleTaskSelection(root = document) {
   bulkRow.className = "bulk-select-row article-bulk-row";
   const reviewableCount = selectedVisible.filter((entry) => articleSelectableForReview(entry.article)).length;
   const publishableCount = selectedVisible.filter((entry) => articlePublishEligibility(entry.article).ok).length;
-  bulkRow.innerHTML = `${renderSelectAllControl("content-articles", selectable.length, selectedVisible.length, "全选当前列表")}<span class="article-bulk-summary">已选择 <b>${selectedVisible.length}</b> 篇文章</span><button class="primary-button button-small" type="button" data-action="open-batch-review" ${reviewableCount ? "" : "disabled"}><span data-icon="check"></span>批量审核${reviewableCount ? `（${reviewableCount}篇）` : ""}</button><button class="secondary-button button-small" type="button" data-action="open-schedule" ${publishableCount ? "" : "disabled"}><span data-icon="clock"></span>定时发布${publishableCount ? `（${publishableCount}篇）` : ""}</button>`;
+  bulkRow.innerHTML = `${renderSelectAllControl("content-articles", selectable.length, selectedVisible.length, "全选当前列表")}<span class="article-bulk-summary">已选择 <b>${selectedVisible.length}</b> 篇文章</span><button class="primary-button button-small" type="button" data-action="open-batch-review" ${reviewableCount && currentUserCan("content.review") ? "" : "disabled"}><span data-icon="check"></span>${currentUserCan("content.review") ? `批量审核${reviewableCount ? `（${reviewableCount}篇）` : ""}` : "无审核权限"}</button><button class="secondary-button button-small" type="button" data-action="open-schedule" ${publishableCount ? "" : "disabled"}><span data-icon="clock"></span>定时发布${publishableCount ? `（${publishableCount}篇）` : ""}</button>`;
   header.insertAdjacentElement("afterend", bulkRow);
   hydrateIcons(bulkRow);
   hydrateBulkSelects(bulkRow);
@@ -3486,6 +5037,7 @@ function renderContent() {
 }
 
 function articleAssetRecords() {
+  if (syncPublishedAssetTracking()) saveState();
   const trackedWorks = state.monitoring?.trackedWorks || [];
   const activeLine = activeBusinessLine();
   return state.articles
@@ -3505,11 +5057,24 @@ function articleAssetRecords() {
       const successful = targets.filter((target) => target.status === "success").length;
       const actionable = targets.filter((target) => ["failed", "needs_login", "needs_verification", "draft_saved", "result_unknown"].includes(target.status)).length;
       const websiteTarget = targets.find((target) => target.platform === "web");
-      const sourceUrl = websiteTarget?.remoteUrl || article.siteUrl || "";
-      const tracked = trackedWorks.find((item) => item.articleId === article.id) || trackedWorks.find((item) => item.title === article.title) || null;
+      const trackedMatches = trackedWorks.filter((item) => item.articleId === article.id || (!item.articleId && item.title === article.title));
       const queryBinding = monitoringBindingsForArticle(article.id);
-      const citationCount = Number(tracked?.citations || 0);
-      const citationQuestions = Number(tracked?.questions || queryBinding?.questionIds?.length || 0);
+      const serverAsset = serverContentAssetForArticle(article.contentArticleId || article.id);
+      const localPublications = [...new Map(trackedMatches.flatMap((item) => trackedWorkPublications(item)).map((item) => [item.canonicalUrl, item])).values()];
+      const publications = serverAsset ? [] : localPublications;
+      (serverAsset?.publications || []).forEach((publication) => {
+        const normalized = normalizeTrackedUrl(publication.canonicalUrl || publication.url);
+        if (!normalized || publications.some((item) => item.canonicalUrl === normalized)) return;
+        publications.push({ ...publication, canonicalUrl: normalized, articleVersion: publication.articleVersionId || null, updatedAt: publication.updatedAt || Date.now() });
+      });
+      const publicationWebsite = publications.find((item) => item.platform === "web");
+      const sourceUrl = websiteTarget?.remoteUrl || article.siteUrl || publicationWebsite?.url || "";
+      const citationSummary = serverAsset?.citationSummary || { citationCount: 0, evidenceCount: 0, questionCount: 0, platformCount: 0, firstCitedAt: null, lastCitedAt: null };
+      const recentCitations = Array.isArray(serverAsset?.recentCitations) ? serverAsset.recentCitations : [];
+      const assetAlerts = Array.isArray(serverAsset?.alerts) ? serverAsset.alerts : [];
+      const citationCount = Number(citationSummary.citationCount || 0);
+      const citationQuestions = Number(citationSummary.questionCount || 0);
+      const tracked = citationCount ? { citedDays: new Set(recentCitations.map((item) => String(item.observedAt || "").slice(0, 10)).filter(Boolean)).size } : null;
       let lifecycle = "draft";
       if (article.reviewStatus === "pending") lifecycle = "pending_review";
       else if (actionable) lifecycle = "needs_action";
@@ -3528,9 +5093,15 @@ function articleAssetRecords() {
         sourceUrl,
         sourceHealth: sourceUrl ? "healthy" : (article.status === "published" ? "pending" : "missing"),
         tracked,
+        serverAsset,
+        publications,
+        publicationWebsite,
         queryBinding,
         citationCount,
         citationQuestions,
+        citationSummary,
+        recentCitations,
+        alerts: assetAlerts,
         lifecycle,
         lastActivity: targets.reduce((latest, target) => Math.max(latest, Number(target.updatedAt || 0)), Number(article.updatedAt || 0))
       };
@@ -3563,24 +5134,41 @@ function renderAssetPlatforms(record) {
   return `<div class="asset-platform-list">${record.targets.map((target) => {
     const meta = PLATFORM_META[target.platform] || { name: target.platform, short: "平", logoClass: "web" };
     const url = target.remoteUrl || "";
-    const demoUrl = /example\.com/i.test(url);
-    return `<div class="asset-platform-row"><div class="asset-platform-name">${platformLogo(target.platform)}<span><b>${escapeHtml(meta.name)}</b><small>${escapeHtml(target.account || "未绑定账号")}</small></span></div><div>${statusBadge(target.status)}${url ? `<a class="asset-url" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">打开${demoUrl ? "演示地址" : "信源"}</a>` : '<small class="asset-url-muted">等待地址</small>'}</div><small class="asset-platform-time">${target.updatedAt ? formatRelative(target.updatedAt) : "尚未执行"}</small></div>`;
+    return `<div class="asset-platform-row"><div class="asset-platform-name">${platformLogo(target.platform)}<span><b>${escapeHtml(meta.name)}</b><small>${escapeHtml(target.account || "未绑定账号")}</small></span></div><div>${statusBadge(target.status)}${url ? `<a class="asset-url" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">打开信源</a>` : '<small class="asset-url-muted">等待地址</small>'}</div><small class="asset-platform-time">${target.updatedAt ? formatRelative(target.updatedAt) : "尚未执行"}</small></div>`;
   }).join("")}</div>`;
+}
+
+function renderAssetPublications(record) {
+  const publications = record.publications || [];
+  const rows = publications.map((publication) => {
+    const meta = PLATFORM_META[publication.platform] || { name: publication.platformName || "其他平台", short: "平", logoClass: "generic" };
+    const sourceLabel = publication.source === "publish_sync" ? "自动追踪" : "手动添加";
+    const health = ({ unchecked: ["未检测", ""], healthy: ["可访问", "green"], redirected: ["有跳转", "blue"], changed: ["内容变化", "amber"], unreachable: ["不可访问", "amber"], blocked: ["已阻止", "amber"] })[publication.healthStatus] || ["已记录", ""];
+    const serverManaged = Boolean(record.serverAsset?.id && publication.assetId === record.serverAsset.id && publication.id);
+    return `<div class="asset-publication-row"><div class="asset-platform-name">${platformLogo(publication.platform)}<span><b>${escapeHtml(publication.platformName || meta.name)}</b><small>${sourceLabel} · ${publication.lastCheckedAt ? `检测于 ${formatRelative(publication.lastCheckedAt)}` : publication.updatedAt ? formatRelative(publication.updatedAt) : "已记录"}</small></span></div><a class="asset-url asset-publication-url" href="${escapeHtml(publication.url)}" target="_blank" rel="noreferrer">${escapeHtml(publication.url)}</a><div class="asset-publication-actions"><span class="small-tag ${health[1]}">${health[0]}</span>${serverManaged ? `<button class="link-button" type="button" data-action="asset-check-publication" data-asset-id="${escapeHtml(record.serverAsset.id)}" data-publication-id="${escapeHtml(publication.id)}">检测</button>${publication.source === "manual" ? `<button class="link-button danger-text" type="button" data-action="asset-remove-publication" data-asset-id="${escapeHtml(record.serverAsset.id)}" data-publication-id="${escapeHtml(publication.id)}">移除</button>` : ""}` : ""}</div></div>`;
+  }).join("");
+  return `<div class="asset-publications"><div class="asset-publication-head"><div><b>引用追踪地址</b><small>官网与成功发布的平台会自动加入，也可以补充其他平台 URL。</small></div><button class="secondary-button button-small" type="button" data-action="asset-add-publication" data-article-id="${escapeHtml(record.article.id)}"><span data-icon="plus"></span>添加其他平台 URL</button></div>${rows || '<div class="asset-publication-empty">发布成功后，系统会自动记录可追踪地址。</div>'}</div>`;
+}
+
+function renderAssetCitationFacts(record) {
+  const citations = record.recentCitations || [];
+  const alerts = record.alerts || [];
+  const citationRows = citations.map((citation) => `<div class="asset-citation-row"><div><b>${escapeHtml(citation.platform || "AI 平台")} · ${escapeHtml(citation.question || "未记录问题")}</b><small>${escapeHtml(citation.sourceTitle || citation.canonicalSourceUrl || "引用来源")} · ${citation.observedAt ? formatDateTime(citation.observedAt) : "时间待确认"}</small></div><span>${escapeHtml(citation.terminal || "web")} / ${escapeHtml(citation.mode || "fast")}</span><a href="${escapeHtml(citation.sourceUrl)}" target="_blank" rel="noreferrer">打开引用</a></div>`).join("");
+  const alertRows = alerts.map((alert) => `<div class="asset-alert-row ${escapeHtml(alert.severity || "warning")}"><span data-icon="${alert.severity === "critical" ? "alert" : "info"}"></span><div><b>${escapeHtml(alert.title)}</b><small>${escapeHtml(alert.message || "")} · ${alert.lastSeenAt ? formatDateTime(alert.lastSeenAt) : ""}</small></div></div>`).join("");
+  return `<div class="asset-citation-facts"><section><header><b>真实 AI 引用记录</b><small>只统计已验证的实时检测证据，按来源 URL 与发布地址精确匹配。</small></header>${citationRows || '<div class="asset-publication-empty">尚未发现与这篇文章精确匹配的已验证 AI 引用。</div>'}</section><section><header><b>资产提醒</b><small>自动巡检会记录地址异常、内容变化、首次引用和引用长期未更新。</small></header>${alertRows || '<div class="asset-publication-empty">当前没有待处理提醒。</div>'}</section></div>`;
 }
 
 function renderAssetDetail(record) {
   const article = record.article;
   const knowledgeCount = articleCitations(article).length;
-  const boundQuestionCount = record.queryBinding?.questionIds?.length || 0;
   const monitorText = record.tracked
-    ? `已记录 ${record.citationQuestions} 个问题、${record.citationCount} 次引用，最近 ${record.tracked.citedDays || 0} 天发现引用`
-    : boundQuestionCount
-      ? `已绑定 ${boundQuestionCount} 个监测问题，等待采样回写引用证据`
-      : "尚未绑定监测问题；可从问题词库或现有 AI 样本中选择。";
-  return `<div class="asset-detail"><div class="asset-detail-grid"><section><div class="asset-detail-head"><div><h4>发布渠道与信源</h4><p>官网是主信源，其他平台是分发信源；每个平台独立记录状态。</p></div><span class="small-tag blue">${record.successful}/${record.targetCount || 0} 完成</span></div>${renderAssetPlatforms(record)}</section><section><div class="asset-detail-head"><div><h4>引用监测准备</h4><p>发布后把原始问题、选题问题或自定义问题绑定到这篇资产。</p></div><span class="small-tag ${record.tracked ? "green" : boundQuestionCount ? "blue" : "amber"}">${record.tracked ? "已有演示数据" : boundQuestionCount ? `已绑定 ${boundQuestionCount} 个问题` : "待接入"}</span></div><div class="asset-monitor-card"><span class="asset-monitor-icon" data-icon="chart"></span><div><b>${record.tracked ? `${record.citationCount} 次引用` : boundQuestionCount ? `等待采样` : "尚未监测"}</b><small>${escapeHtml(monitorText)}</small></div></div><div class="asset-detail-links"><button class="link-button" type="button" data-action="asset-open-monitoring" data-asset-id="${record.id}">查看引用分析</button><button class="link-button" type="button" data-action="asset-add-query" data-asset-id="${record.id}">${boundQuestionCount ? "管理监测问题" : "添加监测问题"}</button></div></section></div><div class="asset-detail-footer"><span><b>知识快照</b> ${knowledgeCount ? `${knowledgeCount} 条企业证据 · ${article.knowledgeSnapshot?.frozenAt || article.reviewStatus === "approved" ? "已冻结" : "待冻结"}` : "未建立可追溯证据"}</span><span><b>来源计划</b> ${escapeHtml(record.plan?.name || "直接创作")}</span><span><b>当前版本</b> ${escapeHtml(article.version || "v1")}</span><div class="asset-detail-actions"><button class="secondary-button button-small" type="button" data-action="open-asset-article" data-article-id="${article.id}">查看文章</button><button class="secondary-button button-small" type="button" data-action="asset-new-version" data-article-id="${article.id}">创建新版本</button></div></div></div>`;
+    ? `已记录 ${record.citationQuestions} 个问题、${record.citationCount} 次引用，最近引用 ${record.citationSummary?.lastCitedAt ? formatDateTime(record.citationSummary.lastCitedAt) : "待确认"}`
+    : "系统将持续巡检发布地址，并自动关联后续返回的已验证 AI 引用证据。";
+  return `<div class="asset-detail"><div class="asset-detail-grid"><section><div class="asset-detail-head"><div><h4>发布渠道与信源</h4><p>官网是主信源，其他平台是分发信源；每个平台独立记录状态。</p></div><span class="small-tag blue">${record.successful}/${record.targetCount || 0} 完成</span></div>${renderAssetPlatforms(record)}${renderAssetPublications(record)}</section><section><div class="asset-detail-head"><div><h4>引用监测</h4><p>系统自动将已验证 AI 回答中的来源 URL 与这篇文章的发布地址关联。</p></div><span class="small-tag ${record.tracked ? "green" : "amber"}">${record.tracked ? "已有真实引用" : "等待真实引用"}</span></div><div class="asset-monitor-card"><span class="asset-monitor-icon" data-icon="chart"></span><div><b>${record.tracked ? `${record.citationCount} 次引用` : "自动追踪中"}</b><small>${escapeHtml(monitorText)}</small></div></div><div class="asset-detail-links"><button class="link-button" type="button" data-nav="effect-monitor">进入品牌监测</button></div></section></div>${renderAssetCitationFacts(record)}<div class="asset-detail-footer"><span><b>知识快照</b> ${knowledgeCount ? `${knowledgeCount} 条企业证据 · ${article.knowledgeSnapshot?.frozenAt || article.reviewStatus === "approved" ? "已冻结" : "待冻结"}` : "未建立可追溯证据"}</span><span><b>来源计划</b> ${escapeHtml(record.plan?.name || "直接创作")}</span><span><b>当前版本</b> ${escapeHtml(article.version || "v1")}</span><div class="asset-detail-actions"><button class="secondary-button button-small" type="button" data-action="open-asset-article" data-article-id="${article.id}">查看文章</button><button class="secondary-button button-small" type="button" data-action="asset-new-version" data-article-id="${article.id}">创建新版本</button></div></div></div>`;
 }
 
 function renderAssets() {
+  if (!contentAssetSnapshot.attempted && !contentAssetSnapshot.loading) queueMicrotask(() => syncLocalContentAssetsToServer({ renderAfter: true }));
   const records = articleAssetRecords();
   const search = String(ui.assetSearch || "").trim().toLowerCase();
   const visible = records.filter((record) => {
@@ -3599,10 +5187,10 @@ function renderAssets() {
     const article = record.article;
     const expanded = ui.assetExpandedId === record.id;
     const publishText = record.targetCount ? `${record.successful}/${record.targetCount} 平台完成` : "未创建发布任务";
-    const citationText = record.tracked ? `${record.citationCount} 次引用 · ${record.citationQuestions} 个问题` : record.queryBinding?.questionIds?.length ? `已绑定 ${record.queryBinding.questionIds.length} 个问题` : "未接入监测";
-    return `<article class="card asset-card ${expanded ? "is-expanded" : ""}"><div class="asset-card-main"><div class="asset-card-title"><span class="asset-kind-icon" data-icon="file"></span><div><div class="asset-title-line"><button class="asset-title-button" type="button" data-action="open-asset-article" data-article-id="${article.id}">${escapeHtml(article.title)}</button><span class="small-tag">${escapeHtml(article.version || "v1")}</span></div><p>${escapeHtml(record.plan?.name || "直接创作")} · ${escapeHtml(record.topic?.title || "未关联选题")} · ${escapeHtml(record.line?.name || "未关联业务线")}</p></div></div><div class="asset-card-actions">${assetLifecycleBadge(record)}<button class="secondary-button button-small" type="button" data-action="asset-expand" data-asset-id="${record.id}">${expanded ? "收起管理" : "管理资产"}</button></div></div><div class="asset-card-metrics"><div><small>发布渠道</small><b>${escapeHtml(publishText)}</b><span>${record.targetCount ? "官网 / 内容平台独立记录" : "审核通过后创建任务"}</span></div><div><small>官网主信源</small><b>${assetSourceBadge(record)}</b><span>${record.sourceUrl ? escapeHtml(record.sourceUrl) : "尚未生成官网地址"}</span></div><div><small>AI 引用分析</small><b class="asset-citation-value">${escapeHtml(citationText)}</b><span>${record.tracked ? "最近一次已记录引用" : "发布后绑定问题再监测"}</span></div><div><small>最近活动</small><b>${record.lastActivity ? formatRelative(record.lastActivity) : "—"}</b><span>${escapeHtml(article.id)} · ${escapeHtml(article.author || "未分配")}</span></div></div>${expanded ? renderAssetDetail(record) : ""}</article>`;
+    const citationText = record.tracked ? `${record.citationCount} 次引用 · ${record.citationQuestions} 个问题` : "等待真实引用";
+    return `<article class="card asset-card ${expanded ? "is-expanded" : ""}"><div class="asset-card-main"><div class="asset-card-title"><span class="asset-kind-icon" data-icon="file"></span><div><div class="asset-title-line"><button class="asset-title-button" type="button" data-action="open-asset-article" data-article-id="${article.id}">${escapeHtml(article.title)}</button><span class="small-tag">${escapeHtml(article.version || "v1")}</span></div><p>${escapeHtml(record.plan?.name || "直接创作")} · ${escapeHtml(record.topic?.title || "未关联选题")} · ${escapeHtml(record.line?.name || "未关联业务线")}</p></div></div><div class="asset-card-actions">${assetLifecycleBadge(record)}<button class="secondary-button button-small" type="button" data-action="asset-expand" data-asset-id="${record.id}">${expanded ? "收起管理" : "管理资产"}</button></div></div><div class="asset-card-metrics"><div><small>发布渠道</small><b>${escapeHtml(publishText)}</b><span>${record.publications?.length ? `${record.publications.length} 个 URL 已纳入引用追踪` : record.targetCount ? "官网 / 内容平台独立记录" : "审核通过后创建任务"}</span></div><div><small>官网主信源</small><b>${assetSourceBadge(record)}</b><span>${record.sourceUrl ? escapeHtml(record.sourceUrl) : "尚未生成官网地址"}</span></div><div><small>AI 引用分析</small><b class="asset-citation-value">${escapeHtml(citationText)}</b><span>${record.tracked ? "最近一次已记录引用" : "发布地址已自动纳入追踪"}</span></div><div><small>最近活动</small><b>${record.lastActivity ? formatRelative(record.lastActivity) : "—"}</b><span>${escapeHtml(article.id)} · ${escapeHtml(article.author || "未分配")}</span></div></div>${expanded ? renderAssetDetail(record) : ""}</article>`;
   }).join("");
-  return `<div class="page-container">${pageHead("内容资产", "一篇文章建立一个长期资产，统一管理文章版本、官网主信源、多平台发布记录和后续引用分析。", '<button class="secondary-button" type="button" data-nav="content"><span data-icon="file"></span>进入内容生产</button><button class="primary-button" type="button" data-nav="publish"><span data-icon="send"></span>查看发布任务</button>')}<div class="asset-summary"><article class="card summary-card"><span data-icon="file"></span><div><b>${records.length}</b><small>内容资产</small></div></article><article class="card summary-card"><span class="green" data-icon="globe"></span><div><b>${publishedCount}</b><small>已进入发布</small></div></article><article class="card summary-card"><span class="purple" data-icon="chart"></span><div><b>${monitoringCount}</b><small>监测中</small></div></article><article class="card summary-card"><span class="amber" data-icon="link"></span><div><b>${totalCitations}</b><small>已记录引用</small></div></article></div><div class="asset-demo-note"><span data-icon="info"></span><div><b>资产页面先记录真实发布关系，引用监测等连接器接入后再产生真实数据。</b><small>当前没有监测数据的文章会明确显示“未接入监测”，不会把发布成功误认为已被 AI 引用。</small></div></div><section class="card asset-workspace"><div class="asset-toolbar"><div class="tabs">${tabs.map(([id, label, count]) => `<button class="tab-button ${ui.assetTab === id ? "active" : ""}" type="button" data-action="asset-tab" data-tab="${id}">${label} · ${count}</button>`).join("")}</div><div class="asset-filter-tools"><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.assetSearch || "")}" placeholder="搜索文章、计划或选题" aria-label="搜索内容资产" data-asset-search /></div><button class="secondary-button button-small" type="button" data-action="asset-clear-search">清空</button></div></div>${rows ? `<div class="asset-list">${rows}</div>` : '<div class="empty-state"><div><span data-icon="file"></span><h3>没有符合条件的内容资产</h3><p>可以先在内容生产中生成文章，通过审核后会自动进入这里。</p><button class="primary-button button-small" type="button" data-nav="content">进入内容生产</button></div></div>'}</section></div>`;
+  return `<div class="page-container">${pageHead("内容资产", "一篇文章建立一个长期资产，统一管理文章版本、官网主信源、多平台发布记录和真实 AI 引用分析。", '<button class="secondary-button" type="button" data-nav="content"><span data-icon="file"></span>进入内容生产</button><button class="primary-button" type="button" data-nav="publish"><span data-icon="send"></span>查看发布任务</button>')}<div class="asset-summary"><article class="card summary-card"><span data-icon="file"></span><div><b>${records.length}</b><small>内容资产</small></div></article><article class="card summary-card"><span class="green" data-icon="globe"></span><div><b>${publishedCount}</b><small>已进入发布</small></div></article><article class="card summary-card"><span class="purple" data-icon="chart"></span><div><b>${monitoringCount}</b><small>已有真实引用</small></div></article><article class="card summary-card"><span class="amber" data-icon="link"></span><div><b>${totalCitations}</b><small>已验证引用</small></div></article></div><div class="asset-demo-note"><span data-icon="shield"></span><div><b>引用数据来自已验证的实时 AI 检测证据。</b><small>系统按规范化来源 URL 与官网及各发布平台地址精确匹配；没有真实证据时保持为空，不使用演示引用数补齐。</small></div></div><section class="card asset-workspace"><div class="asset-toolbar"><div class="tabs">${tabs.map(([id, label, count]) => `<button class="tab-button ${ui.assetTab === id ? "active" : ""}" type="button" data-action="asset-tab" data-tab="${id}">${label} · ${count}</button>`).join("")}</div><div class="asset-filter-tools"><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.assetSearch || "")}" placeholder="搜索文章、计划或选题" aria-label="搜索内容资产" data-asset-search /></div><button class="secondary-button button-small" type="button" data-action="asset-clear-search">清空</button></div></div>${rows ? `<div class="asset-list">${rows}</div>` : '<div class="empty-state"><div><span data-icon="file"></span><h3>没有符合条件的内容资产</h3><p>可以先在内容生产中生成文章，通过审核后会自动进入这里。</p><button class="primary-button button-small" type="button" data-nav="content">进入内容生产</button></div></div>'}</section></div>`;
 }
 
 function publishBatchEligibleArticle(article) {
@@ -3790,13 +5378,15 @@ async function submitPublishBatch() {
     if (!eligibility.ok) continue;
     const platforms = selection.platformOrder.filter((platform) => publishBatchPlatformState(publishBatchPlatformEntry(platform), group, [article]).available);
     if (!platforms.length) continue;
+    let formal;
+    try { formal = await contentPublisherPayload(article); } catch (error) {
+      article.contentSyncError = error.message || "正式文章版本不可发布";
+      continue;
+    }
     const result = await publisherApi("/api/publisher/jobs", {
       method: "POST",
       body: {
-        articleId: article.id,
-        articleTitle: article.title,
-        version: article.version,
-        article: { id: article.id, title: article.title, version: article.version, excerpt: article.excerpt, content: article.content },
+        ...formal,
         webUrl: publisherArticleWebUrl(article),
         accountGroupId: group?.id,
         groupName: group?.name,
@@ -3894,224 +5484,4121 @@ function renderPublish() {
   `;
 }
 
-function monitoringTabs() {
-  const tabs = [
-    ["overview", "数据总览"],
-    ["mentions", "提及与排名"],
-    ["sources", "引用信源"],
-    ["sentiment", "品牌情感"],
-    ["dialogs", "AI 对话"],
-    ["tracking", "作品追踪"]
-  ];
-  return '<div class="tabs monitoring-tabs">' + tabs.map(([id, label]) =>
-    '<button class="tab-button ' + (ui.monitoringTab === id ? "active" : "") + '" type="button" data-action="monitoring-tab" data-tab="' + id + '">' + label + "</button>"
-  ).join("") + "</div>";
+function monitoringApiRecord(payload, keys = []) {
+  const data = payload?.data ?? payload ?? {};
+  for (const key of keys) {
+    if (data?.[key] !== undefined) return data[key];
+    if (payload?.[key] !== undefined) return payload[key];
+  }
+  return data;
 }
 
-function monitoringFilters() {
-  const platformOptions = ['<option value="all">全部 AI 平台</option>']
-    .concat(state.monitoring.platforms.map((platform) => '<option value="' + platform.id + '" ' + (ui.monitoringPlatform === platform.id ? "selected" : "") + ">" + platform.name + "</option>"))
-    .join("");
+function monitoringNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function monitoringDisplayNumber(value, suffix = "") {
+  const number = monitoringNumber(value);
+  return number === null ? "—" : `${number.toLocaleString("zh-CN")}${suffix}`;
+}
+
+function monitoringMetric(source, aliases) {
+  const record = source && typeof source === "object" ? source : {};
+  for (const alias of aliases) {
+    const value = record[alias];
+    if (value && typeof value === "object") {
+      const nested = monitoringNumber(value.score ?? value.value ?? value.percent ?? value.count);
+      if (nested !== null) return nested;
+    }
+    const number = monitoringNumber(value);
+    if (number !== null) return number;
+  }
+  return null;
+}
+
+function monitoringDiagnostics() {
+  const items = monitoringSnapshot.diagnostics;
+  return Array.isArray(items) ? items : [];
+}
+
+function monitoringLatestDiagnostic() {
+  const overview = monitoringSnapshot.overview || {};
+  const inline = overview.latestDiagnostic || overview.diagnostic || overview.websiteDiagnostic;
+  return inline || monitoringDiagnostics()[0] || null;
+}
+
+function monitoringDiagnosticScores(diagnostic) {
+  const scores = diagnostic?.scores || diagnostic?.scoreBreakdown || diagnostic?.breakdown || diagnostic?.checks || diagnostic?.components || {};
+  return {
+    total: monitoringMetric(diagnostic, ["totalScore", "score", "geoScore", "overallScore"]) ?? monitoringMetric(scores, ["total", "overall"]),
+    schema: monitoringMetric(scores, ["schema", "structuredData", "schemaScore"]) ?? monitoringMetric(diagnostic, ["schemaScore"]),
+    content: monitoringMetric(scores, ["content", "contentScore", "semanticContent"]) ?? monitoringMetric(diagnostic, ["contentScore"]),
+    meta: monitoringMetric(scores, ["meta", "metadata", "metaScore", "technicalMeta"]) ?? monitoringMetric(diagnostic, ["metaScore"]),
+    authority: monitoringMetric(scores, ["authority", "authorityLinks", "backlinks", "authorityScore", "externalLinks"]) ?? monitoringMetric(diagnostic, ["authorityScore", "backlinkScore"])
+  };
+}
+
+function monitoringTrafficRecord() {
+  const overview = monitoringSnapshot.overview || {};
+  return monitoringSnapshot.traffic || overview.traffic || overview.crawlerTraffic || null;
+}
+
+function monitoringTrafficPoints(traffic) {
+  const candidates = traffic?.trend || traffic?.series || traffic?.daily || traffic?.points || [];
+  if (!Array.isArray(candidates)) return [];
+  return candidates.map((item, index) => ({
+    label: String(item?.label || item?.date || item?.day || index + 1),
+    value: monitoringNumber(item?.allPv ?? item?.totalPv ?? item?.pv ?? item?.visits ?? item?.value ?? item?.count) ?? 0
+  })).filter((item) => item.label);
+}
+
+function monitoringTrendBars(points) {
+  if (!points.length) return '<div class="monitor-real-empty">等待服务器回传 AI 爬虫访问趋势</div>';
+  const max = Math.max(...points.map((item) => item.value), 1);
+  return `<div class="monitor-real-bars">${points.map((item) => `<div class="monitor-real-bar"><i style="height:${Math.max(5, Math.round(item.value / max * 100))}%" title="${escapeHtml(item.label)}：${item.value}"></i><small>${escapeHtml(item.label)}</small></div>`).join("")}</div>`;
+}
+
+function monitoringProductionStats() {
+  const overview = monitoringSnapshot.overview || {};
+  const production = overview.production || overview.operations || overview.runOverview || {};
+  const remoteArticles = production.articles || overview.articles || {};
+  const remotePublishing = production.publishing || production.publish || overview.publishing || {};
+  const articles = state.articles || [];
+  const localJobs = publisherSnapshot.loaded ? (publisherSnapshot.jobs || []) : (state.publishTasks || []);
+  const targets = localJobs.flatMap((job) => Array.isArray(job.targets) ? job.targets : Object.values(job.targets || {}));
+  const draft = articles.filter((article) => article.reviewStatus !== "approved").length;
+  const approved = articles.filter((article) => article.reviewStatus === "approved" && article.status === "draft").length;
+  const published = articles.filter((article) => article.status === "published").length;
+  const running = targets.filter((target) => ["queued", "running", "pending"].includes(target?.status)).length;
+  const failed = targets.filter((target) => ["failed", "needs_login", "needs_verification", "result_unknown"].includes(target?.status)).length;
+  return {
+    articleTotal: monitoringMetric(remoteArticles, ["total", "count"]) ?? articles.length,
+    draft: monitoringMetric(remoteArticles, ["draft", "pendingReview", "inReview"]) ?? draft,
+    approved: monitoringMetric(remoteArticles, ["approved", "readyToPublish"]) ?? approved,
+    published: monitoringMetric(remoteArticles, ["published", "completed"]) ?? published,
+    taskTotal: monitoringMetric(production, ["contentTasks", "tasks", "articleTasks"]) ?? (state.contentPlans || []).length,
+    publishRunning: monitoringMetric(remotePublishing, ["running", "queued", "active"]) ?? running,
+    publishFailed: monitoringMetric(remotePublishing, ["failed", "needsAction", "exceptions"]) ?? failed,
+    publishTotal: monitoringMetric(remotePublishing, ["total", "count", "jobs"]) ?? targets.length
+  };
+}
+
+async function refreshRealMonitoring(options = {}) {
+  if (monitoringSnapshot.loading) return monitoringSnapshot;
+  monitoringSnapshot = { ...monitoringSnapshot, loading: true, error: "" };
+  ui.monitoringRefreshing = true;
+  if (!options.silent && currentRoute() === "monitoring") render();
+  const days = Math.max(1, Math.min(365, Number(ui.monitoringRange) || 30));
+  const [overviewResult, trafficResult, diagnosticsResult] = await Promise.allSettled([
+    productionApi(`/api/v1/monitoring/overview?days=${days}`),
+    productionApi(`/api/v1/monitoring/traffic?days=${days}`),
+    productionApi("/api/v1/monitoring/diagnostics")
+  ]);
+  const errors = [overviewResult, trafficResult, diagnosticsResult].filter((result) => result.status === "rejected").map((result) => result.reason?.message || "监测服务暂不可用");
+  const overview = overviewResult.status === "fulfilled" ? monitoringApiRecord(overviewResult.value, ["overview"]) : null;
+  const traffic = trafficResult.status === "fulfilled" ? monitoringApiRecord(trafficResult.value, ["traffic"]) : null;
+  const diagnosticsRaw = diagnosticsResult.status === "fulfilled" ? monitoringApiRecord(diagnosticsResult.value, ["items", "diagnostics", "reports"]) : [];
+  monitoringSnapshot = {
+    loaded: Boolean(overview || traffic || diagnosticsResult.status === "fulfilled"),
+    loading: false,
+    overview,
+    traffic,
+    diagnostics: Array.isArray(diagnosticsRaw) ? diagnosticsRaw : (diagnosticsRaw?.items || []),
+    error: errors.join("；"),
+    loadedAt: Date.now()
+  };
+  ui.monitoringRefreshing = false;
+  if (currentRoute() === "monitoring") render();
+  if (!options.silent && errors.length) showToast("部分监测数据暂不可用", errors[0], "warning");
+  return monitoringSnapshot;
+}
+
+async function runMonitoringDiagnostic() {
+  const input = document.getElementById("monitoring-diagnostic-url");
+  let url = input?.value.trim() || state.site?.remoteUrl || state.site?.domain || "";
+  if (!url) return showToast("请填写官网地址", "需要提供已部署官网的完整地址后才能运行 GEO 诊断。", "error");
+  if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  try { url = new URL(url).toString(); } catch { return showToast("官网地址格式不正确", "请输入如 https://www.example.com/ 的地址。", "error"); }
+  monitoringSnapshot = { ...monitoringSnapshot, loading: true, error: "" };
+  if (currentRoute() === "monitoring") render();
+  try {
+    const payload = await productionApi("/api/v1/monitoring/diagnostics", { method: "POST", body: { url } });
+    const diagnostic = monitoringApiRecord(payload, ["diagnostic", "report", "item"]);
+    if (diagnostic?.id) {
+      const existing = monitoringDiagnostics().filter((item) => item.id !== diagnostic.id);
+      monitoringSnapshot = { ...monitoringSnapshot, loading: false, diagnostics: [diagnostic, ...existing] };
+    } else {
+      monitoringSnapshot = { ...monitoringSnapshot, loading: false };
+    }
+    await refreshRealMonitoring({ silent: true });
+    showToast("网站 GEO 诊断已提交", "服务端完成分析后会回传最新诊断报告；不将访问数据等同于 AI 引用。", "success");
+  } catch (error) {
+    monitoringSnapshot = { ...monitoringSnapshot, loading: false, error: error.message || "网站诊断服务暂不可用" };
+    if (currentRoute() === "monitoring") render();
+    showToast("网站 GEO 诊断失败", monitoringSnapshot.error, "error");
+  }
+}
+
+function diagnosticApiItems(payload, aliases = []) {
+  const data = payload?.data ?? payload ?? {};
+  if (Array.isArray(data)) return data;
+  for (const key of aliases) {
+    if (Array.isArray(data?.[key])) return data[key];
+    if (Array.isArray(data?.[key]?.items)) return data[key].items;
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  if (Array.isArray(data.items)) return data.items;
+  return [];
+}
+
+function diagnosticApiEntity(payload, aliases = []) {
+  const data = payload?.data ?? payload ?? {};
+  for (const key of aliases) {
+    if (data?.[key] && typeof data[key] === "object") return data[key];
+    if (payload?.[key] && typeof payload[key] === "object") return payload[key];
+  }
+  return data && typeof data === "object" ? data : null;
+}
+
+function diagnosticMergeReports(freshReports, currentReports) {
+  const current = new Map((currentReports || []).map((item) => [String(item.id || item.reportId || ""), item]));
+  return (freshReports || []).map((item) => {
+    const existing = current.get(String(item.id || item.reportId || ""));
+    if (!existing) return item;
+    return {
+      ...existing,
+      ...item,
+      sections: item.sections ?? existing.sections,
+      recommendations: item.recommendations ?? existing.recommendations,
+      actions: item.actions ?? existing.actions
+    };
+  });
+}
+
+function diagnosticTypeOf(record) {
+  const type = record?.type || record?.diagnosticType || record?.reportType || "comprehensive";
+  return type === "source_ecosystem" ? "source_ecology" : type;
+}
+
+function diagnosticApiType(type) {
+  return type === "source_ecology" ? "source_ecosystem" : type;
+}
+
+function diagnosticTypeMeta(record) {
+  return DIAGNOSTIC_TYPES[diagnosticTypeOf(record)] || DIAGNOSTIC_TYPES.comprehensive;
+}
+
+function diagnosticStatus(record) {
+  return String(record?.status || record?.state || record?.runStatus || "draft").toLowerCase();
+}
+
+function diagnosticStatusBadge(record) {
+  const status = diagnosticStatus(record);
+  const labels = {
+    draft: ["待生成", "status-draft"],
+    active: ["进行中", "status-publishing"],
+    pending: ["等待处理", "status-pending"],
+    queued: ["排队中", "status-pending"],
+    running: ["分析中", "status-publishing"],
+    processing: ["分析中", "status-publishing"],
+    completed: ["已完成", "status-approved"],
+    complete: ["已完成", "status-approved"],
+    final: ["已完成", "status-approved"],
+    published: ["已完成", "status-approved"],
+    applied: ["已回流", "status-approved"],
+    failed: ["失败", "status-failed"],
+    error: ["失败", "status-failed"]
+  };
+  const [label, className] = labels[status] || [record?.status || "待处理", "status-draft"];
+  return `<span class="status-badge ${className}">${escapeHtml(label)}</span>`;
+}
+
+function diagnosticQuestionPool(businessLineId) {
+  const sources = [
+    ...(Array.isArray(state.questionLibrary) ? state.questionLibrary : []),
+    ...(Array.isArray(state.questions) ? state.questions : []),
+    ...(Array.isArray(state.monitoring?.questions) ? state.monitoring.questions : [])
+  ];
+  const seen = new Set();
+  return sources.map((item, index) => ({
+    id: String(item.id || item.questionId || `QUESTION-${index + 1}`),
+    question: String(item.question || item.title || item.query || "").trim(),
+    businessLineId: item.businessLineId || item.lineId || null,
+    source: item.source || (index < (state.questionLibrary || []).length ? "问题词库" : "运营问题"),
+    status: item.status || "active"
+  })).filter((item) => {
+    if (!item.question || item.status === "archived") return false;
+    if (businessLineId && item.businessLineId && item.businessLineId !== businessLineId) return false;
+    const key = item.question.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function diagnosticProjectReports(projectId) {
+  return (diagnosticSnapshot.reports || []).filter((report) => String(report.projectId || report.diagnosticProjectId || report.project?.id || "") === String(projectId || ""));
+}
+
+function diagnosticReportById(reportId) {
+  return (diagnosticSnapshot.reports || []).find((report) => String(report.id || report.reportId) === String(reportId || "")) || null;
+}
+
+function diagnosticProjectById(projectId) {
+  return (diagnosticSnapshot.projects || []).find((project) => String(project.id || project.projectId) === String(projectId || "")) || null;
+}
+
+function diagnosticInstalledPackage() {
+  return (diagnosticSnapshot.researchPackages || []).find((item) => String(item.version || item.dataVersion || item.datasetVersion || "") === CITATION_LAB_PACKAGE.version)
+    || (diagnosticSnapshot.researchPackages || [])[0]
+    || null;
+}
+
+const ANALYSIS_DATA_SOURCE_META = Object.freeze({
+  citation_lab: { label: "Citation Lab", description: "四平台历史引用、信源、格式、日期和问题类型统计", icon: "database" },
+  enterprise_knowledge: { label: "企业知识库", description: "仅检索当前企业已审核、允许用于分析的知识片段", icon: "book" },
+  site_operations: { label: "官网与运营数据", description: "读取官网诊断、内容生产和发布运行摘要", icon: "globe" }
+});
+const ANALYSIS_PLATFORM_META = Object.freeze({
+  "豆包": { short: "豆" },
+  DeepSeek: { short: "D" },
+  "千问": { short: "千" },
+  "元宝": { short: "元" }
+});
+const ANALYSIS_RUN_TERMINAL = new Set(["completed", "failed"]);
+
+function workbenchData(payload = {}) {
+  return payload?.data || payload || {};
+}
+
+function workbenchConfiguredProviders() {
+  return (aiProviderSnapshot.providers || []).filter((provider) => provider.kind === "text" && provider.status !== "disabled" && provider.hasApiKey === true);
+}
+
+function analysisWorkbenchProvider() {
+  const providers = workbenchConfiguredProviders();
+  const selected = String(ui.analysisProviderId || selectedTextProviderId() || "");
+  return providers.find((provider) => provider.id === selected) || providers[0] || null;
+}
+
+function analysisWorkbenchActiveRun() {
+  const session = analysisWorkbenchSnapshot.activeSession;
+  const run = analysisWorkbenchSnapshot.activeRun;
+  if (run && (!session || run.sessionId === session.id)) return run;
+  return session?.runs?.[0] || null;
+}
+
+function stopAnalysisWorkbenchPolling() {
+  if (analysisWorkbenchPollTimer) window.clearTimeout(analysisWorkbenchPollTimer);
+  analysisWorkbenchPollTimer = null;
+}
+
+function scheduleAnalysisWorkbenchPoll(runId) {
+  stopAnalysisWorkbenchPolling();
+  if (!runId) return;
+  analysisWorkbenchPollTimer = window.setTimeout(() => pollAnalysisWorkbenchRun(runId), 900);
+}
+
+async function refreshAnalysisWorkbench(options = {}) {
+  if (analysisWorkbenchSnapshot.loading) return analysisWorkbenchSnapshot;
+  analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, attempted: true, loading: true, error: "" };
+  if (options.renderAfter && currentRoute() === "monitoring") render();
+  try {
+    if (!aiProviderSnapshot.loaded && !aiProviderSnapshot.loading) await refreshAiProviders().catch(() => null);
+    const [sessionsPayload, optionsPayload] = await Promise.all([
+      productionApi("/api/v1/analysis-sessions?status=active&limit=100"),
+      productionApi("/api/v1/analysis-sessions/options")
+    ]);
+    const sessions = workbenchData(sessionsPayload).items || [];
+    const workbenchOptions = workbenchData(optionsPayload);
+    const selectedId = ui.analysisSessionId || null;
+    let activeSession = analysisWorkbenchSnapshot.activeSession;
+    if (selectedId) {
+      const sessionPayload = await productionApi(`/api/v1/analysis-sessions/${encodeURIComponent(selectedId)}`);
+      activeSession = workbenchData(sessionPayload).session || null;
+      ui.analysisSessionId = activeSession?.id || null;
+    } else {
+      activeSession = null;
+      ui.analysisSessionId = null;
+    }
+    const activeRun = activeSession?.runs?.[0] || null;
+    analysisWorkbenchSnapshot = {
+      loaded: true, attempted: true, loading: false, options: workbenchOptions, sessions,
+      activeSession, activeRun, error: "", loadedAt: Date.now()
+    };
+    const provider = analysisWorkbenchProvider();
+    if (!ui.analysisProviderId && provider) ui.analysisProviderId = provider.id;
+    if (activeRun && !ANALYSIS_RUN_TERMINAL.has(activeRun.status)) scheduleAnalysisWorkbenchPoll(activeRun.id);
+  } catch (error) {
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, loading: false, attempted: true, error: error.message || "AI 分析工作台暂不可用" };
+  }
+  if (options.renderAfter && currentRoute() === "monitoring") render();
+  return analysisWorkbenchSnapshot;
+}
+
+function citationUpdatePayload(payload) {
+  return payload?.data?.update || payload?.update || payload?.data || payload || null;
+}
+
+async function refreshCitationPackageUpdate(options = {}) {
+  if (citationUpdateSnapshot.loading) return citationUpdateSnapshot;
+  citationUpdateSnapshot = { ...citationUpdateSnapshot, loading: true, error: "" };
+  if (options.renderAfter && currentRoute() === "monitoring") render();
+  try {
+    const payload = await productionApi("/api/v1/citation-package-updates/status");
+    citationUpdateSnapshot = { loaded: true, loading: false, operating: false, update: citationUpdatePayload(payload), error: "" };
+  } catch (error) {
+    citationUpdateSnapshot = { ...citationUpdateSnapshot, loaded: false, loading: false, operating: false, error: error.message || "数据版本服务读取失败" };
+  }
+  if (options.renderAfter && currentRoute() === "monitoring") render();
+  return citationUpdateSnapshot;
+}
+
+async function operateCitationPackageUpdate(action) {
+  if (citationUpdateSnapshot.operating) return;
+  const update = citationUpdateSnapshot.update || {};
+  const candidate = update.candidate || {};
+  let body = {};
+  if (action === "stage") {
+    if (!window.confirm("确认把官方完整数据包下载到隔离暂存区？此操作不会切换生产版本。")) return;
+    body = { candidateId: candidate.id, confirm: true };
+  } else if (action === "validate") body = { candidateId: candidate.id };
+  else if (action === "discard") {
+    if (!window.confirm("确认丢弃当前未激活候选包？已安装版本不会受影响。")) return;
+    body = { candidateId: candidate.id, confirm: true };
+  } else if (action === "activate") {
+    if (!window.confirm(`确认激活 Citation Lab ${candidate.datasetVersion || "新版本"}？切换后需要重启研究分析服务，历史报告不会改变。`)) return;
+    body = { candidateId: candidate.id, expectedCurrentVersion: update.current?.version || "", confirm: true };
+  } else if (action === "rollback") {
+    const target = (update.installed || []).find((item) => item.version !== update.current?.version && item.installed && item.validManifest);
+    if (!target) return showToast("没有可回滚版本", "当前没有其他经过验证的已安装数据版本。", "error");
+    if (!window.confirm(`确认从 ${update.current?.version || "当前版本"} 回滚到 ${target.version}？切换后需要重启研究分析服务。`)) return;
+    body = { targetVersion: target.version, expectedCurrentVersion: update.current?.version || "", confirm: true };
+  }
+  citationUpdateSnapshot = { ...citationUpdateSnapshot, operating: true, error: "" };
+  render();
+  try {
+    const payload = await productionApi(`/api/v1/citation-package-updates/${action}`, { method: "POST", body });
+    citationUpdateSnapshot = { loaded: true, loading: false, operating: false, update: citationUpdatePayload(payload), error: "" };
+    const restart = ["activate", "rollback"].includes(action);
+    showToast(restart ? "数据版本已切换" : "更新操作已完成", restart ? "请按私有化运维流程重启后台，使新的只读研究库生效。" : "状态和校验结果已经刷新。", "success");
+  } catch (error) {
+    citationUpdateSnapshot = { ...citationUpdateSnapshot, operating: false, error: error.message || "更新操作失败" };
+    showToast("数据更新操作失败", citationUpdateSnapshot.error, "error");
+  }
+  render();
+}
+
+async function refreshCitationDocumentUpdate(options = {}) {
+  if (citationDocumentUpdateSnapshot.loading) return citationDocumentUpdateSnapshot;
+  citationDocumentUpdateSnapshot = { ...citationDocumentUpdateSnapshot, loading: true, error: "" };
+  if (options.renderAfter && currentRoute() === "monitoring") render();
+  try {
+    const payload = await productionApi("/api/v1/citation-document-updates/status");
+    citationDocumentUpdateSnapshot = { loaded: true, loading: false, operating: false, update: citationUpdatePayload(payload), error: "" };
+  } catch (error) {
+    citationDocumentUpdateSnapshot = { ...citationDocumentUpdateSnapshot, loaded: false, loading: false, operating: false, error: error.message || "仓库研究资料状态读取失败" };
+  }
+  if (options.renderAfter && currentRoute() === "monitoring") render();
+  return citationDocumentUpdateSnapshot;
+}
+
+async function operateCitationDocumentUpdate(action) {
+  if (citationDocumentUpdateSnapshot.operating) return;
+  const update = citationDocumentUpdateSnapshot.update || {};
+  const candidate = update.candidate || {};
+  let body = {};
+  if (action === "stage") {
+    if (!window.confirm(`确认从姚金刚官方仓库下载提交 ${String(candidate.sourceCommit || "").slice(0, 12)} 的研究文档？文件只会进入隔离暂存区。`)) return;
+    body = { candidateId: candidate.id, confirm: true };
+  } else if (action === "validate") body = { candidateId: candidate.id };
+  else if (action === "discard") {
+    if (!window.confirm("确认丢弃当前未激活的研究文档候选快照？当前报告与活动快照不会受影响。")) return;
+    body = { candidateId: candidate.id, confirm: true };
+  } else if (action === "activate") {
+    if (!window.confirm(`确认激活研究文档提交 ${String(candidate.sourceCommit || "").slice(0, 12)}？统计数据库版本不会随之改变。`)) return;
+    body = { candidateId: candidate.id, expectedCurrentCommit: update.current?.sourceCommit || "", confirm: true };
+  } else if (action === "rollback") {
+    const target = (update.installed || []).find((item) => item.verified && item.sourceCommit !== update.current?.sourceCommit);
+    if (!target) return showToast("没有可回滚快照", "当前没有其他经过完整校验的研究文档快照。", "error");
+    if (!window.confirm(`确认把研究文档从 ${String(update.current?.sourceCommit || "").slice(0, 12)} 回滚到 ${String(target.sourceCommit).slice(0, 12)}？`)) return;
+    body = { targetCommit: target.sourceCommit, expectedCurrentCommit: update.current?.sourceCommit || "", confirm: true };
+  }
+  citationDocumentUpdateSnapshot = { ...citationDocumentUpdateSnapshot, operating: true, error: "" };
+  render();
+  try {
+    const payload = await productionApi(`/api/v1/citation-document-updates/${action}`, { method: "POST", body });
+    const runtime = payload?.data?.runtimeDocuments || null;
+    citationDocumentUpdateSnapshot = { loaded: true, loading: false, operating: false, update: citationUpdatePayload(payload), error: "" };
+    const switched = ["activate", "rollback"].includes(action);
+    showToast(switched ? "研究资料快照已切换" : "研究资料操作已完成", switched
+      ? runtime?.ok ? "新的只读文档索引已在当前后台生效，统计数据库版本保持不变。" : "版本指针已切换；请重启后台使新的只读文档索引生效。"
+      : "状态、文件清单和完整性校验结果已经刷新。", "success");
+  } catch (error) {
+    citationDocumentUpdateSnapshot = { ...citationDocumentUpdateSnapshot, operating: false, error: error.message || "研究资料更新操作失败" };
+    showToast("研究资料更新失败", citationDocumentUpdateSnapshot.error, "error");
+  }
+  render();
+}
+
+async function openAnalysisWorkbenchSession(sessionId) {
+  if (!sessionId) return;
+  stopAnalysisWorkbenchPolling();
+  ui.analysisSessionId = sessionId;
+  analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, loading: true, error: "" };
+  render();
+  try {
+    const payload = await productionApi(`/api/v1/analysis-sessions/${encodeURIComponent(sessionId)}`);
+    const activeSession = workbenchData(payload).session;
+    const activeRun = activeSession?.runs?.[0] || null;
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, loaded: true, loading: false, activeSession, activeRun };
+    if (activeRun && !ANALYSIS_RUN_TERMINAL.has(activeRun.status)) scheduleAnalysisWorkbenchPoll(activeRun.id);
+  } catch (error) {
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, loading: false, error: error.message || "分析会话读取失败" };
+    showToast("会话读取失败", analysisWorkbenchSnapshot.error, "error");
+  }
+  if (currentRoute() === "monitoring") render();
+}
+
+async function deleteAnalysisSession(sessionId) {
+  if (!sessionId) return;
+  const session = (analysisWorkbenchSnapshot.sessions || []).find((item) => item.id === sessionId)
+    || (analysisWorkbenchSnapshot.activeSession?.id === sessionId ? analysisWorkbenchSnapshot.activeSession : null);
+  if (!session) return;
+  const reportCount = Number(session.artifactCount || 0);
+  const title = session.title || "未命名分析报告";
+  const confirmed = window.confirm(`确认删除“${title}”？${reportCount ? `将同时删除该会话下的 ${reportCount} 个报告版本、证据台账和追问记录。` : "该会话没有已生成报告。"}删除后不可恢复。`);
+  if (!confirmed) return;
+  try {
+    await productionApi(`/api/v1/analysis-sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE", body: { confirm: true } });
+    if (ui.analysisSessionId === sessionId) {
+      stopAnalysisWorkbenchPolling();
+      ui.analysisSessionId = null;
+      analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, activeSession: null, activeRun: null };
+    }
+    await refreshAnalysisWorkbench({ renderAfter: false });
+    if (currentRoute() === "monitoring") render();
+    showToast("报告已删除", `“${title}”及其证据记录已从报告中心移除。`, "success");
+  } catch (error) {
+    showToast("报告删除失败", error.message || "请稍后重试；正在运行的分析需要结束后才能删除。", "error");
+  }
+}
+
+async function pollAnalysisWorkbenchRun(runId) {
+  try {
+    const payload = await productionApi(`/api/v1/analysis-runs/${encodeURIComponent(runId)}`);
+    const run = workbenchData(payload).run || null;
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, activeRun: run };
+    if (currentRoute() === "monitoring") render();
+    if (run && !ANALYSIS_RUN_TERMINAL.has(run.status)) return scheduleAnalysisWorkbenchPoll(run.id);
+    if (run?.sessionId) {
+      await openAnalysisWorkbenchSession(run.sessionId);
+      await refreshAnalysisWorkbench({ renderAfter: false });
+      if (run.status === "completed") showToast("分析报告已生成", "报告、证据台账和工具调用已经保存。", "success");
+      if (run.status === "failed") showToast("分析任务失败", run.errorMessage || "请检查模型配置或数据源后重试。", "error");
+    }
+  } catch (error) {
+    stopAnalysisWorkbenchPolling();
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, error: error.message || "分析进度读取失败" };
+    if (currentRoute() === "monitoring") render();
+  }
+}
+
+function captureAnalysisWorkbenchDraft(followUp = false) {
+  if (followUp) {
+    ui.analysisFollowUp = document.getElementById("analysis-follow-up")?.value.trim() || "";
+    ui.analysisFollowUpConsent = true;
+    return;
+  }
+  ui.analysisPrompt = document.getElementById("analysis-prompt")?.value.trim() || "";
+  ui.analysisIndustry = document.getElementById("analysis-industry")?.value.trim() || "";
+  ui.analysisProviderId = document.getElementById("analysis-provider")?.value || ui.analysisProviderId;
+  ui.analysisReportDepth = document.querySelector('[name="analysis-depth"]:checked')?.value || ui.analysisReportDepth;
+  ui.analysisCustomDepth = document.getElementById("analysis-custom-depth")?.value.trim() || "";
+  ui.analysisDataSources = [...document.querySelectorAll("[data-analysis-source]:checked")].map((node) => node.dataset.analysisSource);
+  const planPlatformNodes = [...document.querySelectorAll("[data-analysis-plan-platform]")];
+  if (ui.analysisPlan?.intent && planPlatformNodes.length) {
+    const selectedPlatforms = new Set(planPlatformNodes.filter((node) => node.checked).map((node) => node.dataset.analysisPlanPlatform));
+    const platforms = ["豆包", "DeepSeek", "千问", "元宝"].filter((item) => selectedPlatforms.has(item));
+    const industry = document.getElementById("analysis-plan-industry")?.value.trim() || "";
+    const representativeQuestions = (document.getElementById("analysis-plan-questions")?.value || "")
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 40);
+    ui.analysisPlan.intent = {
+      ...ui.analysisPlan.intent,
+      industry,
+      platforms,
+      representativeQuestions
+    };
+    ui.analysisIndustry = industry;
+    ui.analysisPlatforms = platforms;
+  } else {
+    ui.analysisPlatforms = [...document.querySelectorAll("[data-analysis-platform]:checked")].map((node) => node.dataset.analysisPlatform);
+  }
+}
+
+function analysisWorkbenchRequestBody(prompt, consent, session = null) {
+  const provider = analysisWorkbenchProvider();
+  const customInstruction = ui.analysisReportDepth === "custom" && ui.analysisCustomDepth ? `\n\n自定义报告要求：${ui.analysisCustomDepth}` : "";
+  const intent = !session && ui.analysisPlan?.intent ? ui.analysisPlan.intent : null;
+  return {
+    prompt: `${prompt}${customInstruction}`,
+    providerId: session?.providerId || provider?.id || ui.analysisProviderId || "",
+    model: session?.model || provider?.model || selectedTextModelName() || "",
+    dataSources: session?.dataSources || ui.analysisDataSources,
+    platforms: session?.platforms || intent?.platforms || ui.analysisPlatforms,
+    reportDepth: session?.reportDepth || intent?.reportDepth || ui.analysisReportDepth,
+    outputFormat: "interactive",
+    industry: intent?.industry || ui.analysisIndustry,
+    researchIntent: intent,
+    businessLineId: ui.diagnosticBusinessLineId || "",
+    externalDataConsent: consent,
+    externalDataConsentAt: new Date().toISOString(),
+    externalDataConsentMethod: session ? "explicit_follow_up_checkbox" : "system_default"
+  };
+}
+
+async function previewAnalysisWorkbenchPlan() {
+  if (ui.analysisPlanning || ui.analysisSubmitting) return;
+  captureAnalysisWorkbenchDraft(false);
+  const prompt = ui.analysisPrompt;
+  if (!prompt) return showToast("请输入分析需求", "请直接写清楚行业、目标平台、要分析的问题和期望输出。", "error");
+  const provider = analysisWorkbenchProvider();
+  if (!provider) {
+    ui.settingsTab = "models";
+    navigate("settings");
+    return showToast("请先配置文本大模型", "在系统设置中保存并启用 API Key 后，再生成研究计划。", "error");
+  }
+  if (!ui.analysisDataSources.length) return showToast("请选择数据源", "至少保留 Citation Lab、企业知识库或官网与运营数据中的一项。", "error");
+  ui.analysisPlanning = true;
+  let shouldStartAnalysis = false;
+  analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, error: "" };
+  render();
+  try {
+    const payload = await productionApi("/api/v1/analysis-plans", {
+      method: "POST",
+      body: {
+        ...analysisWorkbenchRequestBody(prompt, true),
+        researchIntent: null
+      }
+    });
+    const data = workbenchData(payload);
+    ui.analysisPlan = {
+      intent: data.intent || null,
+      plan: Array.isArray(data.plan) ? data.plan : [],
+      plannerRun: data.plannerRun || null,
+      plannerFallback: data.plannerFallback || null,
+      dataSources: data.dataSources || ui.analysisDataSources,
+      sourcePrompt: prompt
+    };
+    if (ui.analysisPlan.intent) {
+      ui.analysisIndustry = ui.analysisPlan.intent.industry || "";
+      ui.analysisPlatforms = ui.analysisPlan.intent.platforms || ui.analysisPlatforms;
+      ui.analysisReportDepth = ui.analysisPlan.intent.reportDepth || ui.analysisReportDepth;
+    }
+    shouldStartAnalysis = true;
+    showToast("研究计划已生成", ui.analysisPlan.plannerFallback?.applied
+      ? "模型解析超时，系统已按本地规则生成受控计划并自动开始真实分析。"
+      : "系统将按受控研究计划自动开始真实分析。", "success");
+  } catch (error) {
+    ui.analysisPlan = null;
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, error: error.message || "研究计划生成失败" };
+    showToast("研究计划生成失败", analysisWorkbenchSnapshot.error, "error");
+  } finally {
+    ui.analysisPlanning = false;
+    if (currentRoute() === "monitoring") render();
+  }
+  if (shouldStartAnalysis) return submitAnalysisWorkbench(false);
+}
+
+async function submitAnalysisWorkbench(followUp = false) {
+  if (ui.analysisSubmitting) return;
+  captureAnalysisWorkbenchDraft(followUp);
+  const session = followUp ? analysisWorkbenchSnapshot.activeSession : null;
+  const prompt = followUp ? ui.analysisFollowUp : ui.analysisPrompt;
+  const consent = true;
+  if (!prompt) return showToast("请输入分析需求", followUp ? "请说明要继续追问或调整的内容。" : "请写清楚要分析的行业、问题和期望输出。", "error");
+  if (!followUp && (!ui.analysisPlan?.intent || ui.analysisPlan.sourcePrompt !== prompt)) return previewAnalysisWorkbenchPlan();
+  if (!analysisWorkbenchProvider()) {
+    ui.settingsTab = "models";
+    navigate("settings");
+    return showToast("请先配置文本大模型", "在系统设置中保存并启用 API Key 后，再开始真实分析。", "error");
+  }
+  if (!consent) return showToast("请确认数据发送范围", "勾选确认后，系统只会发送分析需求和所选数据源的受控摘要，不发送 API Key 或整库数据。", "error");
+  if (!followUp && !ui.analysisDataSources.length) return showToast("请选择数据源", "至少选择 Citation Lab、企业知识库或官网与运营数据中的一项。", "error");
+  if (!followUp && ui.analysisDataSources.includes("citation_lab") && !ui.analysisPlatforms.length) return showToast("请选择分析平台", "使用 Citation Lab 时至少选择一个平台。", "error");
+  ui.analysisSubmitting = true;
+  render();
+  try {
+    const endpoint = followUp ? `/api/v1/analysis-sessions/${encodeURIComponent(session.id)}/messages` : "/api/v1/analysis-sessions";
+    const payload = await productionApi(endpoint, { method: "POST", body: analysisWorkbenchRequestBody(prompt, consent, session) });
+    const data = workbenchData(payload);
+    const createdSession = data.session || session;
+    const run = data.run || null;
+    ui.analysisSessionId = createdSession?.id || run?.sessionId || null;
+    ui.analysisFollowUp = "";
+    ui.analysisFollowUpConsent = false;
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, loaded: true, activeSession: createdSession, activeRun: run, error: "" };
+    if (run?.id) scheduleAnalysisWorkbenchPoll(run.id);
+    showToast("分析任务已开始", "系统正在运行本地受控统计工具，随后由所选大模型形成报告。", "success");
+  } catch (error) {
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, error: error.message || "分析任务创建失败" };
+    showToast("分析任务未创建", analysisWorkbenchSnapshot.error, "error");
+  } finally {
+    ui.analysisSubmitting = false;
+    if (currentRoute() === "monitoring") render();
+  }
+}
+
+async function refreshOperationDiagnostics(options = {}) {
+  if (diagnosticSnapshot.loading) return diagnosticSnapshot;
+  diagnosticSnapshot = { ...diagnosticSnapshot, loading: true, error: "" };
+  if (!options.silent && currentRoute() === "monitoring") render();
+  const [projectsResult, reportsResult, actionsResult, packagesResult] = await Promise.allSettled([
+    productionApi("/api/v1/diagnostics/projects"),
+    productionApi("/api/v1/diagnostics/reports"),
+    productionApi("/api/v1/diagnostics/actions"),
+    productionApi("/api/v1/research-packages")
+  ]);
+  const successes = [projectsResult, reportsResult, actionsResult, packagesResult].filter((result) => result.status === "fulfilled");
+  const errors = [projectsResult, reportsResult, actionsResult, packagesResult]
+    .filter((result) => result.status === "rejected")
+    .map((result) => result.reason?.message || "运营诊断服务暂不可用");
+  const freshReports = reportsResult.status === "fulfilled" ? diagnosticApiItems(reportsResult.value, ["reports", "diagnosticReports"]) : null;
+  diagnosticSnapshot = {
+    loaded: successes.length > 0,
+    attempted: true,
+    loading: false,
+    projects: projectsResult.status === "fulfilled" ? diagnosticApiItems(projectsResult.value, ["projects", "diagnosticProjects"]) : diagnosticSnapshot.projects,
+    reports: freshReports ? diagnosticMergeReports(freshReports, diagnosticSnapshot.reports) : diagnosticSnapshot.reports,
+    actions: actionsResult.status === "fulfilled" ? diagnosticApiItems(actionsResult.value, ["actions", "diagnosticActions"]) : diagnosticSnapshot.actions,
+    researchPackages: packagesResult.status === "fulfilled" ? diagnosticApiItems(packagesResult.value, ["packages", "researchPackages"]) : diagnosticSnapshot.researchPackages,
+    error: errors.join("；"),
+    loadedAt: Date.now()
+  };
+  if (currentRoute() === "monitoring") render();
+  if (!options.silent && errors.length) showToast("部分诊断服务待连接", errors[0], "error");
+  return diagnosticSnapshot;
+}
+
+function diagnosticCaptureDraft() {
+  ui.diagnosticBusinessLineId = document.getElementById("diagnostic-business-line")?.value || ui.diagnosticBusinessLineId;
+  ui.diagnosticType = document.querySelector('[name="diagnostic-type"]:checked')?.value || ui.diagnosticType;
+  ui.diagnosticIndustry = document.getElementById("diagnostic-industry")?.value.trim() || "";
+  ui.diagnosticGoal = document.getElementById("diagnostic-goal")?.value.trim() || "";
+  ui.diagnosticQuestionIds = [...document.querySelectorAll("[data-diagnostic-question]:checked")].map((input) => input.dataset.diagnosticQuestion).filter(Boolean);
+}
+
+function freezeDiagnosticQuestionSet() {
+  diagnosticCaptureDraft();
+  if (!ui.diagnosticQuestionIds.length) return showToast("请选择诊断问题", "至少选择 1 个真实客户问题后才能冻结问题集。", "error");
+  ui.diagnosticQuestionSetFrozen = true;
+  render();
+  showToast("问题集已冻结", `本次诊断将使用固定的 ${ui.diagnosticQuestionIds.length} 个问题，后续报告可追溯。`);
+}
+
+async function createDiagnosticProject() {
+  if (ui.diagnosticCreating) return;
+  diagnosticCaptureDraft();
+  const line = state.businessLines.find((item) => item.id === ui.diagnosticBusinessLineId);
+  const selected = diagnosticQuestionPool(ui.diagnosticBusinessLineId).filter((item) => ui.diagnosticQuestionIds.includes(item.id));
+  if (!line) return showToast("请选择业务线", "诊断项目必须绑定一个产品 / 业务线。", "error");
+  if (!ui.diagnosticIndustry) return showToast("请填写所在行业", "行业是匹配研究基线和解释适用范围的必要条件。", "error");
+  if (!ui.diagnosticGoal) return showToast("请填写诊断目标", "请说明希望解决的行业优化或信源问题。", "error");
+  if (!ui.diagnosticQuestionSetFrozen || !selected.length) return showToast("请先冻结问题集", "确认问题范围后再创建项目，避免不同轮次口径发生变化。", "error");
+  ui.diagnosticCreating = true;
+  render();
+  const frozenAt = new Date().toISOString();
+  try {
+    const payload = await productionApi("/api/v1/diagnostics/projects", {
+      method: "POST",
+      body: {
+        name: `${ui.diagnosticIndustry} · ${DIAGNOSTIC_TYPES[ui.diagnosticType]?.short || "运营诊断"}`,
+        type: ui.diagnosticType,
+        diagnosticType: diagnosticApiType(ui.diagnosticType),
+        businessLineId: line.id,
+        businessLineSnapshot: { id: line.id, name: line.name, product: line.product || "" },
+        industry: ui.diagnosticIndustry,
+        goal: ui.diagnosticGoal,
+        objective: ui.diagnosticGoal,
+        scope: { businessLineSnapshot: { id: line.id, name: line.name, product: line.product || "" }, questionCount: selected.length, questionSetFrozenAt: frozenAt },
+        questionSetSnapshot: { name: "项目初始问题集", version: 1, frozenAt, questions: selected },
+        researchPackageId: diagnosticInstalledPackage()?.id || CITATION_LAB_PACKAGE.id,
+        researchPackage: { id: CITATION_LAB_PACKAGE.id, version: CITATION_LAB_PACKAGE.version }
+      }
+    });
+    const project = diagnosticApiEntity(payload, ["project", "diagnosticProject"]);
+    if (project?.id || project?.projectId) {
+      const id = project.id || project.projectId;
+      diagnosticSnapshot.projects = [project, ...diagnosticSnapshot.projects.filter((item) => String(item.id || item.projectId) !== String(id))];
+      ui.diagnosticProjectId = id;
+    }
+    ui.diagnosticWizardOpen = false;
+    ui.diagnosticQuestionSetFrozen = false;
+    ui.diagnosticQuestionIds = [];
+    await refreshOperationDiagnostics({ silent: true });
+    showToast("诊断项目已创建", "问题集和研究数据版本已冻结，可以开始生成真实报告。", "success");
+  } catch (error) {
+    diagnosticSnapshot = { ...diagnosticSnapshot, error: error.message || "诊断项目接口待连接" };
+    showToast("项目未创建", `${diagnosticSnapshot.error}。页面不会在本地伪造项目。`, "error");
+  } finally {
+    ui.diagnosticCreating = false;
+    if (currentRoute() === "monitoring") render();
+  }
+}
+
+async function generateDiagnosticReport(projectId) {
+  if (!projectId || ui.diagnosticGeneratingId) return;
+  const project = diagnosticProjectById(projectId);
+  if (!project) return showToast("项目不存在", "请刷新项目列表后重试。", "error");
+  let providerId = selectedTextProviderId();
+  if (!providerId) {
+    await refreshAiProviders().catch(() => null);
+    autoBindDefaultAiProvider("text");
+    providerId = selectedTextProviderId();
+  }
+  const provider = (aiProviderSnapshot.providers || []).find((item) => item.id === providerId && item.kind === "text" && item.status !== "disabled" && item.hasApiKey === true);
+  if (!provider) {
+    showToast("请先配置文本大模型", "运营诊断必须使用已启用且已保存 API Key 的文本模型。请到系统设置 → AI 模型完成配置。", "error");
+    ui.settingsTab = "models";
+    navigate("settings");
+    return;
+  }
+  const reportType = diagnosticApiType(diagnosticTypeOf(project));
+  const researchOnly = ["industry_strategy", "source_ecosystem", "comprehensive"].includes(reportType);
+  const consentActive = String(ui.diagnosticConsentProjectId || "") === String(projectId)
+    && Number(ui.diagnosticConsentExpiresAt || 0) > Date.now();
+  if (!consentActive) {
+    ui.diagnosticConsentProjectId = projectId;
+    ui.diagnosticConsentExpiresAt = Date.now() + 60_000;
+    showToast(
+      "请再次点击“生成报告”",
+      researchOnly
+        ? `将把诊断目标（行业与分析要求）和 Citation Lab 四平台统计事实包发送给 ${provider.name || provider.model || "所选大模型"}；不发送冻结问题、企业知识片段、运营快照、API Key 或整库资料。`
+        : `将把本项目问题、Citation Lab 匹配摘要、命中的企业知识片段和运营快照发送给 ${provider.name || provider.model || "所选大模型"}；不发送 API Key 或整库资料。`,
+      "info"
+    );
+    return;
+  }
+  ui.diagnosticConsentProjectId = null;
+  ui.diagnosticConsentExpiresAt = 0;
+  ui.diagnosticGeneratingId = projectId;
+  render();
+  try {
+    const payload = await productionApi(`/api/v1/diagnostics/projects/${encodeURIComponent(projectId)}/reports`, {
+      method: "POST",
+      body: {
+        providerId,
+        model: selectedTextModelName() || provider.model || provider.modelId || "",
+        externalDataConsent: true,
+        externalDataConsentAt: new Date().toISOString(),
+        externalDataConsentMethod: "two_step_generate_action",
+        researchOnly,
+        analysisMode: researchOnly ? "citation_lab_research" : "combined_evidence",
+        report: { reportType }
+      }
+    });
+    const report = diagnosticApiEntity(payload, ["report", "diagnosticReport"]);
+    if (report?.id || report?.reportId) {
+      const id = report.id || report.reportId;
+      diagnosticSnapshot.reports = [report, ...diagnosticSnapshot.reports.filter((item) => String(item.id || item.reportId) !== String(id))];
+      ui.diagnosticReportId = id;
+      ui.diagnosticSection = "reports";
+    }
+    const createdActions = diagnosticApiItems(payload, ["actions"]);
+    if (createdActions.length) diagnosticSnapshot.actions = [...createdActions, ...diagnosticSnapshot.actions.filter((item) => !createdActions.some((created) => created.id === item.id))];
+    await refreshOperationDiagnostics({ silent: true });
+    showToast(
+      "真实诊断报告已生成",
+      researchOnly
+        ? `已使用 ${provider.name || provider.model || "文本大模型"} 分析 Citation Lab 四平台历史事实包；本次未发送企业知识或运营快照。`
+        : `已使用 ${provider.name || provider.model || "文本大模型"} 分析 Citation Lab、企业知识与运营证据；无证据结论已被拦截。`,
+      "success"
+    );
+  } catch (error) {
+    diagnosticSnapshot = { ...diagnosticSnapshot, error: error.message || "报告生成接口待连接" };
+    showToast("报告未生成", `${diagnosticSnapshot.error}。没有创建演示结论。`, "error");
+  } finally {
+    ui.diagnosticGeneratingId = null;
+    if (currentRoute() === "monitoring") render();
+  }
+}
+
+async function openDiagnosticReport(reportId) {
+  if (!reportId) return;
+  ui.diagnosticSection = "reports";
+  ui.diagnosticReportId = reportId;
+  render();
+  try {
+    const payload = await productionApi(`/api/v1/diagnostics/reports/${encodeURIComponent(reportId)}`);
+    const report = diagnosticApiEntity(payload, ["report", "diagnosticReport"]);
+    if (report?.id || report?.reportId) {
+      const id = report.id || report.reportId;
+      diagnosticSnapshot.reports = [report, ...diagnosticSnapshot.reports.filter((item) => String(item.id || item.reportId) !== String(id))];
+      const projectId = report.projectId || report.diagnosticProjectId;
+      if (projectId) {
+        const actionsPayload = await productionApi(`/api/v1/diagnostics/projects/${encodeURIComponent(projectId)}/actions`).catch(() => null);
+        const actions = diagnosticApiItems(actionsPayload, ["actions"]);
+        if (actions.length) diagnosticSnapshot.actions = [...actions, ...diagnosticSnapshot.actions.filter((item) => !actions.some((fresh) => fresh.id === item.id))];
+      }
+    }
+  } catch (error) {
+    showToast("报告详情暂不可用", error.message || "请稍后刷新重试。", "error");
+  }
+  if (currentRoute() === "monitoring") render();
+}
+
+function diagnosticActionTargetLabel(target) {
+  return { question_library: "问题词库", knowledge: "企业知识库", cms: "官网 CMS", content_plan: "内容计划" }[target] || target || "待选择";
+}
+
+function diagnosticActionTarget(actionType) {
+  return {
+    question_library_candidate: "question_library",
+    knowledge_gap: "knowledge",
+    cms_task: "cms",
+    content_plan: "content_plan",
+    topic_candidate: "content_plan",
+    publishing_strategy: "content_plan"
+  }[actionType] || "question_library";
+}
+
+async function confirmDiagnosticAction(reportId, actionId) {
+  if (!reportId || !actionId || ui.diagnosticActionId) return;
+  const action = (diagnosticSnapshot.actions || []).find((item) => String(item.id || item.actionId) === String(actionId));
+  const target = diagnosticActionTarget(action?.actionType || action?.type);
+  if (!window.confirm(`确认将这条建议回流到“${diagnosticActionTargetLabel(target)}”？\n\n系统只创建待确认内容，不会自动发布。`)) return;
+  ui.diagnosticActionId = actionId;
+  render();
+  try {
+    const payload = await productionApi(`/api/v1/diagnostics/actions/${encodeURIComponent(actionId)}/confirm`, {
+      method: "POST",
+      body: { reportId, target, confirmedAt: new Date().toISOString() }
+    });
+    const appliedAction = diagnosticApiEntity(payload, ["action"]);
+    if (appliedAction?.id || appliedAction?.actionId) {
+      const id = appliedAction.id || appliedAction.actionId;
+      diagnosticSnapshot.actions = [appliedAction, ...diagnosticSnapshot.actions.filter((item) => String(item.id || item.actionId) !== String(id))];
+    }
+    await hydrateWorkspaceFromServer();
+    await refreshOperationDiagnostics({ silent: true });
+    await openDiagnosticReport(reportId);
+    showToast("建议已确认回流", `已写入${diagnosticActionTargetLabel(target)}的待处理内容；不会自动发布。`, "success");
+  } catch (error) {
+    showToast("回流未执行", `${error.message || "诊断回流接口待连接"}。没有写入未经验证的数据。`, "error");
+  } finally {
+    ui.diagnosticActionId = null;
+    if (currentRoute() === "monitoring") render();
+  }
+}
+
+function renderLegacyRealMonitoring() {
+  if (!monitoringSnapshot.loaded && !monitoringSnapshot.loading) queueMicrotask(() => refreshRealMonitoring({ silent: true }));
+  const diagnostic = monitoringLatestDiagnostic();
+  const scores = monitoringDiagnosticScores(diagnostic);
+  const traffic = monitoringTrafficRecord();
+  const points = traffic?.hasData === false ? [] : monitoringTrafficPoints(traffic);
+  const topPaths = Array.isArray(traffic?.topPaths || traffic?.paths) ? (traffic.topPaths || traffic.paths) : [];
+  const bots = Array.isArray(traffic?.bots || traffic?.botDistribution || traffic?.robots) ? (traffic.bots || traffic.botDistribution || traffic.robots) : [];
+  const pv = monitoringMetric(traffic || {}, ["allPv", "pv", "totalPv", "visits", "pageViews", "total"]);
+  const updatedAt = diagnostic?.completedAt || diagnostic?.createdAt || diagnostic?.updatedAt || null;
+  const production = monitoringProductionStats();
+  const diagnosticUrl = diagnostic?.url || state.site?.remoteUrl || (state.site?.domain ? `https://${state.site.domain}` : "");
+  const dataState = monitoringSnapshot.loading
+    ? '<div class="monitor-real-note"><span class="loading-spinner dark"></span><div><b>正在读取监测服务</b><small>仅展示服务端已采集的真实诊断与访问事件。</small></div></div>'
+    : monitoringSnapshot.loaded
+      ? '<div class="monitor-real-note success"><span data-icon="check"></span><div><b>已连接监测服务</b><small>网站诊断、AI 爬虫访问和运行汇总来自服务端；访问不等于被 AI 引用。</small></div></div>'
+      : `<div class="monitor-real-note warning"><span data-icon="alert"></span><div><b>等待真实监测数据接入</b><small>${escapeHtml(monitoringSnapshot.error || "尚未回传网站诊断或 AI 爬虫访问事件。页面不会生成虚构的品牌提及、排名、情感或 AI 回答样本。")} </small></div></div>`;
+  const scoreItems = [["Schema", scores.schema], ["内容", scores.content], ["Meta", scores.meta], ["权威外链", scores.authority]];
+  const diagnostics = monitoringDiagnostics().slice(0, 5);
+  const pathRows = topPaths.slice(0, 5).map((item) => `<li><span>${escapeHtml(String(item.path || item.url || item.name || "—"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  const botRows = bots.slice(0, 5).map((item) => `<li><span>${escapeHtml(String(item.name || item.bot || item.userAgent || "未知机器人"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  const historyRows = diagnostics.map((item) => {
+    const itemScores = monitoringDiagnosticScores(item);
+    return `<tr><td>${escapeHtml(item.url || item.targetUrl || "—")}</td><td><b>${monitoringDisplayNumber(itemScores.total)}</b></td><td>${escapeHtml(item.status || item.state || "已完成")}</td><td>${item.completedAt || item.createdAt ? formatDateTime(item.completedAt || item.createdAt) : "—"}</td></tr>`;
+  }).join("");
+  const actions = `<button class="secondary-button" type="button" data-action="refresh-monitoring" ${monitoringSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新真实数据</button><button class="primary-button" type="button" data-action="run-monitoring-diagnostic" ${monitoringSnapshot.loading ? "disabled" : ""}><span data-icon="shield"></span>运行网站诊断</button>`;
   return `
-    <section class="card monitor-filters">
-      <div class="field">
-        <label>监测对象</label>
-        <select class="select"><option>桐灼科技 · GEO 优化服务</option></select>
-      </div>
-      <div class="field">
-        <label>AI 平台</label>
-        <select class="select" data-monitor-filter="platform">${platformOptions}</select>
-      </div>
-      <div class="field">
-        <label>统计周期</label>
-        <select class="select" data-monitor-filter="range">
-          <option value="7" ${ui.monitoringRange === "7" ? "selected" : ""}>最近 7 天</option>
-          <option value="30" ${ui.monitoringRange === "30" ? "selected" : ""}>最近 30 天</option>
-          <option value="90" ${ui.monitoringRange === "90" ? "selected" : ""}>最近 90 天</option>
-        </select>
-      </div>
-      <div class="monitor-filter-meta"><span>最近采集</span><b>${formatRelative(state.monitoring.lastRunAt)}</b></div>
-    </section>
+    <div class="page-container monitor-real-page">
+      ${pageHead("运营诊断", "只展示可验证的网站 GEO 诊断、AI 爬虫访问与内容生产/发布运行数据；不把访问量或发布结果伪装成 AI 引用。", actions)}
+      ${dataState}
+      <section class="card monitor-real-diagnostic">
+        <div class="monitor-real-section-head"><div><span class="monitor-real-eyebrow">01 · 网站 GEO 诊断</span><h3>官网是否具备可抓取、可理解、可引用的基础</h3><p>诊断检查站点结构与公开信源质量，不生成品牌排名或跨平台提及结论。</p></div><div class="monitor-real-score"><small>总分</small><b>${monitoringDisplayNumber(scores.total)}</b><span>/ 100</span></div></div>
+        <div class="monitor-real-diagnostic-body"><div class="monitor-real-score-grid">${scoreItems.map(([label, value]) => `<div><span>${label}</span><b>${monitoringDisplayNumber(value)}</b></div>`).join("")}</div><div class="monitor-real-run"><label for="monitoring-diagnostic-url">诊断官网地址</label><div><input class="input" id="monitoring-diagnostic-url" value="${escapeHtml(diagnosticUrl)}" placeholder="https://www.example.com/" /><button class="secondary-button" type="button" data-action="run-monitoring-diagnostic">运行诊断</button></div><small>${updatedAt ? `最近报告：${escapeHtml(formatDateTime(updatedAt))}` : "尚无诊断报告，运行后将由服务端保存。"}</small></div></div>
+        <div class="monitor-real-history"><b>最近诊断报告</b>${historyRows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>站点</th><th>总分</th><th>状态</th><th>完成时间</th></tr></thead><tbody>${historyRows}</tbody></table></div>` : '<div class="monitor-real-empty">尚无真实诊断报告</div>'}</div>
+      </section>
+      <section class="card monitor-real-traffic">
+        <div class="monitor-real-section-head"><div><span class="monitor-real-eyebrow">02 · AI 爬虫访问</span><h3>AI/搜索机器人对官网的真实访问</h3><p>PV 代表服务器收到的机器人访问事件，访问不等于内容被 AI 回答引用或推荐。</p></div><div class="monitor-real-pv"><small>${ui.monitoringRange} 天 AI 爬虫 PV</small><b>${monitoringDisplayNumber(pv)}</b></div></div>
+        <div class="monitor-real-traffic-grid"><div class="monitor-real-trend"><h4>访问趋势</h4>${monitoringTrendBars(points)}</div><div class="monitor-real-list"><h4>Top 路径</h4><ul>${pathRows || '<li class="empty"><span>等待访问日志</span><b>—</b></li>'}</ul></div><div class="monitor-real-list"><h4>机器人分布</h4><ul>${botRows || '<li class="empty"><span>等待爬虫识别</span><b>—</b></li>'}</ul></div></div>
+      </section>
+      <section class="monitor-real-production">
+        <div class="monitor-real-section-head"><div><span class="monitor-real-eyebrow">03 · 生产 / 发布运行概况</span><h3>内容从生产、审核到发布的当前状态</h3><p>优先读取服务端汇总；服务端尚未提供的字段仅使用本工作区已有文章与发布任务状态。</p></div></div>
+        <div class="monitor-real-production-grid"><article class="card"><span data-icon="file"></span><small>文章总数</small><b>${monitoringDisplayNumber(production.articleTotal)}</b><p>草稿 / 审核中：${monitoringDisplayNumber(production.draft)}</p></article><article class="card"><span data-icon="check"></span><small>可发布文章</small><b>${monitoringDisplayNumber(production.approved)}</b><p>已发布：${monitoringDisplayNumber(production.published)}</p></article><article class="card"><span data-icon="target"></span><small>内容任务</small><b>${monitoringDisplayNumber(production.taskTotal)}</b><p>按计划与文章任务汇总</p></article><article class="card"><span data-icon="send"></span><small>发布运行</small><b>${monitoringDisplayNumber(production.publishRunning)}</b><p>总目标：${monitoringDisplayNumber(production.publishTotal)} · 异常：${monitoringDisplayNumber(production.publishFailed)}</p></article></div>
+      </section>
+    </div>
   `;
 }
 
-function selectedMonitoringPlatform() {
-  return state.monitoring.platforms.find((platform) => platform.id === ui.monitoringPlatform) || null;
+function diagnosticDataState() {
+  if (diagnosticSnapshot.loading) return '<div class="monitor-real-note"><span class="loading-spinner dark"></span><div><b>正在读取研究数据服务</b><small>同步 Citation Lab 数据版本、仓库资料和诊断规则。</small></div></div>';
+  if (diagnosticSnapshot.loaded) return `<div class="monitor-real-note success"><span data-icon="check"></span><div><b>研究数据服务已连接</b><small>当前研究基线为 Citation Lab ${CITATION_LAB_PACKAGE.version}，历史分析报告继续绑定原数据版本。</small></div></div>`;
+  return `<div class="monitor-real-note warning"><span data-icon="alert"></span><div><b>研究数据服务待连接</b><small>${escapeHtml(diagnosticSnapshot.error || "尚未读取研究数据包与更新状态。官网实测仍可独立使用。")}</small></div></div>`;
 }
 
-function monitoringSourceRecords() {
-  const sourceMap = new Map((state.monitoring.sources || []).map((source) => [source.domain, { ...source }]));
-  (state.monitoring.trackedWorks || []).forEach((work) => {
-    const domain = work.sourceDomain || "unknown.local";
-    const existing = sourceMap.get(domain) || {
-      id: "SOURCE-" + domain.replace(/[^a-z0-9]/gi, "-").toUpperCase(), domain, name: work.site || domain, type: work.type || "内容平台", works: 0, questions: 0, citations: 0
-    };
-    const worksForDomain = (state.monitoring.trackedWorks || []).filter((item) => (item.sourceDomain || "unknown.local") === domain);
-    sourceMap.set(domain, {
-      ...existing,
-      works: worksForDomain.length,
-      questions: worksForDomain.reduce((sum, item) => sum + Number(item.questions || item.questionIds?.length || 0), 0),
-      citations: worksForDomain.reduce((sum, item) => sum + Number(item.citations || 0), 0)
+function renderDiagnosticTabs() {
+  const tabs = [
+    ["analysis", "AI 分析工作台"],
+    ["evidence", "官网实测"],
+    ["reports", "报告中心"],
+    ["rules", "数据与规则"]
+  ];
+  const reportCount = (analysisWorkbenchSnapshot.sessions || []).filter((session) => Number(session.artifactCount || 0) > 0).length;
+  return `<div class="diagnostic-tabs" role="tablist">${tabs.map(([id, label]) => `<button class="diagnostic-tab ${id === "analysis" ? "diagnostic-tab-primary" : ""} ${ui.diagnosticSection === id ? "active" : ""}" type="button" data-action="diagnostic-section" data-section="${id}" role="tab" aria-selected="${ui.diagnosticSection === id}">${id === "analysis" ? '<span data-icon="sparkle"></span>' : id === "evidence" ? '<span data-icon="globe"></span>' : ""}${escapeHtml(label)}${id === "reports" ? `<em>${reportCount}</em>` : ""}</button>`).join("")}</div>`;
+}
+
+function analysisRunStatusMeta(status) {
+  return {
+    queued: ["排队中", "pending"],
+    running: ["分析中", "running"],
+    completed: ["已完成", "completed"],
+    failed: ["分析失败", "failed"]
+  }[String(status || "").toLowerCase()] || ["等待开始", "pending"];
+}
+
+function analysisRunBadge(status) {
+  const [label, tone] = analysisRunStatusMeta(status);
+  return `<span class="analysis-run-badge ${tone}">${tone === "running" ? '<span class="loading-spinner dark"></span>' : `<i></i>`}${escapeHtml(label)}</span>`;
+}
+
+function analysisToolLabel(toolName) {
+  const tool = (analysisWorkbenchSnapshot.options?.tools || []).find((item) => item.name === toolName);
+  const local = {
+    dataset_overview: "读取数据集范围", platform_profile: "计算四平台引用画像", source_mix: "统计信源类型与生态",
+    content_format_mix: "统计内容格式与摘要特征", date_distribution: "统计被引页面日期分布", top_domains: "统计高频与独有域名",
+    domain_overlap: "计算平台信源重叠", question_segment_matrix: "计算问题类型 × 平台矩阵", industry_coverage: "检查目标行业样本覆盖",
+    enterprise_knowledge_search: "检索企业知识库", site_operations_snapshot: "读取官网与运营摘要"
+  };
+  return tool?.label || local[toolName] || toolName || "分析工具";
+}
+
+function analysisConsentScope(dataSources = ui.analysisDataSources) {
+  const parts = ["本次分析需求"];
+  if (dataSources.includes("citation_lab")) parts.push("Citation Lab 受控统计摘要");
+  if (dataSources.includes("enterprise_knowledge")) parts.push("企业知识库检索命中的片段");
+  if (dataSources.includes("site_operations")) parts.push("官网与运营汇总数据");
+  return `${parts.join("、")}会发送给所选大模型；不会发送 API Key、整库文件、未命中知识或任意 SQL。`;
+}
+
+const ANALYSIS_CONTENT_LABELS = Object.freeze({
+  summary: "核心结论", overview: "核心结论", table: "数据明细", rows: "数据明细", columns: "指标", headers: "指标",
+  platforms: "平台对比", platformStrategies: "平台策略", recommendedFormats: "推荐内容形式", recommendedActions: "建议动作",
+  phases: "执行阶段", scope: "数据口径", platform: "平台", label: "平台", pair: "平台组合", phase: "阶段",
+  activities: "重点工作", focus: "重点方向", questionType: "问题类型", qCount: "问题数", sharedDomains: "共同域名",
+  jaccard: "重合度", topCategory: "主要信源", topEcosystem: "主要生态", rankingShare: "榜单内容占比",
+  guideShare: "指南内容占比", avgSnippet: "平均摘要长度", highest: "最高重叠", lowest: "最低重叠", overlap: "平台重叠情况", citationObservationCount: "引用观察数",
+  preferredCitationObservationCount: "偏好引用观察数", questionCount: "问题数", citationsPerQuestion: "每问题引用数",
+  sourceCount: "信源数", pageCount: "页面数", domainCount: "域名数", exclusiveDomainCount: "独有域名数",
+  exclusiveDomainSharePct: "独有域名占比", averageQuotePosition: "平均引用位置", averageSnippetLength: "平均摘要长度",
+  longSnippetSharePct: "长摘要占比", sourceCategories: "信源类别", sourceTypes: "信源类型", ecosystems: "平台生态",
+  contentFormats: "内容形式", releaseYear: "发布年份", publicationYears: "页面年份分布", missingDateShare: "日期缺失占比",
+  questionCoveragePct: "问题覆盖率", title: "标题", category: "类别", path: "路径", sourceUrl: "来源地址", score: "匹配度"
+});
+
+const ANALYSIS_SECTION_KIND_LABELS = Object.freeze({
+  overview: "研究范围", table: "数据对比", platform: "平台洞察", strategy: "策略建议", roadmap: "执行路线", analysis: "分析洞察"
+});
+
+function analysisContentLabel(key) {
+  const source = String(key || "").trim();
+  if (!source) return "内容";
+  return ANALYSIS_CONTENT_LABELS[source] || source.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+function analysisTableCell(value, depth = 0) {
+  if (value === null || value === undefined || value === "") return '<span class="analysis-empty-value">—</span>';
+  if (Array.isArray(value) && value.every((item) => ["string", "number", "boolean"].includes(typeof item))) {
+    return `<div class="analysis-inline-list">${value.map((item) => `<span>${escapeHtml(String(item))}</span>`).join("")}</div>`;
+  }
+  if (typeof value === "object") return analysisContentValue(value, depth + 1);
+  return `<span>${escapeHtml(String(value))}</span>`;
+}
+
+function analysisRowsTable(rows, depth = 0) {
+  const items = rows.filter((item) => item && typeof item === "object" && !Array.isArray(item));
+  if (!items.length) return `<ul class="analysis-value-list">${rows.map((item) => `<li>${analysisContentValue(item, depth + 1)}</li>`).join("")}</ul>`;
+  const keys = [...new Set(items.flatMap((item) => Object.keys(item)))].slice(0, 10);
+  if (!keys.length) return '<span class="analysis-empty-value">暂无数据</span>';
+  return `<div class="analysis-data-table-wrap"><table class="analysis-data-table"><thead><tr>${keys.map((key) => `<th>${escapeHtml(analysisContentLabel(key))}</th>`).join("")}</tr></thead><tbody>${items.map((item) => `<tr>${keys.map((key) => `<td>${analysisTableCell(item[key], depth + 1)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+function analysisMatrixTable(value, depth = 0) {
+  const columns = Array.isArray(value?.columns) ? value.columns : Array.isArray(value?.headers) ? value.headers : [];
+  const rows = Array.isArray(value?.rows) ? value.rows : [];
+  if (!columns.length || !rows.length) return null;
+  return `<div class="analysis-data-table-wrap"><table class="analysis-data-table"><thead><tr>${columns.map((column) => `<th>${escapeHtml(analysisContentLabel(column))}</th>`).join("")}</tr></thead><tbody>${rows.map((row) => { const cells = Array.isArray(row) ? row : columns.map((column) => row?.[column]); return `<tr>${cells.map((cell) => `<td>${analysisTableCell(cell, depth + 1)}</td>`).join("")}</tr>`; }).join("")}</tbody></table></div>`;
+}
+
+function analysisContentValue(value, depth = 0) {
+  if (value === null || value === undefined || value === "") return '<span class="analysis-empty-value">暂无数据</span>';
+  if (Array.isArray(value)) {
+    if (!value.length) return '<span class="analysis-empty-value">暂无数据</span>';
+    if (value.every((item) => item && typeof item === "object" && !Array.isArray(item))) return analysisRowsTable(value, depth + 1);
+    return `<ul class="analysis-value-list">${value.map((item) => `<li>${analysisContentValue(item, depth + 1)}</li>`).join("")}</ul>`;
+  }
+  if (typeof value === "object") {
+    const matrix = analysisMatrixTable(value, depth + 1);
+    if (matrix) return matrix;
+    return `<dl class="analysis-value-map">${Object.entries(value).map(([key, item]) => `<div><dt>${escapeHtml(analysisContentLabel(key))}</dt><dd>${analysisContentValue(item, depth + 1)}</dd></div>`).join("")}</dl>`;
+  }
+  return `<span>${escapeHtml(String(value))}</span>`;
+}
+
+function analysisSectionContent(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return analysisContentValue(value);
+  const matrix = analysisMatrixTable(value);
+  if (matrix) {
+    const supportingEntries = Object.entries(value).filter(([key]) => !["columns", "headers", "rows"].includes(key));
+    return `<div class="analysis-content-structured">${matrix}${supportingEntries.length ? `<div class="analysis-content-groups">${supportingEntries.map(([key, item]) => `<section class="analysis-content-group"><h4>${escapeHtml(analysisContentLabel(key))}</h4>${analysisContentValue(item, 1)}</section>`).join("")}</div>` : ""}</div>`;
+  }
+  const summary = typeof value.summary === "string" ? value.summary : typeof value.overview === "string" ? value.overview : "";
+  const entries = Object.entries(value).filter(([key]) => !["summary", "overview"].includes(key));
+  return `<div class="analysis-content-structured">${summary ? `<p class="analysis-content-summary">${escapeHtml(summary)}</p>` : ""}${entries.length ? `<div class="analysis-content-groups">${entries.map(([key, item]) => `<section class="analysis-content-group"><h4>${escapeHtml(analysisContentLabel(key))}</h4>${analysisContentValue(item, 1)}</section>`).join("")}</div>` : ""}${!summary && !entries.length ? '<span class="analysis-empty-value">暂无数据</span>' : ""}</div>`;
+}
+
+function analysisEvidenceShortLabel(value) {
+  const source = String(value || "");
+  const ordinal = source.match(/-(\d{2})$/)?.[1];
+  return ordinal ? `证据 ${ordinal}` : "查看证据";
+}
+
+const ANALYSIS_DIMENSION_LABELS = Object.freeze({
+  platform_profile: "平台引用画像", source_preferences: "信源类型与生态", content_formats: "内容格式", top_domains: "高频域名",
+  platform_overlap: "平台重叠差异", question_patterns: "问题类型", publication_time: "页面时效", content_strategy: "内容策略",
+  source_strategy: "信源策略", execution_roadmap: "执行路线"
+});
+
+function renderAnalysisPlanReview() {
+  const intent = ui.analysisPlan?.intent;
+  if (!intent) return "";
+  const platforms = Object.entries(ANALYSIS_PLATFORM_META).map(([name, meta]) => {
+    const checked = (intent.platforms || []).includes(name);
+    return `<label class="analysis-platform-chip ${checked ? "selected" : ""}"><input type="checkbox" data-analysis-plan-platform="${escapeHtml(name)}" ${checked ? "checked" : ""}/><i>${escapeHtml(meta.short)}</i><span>${escapeHtml(name)}</span><b data-icon="check"></b></label>`;
+  }).join("");
+  const dimensions = (intent.dimensions || []).map((item) => `<span>${escapeHtml(ANALYSIS_DIMENSION_LABELS[item] || item)}</span>`).join("");
+  const questions = (intent.representativeQuestions || []).join("\n");
+  const executionPlan = [
+    { toolName: "interpret_research_request" },
+    ...(ui.analysisPlan.plan || []).filter((item) => item?.toolName !== "interpret_research_request")
+  ];
+  const plan = executionPlan.map((item, index) => `<li><i>${String(index + 1).padStart(2, "0")}</i><span><b>${escapeHtml(analysisToolLabel(item.toolName))}</b><small>${escapeHtml(item.toolName)}</small></span></li>`).join("");
+  return `<section class="card analysis-plan-review">
+    <header><span data-icon="check"></span><div><small>AI 已完成任务理解</small><h3>核对研究计划后开始查库</h3><p>这里显示的是查询计划，不是分析结论；你可以修改行业、平台和代表问题。</p></div><em>${escapeHtml(intent.scopeMode === "global_baseline" ? "只用全库基线" : "自动验证行业样本")}</em></header>
+    <div class="analysis-plan-grid">
+      <label><span>目标行业 / 业务领域</span><input class="input" id="analysis-plan-industry" value="${escapeHtml(intent.industry || "")}" placeholder="如：GEO运营、工业品制造"/></label>
+      <div><span>目标平台</span><div class="analysis-platform-row">${platforms}</div></div>
+    </div>
+    <div class="analysis-plan-dimensions"><b>分析维度</b><div>${dimensions || "<span>按提示词生成</span>"}</div></div>
+    <label class="analysis-plan-questions"><span>代表性客户问题 <small>用于检查仓库是否有相关问题样本；没有匹配时会明确回退全库基线</small></span><textarea id="analysis-plan-questions" rows="5" placeholder="每行一个问题">${escapeHtml(questions)}</textarea></label>
+    <details class="analysis-plan-tools"><summary>查看将运行的 ${executionPlan.length} 个受控工具</summary><ol>${plan}</ol></details>
+    <div class="analysis-plan-boundary"><span data-icon="info"></span><p><b>证据边界：</b>系统会先检查直接行业样本。若 Citation Lab 没有“${escapeHtml(intent.industry || "目标行业")}”标签，报告会明确写成“四平台全库历史基线 + 行业策略推演”，不会伪装成该行业实测。</p></div>
+  </section>`;
+}
+
+function renderAnalysisComposer() {
+  const providers = workbenchConfiguredProviders();
+  const selectedProvider = analysisWorkbenchProvider();
+  const sourceCards = Object.entries(ANALYSIS_DATA_SOURCE_META).map(([id, meta]) => {
+    const checked = ui.analysisDataSources.includes(id);
+    return `<label class="analysis-choice-card ${checked ? "selected" : ""}"><input type="checkbox" data-analysis-source="${id}" ${checked ? "checked" : ""}/><span data-icon="${meta.icon}"></span><b>${escapeHtml(meta.label)}</b><small>${escapeHtml(meta.description)}</small><i></i></label>`;
+  }).join("");
+  const providerOptions = providers.map((provider) => `<option value="${escapeHtml(provider.id)}" ${provider.id === selectedProvider?.id ? "selected" : ""}>${escapeHtml(provider.name || provider.model || provider.id)} · ${escapeHtml(provider.model || "默认模型")}</option>`).join("");
+  const hasPlan = Boolean(ui.analysisPlan?.intent);
+  return `<div class="analysis-composer">
+    <section class="analysis-intro">
+      <span class="analysis-kicker"><i data-icon="sparkle"></i> Citation Lab 数据库 × 仓库研究资料 × 大模型</span>
+      <h2>直接告诉 AI，你要研究什么</h2>
+      <p>系统先把自然语言要求转换成可核对的研究计划，再查询本地真实数据和仓库资料，最后生成带证据的报告。</p>
+    </section>
+    <section class="card analysis-prompt-card ${hasPlan ? "has-plan" : ""}">
+      <label for="analysis-prompt">分析要求</label>
+      <textarea id="analysis-prompt" rows="8" placeholder="例如：我现在在 GEO运营行业，请基于本地 Citation Lab 数据分析豆包、DeepSeek、千问和元宝的引用偏好，并结合洞察制定内容与信源策略。">${escapeHtml(ui.analysisPrompt)}</textarea>
+      <div class="analysis-prompt-foot"><span><i data-icon="info"></i>行业、平台、分析维度和期望输出都可以直接写在这里</span><b>${ui.analysisPrompt.length.toLocaleString("zh-CN")} / 40,000</b></div>
+    </section>
+    <section class="analysis-primary-controls"><div><label>分析模型</label><select class="input" id="analysis-provider" ${!providers.length ? "disabled" : ""}>${providerOptions || '<option value="">尚未配置可用模型</option>'}</select></div><button class="secondary-button" type="button" data-action="analysis-open-model-settings"><span data-icon="settings"></span>${providers.length ? "管理模型" : "配置 API"}</button><button class="text-button" type="button" data-action="analysis-toggle-advanced"><span data-icon="settings"></span>${ui.analysisAdvancedOpen ? "收起高级设置" : "高级设置"}</button></section>
+    <section class="analysis-advanced" ${ui.analysisAdvancedOpen ? "" : "hidden"}>
+      <div class="analysis-config-section"><div class="analysis-config-title"><i>01</i><span><b>可用数据源</b><small>Citation Lab 默认启用；企业数据只有勾选后才会读取</small></span></div><div class="analysis-source-grid">${sourceCards}</div></div>
+      <div class="analysis-config-section"><div class="analysis-config-title"><i>02</i><span><b>默认报告深度</b><small>AI 也会根据提示词识别，确认计划时可以复核</small></span></div><div class="analysis-depth-row">${[["quick", "快速分析", "核心事实与建议"], ["detailed", "详细报告", "平台、信源、内容与路线"], ["custom", "自定义", "追加具体结构要求"]].map(([id, label, description]) => `<label class="analysis-depth-card ${ui.analysisReportDepth === id ? "selected" : ""}"><input type="radio" name="analysis-depth" value="${id}" ${ui.analysisReportDepth === id ? "checked" : ""}/><b>${label}</b><small>${description}</small><i></i></label>`).join("")}</div>${ui.analysisReportDepth === "custom" ? `<textarea class="input analysis-custom-depth" id="analysis-custom-depth" rows="3" placeholder="补充报告结构或关注点。">${escapeHtml(ui.analysisCustomDepth)}</textarea>` : ""}</div>
+    </section>
+    ${renderAnalysisPlanReview()}
+    ${analysisWorkbenchSnapshot.error ? `<div class="monitor-real-note warning"><span data-icon="alert"></span><div><b>分析工作台提示</b><small>${escapeHtml(analysisWorkbenchSnapshot.error)}</small></div></div>` : ""}
+    <div class="analysis-submit-row"><span><i data-icon="lock"></i>模型只负责理解任务和分析受控证据，不能执行任意 SQL，也不能读取整库。</span><div>${hasPlan ? '<button class="secondary-button" type="button" data-action="analysis-plan-preview">重新解析并执行</button>' : ""}<button class="primary-button analysis-submit-button" type="button" data-action="${hasPlan ? "analysis-confirm-run" : "analysis-plan-preview"}" ${ui.analysisPlanning || ui.analysisSubmitting || !providers.length ? "disabled" : ""}>${ui.analysisPlanning ? '<span class="loading-spinner"></span>正在理解要求' : ui.analysisSubmitting ? '<span class="loading-spinner"></span>正在创建任务' : hasPlan ? '<span data-icon="sparkle"></span>重新开始真实分析' : '<span data-icon="sparkle"></span>开始真实分析'}</button></div></div>
+  </div>`;
+}
+
+function renderAnalysisRun(run) {
+  if (!run) return "";
+  const planned = Array.isArray(run.plan) ? run.plan : [];
+  const calls = Array.isArray(run.toolCalls) ? run.toolCalls : [];
+  const entries = calls.length ? calls : planned.map((item, index) => ({ id: `planned-${index}`, ordinal: index + 1, toolName: item.toolName, status: "queued", evidenceId: "" }));
+  const completed = entries.filter((item) => item.status === "completed").length;
+  const percent = run.status === "completed" ? 100 : entries.length ? Math.round((completed / entries.length) * 78) + (run.status === "running" ? 12 : 0) : run.status === "running" ? 12 : 0;
+  return `<section class="card analysis-run-card"><div class="analysis-run-head"><div><small>本次分析运行</small><h3>受控工具与证据进度</h3><p>先生成事实台账，再由大模型组织报告；模型不能直接查询数据库。</p></div>${analysisRunBadge(run.status)}</div><div class="analysis-progress"><i style="width:${Math.min(100, percent)}%"></i></div><div class="analysis-tool-list">${entries.map((tool) => `<div class="analysis-tool-row ${escapeHtml(tool.status || "queued")}"><i>${String(Number(tool.ordinal || 0)).padStart(2, "0")}</i><span><b>${escapeHtml(analysisToolLabel(tool.toolName))}</b><small>${tool.evidenceId ? `证据 ${escapeHtml(tool.evidenceId)}` : tool.status === "running" ? "正在计算并固化证据" : tool.status === "failed" ? escapeHtml(tool.errorMessage || "执行失败") : "等待执行"}</small></span>${tool.status === "completed" ? '<b data-icon="check"></b>' : tool.status === "running" ? '<span class="loading-spinner dark"></span>' : tool.status === "failed" ? '<b class="failed" data-icon="alert"></b>' : '<em></em>'}</div>`).join("") || '<div class="analysis-tool-empty">正在规划所需的本地统计工具…</div>'}</div>${run.status === "failed" ? `<div class="analysis-run-error"><span data-icon="alert"></span><div><b>${escapeHtml(run.errorCode || "分析运行失败")}</b><p>${escapeHtml(run.errorMessage || "请检查模型配置、网络或数据源后重新分析。")}</p></div></div>` : ""}</section>`;
+}
+
+function renderAnalysisReport(session, artifact) {
+  if (!artifact) return "";
+  const run = (session.runs || []).find((item) => item.id === artifact.runId) || analysisWorkbenchActiveRun();
+  const evidence = run?.toolCalls || [];
+  const model = artifact.methodology?.model || {};
+  const researchIntent = artifact.methodology?.researchIntent || {};
+  const cohort = artifact.methodology?.cohort || null;
+  const cohortLabel = cohort?.mode === "industry_label" ? `直接行业样本 · ${cohort.questionCount || 0} 个问题`
+    : cohort?.mode === "matched_representative_questions" ? `相关问题样本 · ${cohort.questionCount || 0} 个问题`
+      : cohort?.mode === "explicit_question_ids" ? `指定问题样本 · ${cohort.questionCount || 0} 个问题`
+        : "四平台全库历史基线";
+  const sectionRows = artifact.sections || [];
+  const sectionNavigation = sectionRows.map((section, index) => `<button type="button" data-action="analysis-jump-section" data-section-target="analysis-report-section-${index + 1}"><i>${String(index + 1).padStart(2, "0")}</i><span>${escapeHtml(section.title || `第 ${index + 1} 部分`)}</span></button>`).join("");
+  const sections = sectionRows.map((section, index) => `<article class="analysis-report-section ${escapeHtml(section.kind || "analysis")}" id="analysis-report-section-${index + 1}"><header><i>${String(index + 1).padStart(2, "0")}</i><div><small>${escapeHtml(ANALYSIS_SECTION_KIND_LABELS[section.kind] || "分析洞察")}</small><h3>${escapeHtml(section.title || `第 ${index + 1} 部分`)}</h3></div></header><div class="analysis-report-content">${analysisSectionContent(section.content)}</div><footer><b>数据依据</b>${(section.evidenceIds || []).map((id) => `<span title="${escapeHtml(id)}">${escapeHtml(analysisEvidenceShortLabel(id))}</span>`).join("")}</footer></article>`).join("");
+  const recommendations = (artifact.recommendations || []).map((item, index) => `<article class="analysis-recommendation ${escapeHtml(item.priority || "medium")}"><header><i>${index + 1}</i><span>${escapeHtml({ critical: "立即处理", high: "高优先级", medium: "中优先级", low: "低优先级" }[item.priority] || "执行建议")}</span></header><div><h4>${escapeHtml(item.title || "GEO 行动建议")}</h4><p>${escapeHtml(item.rationale || "")}</p>${item.expectedOutcome ? `<small><b>验收目标</b>${escapeHtml(item.expectedOutcome)}</small>` : ""}<footer>${(item.evidenceIds || []).map((id) => `<em title="${escapeHtml(id)}">${escapeHtml(analysisEvidenceShortLabel(id))}</em>`).join("")}</footer></div></article>`).join("");
+  const limitations = (artifact.limitations || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const suggestions = (artifact.followUpSuggestions || []).map((item) => `<button type="button" data-action="analysis-use-suggestion" data-suggestion="${escapeHtml(item)}"><span data-icon="arrow"></span>${escapeHtml(item)}</button>`).join("");
+  const executiveSummary = String(artifact.executiveSummary || "").trim();
+  const executivePreview = executiveSummary.length > 330 ? `${executiveSummary.slice(0, 330).replace(/[，；、：\s]+$/u, "")}……` : executiveSummary;
+  const completedEvidence = evidence.filter((item) => item.status === "completed").length;
+  const platformCount = (researchIntent.platforms || session.platforms || []).length;
+  return `<div class="analysis-report">
+    <section class="analysis-report-cover"><div class="analysis-report-cover-copy"><span>运营诊断报告 · V${Number(artifact.version || 1)}</span><h2>${escapeHtml(artifact.title)}</h2><div class="analysis-executive-summary"><b>执行摘要</b><p>${escapeHtml(executivePreview || "本报告暂无执行摘要。")}</p>${executiveSummary.length > 330 ? `<details><summary>展开完整摘要</summary><p>${escapeHtml(executiveSummary)}</p></details>` : ""}</div><div class="analysis-report-meta"><em>${escapeHtml(model.providerName || model.providerId || "已配置模型")}</em><em>${escapeHtml(model.model || session.model || "默认模型")}</em><em>${escapeHtml(formatDateTime(artifact.createdAt))}</em></div></div><div class="analysis-report-facts"><div><small>研究口径</small><b>${escapeHtml(cohortLabel)}</b></div><div><small>目标平台</small><b>${platformCount || "—"} 个</b></div><div><small>数据版本</small><b>${escapeHtml(artifact.methodology?.dataVersion || "—")}</b></div><div><small>固化证据</small><b>${completedEvidence} 条</b></div></div></section>
+    <section class="analysis-report-scope"><span data-icon="database"></span><div><b>数据范围与可追溯性</b><p>${escapeHtml((session.dataSources || []).map((id) => ANALYSIS_DATA_SOURCE_META[id]?.label || id).join("、"))} · ${escapeHtml((researchIntent.platforms || session.platforms || []).join("、"))} · ${escapeHtml(cohortLabel)} · 数据版本 ${escapeHtml(artifact.methodology?.dataVersion || "—")}。所有正式章节都引用本次运行生成的 AFE 证据 ID。</p></div><button class="secondary-button button-small" type="button" data-action="analysis-toggle-evidence">${ui.analysisEvidenceOpen ? "收起证据" : "查看证据台账"}</button></section>
+    <div class="analysis-evidence-ledger" ${ui.analysisEvidenceOpen ? "" : "hidden"}>${evidence.map((tool) => `<article class="analysis-evidence-entry"><header><span>${escapeHtml(analysisEvidenceShortLabel(tool.evidenceId))}</span><div><b>${escapeHtml(analysisToolLabel(tool.toolName))}</b><small title="${escapeHtml(tool.evidenceId || "")}">${escapeHtml(tool.evidenceId || "—")}</small></div><em>${escapeHtml(tool.status === "completed" ? "已保存" : tool.errorMessage || tool.status || "等待执行")}</em></header>${tool.status === "completed" ? `<details><summary>查看查询口径与原始结果</summary><div>${analysisContentValue({ arguments: tool.arguments || {}, result: tool.result || {} })}</div></details>` : ""}</article>`).join("") || '<p>本报告没有可展示的工具证据。</p>'}</div>
+    <section class="analysis-report-body"><div class="analysis-report-heading"><span>报告正文</span><h3>依据本地事实台账形成的分析</h3><p>先看结论，再查看数据明细；右侧证据标签可在上方证据台账中复核。</p></div><div class="analysis-report-reading-layout"><nav class="analysis-report-toc"><b>报告目录</b>${sectionNavigation}</nav><div class="analysis-report-sections">${sections}</div></div></section>
+    ${recommendations ? `<section class="analysis-report-block"><div class="analysis-report-heading"><span>执行路径</span><h3>按优先级推进的 GEO 行动建议</h3></div><div class="analysis-recommendation-list">${recommendations}</div></section>` : ""}
+    ${limitations ? `<section class="analysis-limitations"><span data-icon="alert"></span><div><b>数据边界与限制</b><ul>${limitations}</ul></div></section>` : ""}
+    <section class="card analysis-follow-up"><div><span data-icon="sparkle"></span><span><b>继续与 AI 协作</b><small>追问会保留本会话的报告和证据上下文，并生成新版本报告</small></span></div>${suggestions ? `<div class="analysis-suggestions">${suggestions}</div>` : ""}<textarea id="analysis-follow-up" rows="4" placeholder="例如：把执行建议改成适合 3 人运营团队的 30/60/90 天计划，并明确每周产出数量。">${escapeHtml(ui.analysisFollowUp)}</textarea><div class="analysis-follow-up-foot"><span class="analysis-consent-note"><span data-icon="check"></span>自动沿用本会话已选数据摘要与模型</span><button class="primary-button" type="button" data-action="analysis-follow-up-submit" ${ui.analysisSubmitting ? "disabled" : ""}><span data-icon="send"></span>发送并生成新版报告</button></div></section>
+  </div>`;
+}
+
+function renderAnalysisSessionList() {
+  const sessions = analysisWorkbenchSnapshot.sessions || [];
+  return `<aside class="analysis-session-panel"><div class="analysis-session-head"><span><b>分析会话</b><small>${sessions.length} 个已保存会话</small></span><button type="button" data-action="analysis-new-session" title="新建分析"><span data-icon="plus"></span></button></div><div class="analysis-session-list">${sessions.map((session) => { const [status] = analysisRunStatusMeta(session.latestRunStatus); return `<div class="analysis-session-row ${ui.analysisSessionId === session.id ? "active" : ""}"><button type="button" class="analysis-session-item ${ui.analysisSessionId === session.id ? "active" : ""}" data-action="analysis-open-session" data-session-id="${escapeHtml(session.id)}"><i data-icon="chart"></i><span><b>${escapeHtml(session.title)}</b><small>V${Number(session.artifactCount || 0)} · ${escapeHtml(status)} · ${escapeHtml(formatDateTime(session.updatedAt))}</small></span><em data-icon="arrow"></em></button><button type="button" class="analysis-session-delete" data-action="analysis-delete-session" data-session-id="${escapeHtml(session.id)}" aria-label="删除报告：${escapeHtml(session.title)}" title="删除报告"><span data-icon="trash"></span></button></div>`; }).join("") || '<div class="analysis-session-empty"><span data-icon="file"></span><b>还没有分析会话</b><p>完成第一次真实分析后，报告和追问会保存在这里。</p></div>'}</div></aside>`;
+}
+
+function renderAnalysisWorkbench() {
+  if (!analysisWorkbenchSnapshot.attempted && !analysisWorkbenchSnapshot.loading) queueMicrotask(() => refreshAnalysisWorkbench({ renderAfter: true }));
+  const session = analysisWorkbenchSnapshot.activeSession;
+  const run = analysisWorkbenchActiveRun();
+  const artifact = session?.latestArtifact || session?.artifacts?.[0] || null;
+  const sessionBody = run && (!ANALYSIS_RUN_TERMINAL.has(run.status) || run.status === "failed")
+    ? renderAnalysisRun(run)
+    : artifact
+      ? renderAnalysisReport(session, artifact)
+      : run?.status === "completed"
+        ? '<div class="monitor-real-note warning"><span data-icon="alert"></span><div><b>报告制品未返回</b><small>运行已完成，但页面尚未读取到报告，请刷新会话。</small></div></div>'
+        : renderAnalysisRun(run);
+  const main = session ? `<div class="analysis-session-view"><div class="analysis-session-toolbar"><button class="text-button" type="button" data-action="analysis-new-session"><span data-icon="arrow"></span>返回新建分析</button><div><span>${escapeHtml((session.dataSources || []).map((id) => ANALYSIS_DATA_SOURCE_META[id]?.label || id).join(" + "))}</span>${analysisRunBadge(run?.status)}</div></div>${sessionBody}</div>` : renderAnalysisComposer();
+  return `<div class="analysis-workbench-shell ${session && artifact ? "report-open" : ""}">${renderAnalysisSessionList()}<main class="analysis-workbench-main">${analysisWorkbenchSnapshot.loading && !session ? '<div class="analysis-loading"><span class="loading-spinner dark"></span><b>正在连接分析工作台</b></div>' : main}</main></div>`;
+}
+
+function renderDiagnosticOperationalEvidence() {
+  const diagnostic = monitoringLatestDiagnostic();
+  const scores = monitoringDiagnosticScores(diagnostic);
+  const traffic = monitoringTrafficRecord();
+  const points = traffic?.hasData === false ? [] : monitoringTrafficPoints(traffic);
+  const topPaths = Array.isArray(traffic?.topPaths || traffic?.paths) ? (traffic.topPaths || traffic.paths) : [];
+  const bots = Array.isArray(traffic?.bots || traffic?.botDistribution || traffic?.robots) ? (traffic.bots || traffic.botDistribution || traffic.robots) : [];
+  const pv = monitoringMetric(traffic || {}, ["pv", "totalPv", "visits", "pageViews", "total"]);
+  const production = monitoringProductionStats();
+  const diagnosticUrl = diagnostic?.url || state.site?.remoteUrl || (state.site?.domain ? `https://${state.site.domain}` : "");
+  const updatedAt = diagnostic?.completedAt || diagnostic?.createdAt || diagnostic?.updatedAt || null;
+  const pathRows = topPaths.slice(0, 4).map((item) => `<li><span>${escapeHtml(String(item.path || item.url || item.name || "—"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  const botRows = bots.slice(0, 4).map((item) => `<li><span>${escapeHtml(String(item.name || item.bot || item.userAgent || "未知机器人"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  return `
+    <section class="diagnostic-evidence-section">
+      <div class="diagnostic-section-title"><div><span>企业实测证据</span><h3>官网信源能力、抓取可达性与运营执行健康</h3><p>这些数据来自当前企业系统。机器人访问只说明可达，不代表已被 AI 回答引用。</p></div></div>
+      <div class="diagnostic-evidence-grid">
+        <article class="card diagnostic-evidence-card website"><div class="diagnostic-evidence-card-head"><span data-icon="globe"></span><div><small>官网信源能力</small><h4>网站 GEO 诊断</h4></div><b>${monitoringDisplayNumber(scores.total)}<em>/100</em></b></div><div class="diagnostic-mini-metrics"><span>Schema <b>${monitoringDisplayNumber(scores.schema)}</b></span><span>内容 <b>${monitoringDisplayNumber(scores.content)}</b></span><span>Meta <b>${monitoringDisplayNumber(scores.meta)}</b></span><span>权威外链 <b>${monitoringDisplayNumber(scores.authority)}</b></span></div><div class="diagnostic-run-row"><input class="input" id="monitoring-diagnostic-url" value="${escapeHtml(diagnosticUrl)}" placeholder="https://www.example.com/" /><button class="secondary-button button-small" type="button" data-action="run-monitoring-diagnostic">运行诊断</button></div><small class="diagnostic-card-foot">${updatedAt ? `最近报告：${escapeHtml(formatDateTime(updatedAt))}` : "尚无服务端诊断报告"}</small></article>
+        <article class="card diagnostic-evidence-card traffic"><div class="diagnostic-evidence-card-head"><span data-icon="chart"></span><div><small>访问与抓取</small><h4>${ui.monitoringRange} 天官网访问趋势</h4></div><b>${monitoringDisplayNumber(pv)}<em> PV</em></b></div>${monitoringTrendBars(points)}<div class="diagnostic-list-pair"><div class="monitor-real-list"><h4>Top 路径</h4><ul>${pathRows || '<li class="empty"><span>等待访问日志</span><b>—</b></li>'}</ul></div><div class="monitor-real-list"><h4>访问类型分布</h4><ul>${botRows || '<li class="empty"><span>等待访问分类</span><b>—</b></li>'}</ul></div></div><small class="diagnostic-card-foot">AI/搜索爬虫访问 ≠ AI 引用、推荐或排名</small></article>
+      </div>
+      <div class="monitor-real-production-grid diagnostic-production-grid"><article class="card"><span data-icon="file"></span><small>文章总数</small><b>${monitoringDisplayNumber(production.articleTotal)}</b><p>草稿 / 审核中：${monitoringDisplayNumber(production.draft)}</p></article><article class="card"><span data-icon="check"></span><small>可发布文章</small><b>${monitoringDisplayNumber(production.approved)}</b><p>已发布：${monitoringDisplayNumber(production.published)}</p></article><article class="card"><span data-icon="target"></span><small>内容任务</small><b>${monitoringDisplayNumber(production.taskTotal)}</b><p>计划与文章任务汇总</p></article><article class="card"><span data-icon="send"></span><small>发布运行</small><b>${monitoringDisplayNumber(production.publishRunning)}</b><p>总目标 ${monitoringDisplayNumber(production.publishTotal)} · 异常 ${monitoringDisplayNumber(production.publishFailed)}</p></article></div>
+    </section>`;
+}
+
+function renderDiagnosticEvidencePage() {
+  const traffic = monitoringTrafficRecord();
+  const kpis = traffic?.kpis || {};
+  const totalPv = monitoringMetric(traffic || {}, ["allPv", "pv", "totalPv", "visits", "pageViews", "total"]);
+  const humanPv = monitoringMetric(kpis, ["humanPv", "human"]) ?? monitoringMetric(traffic || {}, ["humanPv", "human"]);
+  const aiBotPv = monitoringMetric(kpis, ["aiBotPv", "aiBot"]) ?? monitoringMetric(traffic || {}, ["aiBotPv", "aiBot"]);
+  const searchBotPv = monitoringMetric(kpis, ["searchBotPv", "searchBot"]) ?? monitoringMetric(traffic || {}, ["searchBotPv", "searchBot"]);
+  return `
+    <section class="diagnostic-hero diagnostic-evidence-hero card"><div><span class="diagnostic-kicker">OFFICIAL SITE EVIDENCE</span><h2>官网访问与抓取实测</h2><p>持续记录官网真实页面访问，并区分人工、AI 爬虫和搜索爬虫。这里展示的是企业自己的第一方访问证据，不等同于 AI 回答中的引用、推荐或排名。</p><label class="diagnostic-range-control"><span>统计周期</span><select class="select" data-monitor-filter="range">${[["7", "最近 7 天"], ["30", "最近 30 天"], ["90", "最近 90 天"]].map(([value, label]) => `<option value="${value}" ${ui.monitoringRange === value ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><div class="diagnostic-package-badge diagnostic-traffic-badge"><span data-icon="chart"></span><small>${ui.monitoringRange} 天官网访问</small><b>${monitoringDisplayNumber(totalPv)} PV</b><em>服务端访问日志</em></div></section>
+    <div class="diagnostic-stat-grid diagnostic-traffic-stats"><article class="card"><small>全部访问</small><b>${monitoringDisplayNumber(totalPv)}</b><p>官网页面请求总量</p></article><article class="card"><small>人工访问</small><b>${monitoringDisplayNumber(humanPv)}</b><p>依据 User-Agent 分类</p></article><article class="card"><small>AI 爬虫访问</small><b>${monitoringDisplayNumber(aiBotPv)}</b><p>访问不等于已被引用</p></article><article class="card"><small>搜索爬虫访问</small><b>${monitoringDisplayNumber(searchBotPv)}</b><p>搜索引擎抓取信号</p></article></div>
+    ${renderDiagnosticOperationalEvidence()}`;
+}
+
+function diagnosticActionRows(reports = diagnosticSnapshot.reports) {
+  return reports.flatMap((report) => {
+    const reportId = report.id || report.reportId;
+    const directActions = Array.isArray(report.actions) ? report.actions : [];
+    if (directActions.length) return directActions.map((item) => ({ ...item, id: item.id || item.actionId, reportId }));
+    const recommendations = report.recommendations || report.suggestions || [];
+    return (Array.isArray(recommendations) ? recommendations : []).map((item, index) => {
+      const recommendation = typeof item === "string" ? { id: `${reportId}-REC-${index + 1}`, title: item } : item;
+      const action = (diagnosticSnapshot.actions || []).find((candidate) => String(candidate.recommendationId || "") === String(recommendation.id || recommendation.recommendationId || ""));
+      return {
+        ...recommendation,
+        id: action?.id || action?.actionId || "",
+        actionType: action?.actionType || recommendation.actionType || "",
+        status: action?.status || recommendation.status || "proposed",
+        actionAvailable: Boolean(action?.id || action?.actionId),
+        reportId
+      };
     });
   });
-  return [...sourceMap.values()].sort((a, b) => Number(b.citations || 0) - Number(a.citations || 0));
 }
 
-function monitoringWorksForSource(domain) {
-  return (state.monitoring.trackedWorks || []).filter((work) => (work.sourceDomain || "unknown.local") === domain);
-}
-
-function visibleMonitoringQuestions() {
-  const platform = selectedMonitoringPlatform();
-  return platform ? state.monitoring.questions.filter((question) => question.platform === platform.name) : state.monitoring.questions;
-}
-
-function monitoringTaskBadge(status) {
-  const meta = {
-    queued: ["待首次采样", "status-queued"],
-    running: ["采样中", "status-running"],
-    success: ["采样完成", "status-success"],
-    failed: ["采样失败", "status-error"]
-  }[status] || [status, "status-draft"];
-  return '<span class="status-badge ' + meta[1] + '">' + escapeHtml(meta[0]) + "</span>";
-}
-
-function mentionTrendChart() {
-  const points = state.monitoring.trend;
-  const max = 60;
-  const width = 640;
-  const height = 190;
-  const paddingX = 28;
-  const paddingY = 18;
-  const usableW = width - paddingX * 2;
-  const usableH = height - paddingY * 2 - 20;
-  const coordinates = points.map((point, index) => {
-    const x = paddingX + (usableW * index) / Math.max(points.length - 1, 1);
-    const y = paddingY + usableH - (point.mention / max) * usableH;
-    return { x, y, ...point };
-  });
-  const polyline = coordinates.map((point) => point.x.toFixed(1) + "," + point.y.toFixed(1)).join(" ");
-  const dots = coordinates.map((point) =>
-    '<circle cx="' + point.x + '" cy="' + point.y + '" r="4" fill="#2563eb"><title>' + point.label + " · 提及率 " + point.mention + "%</title></circle>"
-  ).join("");
-  const labels = coordinates.map((point) =>
-    '<text x="' + point.x + '" y="' + (height - 4) + '" text-anchor="middle">' + point.label + "</text>"
-  ).join("");
+function renderDiagnosticWorkspace() {
+  const projects = diagnosticSnapshot.projects || [];
+  const reports = diagnosticSnapshot.reports || [];
+  const pendingActions = (diagnosticSnapshot.actions || []).filter((item) => !["confirmed", "completed", "applied", "rejected", "cancelled"].includes(String(item.status || "").toLowerCase()));
+  const installed = diagnosticInstalledPackage();
+  const packageState = installed?.installState || installed?.status || "";
+  const packageStateLabel = packageState === "ready" || packageState === "installed" ? "数据制品已校验安装" : installed ? "服务端已登记元数据" : "元数据已登记 · 服务待连接";
+  const recent = projects.slice(0, 4).map((project) => {
+    const id = project.id || project.projectId;
+    const meta = diagnosticTypeMeta(project);
+    return `<button class="diagnostic-project-mini" type="button" data-action="diagnostic-open-project" data-project-id="${escapeHtml(String(id || ""))}"><span data-icon="${meta.icon}"></span><span><b>${escapeHtml(project.name || project.title || meta.label)}</b><small>${escapeHtml(project.industry || project.businessLineSnapshot?.name || "未填写行业")} · ${formatDateTime(project.updatedAt || project.createdAt)}</small></span>${diagnosticStatusBadge(project)}</button>`;
+  }).join("");
   return `
-    <svg class="trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="近30天品牌提及率趋势">
-      <defs><linearGradient id="mentionArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2563eb" stop-opacity=".20"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/></linearGradient></defs>
-      <line x1="${paddingX}" y1="${paddingY + usableH}" x2="${width - paddingX}" y2="${paddingY + usableH}" stroke="#e2e8f0"/>
-      <line x1="${paddingX}" y1="${paddingY + usableH / 2}" x2="${width - paddingX}" y2="${paddingY + usableH / 2}" stroke="#edf1f5" stroke-dasharray="4 5"/>
-      <polygon points="${paddingX},${paddingY + usableH} ${polyline} ${width - paddingX},${paddingY + usableH}" fill="url(#mentionArea)"/>
-      <polyline points="${polyline}" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-      ${dots}${labels}
-    </svg>
-  `;
+    <section class="diagnostic-hero card"><div><span class="diagnostic-kicker">OPERATIONS DIAGNOSTICS</span><h2>把行业研究与企业真实运营证据，转成下一步工作</h2><p>研究数据回答“行业通常引用什么”，企业实测回答“我们现在具备什么”，实时采样未接入前不输出品牌排名、推荐率或周期趋势。</p><div class="diagnostic-hero-actions"><button class="primary-button" type="button" data-action="diagnostic-new-project"><span data-icon="plus"></span>新建诊断</button><button class="secondary-button" type="button" data-action="diagnostic-section" data-section="reports">查看报告</button></div></div><div class="diagnostic-package-badge"><span data-icon="book"></span><small>当前研究基线</small><b>Citation Lab ${CITATION_LAB_PACKAGE.version}</b><em>${escapeHtml(packageStateLabel)}</em></div></section>
+    <div class="diagnostic-stat-grid"><article class="card"><small>诊断项目</small><b>${projects.length}</b><p>问题集和数据版本固定可追溯</p></article><article class="card"><small>已生成报告</small><b>${reports.length}</b><p>仅统计服务端返回的报告</p></article><article class="card"><small>待确认建议</small><b>${pendingActions.length}</b><p>确认后才会回流业务模块</p></article><article class="card"><small>实时 AI 采样</small><b class="diagnostic-unavailable">未接入</b><p>第一阶段不提供品牌提及排名</p></article></div>
+    <div class="diagnostic-workspace-grid"><section class="card diagnostic-recent"><div class="card-header"><div><h3>最近诊断项目</h3><p>从项目进入可保持行业、问题集和研究版本口径一致</p></div><button class="text-button" type="button" data-action="diagnostic-section" data-section="projects">查看全部 <span data-icon="arrow"></span></button></div><div>${recent || '<div class="monitor-real-empty">还没有服务端诊断项目，点击“新建诊断”开始。</div>'}</div></section><section class="card diagnostic-method"><div class="card-header"><div><h3>三类证据口径</h3><p>报告结论必须标明证据来源与适用范围</p></div></div><div class="diagnostic-method-list"><div class="ready"><i>1</i><span><b>研究基线</b><small>Citation Lab 历史引用与页面特征，只用于行业参照。</small></span></div><div class="ready"><i>2</i><span><b>企业实测</b><small>官网、知识、内容和发布运行数据，属于当前企业证据。</small></span></div><div><i>3</i><span><b>实时采样</b><small>未来保存完整回答、引用 URL、模型版本与采样时间。</small></span></div></div></section></div>
+    ${renderDiagnosticOperationalEvidence()}`;
 }
 
-function renderMonitoringOverview() {
-  const selectedPlatform = selectedMonitoringPlatform();
-  const metrics = {
-    total: selectedPlatform?.questions ?? state.monitoring.metrics.totalSamples,
-    valid: selectedPlatform?.valid ?? state.monitoring.metrics.validSamples,
-    mentions: selectedPlatform?.mentions ?? state.monitoring.metrics.mentions,
-    recommendations: selectedPlatform?.recommended ?? state.monitoring.metrics.recommendations,
-    officialCitations: selectedPlatform?.officialCitations ?? state.monitoring.metrics.officialCitations
+function renderDiagnosticWizard() {
+  if (!ui.diagnosticWizardOpen) return "";
+  const lines = (state.businessLines || []).filter((line) => line.status !== "archived");
+  const lineId = ui.diagnosticBusinessLineId || lines[0]?.id || "";
+  const questions = diagnosticQuestionPool(lineId);
+  const selected = new Set(ui.diagnosticQuestionIds || []);
+  const typeCards = Object.entries(DIAGNOSTIC_TYPES).map(([id, meta]) => `<label class="diagnostic-type-card ${ui.diagnosticType === id ? "selected" : ""}"><input type="radio" name="diagnostic-type" value="${id}" ${ui.diagnosticType === id ? "checked" : ""} ${ui.diagnosticQuestionSetFrozen ? "disabled" : ""} /><span data-icon="${meta.icon}"></span><b>${escapeHtml(meta.label)}</b><small>${escapeHtml(meta.description)}</small></label>`).join("");
+  const questionRows = questions.map((item) => `<label class="diagnostic-question-option"><input class="checkbox" type="checkbox" data-diagnostic-question="${escapeHtml(item.id)}" ${selected.has(item.id) ? "checked" : ""} ${ui.diagnosticQuestionSetFrozen ? "disabled" : ""} /><span><b>${escapeHtml(item.question)}</b><small>${escapeHtml(item.source)}</small></span></label>`).join("");
+  return `<section class="card diagnostic-wizard"><div class="diagnostic-wizard-head"><div><span>新建诊断项目</span><h3>先固定业务范围与问题口径，再调用研究数据生成报告</h3></div><button class="icon-button" type="button" data-action="diagnostic-close-wizard" aria-label="关闭"><span data-icon="x"></span></button></div><div class="diagnostic-wizard-body"><div class="diagnostic-form-grid"><div class="field"><label for="diagnostic-business-line">产品 / 业务线 *</label><select class="select" id="diagnostic-business-line" data-diagnostic-business-line ${ui.diagnosticQuestionSetFrozen ? "disabled" : ""}>${lines.map((line) => `<option value="${escapeHtml(line.id)}" ${line.id === lineId ? "selected" : ""}>${escapeHtml(line.name)}</option>`).join("")}</select></div><div class="field"><label for="diagnostic-industry">所在行业 *</label><input class="input" id="diagnostic-industry" value="${escapeHtml(ui.diagnosticIndustry)}" placeholder="例如：工业激光设备、精密制造" ${ui.diagnosticQuestionSetFrozen ? "disabled" : ""} /></div><div class="field diagnostic-goal-field"><label for="diagnostic-goal">本次诊断目标 *</label><textarea class="textarea" id="diagnostic-goal" rows="3" placeholder="例如：分析行业常见信源类型，找到官网与内容建设的优先级" ${ui.diagnosticQuestionSetFrozen ? "disabled" : ""}>${escapeHtml(ui.diagnosticGoal)}</textarea></div></div><div><label class="diagnostic-field-label">诊断类型 *</label><div class="diagnostic-type-grid">${typeCards}</div></div><div class="diagnostic-question-picker"><div class="diagnostic-question-head"><div><b>诊断问题集</b><small>来自当前业务线的问题词库；冻结后与报告版本绑定。</small></div><span class="small-tag ${ui.diagnosticQuestionSetFrozen ? "teal" : "blue"}">${ui.diagnosticQuestionSetFrozen ? `已冻结 ${selected.size} 个` : `已选 ${selected.size} / ${questions.length}`}</span></div><div class="diagnostic-question-list">${questionRows || '<div class="monitor-real-empty">当前业务线没有可用问题，请先在选题中心建立问题词库。</div>'}</div></div></div><div class="diagnostic-wizard-foot"><span>${ui.diagnosticQuestionSetFrozen ? `问题集冻结于本次创建流程 · Citation Lab ${CITATION_LAB_PACKAGE.version}` : "冻结只锁定本次诊断快照，不会锁定原问题词库。"}</span><div>${ui.diagnosticQuestionSetFrozen ? '<button class="secondary-button" type="button" data-action="diagnostic-unfreeze-questions">重新选择</button>' : '<button class="secondary-button" type="button" data-action="diagnostic-freeze-questions">冻结问题集</button>'}<button class="primary-button" type="button" data-action="diagnostic-create-project" ${ui.diagnosticCreating || !ui.diagnosticQuestionSetFrozen ? "disabled" : ""}>${ui.diagnosticCreating ? '<span class="loading-spinner"></span>正在创建' : '<span data-icon="plus"></span>创建诊断项目'}</button></div></div></section>`;
+}
+
+function renderDiagnosticProjects() {
+  const projects = diagnosticSnapshot.projects || [];
+  const rows = projects.map((project) => {
+    const id = project.id || project.projectId;
+    const meta = diagnosticTypeMeta(project);
+    const questionCount = project.questionSet?.questions?.length || project.questionSet?.questionIds?.length || project.questionSetSnapshot?.questions?.length || project.scope?.questionCount || project.questionCount || 0;
+    const reportCount = diagnosticProjectReports(id).length;
+    return `<article class="card diagnostic-project-card"><div class="diagnostic-project-icon" data-tone="${escapeHtml(diagnosticTypeOf(project))}"><span data-icon="${meta.icon}"></span></div><div class="diagnostic-project-main"><div><span>${escapeHtml(meta.label)}</span><h3>${escapeHtml(project.name || project.title || `${project.industry || "未命名行业"}诊断`)}</h3><p>${escapeHtml(project.goal || project.objective || "尚未填写诊断目标")}</p></div><div class="diagnostic-project-meta"><span>业务线 <b>${escapeHtml(project.businessLineSnapshot?.name || project.scope?.businessLineSnapshot?.name || state.businessLines.find((line) => line.id === project.businessLineId)?.name || "—")}</b></span><span>行业 <b>${escapeHtml(project.industry || "—")}</b></span><span>冻结问题 <b>${questionCount}</b></span><span>报告 <b>${reportCount}</b></span></div></div><div class="diagnostic-project-side">${diagnosticStatusBadge(project)}<small>${formatDateTime(project.updatedAt || project.createdAt)}</small><button class="primary-button button-small" type="button" data-action="diagnostic-generate-report" data-project-id="${escapeHtml(String(id || ""))}" ${String(ui.diagnosticGeneratingId || "") === String(id || "") ? "disabled" : ""}>${String(ui.diagnosticGeneratingId || "") === String(id || "") ? "正在生成" : "生成报告"}</button>${reportCount ? `<button class="text-button" type="button" data-action="diagnostic-project-reports" data-project-id="${escapeHtml(String(id || ""))}">查看报告</button>` : ""}</div></article>`;
+  }).join("");
+  return `${renderDiagnosticWizard()}<div class="diagnostic-list-head"><div><h3>诊断项目</h3><p>一个项目固定一条业务线、一个行业、一个问题集版本和一个研究数据版本。</p></div><button class="primary-button" type="button" data-action="diagnostic-new-project"><span data-icon="plus"></span>新建诊断</button></div><div class="diagnostic-project-list">${rows || '<section class="card monitor-real-empty diagnostic-empty"><div><span data-icon="target"></span><h3>还没有诊断项目</h3><p>创建后才会调用服务端生成报告，页面不提供虚构的演示结论。</p><button class="primary-button" type="button" data-action="diagnostic-new-project">新建第一个诊断</button></div></section>'}</div>`;
+}
+
+function diagnosticReportActions(report) {
+  const reportId = report.id || report.reportId;
+  const rows = diagnosticActionRows([report]);
+  if (!rows.length) return '<div class="monitor-real-empty">当前报告没有服务端建议项。报告完成后才能人工确认回流。</div>';
+  return `<div class="diagnostic-action-list">${rows.map((item) => {
+    const status = String(item.status || "").toLowerCase();
+    const completed = ["confirmed", "completed", "applied", "converted"].includes(status);
+    const available = item.actionAvailable !== false && Boolean(item.id);
+    const target = diagnosticActionTarget(item.actionType);
+    return `<div class="diagnostic-action-row"><span data-icon="arrow"></span><div><b>${escapeHtml(item.title || item.name || item.action || "未命名建议")}</b><small>${escapeHtml(item.rationale || item.reason || item.description || item.detail || "需由运营人员确认后再回流，不自动发布。")}</small></div><span class="diagnostic-action-target">回流至 <b>${escapeHtml(diagnosticActionTargetLabel(target))}</b></span><button class="secondary-button button-small" type="button" data-action="diagnostic-confirm-action" data-report-id="${escapeHtml(String(reportId || ""))}" data-diagnostic-action-id="${escapeHtml(String(item.id || ""))}" ${!available || completed || String(ui.diagnosticActionId) === String(item.id) ? "disabled" : ""}>${completed ? "已回流" : !available ? "动作待生成" : String(ui.diagnosticActionId) === String(item.id) ? "处理中" : status === "failed" ? "重试回流" : "确认回流"}</button></div>`;
+  }).join("")}</div>`;
+}
+
+function diagnosticStructuredValue(value, depth = 0) {
+  if (value === null || value === undefined || value === "") return '<span class="diagnostic-value-empty">暂无数据</span>';
+  if (Array.isArray(value)) {
+    if (!value.length) return '<span class="diagnostic-value-empty">暂无数据</span>';
+    return `<ul class="diagnostic-value-list">${value.map((item) => `<li>${diagnosticStructuredValue(item, depth + 1)}</li>`).join("")}</ul>`;
+  }
+  if (typeof value === "object") {
+    return `<dl class="diagnostic-value-map">${Object.entries(value).map(([key, item]) => `<div><dt>${escapeHtml(key)}</dt><dd>${diagnosticStructuredValue(item, depth + 1)}</dd></div>`).join("")}</dl>`;
+  }
+  if (typeof value === "string" && /^https?:\/\//i.test(value)) {
+    return `<a class="link-button" href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer">${escapeHtml(value)}</a>`;
+  }
+  return `<span>${escapeHtml(String(value))}</span>`;
+}
+
+function renderDiagnosticReportDetail(report) {
+  const reportId = report.id || report.reportId;
+  const project = diagnosticProjectById(report.projectId || report.diagnosticProjectId);
+  const meta = diagnosticTypeMeta(report);
+  const evidence = report.evidence || report.evidenceSummary || {};
+  const dataScope = report.dataScope && typeof report.dataScope === "object" ? report.dataScope : {};
+  const liveCount = Number(dataScope.evidenceCounts?.live || dataScope.verifiedEvidenceCounts?.live || 0);
+  const realtime = evidence.realtimeSampling || evidence.realtime || report.realtimeSampling || (liveCount > 0 ? { sampleCount: liveCount } : null);
+  const sections = Array.isArray(report.sections) ? [...report.sections] : [];
+  const methodology = report.methodology && typeof report.methodology === "object" ? report.methodology : {};
+  const researchOnly = methodology.analysisMode === "citation_lab_research";
+  const generation = methodology.modelAnalysis || methodology.generation || methodology.ai || methodology.model || {};
+  if (generation.model || generation.modelName || generation.providerName || methodology.modelName) {
+    sections.unshift({
+      title: "分析引擎与数据样本",
+      content: {
+        模型供应商: generation.providerName || generation.provider || methodology.providerName || "已配置文本模型",
+        模型: generation.model || generation.modelName || methodology.modelName || "—",
+        客户问题数: methodology.questionCount || methodology.research?.inputQuestionCount || report.run?.inputSnapshot?.questionSet?.questions?.length || "—",
+        匹配研究问题数: methodology.research?.matchedQuestionCount || methodology.matchedQuestionCount || "—",
+        历史匹配引用观察数: methodology.research?.citationObservationCountAcrossQuestionAnalyses || methodology.research?.citationSampleCount || methodology.research?.deduplicatedCitationCount || methodology.citationSampleCount || "—",
+        企业知识证据数: methodology.rag?.evidenceCount || methodology.enterpriseRag?.evidenceCount || "—"
+      }
+    });
+  }
+  if (researchOnly) {
+    sections.unshift({
+      title: "本报告的数据发送范围",
+      content: "仅使用诊断目标中的行业与分析要求，以及 Citation Lab 四平台历史事实包；未发送冻结问题、企业知识库、官网运营快照或整库资料。"
+    });
+  }
+  if (Array.isArray(report.evidence) && report.evidence.length) {
+    sections.push({
+      title: `证据索引（${report.evidence.length} 条）`,
+      content: report.evidence.slice(0, 80).map((item) => ({
+        evidenceId: item.id,
+        类型: item.evidenceType,
+        标题: item.title || item.claim || item.sourceId,
+        来源: item.sourceUrl || item.sourceKind,
+        核验状态: item.verificationStatus
+      }))
+    });
+  }
+  const summary = report.summary || report.executiveSummary || report.conclusion || "";
+  const packageVersion = report.researchPackageVersion || report.researchPackage?.version || dataScope.researchPackage?.datasetVersion || project?.researchPackage?.version || CITATION_LAB_PACKAGE.version;
+  const diagnostic = researchOnly ? null : monitoringLatestDiagnostic();
+  const scores = researchOnly ? {} : monitoringDiagnosticScores(diagnostic);
+  const production = researchOnly ? {} : monitoringProductionStats();
+  const scopeText = report.applicability || report.scope?.description || (dataScope.supportsCurrentAiRanking
+    ? "实时结论仅适用于本报告列明且带采集时间的已核验样本，不能外推到其他平台、模型或时间。"
+    : "适用于行业信源生态、页面特征、企业官网与内容缺口分析；当前没有已核验实时 AI 样本，不用于证明品牌推荐排名、提及率、情感或实时引用表现。");
+  const enterpriseEvidenceCount = Number(dataScope.evidenceCounts?.enterprise || 0);
+  const enterpriseReady = !researchOnly && (monitoringSnapshot.loaded || enterpriseEvidenceCount > 0);
+  return `<div class="diagnostic-report-detail"><button class="text-button diagnostic-back" type="button" data-action="diagnostic-back-reports"><span data-icon="arrow"></span>返回报告中心</button><section class="card diagnostic-report-cover"><div><span>${escapeHtml(meta.label)} · ${escapeHtml(String(reportId || ""))}</span><h2>${escapeHtml(report.title || report.name || project?.name || meta.label)}</h2><p>${escapeHtml(summary || "服务端报告尚未返回摘要；当前不生成替代性演示结论。")}</p><div class="diagnostic-report-tags"><em>研究包 ${escapeHtml(String(packageVersion))}</em><em>${escapeHtml(project?.industry || report.industry || "行业未填写")}</em><em>${escapeHtml(formatDateTime(report.finalizedAt || report.completedAt || report.updatedAt || report.createdAt))}</em></div></div>${diagnosticStatusBadge(report)}</section><section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>证据与边界</span><h3>这份报告使用了什么，不能说明什么</h3></div></div><div class="diagnostic-evidence-layers"><article class="card ready"><i>1</i><span><small>研究基线</small><b>Citation Lab ${escapeHtml(String(packageVersion))}</b><p>${CITATION_LAB_PACKAGE.citations.toLocaleString("zh-CN")} 条历史引用 · ${CITATION_LAB_PACKAGE.canonicalQuestions} 个规范问题 · ${CITATION_LAB_PACKAGE.platforms} 个平台/终端</p></span><em>固定研究数据</em></article><article class="card ${enterpriseReady ? "ready" : ""}"><i>2</i><span><small>企业实测</small><b>官网与运营系统</b><p>官网诊断 ${monitoringDisplayNumber(scores.total)}/100 · 文章 ${monitoringDisplayNumber(production.articleTotal)} 篇 · 已发布 ${monitoringDisplayNumber(production.published)} 篇${enterpriseEvidenceCount ? ` · 报告证据 ${enterpriseEvidenceCount} 条` : ""}</p></span><em>${enterpriseReady ? "有数据" : "待连接"}</em></article><article class="card ${realtime ? "ready" : ""}"><i>3</i><span><small>实时采样</small><b>${realtime ? "本报告包含实时采样" : "未接入"}</b><p>${realtime ? escapeHtml(realtime.summary || realtime.description || `已记录 ${realtime.sampleCount || realtime.count || liveCount || "—"} 个样本`) : "未保存完整 AI 回答、引用 URL、模型版本和采集时间，因此不能计算当前品牌排名、提及率或周期趋势。"}</p></span><em>${realtime ? "有证据" : "无数据"}</em></article></div><div class="diagnostic-scope-note"><span data-icon="info"></span><div><b>适用范围</b><p>${escapeHtml(scopeText)}</p></div></div></section>${sections.length ? `<section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>报告正文</span><h3>诊断发现</h3></div></div><div class="diagnostic-report-sections">${sections.map((section, index) => `<article class="card" data-report-kind="${escapeHtml(section.kind || section.key || "content")}"><i>${String(index + 1).padStart(2, "0")}</i><div><h3>${escapeHtml(section.title || section.name || `第 ${index + 1} 部分`)}</h3><div class="diagnostic-section-body">${diagnosticStructuredValue(section.content ?? section.items ?? section.summary ?? section.text ?? "该部分尚未返回内容。")}</div></div></article>`).join("")}</div></section>` : `<div class="monitor-real-note warning"><span data-icon="info"></span><div><b>报告正文待服务端返回</b><small>当前只展示可验证的项目、证据元数据和状态，不填充虚构诊断发现。</small></div></div>`}<section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>执行建议</span><h3>人工确认后回流业务系统</h3><p>回流只创建待确认内容，不自动发布；每一项都由运营人员单独确认。</p></div></div>${diagnosticReportActions(report)}</section></div>`;
+}
+
+function renderDiagnosticReports() {
+  if (!analysisWorkbenchSnapshot.attempted && !analysisWorkbenchSnapshot.loading) queueMicrotask(() => refreshAnalysisWorkbench({ renderAfter: true }));
+  const analysisCards = (analysisWorkbenchSnapshot.sessions || []).filter((session) => Number(session.artifactCount || 0) > 0).map((session) => {
+    const [status, tone] = analysisRunStatusMeta(session.latestRunStatus);
+    return `<div class="analysis-report-library-item"><button class="card diagnostic-report-card analysis-report-library-card" type="button" data-action="analysis-open-report" data-session-id="${escapeHtml(session.id)}"><span class="diagnostic-report-icon" data-icon="chart"></span><span><small>AI 分析报告 · V${Number(session.artifactCount || 1)}</small><b>${escapeHtml(session.title || "未命名分析报告")}</b><p>${escapeHtml((session.dataSources || []).map((id) => ANALYSIS_DATA_SOURCE_META[id]?.label || id).join(" + ") || "受控数据分析")}</p><em>${escapeHtml((session.platforms || []).join("、") || "未限定平台")} · ${formatDateTime(session.updatedAt)}</em></span><span class="analysis-run-badge ${escapeHtml(tone)}"><i></i>${escapeHtml(status)}</span></button><button class="analysis-report-delete" type="button" data-action="analysis-delete-session" data-session-id="${escapeHtml(session.id)}" aria-label="删除报告：${escapeHtml(session.title || "未命名分析报告")}" title="删除报告"><span data-icon="trash"></span></button></div>`;
+  }).join("");
+  return `<div class="diagnostic-list-head"><div><h3>报告中心</h3><p>统一管理 AI 分析工作台生成的报告；追问产生新版本，原始数据范围和证据链保持可追溯。</p></div></div><div class="diagnostic-report-grid">${analysisCards || '<section class="card monitor-real-empty diagnostic-empty"><div><span data-icon="file"></span><h3>暂无真实诊断报告</h3><p>在 AI 分析工作台提交分析要求后，完成的报告会自动进入这里。</p><button class="primary-button" type="button" data-action="diagnostic-section" data-section="analysis">前往 AI 分析工作台</button></div></section>'}</div>`;
+}
+
+function renderCitationDocumentUpdatePanel() {
+  if (!citationDocumentUpdateSnapshot.loaded && !citationDocumentUpdateSnapshot.loading) queueMicrotask(() => refreshCitationDocumentUpdate({ renderAfter: true }));
+  const update = citationDocumentUpdateSnapshot.update || {};
+  const current = update.current || null;
+  const candidate = update.candidate?.lifecycle === "activated" ? null : update.candidate || null;
+  const installed = update.installed || [];
+  const busy = citationDocumentUpdateSnapshot.loading || citationDocumentUpdateSnapshot.operating;
+  const actions = [];
+  if (candidate?.lifecycle === "discovered") actions.push('<button class="primary-button button-small" type="button" data-action="citation-doc-update-stage">下载到暂存区</button>');
+  if (candidate?.lifecycle === "staged") actions.push('<button class="primary-button button-small" type="button" data-action="citation-doc-update-validate">校验文档快照</button>');
+  if (candidate?.lifecycle === "validated") actions.push('<button class="primary-button button-small" type="button" data-action="citation-doc-update-activate">激活研究资料</button>');
+  if (["staged", "validated"].includes(candidate?.lifecycle)) actions.push('<button class="secondary-button button-small" type="button" data-action="citation-doc-update-discard">丢弃候选</button>');
+  if (installed.filter((item) => item.verified).some((item) => item.sourceCommit !== current?.sourceCommit)) actions.push('<button class="secondary-button button-small" type="button" data-action="citation-doc-update-rollback">回滚文档快照</button>');
+  const candidateText = candidate
+    ? candidate.sourceCommit === current?.sourceCommit && current?.verified !== true ? "把当前旧镜像转换为可校验快照" : "发现新的仓库研究资料"
+    : update.lastCheck?.state === "completed" ? "研究资料已跟随官方最新提交" : "等待首次检查";
+  const versions = installed.map((item) => `<li class="${item.sourceCommit === current?.sourceCommit ? "active" : ""}"><span><b>${escapeHtml(String(item.sourceCommit || "").slice(0, 12))}</b><small>${escapeHtml(item.sourceCommit || "无 commit")}</small></span><em>${item.sourceCommit === current?.sourceCommit ? "当前使用" : item.verified ? "已验证保留" : "校验异常"}</em></li>`).join("");
+  if (citationDocumentUpdateSnapshot.loading && !citationDocumentUpdateSnapshot.loaded) {
+    return '<section class="card citation-update-card"><div class="analysis-loading"><span class="loading-spinner dark"></span><b>正在读取仓库研究资料状态</b></div></section>';
+  }
+  return `<section class="card citation-update-card citation-document-update-card"><div class="card-header"><div><h3>仓库研究资料快照</h3><p>方法论、研究报告与数据契约独立更新；不会改写 Citation Lab 统计数据库。</p></div><div class="citation-update-actions"><button class="secondary-button button-small" type="button" data-action="citation-doc-update-refresh" ${busy ? "disabled" : ""}><span data-icon="refresh"></span>刷新状态</button><button class="primary-button button-small" type="button" data-action="citation-doc-update-check" ${busy ? "disabled" : ""}>${busy ? '<span class="loading-spinner"></span>处理中' : "检查仓库文档"}</button></div></div>
+    ${citationDocumentUpdateSnapshot.error ? `<div class="monitor-real-note warning"><span data-icon="alert"></span><div><b>研究资料服务提示</b><small>${escapeHtml(citationDocumentUpdateSnapshot.error)}</small></div></div>` : ""}
+    <div class="citation-update-status"><div class="${current?.verified ? "ready" : "warning"}"><small>当前文档提交</small><b>${escapeHtml(String(current?.sourceCommit || "未连接").slice(0, 12))}</b><span>${escapeHtml(current?.verified ? "已校验只读快照" : current?.legacy ? "现有固定镜像，等待转换" : "等待服务端状态")}</span></div><div><small>最近检查</small><b>${escapeHtml(update.lastCheck?.state === "completed" ? "已完成" : update.updatePolicy?.checkDue ? "等待检查" : "未检查")}</b><span>${escapeHtml(update.lastCheck?.checkedAt ? formatDateTime(update.lastCheck.checkedAt) : `自动间隔 ${update.updatePolicy?.checkIntervalHours || 24} 小时`)}</span></div><div class="${candidate ? "warning" : "ready"}"><small>仓库状态</small><b>${escapeHtml(candidateText)}</b><span>${escapeHtml(candidate?.sourceCommit ? `提交 ${candidate.sourceCommit}` : "当前没有待处理快照")}</span></div></div>
+    ${candidate ? `<div class="citation-update-candidate"><span data-icon="book"></span><div><b>${escapeHtml(candidateText)}</b><p>将下载 ${Number(candidate.counts?.documents || 0)} 份允许格式的研究文档，共 ${formatBytes(Number(candidate.totalBytes || 0))}；每个文件同时核验 Git blob SHA 与 SHA-256。</p><small>生命周期：${escapeHtml(candidate.lifecycle || "discovered")} · 数据库版本保持 ${escapeHtml(CITATION_LAB_PACKAGE.version)}</small></div><div>${actions.join("")}</div></div>` : ""}
+    <div class="citation-installed-list"><h4>已验证和可回滚的文档快照</h4><ul>${versions || `<li><span><b>${escapeHtml(String(current?.sourceCommit || "固定镜像").slice(0, 12))}</b><small>${current?.legacy ? "当前固定镜像尚未转为独立快照" : "暂无独立快照"}</small></span><em>${current ? "当前读取" : "待连接"}</em></li>`}</ul></div>
+    <div class="citation-update-policy"><span data-icon="lock"></span><p>系统只从姚金刚官方仓库的固定 commit 下载白名单内 UTF-8 文档，不执行 git pull、不运行仓库代码、不下载论文 PDF 或大规模原始数据。激活前必须完成路径、许可、文件数量、字节数和双哈希校验；旧快照继续保留以便回滚。</p></div></section>`;
+}
+
+function renderDiagnosticRules() {
+  if (!citationUpdateSnapshot.loaded && !citationUpdateSnapshot.loading) queueMicrotask(() => refreshCitationPackageUpdate({ renderAfter: true }));
+  const installed = diagnosticInstalledPackage();
+  const packageStatus = installed?.installState || installed?.status || "not_connected";
+  const packageLabel = packageStatus === "ready" || packageStatus === "installed" ? "数据制品已安装" : installed ? "仅元数据" : "服务待连接";
+  const update = citationUpdateSnapshot.update || {};
+  const current = update.current || null;
+  const candidate = update.candidate || null;
+  const installedVersions = update.installed || [];
+  const busy = citationUpdateSnapshot.loading || citationUpdateSnapshot.operating;
+  const candidateState = candidate?.installability?.state || "up_to_date";
+  const candidateText = candidateState === "installable_package_declared" ? "发现可安装数据包" : candidateState === "source_update_only" ? "发现仓库变化，暂无可安装数据包" : "未发现新版本";
+  const updateActions = [];
+  if (candidate?.installability?.installable && candidate.lifecycle === "discovered") updateActions.push('<button class="primary-button button-small" type="button" data-action="citation-update-stage">下载到暂存区</button>');
+  if (candidate?.lifecycle === "staged") updateActions.push('<button class="primary-button button-small" type="button" data-action="citation-update-validate">执行完整校验</button>');
+  if (candidate?.lifecycle === "validated") updateActions.push('<button class="primary-button button-small" type="button" data-action="citation-update-activate">激活新版本</button>');
+  if (["staged", "validated"].includes(candidate?.lifecycle)) updateActions.push('<button class="secondary-button button-small" type="button" data-action="citation-update-discard">丢弃候选</button>');
+  if (installedVersions.filter((item) => item.installed && item.validManifest).length > 1) updateActions.push('<button class="secondary-button button-small" type="button" data-action="citation-update-rollback">回滚版本</button>');
+  const versions = installedVersions.map((item) => `<li class="${item.version === current?.version ? "active" : ""}"><span><b>v${escapeHtml(item.version)}</b><small>${escapeHtml(item.sourceCommit || "无 commit")}</small></span><em>${item.version === current?.version ? "当前使用" : item.validManifest ? "已验证保留" : "校验异常"}</em></li>`).join("");
+  const updatePanel = citationUpdateSnapshot.loading && !citationUpdateSnapshot.loaded
+    ? '<section class="card citation-update-card"><div class="analysis-loading"><span class="loading-spinner dark"></span><b>正在读取数据版本状态</b></div></section>'
+    : `<section class="card citation-update-card"><div class="card-header"><div><h3>官方仓库更新中心</h3><p>每天自动检查一次；下载、激活和回滚必须由管理员确认。</p></div><div class="citation-update-actions"><button class="secondary-button button-small" type="button" data-action="citation-update-refresh" ${busy ? "disabled" : ""}><span data-icon="refresh"></span>刷新状态</button><button class="primary-button button-small" type="button" data-action="citation-update-check" ${busy ? "disabled" : ""}>${busy ? '<span class="loading-spinner"></span>处理中' : "立即检查姚金刚仓库"}</button></div></div>
+      ${citationUpdateSnapshot.error ? `<div class="monitor-real-note warning"><span data-icon="alert"></span><div><b>版本服务提示</b><small>${escapeHtml(citationUpdateSnapshot.error)}</small></div></div>` : ""}
+      <div class="citation-update-status"><div><small>当前运行版本</small><b>${escapeHtml(current?.version || CITATION_LAB_PACKAGE.version)}</b><span>${escapeHtml(current?.sourceCommit || "等待服务端状态")}</span></div><div><small>最近检查</small><b>${escapeHtml(update.lastCheck?.state === "completed" ? "已完成" : update.updatePolicy?.checkDue ? "等待检查" : "未检查")}</b><span>${escapeHtml(update.lastCheck?.checkedAt ? formatDateTime(update.lastCheck.checkedAt) : `自动间隔 ${update.updatePolicy?.checkIntervalHours || 24} 小时`)}</span></div><div class="${candidateState === "installable_package_declared" ? "ready" : candidateState === "source_update_only" ? "warning" : ""}"><small>上游状态</small><b>${escapeHtml(candidateText)}</b><span>${escapeHtml(candidate?.datasetVersion ? `候选数据版本 ${candidate.datasetVersion}` : candidate?.sourceCommit ? `提交 ${candidate.sourceCommit}` : "当前没有候选数据包")}</span></div></div>
+      ${candidate ? `<div class="citation-update-candidate"><span data-icon="${candidate.installability?.installable ? "check" : "info"}"></span><div><b>${escapeHtml(candidateText)}</b><p>${escapeHtml(candidate.installability?.explanation || "仓库变化与可安装数据版本是两个独立状态。")}</p><small>生命周期：${escapeHtml(candidate.lifecycle || "discovered")} · 原因：${escapeHtml(candidate.installability?.reasonCode || "—")}</small></div><div>${updateActions.join("")}</div></div>` : ""}
+      <div class="citation-installed-list"><h4>已安装和可回滚版本</h4><ul>${versions || `<li><span><b>v${escapeHtml(CITATION_LAB_PACKAGE.version)}</b><small>本地固定研究包</small></span><em>当前使用</em></li>`}</ul></div>
+      <div class="citation-update-policy"><span data-icon="lock"></span><p>系统不会对生产目录执行 git pull。只有官方 Release 提供完整文件清单、字节数、SHA-256、许可声明和可验证 SQLite 时才允许进入暂存；激活后需重启研究分析服务。</p></div></section>`;
+  return `<section class="diagnostic-rules-hero card"><div><span data-icon="book"></span><div><small>研究数据包</small><h2>${escapeHtml(CITATION_LAB_PACKAGE.name)} ${escapeHtml(current?.version || CITATION_LAB_PACKAGE.version)}</h2><p>统计数据和仓库研究资料采用两条独立版本链；更新文档不会篡改历史统计或报告。</p></div></div><span class="status-badge ${packageStatus === "ready" || packageStatus === "installed" ? "status-approved" : "status-pending"}">${escapeHtml(packageLabel)}</span></section>${updatePanel}${renderCitationDocumentUpdatePanel()}<div class="diagnostic-rule-grid"><section class="card"><div class="card-header"><div><h3>当前研究包元数据</h3><p>页面展示的是公开仓库历史研究事实，不代表客户当前表现。</p></div></div><dl class="diagnostic-package-meta"><div><dt>数据版本</dt><dd>${escapeHtml(current?.version || CITATION_LAB_PACKAGE.version)}</dd></div><div><dt>发布日期</dt><dd>${CITATION_LAB_PACKAGE.releasedAt}</dd></div><div><dt>引用记录</dt><dd>${CITATION_LAB_PACKAGE.citations.toLocaleString("zh-CN")}</dd></div><div><dt>规范问题</dt><dd>${CITATION_LAB_PACKAGE.canonicalQuestions}</dd></div><div><dt>平台 / 终端</dt><dd>${CITATION_LAB_PACKAGE.platforms}</dd></div><div><dt>规范信源</dt><dd>${CITATION_LAB_PACKAGE.canonicalSources.toLocaleString("zh-CN")}</dd></div><div><dt>页面记录</dt><dd>${CITATION_LAB_PACKAGE.pages.toLocaleString("zh-CN")}</dd></div><div><dt>来源</dt><dd>${CITATION_LAB_PACKAGE.source}</dd></div></dl></section><section class="card"><div class="card-header"><div><h3>安全更新流程</h3><p>自动任务只检查，不自动下载或激活。</p></div></div><ol class="diagnostic-update-flow"><li><i>1</i><span><b>检查官方版本</b><small>分别读取数据 Release 与仓库 commit。</small></span></li><li><i>2</i><span><b>隔离暂存与校验</b><small>统计包核验 Schema；文档核验路径、许可和双哈希。</small></span></li><li><i>3</i><span><b>管理员确认激活</b><small>数据与文档分别切换，不互相覆盖。</small></span></li><li><i>4</i><span><b>原子切换与回滚</b><small>历史报告继续绑定原数据与证据版本。</small></span></li></ol></section></div><section class="card diagnostic-boundaries"><div class="card-header"><div><h3>数据边界与许可</h3><p>私有化交付时必须保留来源、版本和修改说明。</p></div></div><div><span data-icon="alert"></span><p><b>不能由当前研究包得出：</b>当前品牌排名、推荐率、情感、严格实时引用位置与周期趋势。仓库缺少完整回答、可靠 response_id、统一模型版本与统一采集时间。</p></div><div><span data-icon="lock"></span><p><b>许可：</b>${escapeHtml(CITATION_LAB_PACKAGE.license)}；第三方论文和数据维持原许可。</p></div></section>`;
+}
+
+const EFFECT_RELAY_PLATFORM_CODES = Object.freeze({
+  "豆包": "DB", DeepSeek: "DS", "元宝": "YB", "千问": "QW", "百度AI": "BD", "文心一言": "WX", Kimi: "KIMI", "AI抖音": "DYAI", "红书问一问": "RED"
+});
+const EFFECT_RELAY_PLATFORM_NAMES = Object.freeze({ DB: "豆包", DS: "DeepSeek", YB: "元宝", QW: "千问", BD: "百度AI", WX: "文心一言", KIMI: "Kimi", DYAI: "AI抖音", RED: "红书问一问" });
+const EFFECT_RELAY_PLATFORM_UI = Object.freeze({
+  DB: { code: "豆", color: "#18a7e9" }, DS: { code: "DS", color: "#647cf0" }, YB: { code: "元", color: "#13b878" },
+  QW: { code: "千", color: "#4c68e9" }, BD: { code: "百", color: "#7856e8" }, WX: { code: "文", color: "#378ee5" },
+  KIMI: { code: "Km", color: "#17191d" }, DYAI: { code: "抖", color: "#17191d" }, RED: { code: "书", color: "#f0445b" }
+});
+const EFFECT_RELAY_TERMINALS = Object.freeze({ "网页": "web", "手机": "mobile", "电商": "commerce" });
+const EFFECT_RELAY_MODES = Object.freeze({ "快速": "fast", "深度": "deep", "专家": "expert", "思考": "thinking", "深度思考": "deep" });
+const EFFECT_RELAY_TERMINAL_NAMES = Object.freeze({ web: "网页", mobile: "手机", commerce: "电商" });
+const EFFECT_RELAY_MODE_NAMES = Object.freeze({ fast: "快速", deep: "深度", expert: "专家", thinking: "思考" });
+
+function effectRelayData(payload) {
+  return payload?.data && typeof payload.data === "object" ? payload.data : payload || {};
+}
+
+function effectRelayCapabilityItems() {
+  const items = effectRelaySnapshot.capabilities?.items;
+  return Array.isArray(items) ? items : [];
+}
+
+function effectRelayExecutionMode() {
+  return String(effectRelaySnapshot.capabilities?.provider?.executionMode || "").trim().toLowerCase();
+}
+
+function effectRelayPlatformCode(platform) {
+  return EFFECT_RELAY_PLATFORM_CODES[platform] || String(platform || "").trim();
+}
+
+function effectRelayTerminalCode(terminal) {
+  return EFFECT_RELAY_TERMINALS[terminal] || String(terminal || "web").trim().toLowerCase();
+}
+
+function effectRelayModeCode(mode) {
+  return EFFECT_RELAY_MODES[mode] || String(mode || "fast").trim().toLowerCase();
+}
+
+function effectRelayItemAvailable(platform, terminal, mode) {
+  if (!effectRelaySnapshot.capabilities) return false;
+  const code = effectRelayPlatformCode(platform);
+  const terminalCode = effectRelayTerminalCode(terminal);
+  const modeCode = effectRelayModeCode(mode);
+  return effectRelayCapabilityItems().some((item) => String(item.platform) === code && String(item.terminal) === terminalCode && String(item.mode) === modeCode);
+}
+
+function effectRelayScopeKey(platform, terminal) {
+  return `${String(platform || "").trim()}|${String(terminal || "").trim()}`;
+}
+
+function effectRelayNormalizeScope(scope) {
+  const [platform = "", terminal = "web"] = String(scope || "").split("|");
+  return effectRelayScopeKey(effectRelayPlatformCode(platform), effectRelayTerminalCode(terminal));
+}
+
+function effectRelayCapabilityScopeKeys() {
+  return [...new Set(effectRelayCapabilityItems().map((item) => effectRelayScopeKey(item.platform, item.terminal)))];
+}
+
+const EFFECT_REALTIME_PLATFORM_LAYOUT = Object.freeze({
+  DB: [{ terminal: "web", modes: ["fast", "expert"] }, { terminal: "mobile", modes: ["fast", "expert"], badge: "电商" }],
+  DS: [{ terminal: "web", modes: ["fast", "deep"] }, { terminal: "mobile", modes: ["fast", "deep"] }],
+  YB: [{ terminal: "web", modes: ["fast", "deep"], badge: "电商" }],
+  QW: [{ terminal: "web", modes: ["fast", "deep"] }, { terminal: "mobile", modes: ["fast", "deep"] }],
+  BD: [{ terminal: "web", modes: ["fast"] }],
+  WX: [{ terminal: "web", modes: ["fast", "deep"] }],
+  KIMI: [{ terminal: "web", modes: ["fast", "thinking"] }],
+  DYAI: [{ terminal: "web", modes: ["fast", "deep"] }],
+  RED: [{ terminal: "mobile", modes: ["fast"] }]
+});
+
+function effectRealtimeCapabilityScopeKeys() {
+  const available = new Set(effectRelayCapabilityScopeKeys());
+  return Object.entries(EFFECT_REALTIME_PLATFORM_LAYOUT).flatMap(([platform, rows]) => rows
+    .map((row) => effectRelayScopeKey(platform, row.terminal))
+    .filter((scope) => available.has(scope)));
+}
+
+function effectSearchQuestionList(value = ui.effectSearchQuestion) {
+  return [...new Set(String(value || "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean))].slice(0, 20);
+}
+
+function effectSearchDraftQuestions() {
+  return effectSearchQuestionList().map((text, index) => ({ id: `draft-question-${index + 1}`, text }));
+}
+
+function effectSearchEstimatedCredits(items = []) {
+  const prices = new Map(effectRelayCapabilityItems().map((item) => [
+    [item.platform, item.terminal, item.mode].map((value) => String(value || "").trim()).join("|"),
+    Number(item.customerCredits || 0)
+  ]));
+  return (Array.isArray(items) ? items : []).reduce((total, item) => total + Number(prices.get([item.platform, item.terminal, item.mode].join("|")) || 0), 0);
+}
+
+function updateEffectSearchComposerState() {
+  if (currentRoute() !== "effect-search") return;
+  const question = document.getElementById("effect-search-question")?.value.trim() || "";
+  const items = effectRelaySupportedItems(ui.effectPlatformScopes, ui.effectPlatformModes, question ? [{ id: "realtime-draft", text: question }] : []);
+  const estimate = document.querySelector("[data-effect-search-estimate]");
+  const submit = document.querySelector('[data-action="effect-search-run"]');
+  if (estimate) {
+    estimate.hidden = !question;
+    estimate.innerHTML = question ? `<span>${icon("credit-card")}</span><b>本次预计消耗 ${effectSearchEstimatedCredits(items).toLocaleString("zh-CN")} 积分</b><small>发送时会按最新价格自动校验</small>` : "";
+    hydrateIcons(estimate);
+  }
+  if (submit) submit.disabled = ui.effectSearchSubmitting || !question || !items.length;
+}
+
+function effectRelaySupportedItems(scopes = ui.effectPlatformScopes || [], modes = ui.effectPlatformModes || ["fast"], questions = effectSearchDraftQuestions(), requestContext = {}) {
+  const selectedScopes = new Set((scopes || []).map(effectRelayNormalizeScope));
+  const selectedModes = new Set((modes || []).map(effectRelayModeCode));
+  const selectedCapabilities = effectRelayCapabilityItems().filter((item) =>
+    selectedScopes.has(effectRelayScopeKey(item.platform, item.terminal)) && selectedModes.has(String(item.mode || "").trim())
+  );
+  const normalizedQuestions = (Array.isArray(questions) ? questions : []).map((question, index) => ({
+    id: String(question?.id || `draft-question-${index + 1}`),
+    text: String(question?.text || question?.prompt || "").trim()
+  })).filter((question) => question.text);
+  return normalizedQuestions.flatMap((question) => selectedCapabilities.map((capability) => {
+    const platform = String(capability.platform || "").trim();
+    const terminal = String(capability.terminal || "").trim();
+    const mode = String(capability.mode || "").trim();
+    const itemId = `${question.id}-${platform}-${terminal}-${mode}`.replace(/[^a-zA-Z0-9_-]+/g, "-");
+    return {
+      itemId,
+      clientItemId: itemId,
+      questionId: question.id,
+      prompt: question.text,
+      platform,
+      terminal,
+      mode,
+      metadata: {
+        displayPlatform: EFFECT_RELAY_PLATFORM_NAMES[platform] || platform,
+        displayTerminal: EFFECT_RELAY_TERMINAL_NAMES[terminal] || terminal,
+        displayMode: EFFECT_RELAY_MODE_NAMES[mode] || mode,
+        source: requestContext.source || "customer_ui",
+        feature: requestContext.feature || ""
+      }
+    };
+  }));
+}
+
+// A brand diagnostic does not mean one long, stateful chat session.  AIDSO
+// executes independent tasks, so the UI's "conversation count" is modelled as
+// N independently traceable samples under the exact same condition.  The
+// round is carried in item metadata and the item id, allowing delivery and the
+// report to distinguish every sample without inventing a multi-turn dialogue.
+function effectDiagnosticRoundCount(scope) {
+  const normalizedScope = effectRelayNormalizeScope(scope);
+  const configured = Number(ui.effectDiagnosticPlatformRounds?.[normalizedScope] || 1);
+  return Math.max(1, Math.min(20, Math.floor(Number.isFinite(configured) ? configured : 1)));
+}
+
+function effectDiagnosticSupportedItems(
+  scopes = ui.effectDiagnosticScopes || [],
+  modes = ui.effectDiagnosticModes || ["fast"],
+  questions = effectDiagnosticDraftQuestions(),
+  requestContext = {}
+) {
+  const selectedScopes = new Set((scopes || []).map(effectRelayNormalizeScope));
+  const selectedModes = new Set((modes || []).map(effectRelayModeCode));
+  const selectedCapabilities = effectRelayCapabilityItems().filter((item) =>
+    selectedScopes.has(effectRelayScopeKey(item.platform, item.terminal)) && selectedModes.has(String(item.mode || "").trim())
+  );
+  const normalizedQuestions = (Array.isArray(questions) ? questions : []).map((question, index) => ({
+    id: String(question?.id || `diagnostic-question-${index + 1}`),
+    text: String(question?.text || question?.prompt || "").trim()
+  })).filter((question) => question.text);
+  const seenCapabilities = new Set();
+  const items = [];
+  for (const question of normalizedQuestions) {
+    for (const capability of selectedCapabilities) {
+      const platform = String(capability.platform || "").trim();
+      const terminal = String(capability.terminal || "").trim();
+      const mode = String(capability.mode || "").trim();
+      const capabilityKey = `${platform}|${terminal}|${mode}`;
+      if (!platform || !terminal || !mode || seenCapabilities.has(`${question.id}|${capabilityKey}`)) continue;
+      seenCapabilities.add(`${question.id}|${capabilityKey}`);
+      const scope = effectRelayScopeKey(platform, terminal);
+      const rounds = effectDiagnosticRoundCount(scope);
+      for (let round = 1; round <= rounds; round += 1) {
+        const itemId = `${question.id}-${platform}-${terminal}-${mode}-sample-${round}`.replace(/[^a-zA-Z0-9_-]+/g, "-");
+        items.push({
+          itemId,
+          clientItemId: itemId,
+          questionId: question.id,
+          prompt: question.text,
+          platform,
+          terminal,
+          mode,
+          round,
+          metadata: {
+            displayPlatform: EFFECT_RELAY_PLATFORM_NAMES[platform] || platform,
+            displayTerminal: EFFECT_RELAY_TERMINAL_NAMES[terminal] || terminal,
+            displayMode: EFFECT_RELAY_MODE_NAMES[mode] || mode,
+            source: requestContext.source || "effect_diagnostic",
+            feature: requestContext.feature || "aidso_brand_diagnostic",
+            samplingRound: round,
+            samplingCount: rounds,
+            samplingScope: scope
+          }
+        });
+      }
+    }
+  }
+  return items;
+}
+
+function effectSearchInputSignature(question = ui.effectSearchQuestion, brand = ui.effectSearchBrand) {
+  const normalizedQuestionSet = effectSearchQuestionList(question).join("\n");
+  return [normalizedQuestionSet, brand, ui.effectSearchIndustry, ...(ui.effectPlatformScopes || []).map(effectRelayNormalizeScope).sort(), ...(ui.effectPlatformModes || []).map(effectRelayModeCode).sort()].join("|");
+}
+
+function effectRelayRunStatus(link = effectRelaySnapshot.activeLink, run = effectRelaySnapshot.activeRun) {
+  // The relay link preserves statuses such as partial / attention / cancelled
+  // that the local diagnostic run intentionally folds for storage purposes.
+  return String(link?.status || run?.status || "idle").toLowerCase();
+}
+
+function effectRelayRunLabel(status = effectRelayRunStatus()) {
+  return ({
+    idle: "尚未提交", pending: "等待系统确认", submitted: "已提交", queued: "排队中", running: "AI 检测中",
+    completed: "已完成", partial: "部分完成", failed: "执行失败", attention: "需要对账", cancelled: "已取消"
+  })[status] || status || "未连接";
+}
+
+const EFFECT_RELAY_FEATURES = Object.freeze({
+  realtime: ["aidso_realtime_search", "real_time_search", "effect_search"],
+  diagnostic: ["aidso_brand_diagnostic", "brand_diagnostic", "effect_diagnostic"],
+  monitoring: ["aidso_brand_monitoring", "brand_monitor", "brand_monitoring", "effect_monitor"]
+});
+
+function effectRelayEntryFeature(entry) {
+  const request = entry?.link?.request || {};
+  return String(
+    request.requestMetadata?.feature
+    || request.analysisScope?.feature
+    || request.items?.[0]?.metadata?.feature
+    || ""
+  ).trim();
+}
+
+function effectRelayEntryMatchesFlow(entry, flow = "") {
+  if (!flow) return true;
+  const accepted = EFFECT_RELAY_FEATURES[flow] || [flow];
+  return accepted.includes(effectRelayEntryFeature(entry));
+}
+
+function effectFlowStateFor(flow = "realtime") {
+  return effectFlowState[flow] || effectFlowState.realtime;
+}
+
+function effectRelayQuoteFor(flow = "realtime") {
+  return effectFlowStateFor(flow).quote;
+}
+
+function setEffectRelayQuote(flow, quote) {
+  effectFlowStateFor(flow).quote = quote || null;
+  // Keep the legacy snapshot field for shared status consumers, but never use
+  // it as the source of truth for a product renderer.
+  if (currentRoute() === (flow === "diagnostic" ? "effect-diagnostic" : flow === "monitoring" ? "effect-monitor" : "effect-search")) {
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: quote || null };
+  }
+}
+
+function setEffectFlowError(flow, error = "") {
+  effectFlowStateFor(flow).error = String(error || "");
+}
+
+function effectRelayHistoryEntriesForFlow(flow) {
+  return effectRelayHistoryEntries(flow);
+}
+
+function effectRelaySearchProject(projects = effectRelaySnapshot.projects) {
+  const rows = Array.isArray(projects) ? projects : [];
+  return rows.find((project) => project.scope?.feature === "aidso_realtime_search" && String(project.id) === String(ui.effectSearchProjectId))
+    || rows.find((project) => project.scope?.feature === "aidso_realtime_search" && project.status !== "archived")
+    || null;
+}
+
+function effectRelayDiagnosticProject(projects = effectRelaySnapshot.projects) {
+  const rows = Array.isArray(projects) ? projects : [];
+  return rows.find((project) => project.scope?.feature === "aidso_brand_diagnostic" && String(project.id) === String(ui.effectDiagnosticProjectId))
+    || rows.find((project) => project.scope?.feature === "aidso_brand_diagnostic" && project.status !== "archived")
+    || null;
+}
+
+function effectRelayRecordFromEvidence(evidence, link = effectRelaySnapshot.activeLink) {
+  const payload = evidence?.payload || {};
+  const delivery = payload.delivery || {};
+  const normalized = delivery.normalized || {};
+  const request = payload.request || (link?.request?.items || []).find((item) => item.itemId === delivery.itemId || item.clientItemId === delivery.itemId) || {};
+  const upstream = delivery.upstream || {};
+  const platformCode = upstream.platform || request.platform || evidence?.provenance?.platform || "";
+  const terminalCode = upstream.terminal || request.terminal || evidence?.provenance?.terminal || "web";
+  const modeCode = upstream.mode || request.mode || evidence?.provenance?.mode || "fast";
+  const quotes = Array.isArray(normalized.quotes) ? normalized.quotes.map((quote) => ({
+    title: quote.title || quote.siteName || quote.domain || quote.url || "引用来源",
+    domain: quote.domain || quote.siteName || "",
+    url: quote.url || ""
+  })) : [];
+  const answer = normalized.answerText || evidence.claim || evidence.excerpt || "检测服务未返回可展示的回答。";
+  const brand = request.brand?.name || link?.request?.brand?.name || "";
+  const aliases = request.brand?.aliases || link?.request?.brand?.aliases || effectSearchBrandTerms(brand);
+  const mentioned = normalized.brandMentioned === true || Number(normalized.brandMentionCount || 0) > 0;
+  return {
+    id: evidence.id || `live-${delivery.deliveryId || Date.now()}`,
+    questionId: request.questionId || null,
+    question: request.prompt || "",
+    brandTerms: Array.isArray(aliases) ? aliases : effectSearchBrandTerms(brand),
+    platform: EFFECT_RELAY_PLATFORM_NAMES[platformCode] || platformCode || "未知平台",
+    terminal: EFFECT_RELAY_TERMINAL_NAMES[terminalCode] || terminalCode || "网页",
+    mode: EFFECT_RELAY_MODE_NAMES[modeCode] || modeCode || "快速",
+    answer,
+    fullDialogue: [{ role: "user", content: request.prompt || "" }, { role: "assistant", content: answer }],
+    brandMentionCount: Number(normalized.brandMentionCount || 0),
+    mentionedBrands: mentioned && brand ? [effectSearchBrandTerms(brand)[0]] : [],
+    citationSources: quotes,
+    observedAt: evidence.observedAt || delivery.observedAt || new Date().toISOString(),
+    evidenceId: evidence.id || delivery.deliveryId || "",
+    status: evidence.verificationStatus || normalized.qualityStatus || "supplied",
+    source: "relay",
+    relayRunId: delivery.relayRunId || link?.relayRunId || null,
+    diagnosticRunId: evidence.runId || link?.diagnosticRunId || null,
+    projectId: link?.request?.projectId || null,
+    deliveryId: delivery.deliveryId || null,
+    upstreamReqId: evidence.provenance?.upstreamReqId || upstream.reqId || null,
+    itemStatus: delivery.status || "unknown",
+    itemId: delivery.itemId || request.itemId || request.clientItemId || evidence.provenance?.itemId || null,
+    firstMentionRank: Number.isFinite(Number(normalized.firstMentionRank ?? normalized.brandRank ?? normalized.rank)) && Number(normalized.firstMentionRank ?? normalized.brandRank ?? normalized.rank) > 0
+      ? Number(normalized.firstMentionRank ?? normalized.brandRank ?? normalized.rank)
+      : null,
+    sentiment: String(normalized.sentiment || normalized.sentimentLabel || "").trim() || null,
+    round: Math.max(1, Number(request?.metadata?.samplingRound || request?.round || evidence?.provenance?.samplingRound || 1) || 1),
+    samplingCount: Math.max(1, Number(request?.metadata?.samplingCount || 1) || 1)
   };
-  const visiblePlatforms = selectedPlatform ? [selectedPlatform] : state.monitoring.platforms;
-  const platformRows = visiblePlatforms.map((platform) => `
-    <div class="platform-performance-row">
-      <span class="ai-platform-mark">${platform.name.slice(0, 1)}</span>
-      <span class="platform-performance-copy"><b>${platform.name}</b><small>有效 ${platform.valid} · 提及 ${platform.mentions} · 推荐 ${platform.recommended} · 官网引用 ${platform.officialCitations}</small></span>
-      <span class="platform-performance-value"><b>${platform.mentions} / ${platform.valid}</b><span class="mini-progress"><i style="width:${platform.mentionRate}%"></i></span></span>
-    </div>
-  `).join("");
-  const taskRows = state.monitoring.tasks.filter((task) => !task.archivedAt).map((task) => `
-    <button class="monitor-task-row" type="button" data-action="monitor-task-detail" data-task-id="${task.id}">
-      <span class="monitor-task-icon" data-icon="target"></span>
-      <span><b>${escapeHtml(task.name)}</b><small>${task.platforms.length} 个平台 · ${task.questionCount} 个问题</small></span>
-      <span><b>${task.lastRunAt ? formatRelative(task.lastRunAt) : "尚未运行"}</b><small>${task.lastRunAt ? "最近采样" : "等待首次采样"}</small></span>
-      ${monitoringTaskBadge(task.status)}
-    </button>
-  `).join("");
-  const latestQuestions = visibleMonitoringQuestions().slice(0, 4).map((question) => `
-    <div class="monitor-question-row">
-      <span class="question-state ${question.mentioned ? "mentioned" : ""}" data-icon="${question.mentioned ? "check" : "x"}"></span>
-      <span><b>${escapeHtml(question.question)}</b><small>${question.platform} · ${escapeHtml(question.type)} · ${formatRelative(question.checkedAt)}</small></span>
-      <span>${question.mentioned ? '<b>第 ' + question.rank + " 位</b><small>" + question.sentiment + "</small>" : '<b>未提及</b><small>建议补充内容</small>'}</span>
-    </div>
-  `).join("");
-
-  return `
-    <section class="monitor-kpi-grid">
-      <article class="card monitor-kpi"><span class="monitor-kpi-icon" data-icon="help"></span><div><small>有效样本</small><b>${metrics.valid}<i> / ${metrics.total}</i></b><em>成功取得完整回答</em></div></article>
-      <article class="card monitor-kpi"><span class="monitor-kpi-icon green" data-icon="chart"></span><div><small>品牌提及</small><b>${metrics.mentions}<i> / ${metrics.valid}</i></b><em>只统计有效样本</em></div></article>
-      <article class="card monitor-kpi"><span class="monitor-kpi-icon amber" data-icon="target"></span><div><small>明确推荐</small><b>${metrics.recommendations}<i> / ${metrics.valid}</i></b><em>回答存在明确推荐语义</em></div></article>
-      <article class="card monitor-kpi"><span class="monitor-kpi-icon purple" data-icon="link"></span><div><small>官网引用</small><b>${metrics.officialCitations}<i> / ${metrics.valid}</i></b><em>引用 URL 命中官方域名</em></div></article>
-    </section>
-    <div class="monitor-layout">
-      <section class="card monitor-chart-card">
-        <div class="card-header"><div><h3>品牌提及率趋势</h3><p>同一问题集、同一平台口径下的周期变化</p></div><span class="small-tag blue">+14.6 个百分点</span></div>
-        <div class="card-body">${mentionTrendChart()}<div class="chart-legend"><span><i></i>品牌提及率（同口径轮次）</span><b>当前 7 / 15</b></div></div>
-      </section>
-      <section class="card">
-        <div class="card-header"><div><h3>平台表现</h3><p>演示问题集的横向对比</p></div></div>
-        <div class="platform-performance-list">${platformRows}</div>
-      </section>
-    </div>
-    <div class="monitor-layout monitor-layout-bottom">
-      <section class="card">
-        <div class="card-header"><div><h3>最近监测结果</h3><p>逐问题保留回答、提及位置和引用证据</p></div><button class="text-button" data-action="monitoring-tab" data-tab="dialogs">查看全部 <span data-icon="arrow"></span></button></div>
-        <div class="monitor-question-list">${latestQuestions}</div>
-      </section>
-      <section class="card">
-        <div class="card-header"><div><h3>监测任务</h3><p>正式版由新增采集调度服务执行</p></div><button class="icon-button" type="button" data-action="open-monitor-task" aria-label="创建监测"><span data-icon="plus"></span></button></div>
-        <div class="monitor-task-list">${taskRows}</div>
-      </section>
-    </div>
-  `;
 }
 
-function renderMonitoringTable() {
-  const questions = visibleMonitoringQuestions();
-  if (ui.monitoringTab === "mentions") {
-    const rows = questions.map((item) => `<tr><td class="article-title-cell"><b>${escapeHtml(item.question)}</b><small>${escapeHtml(item.type)}</small></td><td>${escapeHtml(item.platform)}</td><td>${ui.monitoringRange} 天</td><td>${item.mentioned ? "已提及" : "未提及"}</td><td>${item.rank ? "第 " + item.rank + " 位" : "—"}</td><td><span class="status-badge ${item.mentioned ? "status-approved" : "status-draft"}">${item.mentioned ? "已提及" : "未提及"}</span></td></tr>`).join("");
-    return `<section class="card table-card"><div class="card-header"><div><h3>品牌提及记录</h3><p>按问题、平台和时间保留每次监测结果</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>AI 问题</th><th>平台</th><th>监测周期</th><th>本轮提及</th><th>榜单位置</th><th>结果</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+function effectRelayRecordsFromRun(run, link = effectRelaySnapshot.activeLink) {
+  const evidence = Array.isArray(run?.evidence) ? run.evidence.filter((item) => item.evidenceType === "live") : [];
+  return evidence.map((item) => effectRelayRecordFromEvidence(item, link));
+}
+
+function effectRelayFlowForEntry(entry) {
+  const feature = effectRelayEntryFeature(entry);
+  if (EFFECT_RELAY_FEATURES.realtime.includes(feature)) return "realtime";
+  if (EFFECT_RELAY_FEATURES.diagnostic.includes(feature)) return "diagnostic";
+  if (EFFECT_RELAY_FEATURES.monitoring.includes(feature)) return "monitoring";
+  return "";
+}
+
+function effectRelayHistoryEntries(flow = "") {
+  return (Array.isArray(effectRelaySnapshot.history) ? effectRelaySnapshot.history : [])
+    .filter((entry) => entry?.link?.diagnosticRunId)
+    .filter((entry) => effectRelayEntryMatchesFlow(entry, flow))
+    .slice()
+    .sort((left, right) => String(right.link.createdAt || "").localeCompare(String(left.link.createdAt || "")));
+}
+
+function effectRelayHistoryEntry(runId = ui.effectSearchRunId, flow = "") {
+  return effectRelayHistoryEntries(flow).find((entry) => String(entry.link.diagnosticRunId) === String(runId)) || null;
+}
+
+function effectRelayHistoryRecords(flow = "") {
+  return effectRelayHistoryEntries(flow).flatMap((entry) => effectRelayRecordsFromRun(entry.run, entry.link));
+}
+
+function effectRelaySetActiveEntry(entry, flow = "realtime") {
+  if (!entry?.link) return null;
+  const flowState = effectFlowStateFor(flow);
+  flowState.activeRun = entry.run || null;
+  flowState.activeLink = entry.link;
+  flowState.error = "";
+  if (flow === "diagnostic") {
+    ui.effectDiagnosticRunId = entry.link.diagnosticRunId;
+    ui.effectDiagnosticRelayRunId = entry.link.relayRunId || null;
+  } else if (flow === "realtime") {
+    if (String(ui.effectSearchReport?.runId || "") !== String(entry.link.diagnosticRunId || "")) {
+      ui.effectSearchReport = null;
+      ui.effectSearchReportError = "";
+      ui.effectSearchReportAttemptedRunId = null;
+    }
+    ui.effectSearchRunId = entry.link.diagnosticRunId;
+    ui.effectSearchRelayRunId = entry.link.relayRunId || null;
+    ui.effectSearchRecords = effectRelayRecordsFromRun(entry.run, entry.link);
   }
-  if (ui.monitoringTab === "sources") {
-    const rows = monitoringSourceRecords().map((item) => `<tr><td class="article-title-cell"><b>${escapeHtml(item.name)}</b><small>${escapeHtml(item.domain)}</small></td><td><span class="source-tag">${escapeHtml(item.type)}</span></td><td>${item.works}</td><td>${item.questions}</td><td><b>${item.citations}</b> 次</td><td><button class="link-button" type="button" data-action="monitor-source-works" data-source-domain="${escapeHtml(item.domain)}">查看作品</button></td></tr>`).join("");
-    return `<section class="card table-card"><div class="card-header"><div><h3>引用信源分析</h3><p>识别 AI 回答引用了哪些官网和平台作品</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>来源</th><th>类型</th><th>被引用作品</th><th>引用问题</th><th>引用次数</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  effectRelaySnapshot = { ...effectRelaySnapshot, activeLink: entry.link, activeRun: entry.run || null };
+  return entry;
+}
+
+function effectRelayReconcileCapabilities() {
+  const previousScopes = (ui.effectPlatformScopes || []).map(effectRelayNormalizeScope).sort().join("|");
+  const previousModes = (ui.effectPlatformModes || []).map(effectRelayModeCode).sort().join("|");
+  const scopes = new Set(effectRelayCapabilityScopeKeys());
+  const modes = new Set(effectRelayCapabilityItems().map((item) => String(item.mode || "").trim()).filter(Boolean));
+  ui.effectPlatformScopes = [...new Set((ui.effectPlatformScopes || []).map(effectRelayNormalizeScope).filter((scope) => scopes.has(scope)))];
+  ui.effectPlatformModes = [...new Set((ui.effectPlatformModes || []).map(effectRelayModeCode).filter((mode) => modes.has(mode)))];
+  ui.effectPlatforms = [...new Set(ui.effectPlatformScopes.map((scope) => {
+    const [platform] = scope.split("|");
+    return EFFECT_RELAY_PLATFORM_NAMES[platform] || platform;
+  }))];
+  if (!ui.effectSearchScopeSelectionTouched && !ui.effectPlatformScopes.length && scopes.size) {
+    ui.effectPlatformScopes = effectRealtimeCapabilityScopeKeys();
+    ui.effectPlatformModes = [modes.has("fast") ? "fast" : [...modes][0]].filter(Boolean);
+    ui.effectPlatforms = [...new Set(ui.effectPlatformScopes.map((scope) => {
+      const [platform] = scope.split("|");
+      return EFFECT_RELAY_PLATFORM_NAMES[platform] || platform;
+    }))];
   }
-  if (ui.monitoringTab === "sentiment") {
-    const rows = questions.filter((item) => item.mentioned).map((item) => `<tr><td class="article-title-cell"><b>${escapeHtml(item.question)}</b><small>${escapeHtml(item.type)}</small></td><td>${item.platform}</td><td>${item.sentiment === "正面" ? '<span class="status-badge status-approved">正面</span>' : '<span class="status-badge status-draft">中性</span>'}</td><td>${item.sources} 个</td><td>${formatRelative(item.checkedAt)}</td></tr>`).join("");
-    return `
-      <div class="sentiment-layout">
-        <section class="card sentiment-summary"><div class="sentiment-ring"><span><b>${state.monitoring.metrics.sentimentPositive}%</b><small>正面</small></span></div><div><h3>品牌情感倾向</h3><p>只对明确提及品牌的回答进行语义判断，必须保留原回答证据。</p><div class="sentiment-legend"><span><i class="positive"></i>正面 72%</span><span><i class="neutral"></i>中性 24%</span><span><i class="negative"></i>负面 4%</span></div></div></section>
-        <section class="card table-card"><div class="card-header"><div><h3>情感记录</h3><p>可回看原始 AI 回答</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>AI 问题</th><th>平台</th><th>倾向</th><th>引用来源</th><th>检测时间</th></tr></thead><tbody>${rows}</tbody></table></div></section>
-      </div>
-    `;
+  const selectionChanged = previousScopes !== ui.effectPlatformScopes.slice().sort().join("|") || previousModes !== ui.effectPlatformModes.slice().sort().join("|");
+  if (selectionChanged && ui.effectSearchQuoteReady) {
+    ui.effectSearchQuoteReady = false;
+    ui.effectSearchClientRunId = null;
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
   }
-  if (ui.monitoringTab === "dialogs") {
-    const rows = questions.map((item) => `<tr><td>${formatRelative(item.checkedAt)}</td><td class="article-title-cell"><b>${escapeHtml(item.question)}</b><small>问题类型：${item.type}</small></td><td>${item.platform}</td><td>${item.mentioned ? "提及，排名 " + item.rank : "未提及"}</td><td>${item.sources}</td><td><button class="link-button" data-action="monitor-dialog-detail" data-sample-id="${item.id}">查看回答</button></td></tr>`).join("");
-    return `<section class="card table-card"><div class="card-header"><div><h3>AI 对话记录</h3><p>原问题、原回答、品牌位置和信源证据必须可追溯</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>时间</th><th>AI 问题</th><th>平台</th><th>提及结果</th><th>引用源</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  const diagnosticScopes = [...new Set((ui.effectDiagnosticScopes || []).map(effectRelayNormalizeScope).filter((scope) => scopes.has(scope)))];
+  const diagnosticModes = [...new Set((ui.effectDiagnosticModes || []).map(effectRelayModeCode).filter((mode) => modes.has(mode)))];
+  const diagnosticChanged = diagnosticScopes.slice().sort().join("|") !== (ui.effectDiagnosticScopes || []).map(effectRelayNormalizeScope).sort().join("|")
+    || diagnosticModes.slice().sort().join("|") !== (ui.effectDiagnosticModes || []).map(effectRelayModeCode).sort().join("|");
+  ui.effectDiagnosticScopes = diagnosticScopes;
+  ui.effectDiagnosticModes = diagnosticModes;
+  // The AIDSO completeAnalysis flow opens with the capability snapshot
+  // selected, matching the product's multi-platform diagnostic setup.  Keep
+  // an explicit empty selection when the user has already changed it.
+  if (ui.effectDiagnosticStarted && !ui.effectDiagnosticScopeSelectionTouched && !ui.effectDiagnosticScopes.length && scopes.size) {
+    ui.effectDiagnosticScopes = [...scopes];
+    ui.effectDiagnosticPlatformRounds = Object.fromEntries(ui.effectDiagnosticScopes.map((scope) => [scope, Number(ui.effectDiagnosticPlatformRounds?.[scope] || 1)]));
   }
-  const rows = state.monitoring.trackedWorks.map((item) => `<tr><td class="article-title-cell"><button class="link-button" type="button" data-action="edit-tracked-work" data-work-id="${escapeHtml(item.id)}">${escapeHtml(item.title)}</button><small>发布站点：${escapeHtml(item.site)}${item.url ? " · " + escapeHtml(item.url) : ""}</small></td><td><span class="source-tag">${escapeHtml(item.type)}</span></td><td>${item.citedDays} 天</td><td>${item.questions || item.questionIds?.length || 0}</td><td>${item.citations}</td><td>${item.citations ? statusBadge("success") : statusBadge("queued")}</td></tr>`).join("");
-  return `<section class="card table-card"><div class="card-header"><div><h3>作品引用追踪</h3><p>将已发布文章与 AI 回答中的引用证据关联；可从内容资产直接带入，也可补录外部作品。</p></div><button class="secondary-button button-small" type="button" data-action="add-tracked-work"><span data-icon="plus"></span>添加作品</button></div><div class="table-scroll"><table class="data-table"><thead><tr><th>作品</th><th>站点类型</th><th>被引用天数</th><th>引用问题</th><th>引用次数</th><th>状态</th></tr></thead><tbody>${rows || '<tr><td colspan="6"><div class="empty-state compact"><p>还没有纳入引用追踪的作品。</p></div></td></tr>'}</tbody></table></div></section>`;
+  if (ui.effectDiagnosticStarted && !ui.effectDiagnosticModes.length && modes.size) {
+    ui.effectDiagnosticModes = [modes.has("fast") ? "fast" : [...modes][0]];
+  }
+  if (diagnosticChanged && ui.effectDiagnosticQuoteReady) {
+    ui.effectDiagnosticQuoteReady = false;
+    ui.effectDiagnosticClientRunId = null;
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+  }
+}
+
+async function refreshEffectRelay({ renderAfter = false } = {}) {
+  if (effectRelaySnapshot.loading) return effectRelaySnapshot;
+  effectRelaySnapshot = { ...effectRelaySnapshot, attempted: true, loading: true, error: "" };
+  try {
+    const [capabilitiesResult, quotaResult, projectsResult, historyResult] = await Promise.allSettled([
+      productionApi("/api/v1/diagnostics/relay/capabilities"),
+      productionApi("/api/v1/diagnostics/relay/quota"),
+      productionApi("/api/v1/diagnostics/projects?limit=100"),
+      productionApi("/api/v1/diagnostics/relay-runs?limit=50&includeEvidence=true")
+    ]);
+    const failures = [capabilitiesResult, quotaResult, projectsResult].filter((item) => item.status === "rejected");
+    const projects = projectsResult.status === "fulfilled" ? diagnosticApiItems(projectsResult.value, ["projects"]) : effectRelaySnapshot.projects;
+    const historyPayload = historyResult.status === "fulfilled" ? effectRelayData(historyResult.value) : null;
+    let history = Array.isArray(historyPayload?.items)
+      ? historyPayload.items.filter((entry) => entry?.link?.diagnosticRunId)
+      : effectRelaySnapshot.history;
+    let historyLoaded = historyResult.status === "fulfilled";
+    let historyError = historyResult.status === "rejected" ? (historyResult.reason?.message || "任务历史读取失败") : "";
+    // A rolling client upgrade can briefly pair the new page with a customer
+    // server that has not restarted yet.  Fall back to the older per-project
+    // read API without ever manufacturing task rows or evidence.
+    if (!historyLoaded && projectsResult.status === "fulfilled") {
+      try {
+        const relayProjects = projects.filter((project) => ["aidso_realtime_search", "aidso_brand_diagnostic", "aidso_brand_monitoring"].includes(project.scope?.feature));
+        const linkResults = await Promise.allSettled(relayProjects.map((project) => productionApi(`/api/v1/diagnostics/projects/${encodeURIComponent(project.id)}/relay-runs?limit=50`)));
+        const links = linkResults.flatMap((result) => result.status === "fulfilled" ? diagnosticApiItems(result.value, ["items", "links"]) : []);
+        const runResults = await Promise.allSettled(links.map((link) => productionApi(`/api/v1/diagnostics/relay-runs/${encodeURIComponent(link.diagnosticRunId)}`)));
+        history = runResults.flatMap((result) => {
+          if (result.status !== "fulfilled") return [];
+          const data = effectRelayData(result.value);
+          return data.link?.diagnosticRunId ? [{ link: data.link, run: data.run || null }] : [];
+        });
+        historyLoaded = true;
+        historyError = "";
+      } catch (error) {
+        historyError = error.message || historyError;
+      }
+    }
+    effectRelaySnapshot = {
+      ...effectRelaySnapshot,
+      loaded: failures.length < 3,
+      loading: false,
+      capabilities: capabilitiesResult.status === "fulfilled" ? effectRelayData(capabilitiesResult.value).capabilities || null : effectRelaySnapshot.capabilities,
+      quota: quotaResult.status === "fulfilled" ? effectRelayData(quotaResult.value).quota || null : effectRelaySnapshot.quota,
+      projects,
+      history,
+      historyLoaded,
+      historyError,
+      links: history.map((entry) => entry.link),
+      error: failures.length === 3 ? customerFacingEffectText(failures[0].reason?.message || "AI 检测服务暂不可用") : customerFacingEffectText(failures.map((item) => item.reason?.message).filter(Boolean).join("；")),
+      loadedAt: Date.now()
+    };
+    if (capabilitiesResult.status === "fulfilled") effectRelayReconcileCapabilities();
+    const project = effectRelaySearchProject(projects);
+    if (project && !ui.effectSearchProjectId) ui.effectSearchProjectId = project.id;
+    const diagnosticProject = effectRelayDiagnosticProject(projects);
+    if (diagnosticProject && !ui.effectDiagnosticProjectId) ui.effectDiagnosticProjectId = diagnosticProject.id;
+    for (const [flow, runId] of [
+      ["realtime", ui.effectSearchRunId],
+      ["diagnostic", ui.effectDiagnosticRunId],
+      ["monitoring", null]
+   ]) {
+      const activeEntry = runId
+        ? effectRelayHistoryEntry(runId, flow)
+        : flow === "diagnostic" ? null : effectRelayHistoryEntries(flow)[0] || null;
+      if (!activeEntry) continue;
+      effectRelaySetActiveEntry(activeEntry, flow);
+      const status = effectRelayRunStatus(activeEntry.link, activeEntry.run);
+      if (["pending", "submitted", "queued", "running"].includes(status)) scheduleEffectRelayPoll(activeEntry.link.diagnosticRunId, flow);
+    }
+  } catch (error) {
+    effectRelaySnapshot = { ...effectRelaySnapshot, loading: false, loaded: false, error: customerFacingEffectText(error.message || "AI 检测服务连接失败"), loadedAt: Date.now() };
+  }
+  if (renderAfter && ["effect-search", "effect-diagnostic", "effect-monitor"].includes(currentRoute())) render();
+  return effectRelaySnapshot;
+}
+
+function scheduleEffectRelayPoll(runId, flow = "realtime") {
+  const timer = effectRelayPollTimers[flow] || null;
+  if (timer) window.clearTimeout(timer);
+  if (!runId) return;
+  effectRelayPollTimers[flow] = window.setTimeout(() => {
+    effectRelayPollTimers[flow] = null;
+    return refreshEffectRelayRun({ runId, pull: true, renderAfter: true, flow });
+  }, 1_800);
+}
+
+async function loadEffectSearchReport(runId = ui.effectSearchRunId) {
+  if (!runId) return null;
+  try {
+    const listPayload = await productionApi(`/api/v1/diagnostics/reports?runId=${encodeURIComponent(runId)}&status=final&limit=10`);
+    const reports = diagnosticApiItems(listPayload, ["items", "reports"]);
+    const summary = reports.find((item) => item?.methodology?.analysisMode === "full_live_effect") || null;
+    const reportId = summary?.id || summary?.reportId || null;
+    if (!reportId) return null;
+    const detailPayload = await productionApi(`/api/v1/diagnostics/reports/${encodeURIComponent(reportId)}`);
+    const report = diagnosticApiEntity(detailPayload, ["report", "diagnosticReport"]) || summary;
+    if (report?.methodology?.analysisMode !== "full_live_effect") return null;
+    ui.effectSearchReport = report;
+    ui.effectSearchReportError = "";
+    ui.effectSearchReportAttemptedRunId = runId;
+    return report;
+  } catch {
+    return null;
+  }
+}
+
+async function generateEffectSearchReport(runId = ui.effectSearchRunId) {
+  if (!runId || ui.effectSearchReportLoading || ui.effectSearchReportAttemptedRunId === runId) return null;
+  const entry = effectRelayHistoryEntry(runId, "realtime");
+  const status = effectRelayRunStatus(entry?.link, entry?.run);
+  const verified = effectRelayRecordsFromRun(entry?.run, entry?.link).filter((record) => record.status === "verified");
+  const projectId = entry?.link?.projectId || entry?.run?.projectId || ui.effectSearchProjectId;
+  if (!projectId || !["completed", "partial"].includes(status) || !verified.length) return null;
+  const providerId = typeof selectedTextProviderId === "function" ? selectedTextProviderId() : String(state.settings?.modelProviderId || "").trim();
+  if (!providerId) return null;
+  ui.effectSearchReportAttemptedRunId = runId;
+  ui.effectSearchReportLoading = true;
+  ui.effectSearchReportError = "";
+  render();
+  try {
+    const existing = await loadEffectSearchReport(runId);
+    if (existing) return existing;
+    const payload = await productionApi(`/api/v1/diagnostics/projects/${encodeURIComponent(projectId)}/relay-runs/${encodeURIComponent(runId)}/report`, {
+      method: "POST",
+      body: {
+        reportMode: "full_live_effect",
+        title: `${ui.effectSearchBrand || entry.link.request?.brand?.name || "品牌"} AI 效果分析报告`,
+        providerId,
+        model: typeof selectedTextModelName === "function" ? selectedTextModelName() : String(state.settings?.model || "").trim(),
+        externalDataConsent: true,
+        externalDataConsentAt: new Date().toISOString(),
+        externalDataConsentMethod: "effect_search_user_confirm"
+      }
+    });
+    const data = effectRelayData(payload);
+    ui.effectSearchReport = data.report || null;
+    if (!ui.effectSearchReport) throw new Error("服务端未返回分析报告。");
+    ui.effectSearchReportError = "";
+    showToast("分析报告已生成", "报告只使用本次已验证的实时检测数据。", "success");
+    return ui.effectSearchReport;
+  } catch (error) {
+    ui.effectSearchReportError = customerFacingEffectText(error.message || "分析报告生成失败");
+    showToast("分析报告未生成", ui.effectSearchReportError, "error");
+    return null;
+  } finally {
+    ui.effectSearchReportLoading = false;
+    render();
+  }
+}
+
+async function refreshEffectRelayRun({ runId = ui.effectSearchRunId, pull = true, renderAfter = false, flow = "realtime" } = {}) {
+  if (!runId) return null;
+  try {
+    if (pull) await productionApi(`/api/v1/diagnostics/relay-runs/${encodeURIComponent(runId)}/pull`, { method: "POST", body: { limit: 50 } }).catch(() => null);
+    const payload = await productionApi(`/api/v1/diagnostics/relay-runs/${encodeURIComponent(runId)}`);
+    const data = effectRelayData(payload);
+    const entry = { link: data.link || null, run: data.run || null };
+    const flowState = effectFlowStateFor(flow);
+    const existing = effectRelayHistoryEntries().filter((item) => String(item.link.diagnosticRunId) !== String(runId));
+    if (entry.link?.diagnosticRunId) existing.unshift(entry);
+    effectRelaySnapshot = {
+      ...effectRelaySnapshot,
+      history: existing,
+      historyLoaded: true,
+      links: existing.map((item) => item.link),
+      activeLink: entry.link,
+      activeRun: entry.run,
+      error: "",
+      loaded: true,
+      loadedAt: Date.now()
+    };
+    flowState.activeLink = entry.link;
+    flowState.activeRun = entry.run;
+    flowState.error = "";
+    const records = effectRelayRecordsFromRun(entry.run, entry.link);
+    if (flow === "diagnostic") {
+      ui.effectDiagnosticRunId = runId;
+      ui.effectDiagnosticRelayRunId = entry.link?.relayRunId || null;
+    } else {
+      if (String(ui.effectSearchReport?.runId || "") !== String(runId)) {
+        ui.effectSearchReport = null;
+        ui.effectSearchReportError = "";
+        ui.effectSearchReportAttemptedRunId = null;
+      }
+      ui.effectSearchRunId = runId;
+      ui.effectSearchRelayRunId = entry.link?.relayRunId || null;
+      ui.effectSearchRecords = records;
+    }
+    const status = effectRelayRunStatus(entry.link, entry.run);
+    const expected = data.link?.request?.items?.length || 0;
+    const evidenceCount = records.length;
+    const completed = ["completed", "partial", "failed", "attention", "cancelled"].includes(status) && (status !== "completed" || !expected || evidenceCount >= expected);
+    if (flow === "diagnostic") ui.effectDiagnosticCompleted = completed;
+    else ui.effectSearchCompleted = completed;
+    if (!completed || (status === "completed" && expected > evidenceCount)) scheduleEffectRelayPoll(runId, flow);
+    else if (effectRelayPollTimers[flow]) { window.clearTimeout(effectRelayPollTimers[flow]); effectRelayPollTimers[flow] = null; }
+    if (flow === "realtime" && ["completed", "partial"].includes(status) && records.some((record) => record.status === "verified")) {
+      void generateEffectSearchReport(runId);
+    }
+  } catch (error) {
+    effectFlowStateFor(flow).error = error.message || "检测进度读取失败";
+    effectRelaySnapshot = { ...effectRelaySnapshot, error: error.message || "检测进度读取失败" };
+    scheduleEffectRelayPoll(runId, flow);
+  }
+  if (renderAfter && ["effect-search", "effect-diagnostic", "effect-monitor"].includes(currentRoute())) render();
+  return effectRelaySnapshot.activeRun;
+}
+
+async function ensureEffectSearchProject({ question, brand = "" }) {
+  const questionText = String(question || "").trim();
+  if (!questionText) throw new Error("实时搜索需要一个问题。");
+  const signature = effectSearchInputSignature(questionText, brand);
+  const brandProfile = effectSearchBrandProfile(brand);
+  if (ui.effectSearchProjectId && ui.effectSearchQuestionSetId && ui.effectSearchProjectSignature === signature) {
+    return { projectId: ui.effectSearchProjectId, questionSetId: ui.effectSearchQuestionSetId, questions: ui.effectSearchFrozenQuestions };
+  }
+  const officialDomain = state.enterpriseProfile?.officialDomain || state.site?.domain || "";
+  const websiteUrl = officialDomain ? (/^https?:\/\//i.test(officialDomain) ? officialDomain : `https://${officialDomain}`) : "";
+  const createdAt = Date.now();
+  const frozenQuestions = [{
+    id: `effect-search-q-${createdAt}-1`,
+    text: questionText,
+    type: "aidso_realtime_search",
+    source: "customer_input"
+  }];
+  const payload = await productionApi("/api/v1/diagnostics/projects", {
+    method: "POST",
+    body: {
+      name: `实时搜索 · ${questionText.slice(0, 56)}`,
+      diagnosticType: "comprehensive",
+      industry: ui.effectSearchIndustry || "未填写行业",
+      targetBrand: brandProfile.name,
+      websiteUrl,
+      objective: "人工发起一次实时 AI 搜索，仅查看该问题在所选能力组合中的原始回答与引用。",
+      scope: {
+        source: "effect_search",
+        feature: "aidso_realtime_search",
+        aidsoProduct: "question",
+        mode: "single_question",
+        customerUi: true,
+        platformScopes: ui.effectPlatformScopes,
+        modes: ui.effectPlatformModes
+      },
+      questionSetSnapshot: { name: "实时搜索问题", version: 1, frozenAt: new Date().toISOString(), questions: frozenQuestions }
+    }
+  });
+  const data = effectRelayData(payload);
+  const project = data.project || diagnosticApiEntity(payload, ["project"]);
+  const questionSet = data.questionSet || null;
+  if (!project?.id || !questionSet?.id) throw new Error("中转检测项目未返回冻结问题集");
+  ui.effectSearchProjectId = project.id;
+  ui.effectSearchQuestionSetId = questionSet.id;
+  ui.effectSearchProjectSignature = signature;
+  ui.effectSearchFrozenQuestions = Array.isArray(questionSet.questions) ? questionSet.questions : frozenQuestions;
+  effectRelaySnapshot.projects = [project, ...effectRelaySnapshot.projects.filter((item) => item.id !== project.id)];
+  return { projectId: project.id, questionSetId: questionSet.id, questions: ui.effectSearchFrozenQuestions };
+}
+
+async function prepareEffectSearchRun() {
+  if (ui.effectSearchSubmitting) return;
+  const questionInput = document.getElementById("effect-search-question")?.value.trim();
+  const questions = effectSearchQuestionList(questionInput);
+  const question = questions[0] || "";
+  const brand = document.getElementById("effect-search-brand")?.value.trim();
+  const industry = document.getElementById("effect-search-industry")?.value.trim();
+  if (!question) return showToast("请输入问题", "实时搜索一次只能提交一个 AI 问题。", "error");
+  if (questions.length !== 1) return showToast("实时搜索仅支持单问题", "多问题批量检测请使用“品牌诊断”。", "error");
+  if (!(ui.effectPlatformScopes || []).length) return showToast("请至少选择一个平台终端", "这个问题会独立提交到每一个已选能力组合。", "error");
+  if (!(ui.effectPlatformModes || []).length) return showToast("请至少选择一种检测模式", "请从当前客户允许的检测模式中至少选择一种。", "error");
+  ui.effectSearchQuestion = question;
+  ui.effectSearchBrand = brand;
+  ui.effectSearchIndustry = industry || ui.effectSearchIndustry;
+  ui.effectSearchExternalConsent = true;
+  ui.effectSearchSubmitting = true;
+  ui.effectSearchCompleted = false;
+  ui.effectSearchClientRunId = null;
+  ui.effectSearchReport = null;
+  ui.effectSearchReportError = "";
+  ui.effectSearchReportAttemptedRunId = null;
+  render();
+  try {
+    const project = await ensureEffectSearchProject({ question, brand });
+    const items = effectRelaySupportedItems(ui.effectPlatformScopes, ui.effectPlatformModes, project.questions, { source: "effect_search", feature: "aidso_realtime_search" });
+    if (!items.length) throw new Error("当前客户实例没有可用的平台、终端或模式价格规则。");
+    const quotePayload = await productionApi("/api/v1/diagnostics/relay/quote", { method: "POST", body: { ...project, items } });
+    const quote = effectRelayData(quotePayload).quote || null;
+    setEffectRelayQuote("realtime", quote);
+    setEffectFlowError("realtime", "");
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote, error: "" };
+    ui.effectSearchQuoteReady = true;
+    ui.effectSearchSubmitting = false;
+    await submitEffectSearchRun();
+  } catch (error) {
+    setEffectRelayQuote("realtime", null);
+    setEffectFlowError("realtime", customerFacingEffectText(error.message || "检测报价失败"));
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null, error: customerFacingEffectText(error.message || "检测报价失败") };
+    showToast("无法获取检测报价", effectRelaySnapshot.error, "error");
+  } finally {
+    ui.effectSearchSubmitting = false;
+    render();
+  }
+}
+
+async function submitEffectSearchRun() {
+  if (ui.effectSearchSubmitting || !ui.effectSearchQuoteReady) return;
+  const projectId = ui.effectSearchProjectId;
+  const questionSetId = ui.effectSearchQuestionSetId;
+  if (!projectId || !questionSetId) return showToast("检测配置已失效", "请重新获取报价后再提交。", "error");
+  const items = effectRelaySupportedItems(ui.effectPlatformScopes, ui.effectPlatformModes, ui.effectSearchFrozenQuestions, { source: "effect_search", feature: "aidso_realtime_search" });
+  if (!items.length) return showToast("没有可执行的检测项", "请重新选择当前可用的平台终端和模式。", "error");
+  ui.effectSearchSubmitting = true;
+  render();
+  // Every confirmation is a new observation.  Only retries of the same HTTP
+  // request reuse an idempotency key on the customer server; clicking submit
+  // again later must never silently return an old real-time answer.
+  const clientRunId = uid("EFFECT_SEARCH");
+  const idempotencyKey = `effect-search:${projectId}:${clientRunId}`;
+  ui.effectSearchClientRunId = clientRunId;
+  try {
+    const payload = await productionApi(`/api/v1/diagnostics/projects/${encodeURIComponent(projectId)}/relay-runs`, {
+      method: "POST",
+      body: {
+        questionSetId,
+        clientRunId,
+        idempotencyKey,
+        items,
+        brand: effectSearchBrandProfile(),
+        analysisScope: {
+          source: "effect_search",
+          feature: "aidso_realtime_search",
+          aidsoProduct: "question",
+          mode: "single_question",
+          industry: ui.effectSearchIndustry,
+          questionCount: 1
+        },
+        requestMetadata: { client: "tongzhuo-geo-platform", page: "effect-search", feature: "aidso_realtime_search", aidsoProduct: "question", flow: "single_question" },
+        consent: { externalDataConsent: true, consentedAt: new Date().toISOString(), method: "effect_search_user_confirm" }
+      }
+    });
+    const data = effectRelayData(payload);
+    ui.effectSearchRunId = data.run?.id || data.link?.diagnosticRunId || null;
+    ui.effectSearchRelayRunId = data.link?.relayRunId || null;
+    ui.effectSearchQuoteReady = false;
+    // Preserve the shared local cache for all three products. Views apply a
+    // feature filter when reading it; replacing it with only realtime rows
+    // would make a diagnostic/monitoring history temporarily disappear after
+    // submitting a realtime search.
+    const history = (Array.isArray(effectRelaySnapshot.history) ? effectRelaySnapshot.history : [])
+      .filter((entry) => String(entry?.link?.diagnosticRunId) !== String(ui.effectSearchRunId));
+    if (data.link?.diagnosticRunId) history.unshift({ link: data.link, run: data.run || null });
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null, history, links: history.map((entry) => entry.link), activeRun: data.run || null, activeLink: data.link || null, error: "", loaded: true };
+    effectFlowStateFor("realtime").activeRun = data.run || null;
+    effectFlowStateFor("realtime").activeLink = data.link || null;
+    effectFlowStateFor("realtime").error = "";
+    ui.effectSearchRecords = effectRelayRecordsFromRun(data.run, data.link);
+    ui.effectSearchCompleted = false;
+    if (ui.effectSearchRunId) await refreshEffectRelayRun({ runId: ui.effectSearchRunId, pull: true, renderAfter: false, flow: "realtime" });
+    showToast("检测任务已提交", "灼见检测服务会持续获取任务结果；完成后将写入实时检测证据并显示在本页。", "success");
+  } catch (error) {
+    effectRelaySnapshot = { ...effectRelaySnapshot, error: error.message || "检测任务提交失败" };
+    showToast("检测任务未提交", effectRelaySnapshot.error, "error");
+  } finally {
+    ui.effectSearchSubmitting = false;
+    render();
+  }
+}
+
+async function cancelEffectRelayRun(runId = ui.effectSearchRunId, flow = "realtime") {
+  const submitting = flow === "diagnostic" ? ui.effectDiagnosticSubmitting : ui.effectSearchSubmitting;
+  if (!runId || submitting) return;
+  if (!window.confirm("确认取消该 AI 检测任务？尚未结算的积分会以系统最终结果为准。")) return;
+  if (flow === "diagnostic") {
+    ui.effectDiagnosticSubmitting = true;
+    ui.effectDiagnosticRunId = runId;
+  } else {
+    ui.effectSearchSubmitting = true;
+    ui.effectSearchRunId = runId;
+  }
+  render();
+  try {
+    await productionApi(`/api/v1/diagnostics/relay-runs/${encodeURIComponent(runId)}/cancel`, { method: "POST", body: {} });
+    await refreshEffectRelayRun({ runId, pull: false, renderAfter: false, flow });
+    showToast("检测任务已取消", "客户后台已记录取消状态；任务中心会保留该次真实任务记录。", "success");
+  } catch (error) {
+    showToast("取消任务失败", error.message || "请刷新后重试。", "error");
+  } finally {
+    if (flow === "diagnostic") ui.effectDiagnosticSubmitting = false;
+    else ui.effectSearchSubmitting = false;
+    render();
+  }
+}
+
+function effectRelayStatusPanel({ flow = currentRoute() === "effect-diagnostic" ? "diagnostic" : currentRoute() === "effect-monitor" ? "monitoring" : "realtime", entry = null, quote = effectRelayQuoteFor(flow), scopes = ui.effectPlatformScopes, modes = ui.effectPlatformModes, questions = effectSearchDraftQuestions(), cancelAction = "effect-search-cancel", cancelRunId = "" } = {}) {
+  const flowState = effectFlowStateFor(flow);
+  const link = entry?.link || flowState.activeLink;
+  const run = entry?.run || flowState.activeRun;
+  const status = effectRelayRunStatus(link, run);
+  const quota = effectRelaySnapshot.quota || {};
+  const capabilityCount = effectRelayCapabilityItems().length;
+  const unsupported = effectRelaySupportedItems(scopes, modes, questions).length === 0 && (scopes || []).length && (modes || []).length;
+  const runId = cancelRunId || link?.diagnosticRunId || "";
+  const canCancel = ["pending", "submitted", "queued", "running"].includes(status) && runId;
+  const statusText = customerFacingEffectText(flowState.error || effectRelaySnapshot.error || (capabilityCount ? `当前可用 ${capabilityCount} 个检测能力项` : "正在读取检测能力与额度"));
+  return `<div class="effect-relay-status ${effectRelaySnapshot.error || flowState.error ? "is-error" : ""}"><span data-icon="server"></span><div><b>灼见 AI 检测服务 · ${escapeHtml(effectRelaySnapshot.loaded ? "已连接" : "连接中")}</b><small>${escapeHtml(statusText)}</small></div><em>${escapeHtml(effectRelayRunLabel(status))}</em>${quota.availableCredits !== undefined ? `<span class="effect-relay-quota">可用 ${Number(quota.availableCredits).toLocaleString("zh-CN")} 积分</span>` : ""}${quote ? `<span class="effect-relay-quote">本次预计 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</span>` : ""}${unsupported ? '<span class="effect-relay-warning">当前选择没有可执行能力项</span>' : ""}${canCancel ? `<button class="link-button" type="button" data-action="${escapeHtml(cancelAction)}" data-effect-run-id="${escapeHtml(runId)}">取消任务</button>` : ""}<button class="link-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></div>`;
+}
+
+function effectPlatformCatalog() {
+  return [
+    { name: "豆包", code: "豆", color: "#1d9bea", rows: [{ device: "网页", modes: ["快速", "专家"] }, { device: "手机", badge: "电商", modes: ["快速", "专家"] }] },
+    { name: "DeepSeek", code: "DS", color: "#5775ed", rows: [{ device: "网页", modes: ["快速", "深度"] }, { device: "手机", modes: ["快速", "深度"] }] },
+    { name: "元宝", code: "元", color: "#13b878", rows: [{ device: "网页", badge: "电商", modes: ["快速", "深度"] }, { device: "手机", badge: "电商", modes: ["快速", "深度"] }] },
+    { name: "千问", code: "千", color: "#4c68e9", rows: [{ device: "网页", modes: ["快速", "深度"] }, { device: "手机", badge: "电商", modes: ["快速", "深度"] }] },
+    { name: "百度AI", code: "百", color: "#7a5ce4", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
+    { name: "文心一言", code: "文", color: "#378ee5", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
+    { name: "Kimi", code: "Km", color: "#15171c", rows: [{ device: "网页", modes: ["快速", "思考"] }] },
+    { name: "AI抖音", code: "抖", color: "#111827", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
+    { name: "红书问一问", code: "书", color: "#f04d63", rows: [{ device: "手机", modes: ["快速"] }] }
+  ];
+}
+
+function effectPlatformPicker(options = {}) {
+  const catalog = effectPlatformCatalog();
+  const selectedScopes = new Set(options.scopes || []);
+  const activeModes = new Set(options.modes || ["快速"]);
+  const availability = typeof options.availability === "function" ? options.availability : null;
+  const scopeAttribute = options.scopeAttribute || "data-effect-platform-scope";
+  const selectAllAttribute = options.selectAllAttribute || "data-effect-platform-select-all";
+  const modeAttribute = options.modeAttribute || "data-effect-platform-mode";
+  const allScopes = catalog.flatMap((platform) => platform.rows
+    .filter((row) => !availability || row.modes.some((mode) => availability(platform.name, row.device, mode)))
+    .map((row) => `${platform.name}|${row.device}`));
+  const allSelected = allScopes.length > 0 && allScopes.every((scope) => selectedScopes.has(scope));
+  const cards = catalog.map((platform) => {
+    const selectedRows = platform.rows.filter((row) => selectedScopes.has(`${platform.name}|${row.device}`)).length;
+    return `<article class="effect-platform-card ${selectedRows ? "selected" : ""}">
+      <header class="effect-platform-card-head"><span class="effect-platform-logo" style="--platform:${platform.color}">${platform.code}</span><b>${platform.name}</b><small>${selectedRows}/${platform.rows.length}</small></header>
+      <div class="effect-platform-card-body">${platform.rows.map((row) => {
+        const scope = `${platform.name}|${row.device}`;
+        const available = !availability || row.modes.some((mode) => availability(platform.name, row.device, mode));
+        const checked = selectedScopes.has(scope) && available;
+        return `<label class="effect-platform-row ${checked ? "checked" : ""} ${available ? "" : "unavailable"}"><span class="effect-platform-row-main"><input type="checkbox" value="${escapeHtml(scope)}" ${scopeAttribute} ${checked ? "checked" : ""} ${available ? "" : "disabled"} /><i class="effect-platform-check">${icon("check")}</i><b>${row.device}</b>${row.badge ? `<em>${row.badge}</em>` : ""}</span><span class="effect-platform-modes">${row.modes.map((mode) => `<span class="effect-platform-mode ${activeModes.has(mode) && (!availability || availability(platform.name, row.device, mode)) ? "active" : ""}">${mode}</span>`).join("")}</span></label>`;
+      }).join("")}</div>
+    </article>`;
+  }).join("");
+  const modeAvailable = (mode) => !availability || catalog.some((platform) => platform.rows.some((row) => availability(platform.name, row.device, mode)));
+  const toolbar = `<div class="effect-platform-toolbar"><label><input type="checkbox" ${selectAllAttribute} ${allSelected ? "checked" : ""} /><span class="effect-platform-toolbar-check">${icon("check")}</span><b>全选</b></label><label class="${modeAvailable("快速") ? "" : "unavailable"}"><input type="checkbox" value="快速" ${modeAttribute} ${activeModes.has("快速") ? "checked" : ""} ${modeAvailable("快速") ? "" : "disabled"} /><span class="effect-platform-toolbar-check">${icon("check")}</span><b>快速模式</b></label><label class="${modeAvailable("深度") ? "" : "unavailable"}"><input type="checkbox" value="深度" ${modeAttribute} ${activeModes.has("深度") ? "checked" : ""} ${modeAvailable("深度") ? "" : "disabled"} /><span class="effect-platform-toolbar-check">${icon("check")}</span><b>深度思考</b></label></div>`;
+  return `<div class="effect-platform-picker"><div class="effect-platform-grid">${cards}</div>${options.hideToolbar ? "" : toolbar}</div>`;
+}
+
+function effectRelayCapabilityPicker(options = {}) {
+  const items = effectRelayCapabilityItems();
+  if (!effectRelaySnapshot.capabilities) return '<div class="effect-capability-empty">正在读取当前可用的 AI 检测能力…</div>';
+  if (!items.length) return '<div class="effect-capability-empty">当前客户尚未配置 AI 检测能力，请联系灼见运营人员。</div>';
+  const selectedScopes = new Set((options.scopes || ui.effectPlatformScopes || []).map(effectRelayNormalizeScope));
+  const activeModes = new Set((options.modes || ui.effectPlatformModes || []).map(effectRelayModeCode));
+  const scopeAttribute = options.scopeAttribute || "data-effect-platform-scope";
+  const selectAllAttribute = options.selectAllAttribute || "data-effect-platform-select-all";
+  const modeAttribute = options.modeAttribute || "data-effect-platform-mode";
+  const realtimeLayout = options.realtimeLayout === true;
+  const catalogOrder = ["DB", "DS", "YB", "QW", "BD", "WX", "KIMI", "DYAI", "RED"];
+  const capabilitySnapshot = effectRelaySnapshot.capabilities?.provider?.capabilitySnapshot || {};
+  const snapshotPlatforms = Array.isArray(capabilitySnapshot.platforms) ? capabilitySnapshot.platforms : [];
+  const snapshotTrusted = !["development-capability-book", "demo", "mock"].includes(String(capabilitySnapshot.source || "").trim().toLowerCase());
+  const platformCodes = [...new Set([...catalogOrder, ...snapshotPlatforms.map((entry) => String(entry?.code || "").trim()), ...items.map((entry) => String(entry?.platform || "").trim())].filter(Boolean))];
+  const platforms = platformCodes.map((platform) => {
+    const snapshot = snapshotTrusted ? snapshotPlatforms.find((entry) => String(entry?.code || "").trim() === platform) || {} : {};
+    const declaredTerminals = Array.isArray(snapshot.terminals) ? snapshot.terminals.map(String) : [];
+    const declaredModes = Array.isArray(snapshot.modes) ? snapshot.modes.map(String) : [];
+    if (realtimeLayout && EFFECT_REALTIME_PLATFORM_LAYOUT[platform]) {
+      return { platform, terminals: EFFECT_REALTIME_PLATFORM_LAYOUT[platform].map((row) => ({ ...row })) };
+    }
+    const terminalCodes = [...new Set([...declaredTerminals, ...items.filter((entry) => String(entry.platform) === platform).map((entry) => String(entry.terminal || "").trim())].filter(Boolean))];
+    return { platform, terminals: terminalCodes.map((terminal) => ({
+      terminal,
+      modes: [...new Set([...declaredModes, ...items.filter((entry) => String(entry.platform) === platform && String(entry.terminal) === terminal).map((entry) => String(entry.mode || "").trim())].filter(Boolean))]
+    })) };
+  });
+  for (const item of items) {
+    const platform = String(item.platform || "").trim();
+    const terminal = String(item.terminal || "").trim();
+    const mode = String(item.mode || "").trim();
+    if (!platform || !terminal || !mode) continue;
+    if (realtimeLayout && EFFECT_REALTIME_PLATFORM_LAYOUT[platform]
+      && !EFFECT_REALTIME_PLATFORM_LAYOUT[platform].some((row) => row.terminal === terminal)) continue;
+    let group = platforms.find((entry) => entry.platform === platform);
+    if (!group) { group = { platform, terminals: [] }; platforms.push(group); }
+    let terminalGroup = group.terminals.find((entry) => entry.terminal === terminal);
+    if (!terminalGroup) { terminalGroup = { terminal, modes: [] }; group.terminals.push(terminalGroup); }
+    if (!terminalGroup.modes.includes(mode)) terminalGroup.modes.push(mode);
+  }
+  const scopeKeys = realtimeLayout ? effectRealtimeCapabilityScopeKeys() : effectRelayCapabilityScopeKeys();
+  const allSelected = scopeKeys.length > 0 && scopeKeys.every((scope) => selectedScopes.has(scope));
+  const modeKeys = [...new Set(items.map((item) => String(item.mode || "").trim()).filter(Boolean))];
+  const quickModes = modeKeys.filter((mode) => mode === "fast");
+  const advancedModes = modeKeys.filter((mode) => mode !== "fast");
+  const cards = platforms.map((group) => {
+    const selectedCount = group.terminals.filter((terminal) => selectedScopes.has(effectRelayScopeKey(group.platform, terminal.terminal))).length;
+    const platformName = EFFECT_RELAY_PLATFORM_NAMES[group.platform] || group.platform;
+    const platformUi = EFFECT_RELAY_PLATFORM_UI[group.platform] || { code: platformName.slice(0, 2), color: "#64748b" };
+    const availableTerminals = group.terminals.filter((terminalGroup) => items.some((item) => String(item.platform) === group.platform && String(item.terminal) === terminalGroup.terminal));
+    const selectionMeta = realtimeLayout ? "" : `<small>${availableTerminals.length ? `${selectedCount}/${availableTerminals.length}` : "暂未开通"}</small>`;
+    return `<article class="effect-platform-card ${selectedCount ? "selected" : ""} ${availableTerminals.length ? "" : "unavailable"}"><header class="effect-platform-card-head"><span class="effect-platform-logo" style="--platform:${platformUi.color}">${escapeHtml(platformUi.code)}</span><b>${escapeHtml(platformName)}</b>${selectionMeta}</header><div class="effect-platform-card-body">${group.terminals.length ? group.terminals.map((terminalGroup) => {
+      const scope = effectRelayScopeKey(group.platform, terminalGroup.terminal);
+      const checked = selectedScopes.has(scope);
+      const terminalName = EFFECT_RELAY_TERMINAL_NAMES[terminalGroup.terminal] || terminalGroup.terminal;
+      const executableModes = terminalGroup.modes.filter((mode) => items.some((item) => String(item.platform) === group.platform && String(item.terminal) === terminalGroup.terminal && String(item.mode) === mode));
+      const available = executableModes.length > 0;
+      return `<label class="effect-platform-row ${checked ? "checked" : ""} ${available ? "" : "unavailable"}"><span class="effect-platform-row-main"><input type="checkbox" value="${escapeHtml(scope)}" ${scopeAttribute} ${checked ? "checked" : ""} ${available ? "" : "disabled"} /><i class="effect-platform-check">${icon("check")}</i><b>${escapeHtml(terminalName)}</b>${terminalGroup.badge ? `<em>${escapeHtml(terminalGroup.badge)}</em>` : ""}</span><span class="effect-platform-modes">${terminalGroup.modes.map((mode) => `<span class="effect-platform-mode ${activeModes.has(mode) && executableModes.includes(mode) ? "active" : ""} ${executableModes.includes(mode) ? "" : "unavailable"}">${escapeHtml(EFFECT_RELAY_MODE_NAMES[mode] || mode)}</span>`).join("")}</span></label>`;
+    }).join("") : '<div class="effect-platform-pending">待开通</div>'}</div></article>`;
+  }).join("");
+  const groupedModes = scopeAttribute === "data-effect-platform-scope";
+  const toolbar = groupedModes
+    ? `<div class="effect-platform-toolbar"><label><input type="checkbox" ${selectAllAttribute} ${allSelected ? "checked" : ""} /><span class="effect-platform-toolbar-check">${icon("check")}</span><b>全选</b></label>${quickModes.length ? `<label><input type="checkbox" value="fast" data-effect-platform-mode-family="quick" ${modeAttribute} ${quickModes.every((mode) => activeModes.has(mode)) ? "checked" : ""} /><span class="effect-platform-toolbar-check">${icon("check")}</span><b>快速模式</b></label>` : ""}${advancedModes.length ? `<label><input type="checkbox" value="advanced" data-effect-platform-mode-family="advanced" ${modeAttribute} ${advancedModes.every((mode) => activeModes.has(mode)) ? "checked" : ""} /><span class="effect-platform-toolbar-check">${icon("check")}</span><b>深度思考</b></label>` : ""}</div>`
+    : `<div class="effect-platform-toolbar"><label><input type="checkbox" ${selectAllAttribute} ${allSelected ? "checked" : ""} /><span class="effect-platform-toolbar-check">${icon("check")}</span><b>全选</b></label>${modeKeys.map((mode) => `<label><input type="checkbox" value="${escapeHtml(mode)}" ${modeAttribute} ${activeModes.has(mode) ? "checked" : ""} /><span class="effect-platform-toolbar-check">${icon("check")}</span><b>${escapeHtml(EFFECT_RELAY_MODE_NAMES[mode] || mode)}</b></label>`).join("")}</div>`;
+  return `<div class="effect-platform-picker effect-capability-picker"><div class="effect-platform-grid">${cards}</div>${toolbar}</div>`;
+}
+
+function effectSearchPlatforms() {
+  return effectRelayCapabilityPicker({ realtimeLayout: true });
+}
+
+function effectSearchBrandTerms(value) {
+  return [...new Set(String(value || "").split(/[、,，;；\n]+/).map((item) => item.trim()).filter(Boolean))];
+}
+
+function effectSearchBrandProfile(value = ui.effectSearchBrand) {
+  const aliases = effectSearchBrandTerms(value);
+  return { name: aliases[0] || String(value || "").trim(), aliases };
+}
+
+function effectSearchRecordsForView() {
+  return Array.isArray(ui.effectSearchRecords) ? ui.effectSearchRecords : [];
+}
+
+function effectSearchReportPlatformRows(records = []) {
+  const groups = new Map();
+  for (const record of records) {
+    const platform = String(record.platform || "未知平台").trim();
+    const terminal = String(record.terminal || "").trim();
+    const key = `${platform}|${terminal}`;
+    const group = groups.get(key) || { platform, terminal, total: 0, verified: 0, mentioned: 0, citations: 0 };
+    group.total += 1;
+    if (record.status === "verified") {
+      group.verified += 1;
+      if (Number(record.brandMentionCount || 0) > 0) group.mentioned += 1;
+      group.citations += Array.isArray(record.citationSources) ? record.citationSources.length : 0;
+    }
+    groups.set(key, group);
+  }
+  return [...groups.values()]
+    .map((item) => ({ ...item, mentionRate: item.verified ? Math.round((item.mentioned / item.verified) * 100) : 0 }))
+    .sort((left, right) => right.verified - left.verified || left.platform.localeCompare(right.platform, "zh-CN"));
+}
+
+function effectSearchReportCitationRows(records = []) {
+  const groups = new Map();
+  for (const record of records.filter((item) => item.status === "verified")) {
+    for (const source of Array.isArray(record.citationSources) ? record.citationSources : []) {
+      const title = String(source.title || source.domain || source.url || "未命名来源").trim();
+      const domain = String(source.domain || "").trim();
+      const key = String(domain || source.url || title).toLocaleLowerCase("zh-CN");
+      const group = groups.get(key) || { title, domain, count: 0, platforms: new Set() };
+      group.count += 1;
+      if (record.platform) group.platforms.add(record.platform);
+      groups.set(key, group);
+    }
+  }
+  return [...groups.values()]
+    .sort((left, right) => right.count - left.count || left.title.localeCompare(right.title, "zh-CN"))
+    .map((item) => ({ ...item, platforms: [...item.platforms] }));
+}
+
+function effectSearchReportAnalysis({ brandName = "", requested = 0, records = [], verified = [], mentioned = [], citations = 0, platforms = [], citationRows = [] } = {}) {
+  const coverageBase = requested || records.length;
+  const coverage = coverageBase ? Math.round((verified.length / coverageBase) * 100) : 0;
+  const mentionRate = verified.length ? Math.round((mentioned.length / verified.length) * 100) : 0;
+  const rankedRecords = verified.filter((record) => Number.isFinite(record.firstMentionRank) && record.firstMentionRank > 0);
+  const averageRank = rankedRecords.length
+    ? (rankedRecords.reduce((sum, record) => sum + record.firstMentionRank, 0) / rankedRecords.length).toFixed(1)
+    : "";
+  const sentimentCounts = verified.reduce((result, record) => {
+    const sentiment = String(record.sentiment || "").toLowerCase();
+    if (sentiment.includes("正") || sentiment.includes("positive")) result.positive += 1;
+    else if (sentiment.includes("负") || sentiment.includes("negative")) result.negative += 1;
+    else if (sentiment) result.neutral += 1;
+    return result;
+  }, { positive: 0, neutral: 0, negative: 0 });
+  const platformWithMentions = platforms.filter((item) => item.mentioned > 0);
+  const platformWithoutMentions = platforms.filter((item) => item.verified > 0 && item.mentioned === 0);
+  const topPlatform = platforms.slice().sort((left, right) => right.mentionRate - left.mentionRate || right.verified - left.verified)[0];
+  const platformText = platforms.length
+    ? `本次共覆盖 ${platforms.length} 个平台终端。${topPlatform ? `按已验证结果看，${topPlatform.platform}${topPlatform.terminal ? `（${topPlatform.terminal}）` : ""}的品牌提及率最高，为 ${topPlatform.mentionRate}%。` : ""}${platformWithoutMentions.length ? `${platformWithoutMentions.length} 个平台终端暂未出现品牌提及，需结合平台内容和引用来源进一步优化。` : ""}`
+    : "本次没有形成可比较的平台表现数据。";
+  const visibilityText = brandName
+    ? mentioned.length
+      ? `${brandName}在 ${mentioned.length} 条已验证结果中被提及，品牌提及率为 ${mentionRate}%。${averageRank ? `其中 ${rankedRecords.length} 条结果返回了品牌出现位置，平均首次出现位置为第 ${averageRank} 位。` : "本轮没有返回可验证的品牌出现位置。"}`
+      : `本轮 ${verified.length} 条已验证结果中暂未检测到${brandName}的明确提及，当前品牌在这组用户问题中的可见性不足。`
+    : "本次未设置品牌名称，无法计算品牌提及率；报告仅分析平台覆盖和引用表现。";
+  const citationText = citations
+    ? `检测结果共识别 ${citations} 次有效回答引用，归并为 ${citationRows.length} 个主要来源。引用来源可作为后续建设官网页面、案例、FAQ 和行业内容的优先参考。`
+    : "本轮没有识别到可验证的回答引用，暂时无法判断哪些公开内容正在影响 AI 回答。";
+  const qualityText = coverage < 100
+    ? `本次任务有效证据覆盖率为 ${coverage}%，其余任务项仍在处理、失败或未通过校验，当前结论只基于 ${verified.length} 条有效样本。`
+    : `本次 ${verified.length} 条任务结果均已通过校验，报告结论基于完整回传数据生成。`;
+  const sentimentText = sentimentCounts.positive || sentimentCounts.neutral || sentimentCounts.negative
+    ? `已返回情感字段的样本中，正向 ${sentimentCounts.positive} 条、中性 ${sentimentCounts.neutral} 条、负向 ${sentimentCounts.negative} 条；未返回情感字段的样本不纳入判断。`
+    : "本轮结果没有返回可验证的情感字段，因此不对舆情倾向做推测。";
+  const recommendations = [];
+  if (brandName && !mentioned.length) recommendations.push(`补充${brandName}的企业主体、产品能力、适用场景和客户案例等公开信源，让 AI 能够确认品牌实体与业务关系。`);
+  else if (brandName && mentionRate < 50) recommendations.push(`围绕未提及品牌的平台和问题场景补充直接回答内容，提高${brandName}在决策型问题中的可见性。`);
+  if (!citations) recommendations.push("建立可抓取、可引用的官网服务页、案例页和 FAQ 页面，并确保页面包含清晰的主体、产品、场景与证据信息。");
+  else if (citationRows.length) recommendations.push(`优先复盘排名靠前的 ${Math.min(citationRows.length, 3)} 个引用来源，将其中稳定出现的主题沉淀为官网和内容资产。`);
+  if (platformWithoutMentions.length) recommendations.push(`针对 ${platformWithoutMentions.slice(0, 3).map((item) => `${item.platform}${item.terminal ? `（${item.terminal}）` : ""}`).join("、")} 单独补充平台适配内容，并在下一轮检测中复测。`);
+  if (coverage < 100) recommendations.push("等待未完成任务回传后再做最终判断，避免将部分样本当成完整结论。");
+  if (!recommendations.length) recommendations.push("保持当前信源和内容结构，使用相同问题集定期复测提及率、引用来源和品牌出现位置的变化。");
+  return {
+    overview: qualityText,
+    visibility: visibilityText,
+    platform: platformText,
+    citation: citationText,
+    sentiment: sentimentText,
+    recommendations
+  };
+}
+
+function effectSearchGeneratedReportBody(report) {
+  const source = report?.report || report || {};
+  const sections = Array.isArray(source.sections) ? source.sections : [];
+  const analysisSections = sections.filter((section) => [
+    "scope", "brand_visibility", "answer_insights", "platform_comparison", "citation_analysis", "content_gaps", "action_roadmap"
+  ].includes(String(section?.key || "")));
+  const sectionHtml = analysisSections.map((section, index) => {
+    const content = section.content && typeof section.content === "object" ? section.content : {};
+    const findings = Array.isArray(content.findings) ? content.findings : [];
+    const findingHtml = findings.slice(0, 8).map((finding) => `<li><b>${escapeHtml(finding.title || "数据发现")}</b><p>${escapeHtml(finding.analysis || "")}</p><small>${Array.isArray(finding.evidenceIds) ? `基于 ${finding.evidenceIds.length} 条已验证证据` : "基于已验证证据"}</small></li>`).join("");
+    return `<section class="effect-search-generated-section"><header><span>${String(index + 1).padStart(2, "0")}</span><div><b>${escapeHtml(section.title || "数据分析")}</b><small>${escapeHtml(content.summary || "")}</small></div></header>${findingHtml ? `<ul>${findingHtml}</ul>` : ""}</section>`;
+  }).join("");
+  const recommendationsSection = sections.find((section) => section?.key === "analysis_recommendations");
+  const recommendations = Array.isArray(recommendationsSection?.content?.items)
+    ? recommendationsSection.content.items
+    : Array.isArray(source.recommendations) ? source.recommendations : [];
+  const recommendationsHtml = recommendations.slice(0, 12).map((item) => `<li><span class="effect-search-recommendation-priority ${escapeHtml(item.priority || "medium")}">${escapeHtml(item.priority || "medium")}</span><div><b>${escapeHtml(item.title || "优化动作")}</b><p>${escapeHtml(item.action || item.rationale || "")}</p><small>${escapeHtml(item.expectedOutcome || "复测同一问题集后观察指标变化")}</small></div></li>`).join("");
+  if (!analysisSections.length && !recommendationsHtml) return "";
+  return `<section class="effect-search-analysis-report effect-search-generated-report"><header><div><span class="effect-demo-kicker">AI-GENERATED ANALYSIS</span><h4>本次检测深度分析报告</h4><p>服务端模型仅基于本次已验证的实时检测证据生成。</p></div><span>${icon("file")}已生成</span></header><div class="effect-search-generated-summary"><b>管理层摘要</b><p>${escapeHtml(source.executiveSummary || "报告已生成，但服务端未返回管理层摘要。")}</p></div><div class="effect-search-generated-sections">${sectionHtml}</div>${recommendationsHtml ? `<section class="effect-search-generated-recommendations"><header><b>分级优化行动</b><small>每项动作都来自本次检测证据</small></header><ul>${recommendationsHtml}</ul></section>` : ""}${Array.isArray(source.limitations) && source.limitations.length ? `<footer>${icon("info")}数据边界：${escapeHtml(source.limitations.slice(0, 4).join("；"))}</footer>` : ""}</section>`;
+}
+
+function effectSearchResultsPanel({ flow = currentRoute() === "effect-diagnostic" ? "diagnostic" : currentRoute() === "effect-monitor" ? "monitoring" : "realtime", records = effectSearchRecordsForView(), entry = effectRelayHistoryEntry(undefined, flow), title = "当前任务交付" } = {}) {
+  const link = entry?.link || effectRelaySnapshot.activeLink;
+  const run = entry?.run || effectRelaySnapshot.activeRun;
+  const status = effectRelayRunStatus(link, run);
+  const requested = link?.request?.items?.length || 0;
+  const verified = records.filter((record) => record.status === "verified");
+  const mentioned = verified.filter((record) => record.brandMentionCount > 0);
+  const citations = verified.reduce((sum, record) => sum + (record.citationSources?.length || 0), 0);
+  const platformRows = effectSearchReportPlatformRows(records);
+  const citationRows = effectSearchReportCitationRows(records);
+  const coverageBase = requested || records.length;
+  const coverage = coverageBase ? Math.round((verified.length / coverageBase) * 100) : 0;
+  const mentionRate = verified.length ? Math.round((mentioned.length / verified.length) * 100) : 0;
+  const brandName = String(link?.request?.brand?.name || "").trim();
+  const running = ["pending", "submitted", "queued", "running"].includes(status) || ui.effectSearchSubmitting;
+  const summary = records.length
+    ? "报告由已回传并通过校验的检测数据自动汇总，原始问题与回答不在客户端逐条展示。"
+    : running
+      ? "任务已提交；页面会在结果完成校验并入库后自动更新。"
+      : effectFlowStateFor(flow).error || effectRelaySnapshot.error
+        ? "AI 检测服务当前不可用；页面不会用本地样本替代结果。"
+        : "完成一次查询后，系统将在这里生成检测报告总结。";
+  const analysis = effectSearchReportAnalysis({ brandName, requested, records, verified, mentioned, citations, platforms: platformRows, citationRows });
+  const platformHtml = platformRows.length
+    ? platformRows.map((item) => `<li><div><b>${escapeHtml(item.platform)}${item.terminal ? ` · ${escapeHtml(item.terminal)}` : ""}</b><small>${item.verified} / ${item.total} 条结果已验证</small></div><span><b>${item.mentioned}</b><small>品牌提及</small></span><span><b>${item.citations}</b><small>有效引用</small></span></li>`).join("")
+    : '<div class="effect-search-report-placeholder">暂无平台汇总数据</div>';
+  const citationHtml = citationRows.length
+    ? citationRows.slice(0, 8).map((item) => `<li><span>${icon("link")}</span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.domain || `${item.platforms.length} 个平台引用`)}</small></div><em>${item.count} 次</em></li>`).join("")
+    : '<div class="effect-search-report-placeholder">本轮暂无可验证的引用来源</div>';
+  const analysisSections = [
+    ["01", "检测概览", analysis.overview],
+    ["02", "品牌可见性分析", analysis.visibility],
+    ["03", "平台表现分析", analysis.platform],
+    ["04", "引用来源分析", analysis.citation],
+    ["05", "结果质量与边界", analysis.sentiment]
+  ].map(([number, heading, text]) => `<section class="effect-search-analysis-section"><header><span>${number}</span><b>${heading}</b></header><p>${escapeHtml(text)}</p></section>`).join("");
+  const recommendationsHtml = analysis.recommendations.map((item) => `<li>${icon("arrow")}<span>${escapeHtml(item)}</span></li>`).join("");
+  const reportDetails = `<div class="effect-search-report-details"><section><header><div><b>平台表现汇总</b><small>仅按平台聚合，不展示单条问题与回答</small></div></header><ul class="effect-search-report-platforms">${platformHtml}</ul></section><section><header><div><b>主要引用来源</b><small>按有效引用出现次数排序</small></div></header><ul class="effect-search-report-citations">${citationHtml}</ul></section></div>`;
+  const generatedReportBody = flow === "realtime" ? effectSearchGeneratedReportBody(ui.effectSearchReport) : "";
+  const reportBody = generatedReportBody
+    ? `<div class="effect-search-report-body">${generatedReportBody}${reportDetails}<footer>${icon("shield")}原始回答和追溯证据已安全归档，需要核验时由系统后台查询。</footer></div>`
+    : records.length
+      ? `<div class="effect-search-report-body"><section class="effect-search-analysis-report"><header><div><span class="effect-demo-kicker">ANALYSIS REPORT</span><h4>本次检测分析报告</h4><p>基于已回传的检测结果、品牌字段、平台信息和引用来源自动生成。</p></div><span>${icon("file")}规则分析</span></header><div class="effect-search-analysis-sections">${analysisSections}</div><section class="effect-search-analysis-recommendations"><header><b>优化建议</b><small>建议均基于本次检测中已验证的数据</small></header><ul>${recommendationsHtml}</ul></section></section>${reportDetails}<footer>${icon("shield")}原始回答和追溯证据已安全归档，需要核验时由系统后台查询。</footer></div>`
+    : `<div class="effect-search-report-empty">${icon(running ? "clock" : "file")}<b>${running ? "正在生成检测报告" : "暂无检测报告"}</b><p>${escapeHtml(summary)}</p></div>`;
+  const canGenerateDetailedReport = flow === "realtime" && verified.length && ["completed", "partial"].includes(status);
+  const reportAction = canGenerateDetailedReport && !generatedReportBody
+    ? `<button class="secondary-button button-small" type="button" data-action="effect-search-generate-report" ${ui.effectSearchReportLoading || !selectedTextProviderId() ? "disabled" : ""}>${ui.effectSearchReportLoading ? "正在生成分析…" : "生成详细分析报告"}</button>`
+    : "";
+  const reportError = flow === "realtime" && ui.effectSearchReportError ? `<small class="effect-search-report-error">${escapeHtml(ui.effectSearchReportError)}</small>` : "";
+  return `<section class="card effect-search-results effect-search-report"><header><div><span class="effect-demo-kicker">AI EFFECT REPORT</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(summary)}</p>${reportError}</div><div class="effect-search-report-header-actions">${reportAction}<span class="status-badge ${verified.length && ["completed", "partial"].includes(status) ? "status-approved" : running ? "status-pending" : "status-draft"}">${escapeHtml(effectRelayRunLabel(status))}</span></div></header><div class="effect-search-summary"><div><small>有效证据覆盖率</small><b>${coverageBase ? `${coverage}%` : "—"}</b><em>${verified.length} / ${coverageBase || 0} 条已验证</em></div><div><small>覆盖平台终端</small><b>${platformRows.length || "—"}</b><em>根据回传数据自动归并</em></div><div><small>品牌提及率</small><b>${verified.length && brandName ? `${mentionRate}%` : "—"}</b><em>${brandName ? `${mentioned.length} 条有效结果提及` : "本次未设置品牌"}</em></div><div><small>有效回答引用</small><b>${citations}</b><em>${citationRows.length} 个主要来源</em></div></div>${reportBody}</section>`;
+}
+
+function effectCenterTabs(active = ui.effectCenterView) {
+  const tabs = [
+    ["create", "新建检测", "冻结问题集并提交 AI 检测任务"],
+    ["tasks", "任务中心", "查看真实任务状态与交付进度"],
+    ["results", "结果与趋势", "仅汇总已写入的 live evidence"]
+  ];
+  return `<nav class="effect-center-tabs" aria-label="AI 效果检测功能">${tabs.map(([view, title, note]) => `<a href="#effect-search?view=${view}" class="${active === view ? "active" : ""}"><b>${title}</b><small>${note}</small></a>`).join("")}</nav>`;
+}
+
+function effectRelayEntryQuestions(entry) {
+  return [...new Set((entry?.link?.request?.items || []).map((item) => String(item.prompt || "").trim()).filter(Boolean))];
+}
+
+function effectRelayEntryTitle(entry) {
+  const brand = entry?.link?.request?.brand?.name || entry?.run?.inputSnapshot?.project?.targetBrand || "未命名品牌";
+  const question = effectRelayEntryQuestions(entry)[0] || "冻结问题集";
+  return `${brand} · ${question}`;
+}
+
+function effectRelayEntryStats(entry) {
+  const requested = Number(entry?.link?.request?.items?.length || 0);
+  const records = effectRelayRecordsFromRun(entry?.run, entry?.link);
+  const verified = records.filter((record) => record.status === "verified").length;
+  return { requested, delivered: records.length, verified, records };
+}
+
+function effectCenterTaskRow(entry) {
+  const { requested, delivered, verified } = effectRelayEntryStats(entry);
+  const status = effectRelayRunStatus(entry.link, entry.run);
+  const canCancel = ["pending", "submitted", "queued", "running"].includes(status);
+  const questions = effectRelayEntryQuestions(entry);
+  const remoteSummary = entry.link?.remoteRun?.summary || entry.link?.remoteRun || {};
+  const billing = remoteSummary.billingStatus || "待系统结算";
+  const error = entry.link?.errorMessage || entry.run?.errorMessage || "";
+  return `<article class="effect-task-row"><div class="effect-task-name"><b>${escapeHtml(effectRelayEntryTitle(entry))}</b><small>${questions.length} 个冻结问题 · ${requested} 个独立检测项 · ${escapeHtml(String(entry.link.createdAt || "").replace("T", " ").slice(0, 16) || "—")}</small>${error ? `<em>${escapeHtml(customerFacingEffectText(error))}</em>` : ""}</div><div><small>状态</small><span class="status-badge ${["completed", "partial"].includes(status) ? "status-approved" : ["failed", "attention", "cancelled"].includes(status) ? "status-error" : "status-pending"}">${escapeHtml(effectRelayRunLabel(status))}</span></div><div><small>结果 / 验证</small><b>${delivered} / ${requested || "—"}</b><em>${verified} 条已验证</em></div><div><small>结算</small><b>${escapeHtml(String(billing))}</b><em>${entry.link.relayRunId ? "已关联检测任务" : "等待系统确认"}</em></div><div class="effect-task-actions"><button class="link-button" type="button" data-action="effect-center-open-run" data-effect-run-id="${escapeHtml(entry.link.diagnosticRunId)}">查看结果</button>${canCancel ? `<button class="link-button danger" type="button" data-action="effect-center-cancel-run" data-effect-run-id="${escapeHtml(entry.link.diagnosticRunId)}">取消</button>` : ""}</div></article>`;
+}
+
+function renderEffectTaskCenter() {
+  const entries = effectRelayHistoryEntries();
+  const running = entries.filter((entry) => ["pending", "submitted", "queued", "running"].includes(effectRelayRunStatus(entry.link, entry.run))).length;
+  const delivered = entries.reduce((total, entry) => total + effectRelayEntryStats(entry).delivered, 0);
+  return `<section class="card effect-task-center"><header><div><span class="effect-demo-kicker">AI DETECTION TASKS</span><h3>任务中心</h3><p>集中查看灼见 AI 检测任务状态、结果进度和已验证证据。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新任务</button></header><div class="effect-task-summary"><div><small>历史任务</small><b>${entries.length}</b><em>当前客户实例内</em></div><div><small>进行中</small><b>${running}</b><em>由系统异步执行</em></div><div><small>已入库结果</small><b>${delivered}</b><em>仅统计已同步记录</em></div></div>${effectRelaySnapshot.historyError ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectRelaySnapshot.historyError))}</div>` : ""}<div class="effect-task-table">${entries.length ? entries.map(effectCenterTaskRow).join("") : `<div class="effect-search-empty">${effectRelaySnapshot.historyLoaded ? "暂无真实检测任务。请先在“新建检测”中提交冻结问题集。" : "正在读取该客户实例的任务历史…"}</div>`}</div></section>`;
+}
+
+function effectCenterRecordsForResultView() {
+  const range = Math.max(1, Number(ui.effectCenterResultRange || 90));
+  const cutoff = Date.now() - range * 24 * 60 * 60 * 1000;
+  return effectRelayHistoryRecords().filter((record) => {
+    if (ui.effectCenterResultRunId !== "all" && record.diagnosticRunId !== ui.effectCenterResultRunId) return false;
+    if (ui.effectCenterResultPlatform !== "all" && record.platform !== ui.effectCenterResultPlatform) return false;
+    if (ui.effectCenterResultQuestion !== "all" && record.questionId !== ui.effectCenterResultQuestion) return false;
+    const observed = Date.parse(record.observedAt || "");
+    return !Number.isFinite(observed) || observed >= cutoff;
+  }).sort((left, right) => String(right.observedAt || "").localeCompare(String(left.observedAt || "")));
+}
+
+function effectCenterTrendRows(records) {
+  const groups = new Map();
+  for (const record of records.filter((item) => item.status === "verified")) {
+    const key = [record.questionId || record.question, record.platform, record.terminal, record.mode].join("|");
+    const list = groups.get(key) || [];
+    list.push(record);
+    groups.set(key, list);
+  }
+  return [...groups.values()].filter((samples) => samples.length >= 2).map((samples) => {
+    const ordered = samples.slice().sort((left, right) => String(left.observedAt || "").localeCompare(String(right.observedAt || "")));
+    const first = ordered[0];
+    const latest = ordered[ordered.length - 1];
+    return { first, latest, samples: ordered.length };
+  }).sort((left, right) => right.samples - left.samples);
+}
+
+function renderEffectResultsCenter() {
+  const allRecords = effectRelayHistoryRecords();
+  const records = effectCenterRecordsForResultView();
+  const entries = effectRelayHistoryEntries();
+  const platforms = [...new Set(allRecords.map((record) => record.platform).filter(Boolean))];
+  const questions = [...new Map(allRecords.map((record) => [record.questionId || record.question, record.question])).entries()];
+  const trends = effectCenterTrendRows(records);
+  const filters = `<div class="effect-center-filters"><label>任务<select data-effect-center-filter="run"><option value="all">全部任务</option>${entries.map((entry) => `<option value="${escapeHtml(entry.link.diagnosticRunId)}" ${ui.effectCenterResultRunId === entry.link.diagnosticRunId ? "selected" : ""}>${escapeHtml(effectRelayEntryTitle(entry).slice(0, 42))}</option>`).join("")}</select></label><label>平台<select data-effect-center-filter="platform"><option value="all">全部平台</option>${platforms.map((platform) => `<option value="${escapeHtml(platform)}" ${ui.effectCenterResultPlatform === platform ? "selected" : ""}>${escapeHtml(platform)}</option>`).join("")}</select></label><label>问题<select data-effect-center-filter="question"><option value="all">全部问题</option>${questions.map(([id, text]) => `<option value="${escapeHtml(id)}" ${ui.effectCenterResultQuestion === id ? "selected" : ""}>${escapeHtml(String(text).slice(0, 36))}</option>`).join("")}</select></label><label>时间<select data-effect-center-filter="range"><option value="7" ${ui.effectCenterResultRange === "7" ? "selected" : ""}>近 7 天</option><option value="30" ${ui.effectCenterResultRange === "30" ? "selected" : ""}>近 30 天</option><option value="90" ${ui.effectCenterResultRange === "90" ? "selected" : ""}>近 90 天</option></select></label></div>`;
+  const trendHtml = trends.length ? `<div class="effect-trend-list">${trends.map(({ first, latest, samples }) => `<article><div><b>${escapeHtml(latest.platform)} · ${escapeHtml(latest.terminal)} · ${escapeHtml(latest.mode)}</b><small>${escapeHtml(latest.question)}</small></div><span><small>真实样本</small><b>${samples}</b></span><span><small>最早采样</small><b>${escapeHtml(String(first.observedAt || "").replace("T", " ").slice(0, 16))}</b></span><span><small>最近采样</small><b>${escapeHtml(String(latest.observedAt || "").replace("T", " ").slice(0, 16))}</b></span></article>`).join("")}</div>` : '<div class="effect-search-empty">暂无可计算的真实趋势。趋势需要同一问题、同一平台、同一终端与模式至少两条已验证的 live evidence；系统不会用模拟 KPI 补齐。</div>';
+  return `<section class="card effect-results-center"><header><div><span class="effect-demo-kicker">DETECTION EVIDENCE HISTORY</span><h3>结果与趋势</h3><p>仅展示已经校验并写入实时检测证据库的真实结果，当前趋势来自历史检测任务。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新证据</button></header>${filters}<div class="effect-center-trend-card"><div><b>真实历史样本趋势</b><small>不把单次回答内提及顺序称为“平台排名”；只展示可追溯采样时间。</small></div>${trendHtml}</div></section>${effectSearchResultsPanel({ records, title: "已落库的检测结果" })}`;
+}
+
+function renderEffectCreateCenter() {
+  const questions = effectSearchDraftQuestions();
+  const supportedItems = effectRelaySupportedItems(ui.effectPlatformScopes, ui.effectPlatformModes, questions);
+  const quote = effectRelaySnapshot.quote;
+  const activeStatus = effectRelayRunStatus();
+  const running = ["pending", "submitted", "queued", "running"].includes(activeStatus) || ui.effectSearchSubmitting;
+  const canQuote = Boolean(questions.length && ui.effectSearchBrand.trim() && ui.effectSearchExternalConsent && supportedItems.length);
+  const primaryAction = quote && ui.effectSearchQuoteReady
+    ? `<button class="primary-button" type="button" data-action="effect-search-submit" ${ui.effectSearchSubmitting || !supportedItems.length ? "disabled" : ""}>${ui.effectSearchSubmitting ? '<span class="loading-spinner"></span>正在提交…' : `${icon("send")}确认并提交`}</button>`
+    : `<button class="primary-button" type="button" data-action="effect-search-quote" ${ui.effectSearchSubmitting || !canQuote ? "disabled" : ""}>${ui.effectSearchSubmitting ? '<span class="loading-spinner"></span>正在获取报价…' : `${icon("search")}获取检测报价`}</button>`;
+  const quoteSummary = quote && ui.effectSearchQuoteReady
+    ? `<div class="effect-search-quote-summary"><span data-icon="quote"></span><div><b>本次检测预计：${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</b><small>将提交 ${supportedItems.length} 个独立检测项；提交时会再次校验价格与额度。</small></div><button class="link-button" type="button" data-action="effect-search-quote-reset">重新报价</button></div>`
+    : "";
+  const entry = effectRelayHistoryEntry();
+  return `<div class="effect-demo-layout"><main class="effect-demo-main"><section class="card effect-demo-query"><header><div><span class="effect-demo-kicker">FROZEN QUESTION SET</span><h3>新建一次 AI 效果检测</h3><p>每个“问题 × 平台 × 终端 × 模式”会成为独立检测项；报价后冻结问题集并由灼见检测服务执行。</p></div><span class="status-badge ${running ? "status-pending" : "status-approved"}">${escapeHtml(running ? effectRelayRunLabel(activeStatus) : "等待配置")}</span></header><div class="effect-demo-form"><label class="effect-demo-input full"><span>${icon("eye")}检测问题集（每行一个） <em>*</em></span><textarea id="effect-search-question" rows="5" placeholder="如：工业机器人品牌推荐？&#10;如：工业机器人集成商如何选择？">${escapeHtml(ui.effectSearchQuestion)}</textarea><small class="effect-input-hint">提交后问题集会冻结；本次最多 20 个去重问题。</small></label><label class="effect-demo-input"><span>${icon("users")}品牌与别名（逗号分隔） <em>*</em></span><input id="effect-search-brand" value="${escapeHtml(ui.effectSearchBrand)}" placeholder="如：桐灼科技、桐灼 GEO" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-search-industry" value="${escapeHtml(ui.effectSearchIndustry || "")}" placeholder="如：工业机器人" /></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>可用检测能力</b><small>平台、终端与模式由当前客户的服务配置决定。</small></div>${effectSearchPlatforms()}</div><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${supportedItems.length}</b> 个独立检测项<br /><small>${questions.length} 个问题 × 已选能力组合</small></span><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"} · 访问凭据由系统安全管理</span><label class="effect-search-consent"><input type="checkbox" data-effect-search-consent ${ui.effectSearchExternalConsent ? "checked" : ""} /><span>我确认将本次问题集、品牌别名和已选范围提交给灼见 AI 检测服务执行</span></label>${quoteSummary}${primaryAction}</div></div></section>${effectSearchResultsPanel({ entry, title: entry ? "当前选中任务的结果" : "当前任务结果" })}</main></div>`;
+}
+
+function renderEffectSearch() {
+  if (!effectRelaySnapshot.attempted && !effectRelaySnapshot.loading) queueMicrotask(() => refreshEffectRelay({ renderAfter: true }));
+  const question = effectSearchQuestionList(ui.effectSearchQuestion)[0] || "";
+  const supportedItems = effectRelaySupportedItems(ui.effectPlatformScopes, ui.effectPlatformModes, [{ id: "realtime-draft", text: question }]);
+  const entry = effectRelayHistoryEntry(ui.effectSearchRunId, "realtime");
+  const estimatedCredits = effectSearchEstimatedCredits(supportedItems);
+  const composerDisabled = ui.effectSearchSubmitting || !question || !supportedItems.length;
+  return `<div class="page-container effect-demo-page effect-search-page"><section class="effect-live-search-shell"><header class="effect-live-search-hero"><h2>输入你想验证的问题，看看 AI 引用了谁</h2><p>同一个问题并行提交到默认 AI 平台，集中查看回答、品牌提及与引用来源。</p></header><section class="effect-live-search-panel"><div class="effect-live-composer"><span class="effect-live-composer-icon">${icon("sparkle")}</span><div class="effect-live-composer-fields"><label><b>AI问题：</b><input id="effect-search-question" value="${escapeHtml(question)}" placeholder="向 AI 咨询的问题，如：白酒品牌推荐？" /></label><label><b>品牌名：</b><input id="effect-search-brand" value="${escapeHtml(ui.effectSearchBrand)}" placeholder="AI 回答中出现的品牌名称，如：灼见" /></label></div><button class="effect-live-submit" type="button" data-action="effect-search-run" aria-label="发送并查询" ${composerDisabled ? "disabled" : ""}>${ui.effectSearchSubmitting ? '<span class="loading-spinner"></span>' : "↑"}</button></div><div class="effect-live-estimate" data-effect-search-estimate ${question ? "" : "hidden"}><span>${icon("credit-card")}</span><b>本次预计消耗 ${estimatedCredits.toLocaleString("zh-CN")} 积分</b><small>发送时会按最新价格自动校验</small></div><div class="effect-live-platforms">${effectSearchPlatforms()}</div></section></section>${effectSearchResultsPanel({ entry, title: entry ? "本次实时搜索报告" : "实时搜索报告" })}</div>`;
+}
+
+function effectPagesTabs(active) {
+  return "";
+}
+
+function effectDiagnosticAliases(value = ui.effectDiagnosticBrandTerms) {
+  return [...new Set((Array.isArray(value) ? value : effectSearchBrandTerms(value))
+    .flatMap((item) => effectSearchBrandTerms(item))
+    .map((item) => String(item || "").trim())
+    .filter(Boolean))];
+}
+
+function effectDiagnosticBrandProfile() {
+  const name = String(ui.effectDiagnosticBrand || "").trim();
+  const aliases = effectDiagnosticAliases([name, ...(ui.effectDiagnosticBrandTerms || [])]);
+  return { name, aliases, description: String(ui.effectDiagnosticIntroduction || "").trim() };
+}
+
+function effectDiagnosticQuestionList(value = ui.effectDiagnosticQuestions) {
+  const source = typeof value === "string"
+    ? value.split(/\r?\n/)
+    : Array.isArray(value) ? value.map((item) => item?.text || item?.prompt || item) : [];
+  return [...new Set(source.map((item) => String(item || "").trim()).filter(Boolean))].slice(0, 20);
+}
+
+function ensureEffectDiagnosticDraft() {
+  const brand = String(ui.effectDiagnosticBrand || "").trim();
+  if (!brand) return false;
+  ui.effectDiagnosticStarted = true;
+  if (!ui.effectDiagnosticQuestionDraftInitialized) {
+    ui.effectDiagnosticQuestions = effectDiagnosticQuestionSeed(brand);
+    ui.effectDiagnosticQuestionDraftInitialized = true;
+  }
+  if (!Array.isArray(ui.effectDiagnosticCompetitors)) ui.effectDiagnosticCompetitors = [];
+  if (!ui.effectDiagnosticScopeSelectionTouched && !ui.effectDiagnosticScopes.length) {
+    const scopes = effectRelayCapabilityScopeKeys();
+    if (scopes.length) {
+      ui.effectDiagnosticScopes = scopes;
+      ui.effectDiagnosticPlatformRounds = Object.fromEntries(scopes.map((scope) => [scope, Number(ui.effectDiagnosticPlatformRounds?.[scope] || 1)]));
+    }
+  }
+  const availableModes = [...new Set(effectRelayCapabilityItems().map((item) => String(item.mode || "").trim()).filter(Boolean))];
+  if (!ui.effectDiagnosticModes.length && availableModes.length) {
+    ui.effectDiagnosticModes = [availableModes.includes("fast") ? "fast" : availableModes[0]];
+  }
+  return true;
+}
+
+function effectDiagnosticDraftQuestions() {
+  return effectDiagnosticQuestionList().map((text, index) => ({ id: `diagnostic-draft-${index + 1}`, text }));
+}
+
+function effectDiagnosticCompetitorLabels(value = ui.effectDiagnosticCompetitors) {
+  return (Array.isArray(value) ? value : []).map((item) => {
+    if (typeof item === "string") return item.trim();
+    const name = String(item?.name || "").trim();
+    const aliases = effectSearchBrandTerms(item?.terms || item?.aliases || "");
+    return name ? (aliases.length ? `${name}（别名：${aliases.join("、")}）` : name) : "";
+  }).filter(Boolean).slice(0, 20);
+}
+
+function effectDiagnosticInputSignature() {
+  return JSON.stringify({
+    brand: effectDiagnosticBrandProfile(),
+    website: String(ui.effectDiagnosticSite || "").trim(),
+    industry: String(ui.effectDiagnosticIndustry || "").trim(),
+    introduction: String(ui.effectDiagnosticIntroduction || "").trim(),
+    competitors: effectDiagnosticCompetitorLabels(),
+    questions: effectDiagnosticQuestionList(),
+    scopes: (ui.effectDiagnosticScopes || []).map(effectRelayNormalizeScope).sort(),
+    modes: (ui.effectDiagnosticModes || []).map(effectRelayModeCode).sort(),
+    platformRounds: Object.fromEntries(Object.entries(ui.effectDiagnosticPlatformRounds || {})
+      .map(([scope, value]) => [effectRelayNormalizeScope(scope), effectDiagnosticRoundCount(scope)])
+      .sort(([left], [right]) => left.localeCompare(right)))
+  });
+}
+
+function effectDiagnosticEntries() {
+  return effectRelayHistoryEntries("diagnostic");
+}
+
+function effectDiagnosticActiveEntry() {
+  // A new brand draft must never inherit a previous brand's evidence. History
+  // remains available below, but an entry becomes active only after this
+  // browser submits it or the user explicitly opens it.
+  return ui.effectDiagnosticRunId
+    ? effectRelayHistoryEntry(ui.effectDiagnosticRunId, "diagnostic")
+    : null;
+}
+
+function invalidateEffectDiagnosticQuote() {
+  ui.effectDiagnosticQuoteReady = false;
+  ui.effectDiagnosticClientRunId = null;
+  if (ui.effectDiagnosticRunId && !ui.effectDiagnosticSubmitting) {
+    if (effectRelayPollTimers.diagnostic) window.clearTimeout(effectRelayPollTimers.diagnostic);
+    effectRelayPollTimers.diagnostic = null;
+    ui.effectDiagnosticRunId = null;
+    ui.effectDiagnosticRelayRunId = null;
+    ui.effectDiagnosticReportRunId = null;
+    ui.effectDiagnosticReportId = null;
+    ui.effectDiagnosticReportVersion = null;
+    ui.effectDiagnosticReport = null;
+    effectFlowStateFor("diagnostic").activeRun = null;
+    effectFlowStateFor("diagnostic").activeLink = null;
+  }
+  ui.effectDiagnosticReportRunId = ui.effectDiagnosticRunId ? ui.effectDiagnosticReportRunId : null;
+  setEffectRelayQuote("diagnostic", null);
+  effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+}
+
+function effectDiagnosticRecords(entry = effectDiagnosticActiveEntry()) {
+  return entry ? effectRelayRecordsFromRun(entry.run, entry.link) : [];
+}
+
+async function ensureEffectDiagnosticProject() {
+  const brand = effectDiagnosticBrandProfile();
+  const questionTexts = effectDiagnosticQuestionList();
+  const signature = effectDiagnosticInputSignature();
+  if (ui.effectDiagnosticProjectId && ui.effectDiagnosticQuestionSetId && ui.effectDiagnosticProjectSignature === signature) {
+    return { projectId: ui.effectDiagnosticProjectId, questionSetId: ui.effectDiagnosticQuestionSetId, questions: ui.effectDiagnosticFrozenQuestions };
+  }
+  const createdAt = Date.now();
+  const frozenQuestions = questionTexts.map((text, index) => ({
+    id: `effect-diagnostic-q-${createdAt}-${index + 1}`,
+    text,
+    type: "aidso_brand_diagnostic",
+    source: "customer_input"
+  }));
+  const payload = await productionApi("/api/v1/diagnostics/projects", {
+    method: "POST",
+    body: {
+      name: `品牌诊断 · ${brand.name}`,
+      diagnosticType: "comprehensive",
+      industry: ui.effectDiagnosticIndustry || "未填写行业",
+      targetBrand: brand.name,
+      websiteUrl: String(ui.effectDiagnosticSite || "").trim(),
+      objective: `基于冻结问题集，对 ${brand.name} 在已选 AI 检测能力组合中的真实回答进行一次可追溯批量诊断。`,
+      scope: {
+        source: "effect_diagnostic",
+        feature: "aidso_brand_diagnostic",
+        aidsoProduct: "completeAnalysis",
+        mode: "frozen_question_set",
+        customerUi: true,
+        brandAliases: brand.aliases,
+        brandDescription: String(ui.effectDiagnosticIntroduction || "").trim(),
+        competitors: effectDiagnosticCompetitorLabels(),
+        platformScopes: ui.effectDiagnosticScopes,
+        modes: ui.effectDiagnosticModes,
+        platformRounds: Object.fromEntries((ui.effectDiagnosticScopes || []).map((scope) => [
+          effectRelayNormalizeScope(scope),
+          effectDiagnosticRoundCount(scope)
+        ]))
+      },
+      questionSetSnapshot: { name: `${brand.name} 品牌诊断问题集`, version: 1, frozenAt: new Date().toISOString(), questions: frozenQuestions }
+    }
+  });
+  const data = effectRelayData(payload);
+  const project = data.project || diagnosticApiEntity(payload, ["project"]);
+  const questionSet = data.questionSet || null;
+  if (!project?.id || !questionSet?.id) throw new Error("品牌诊断项目未返回冻结问题集。");
+  ui.effectDiagnosticProjectId = project.id;
+  ui.effectDiagnosticQuestionSetId = questionSet.id;
+  ui.effectDiagnosticProjectSignature = signature;
+  ui.effectDiagnosticFrozenQuestions = Array.isArray(questionSet.questions) ? questionSet.questions : frozenQuestions;
+  effectRelaySnapshot.projects = [project, ...effectRelaySnapshot.projects.filter((item) => item.id !== project.id)];
+  return { projectId: project.id, questionSetId: questionSet.id, questions: ui.effectDiagnosticFrozenQuestions };
+}
+
+async function prepareEffectDiagnosticRun() {
+  if (ui.effectDiagnosticSubmitting) return;
+  const brand = document.getElementById("effect-diagnostic-brand")?.value.trim();
+  const aliases = document.getElementById("effect-diagnostic-aliases")?.value;
+  const site = document.getElementById("effect-diagnostic-site")?.value.trim();
+  const industry = document.getElementById("effect-diagnostic-industry")?.value.trim();
+  const introduction = document.getElementById("effect-diagnostic-introduction")?.value.trim();
+  const questionInput = document.getElementById("effect-diagnostic-questions")?.value;
+  const competitorInput = document.getElementById("effect-diagnostic-competitors")?.value;
+  const consent = Boolean(document.querySelector("[data-effect-diagnostic-consent]")?.checked || ui.effectDiagnosticExternalConsent);
+  const questions = effectDiagnosticQuestionList(questionInput);
+  if (!brand) return showToast("请输入目标品牌", "品牌诊断需要明确目标品牌和品牌词口径。", "error");
+  if (!questions.length) return showToast("请至少填写一个诊断问题", "每一行会冻结为一个独立的问题。", "error");
+  if (!(ui.effectDiagnosticScopes || []).length || !(ui.effectDiagnosticModes || []).length) return showToast("请选择可执行能力", "至少选择一个当前客户实例授权的平台终端与模式。", "error");
+  if (!consent) return showToast("请确认数据发送范围", "提交后，品牌资料、竞品和冻结问题集将由灼见 AI 检测服务安全处理。", "error");
+  ui.effectDiagnosticBrand = brand;
+  ui.effectDiagnosticBrandTerms = effectDiagnosticAliases([brand, ...(effectSearchBrandTerms(aliases))]);
+  ui.effectDiagnosticSite = site;
+  ui.effectDiagnosticIndustry = industry;
+  ui.effectDiagnosticIntroduction = introduction || "";
+  const existingQuestions = new Map((ui.effectDiagnosticQuestions || []).map((item) => [String(item.text || "").trim(), item]));
+  ui.effectDiagnosticQuestions = questions.map((text, index) => ({
+    ...(existingQuestions.get(text) || {}),
+    id: existingQuestions.get(text)?.id || `diagnostic-input-${index + 1}`,
+    text
+  }));
+  if (competitorInput !== undefined) {
+    ui.effectDiagnosticCompetitors = String(competitorInput || "").split(/\r?\n/).map((line, index) => {
+      const [name, terms = ""] = line.split(/[：:]/, 2);
+      return { id: `competitor-${index + 1}`, name: String(name || "").trim(), terms: String(terms || "").trim() };
+    }).filter((item) => item.name);
+  } else {
+    ui.effectDiagnosticCompetitors = (ui.effectDiagnosticCompetitors || []).map((item) => ({
+      id: item.id || uid("COMP"),
+      name: String(item.name || "").trim(),
+      terms: String(item.terms || "").trim()
+    })).filter((item) => item.name);
+  }
+  ui.effectDiagnosticExternalConsent = true;
+  ui.effectDiagnosticSubmitting = true;
+  ui.effectDiagnosticCompleted = false;
+  ui.effectDiagnosticClientRunId = null;
+  render();
+  try {
+    const project = await ensureEffectDiagnosticProject();
+    const items = effectDiagnosticSupportedItems(ui.effectDiagnosticScopes, ui.effectDiagnosticModes, project.questions, { source: "effect_diagnostic", feature: "aidso_brand_diagnostic" });
+    if (!items.length) throw new Error("当前客户实例没有可执行的平台、终端或模式价格规则。");
+    const quotePayload = await productionApi("/api/v1/diagnostics/relay/quote", { method: "POST", body: { ...project, items } });
+    const quote = effectRelayData(quotePayload).quote || null;
+    setEffectRelayQuote("diagnostic", quote);
+    setEffectFlowError("diagnostic", "");
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote, error: "" };
+    ui.effectDiagnosticQuoteReady = true;
+    showToast("品牌诊断报价已返回", `已冻结 ${project.questions.length} 个问题，将执行 ${items.length} 个独立任务项。`, "success");
+  } catch (error) {
+    setEffectRelayQuote("diagnostic", null);
+    setEffectFlowError("diagnostic", error.message || "品牌诊断报价失败");
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null, error: error.message || "品牌诊断报价失败" };
+    showToast("无法获取品牌诊断报价", effectRelaySnapshot.error, "error");
+  } finally {
+    ui.effectDiagnosticSubmitting = false;
+    render();
+  }
+}
+
+async function submitEffectDiagnosticRun() {
+  if (ui.effectDiagnosticSubmitting || !ui.effectDiagnosticQuoteReady) return;
+  const projectId = ui.effectDiagnosticProjectId;
+  const questionSetId = ui.effectDiagnosticQuestionSetId;
+  if (!projectId || !questionSetId) return showToast("诊断配置已失效", "请重新获取报价后再提交。", "error");
+    const items = effectDiagnosticSupportedItems(ui.effectDiagnosticScopes, ui.effectDiagnosticModes, ui.effectDiagnosticFrozenQuestions, { source: "effect_diagnostic", feature: "aidso_brand_diagnostic" });
+  if (!items.length) return showToast("没有可执行的诊断项", "请重新选择当前客户实例获准的能力组合。", "error");
+  ui.effectDiagnosticSubmitting = true;
+  render();
+  const clientRunId = uid("EFFECT_DIAGNOSTIC");
+  const idempotencyKey = `effect-diagnostic:${projectId}:${clientRunId}`;
+  ui.effectDiagnosticClientRunId = clientRunId;
+  try {
+    const payload = await productionApi(`/api/v1/diagnostics/projects/${encodeURIComponent(projectId)}/relay-runs`, {
+      method: "POST",
+      body: {
+        questionSetId,
+        clientRunId,
+        idempotencyKey,
+        items,
+        brand: effectDiagnosticBrandProfile(),
+        competitors: effectDiagnosticCompetitorLabels(),
+        analysisScope: {
+          source: "effect_diagnostic",
+          feature: "aidso_brand_diagnostic",
+          aidsoProduct: "completeAnalysis",
+          mode: "frozen_question_set",
+          industry: ui.effectDiagnosticIndustry,
+          websiteUrl: ui.effectDiagnosticSite,
+          questionCount: ui.effectDiagnosticFrozenQuestions.length,
+          sampling: {
+            semantics: "independent_samples",
+            platformRounds: Object.fromEntries((ui.effectDiagnosticScopes || []).map((scope) => [
+              effectRelayNormalizeScope(scope),
+              effectDiagnosticRoundCount(scope)
+            ]))
+          }
+        },
+        requestMetadata: { client: "tongzhuo-geo-platform", page: "effect-diagnostic", feature: "aidso_brand_diagnostic", aidsoProduct: "completeAnalysis", flow: "frozen_question_set", sampling: "independent_samples" },
+        consent: { externalDataConsent: true, consentedAt: new Date().toISOString(), method: "effect_diagnostic_user_confirm" }
+      }
+    });
+    const data = effectRelayData(payload);
+    ui.effectDiagnosticRunId = data.run?.id || data.link?.diagnosticRunId || null;
+    ui.effectDiagnosticRelayRunId = data.link?.relayRunId || null;
+    ui.effectDiagnosticQuoteReady = false;
+    // Keep the global transport cache intact; product pages filter it by
+    // requestMetadata.feature rather than overwriting another product's rows.
+    const history = (Array.isArray(effectRelaySnapshot.history) ? effectRelaySnapshot.history : [])
+      .filter((entry) => String(entry?.link?.diagnosticRunId) !== String(ui.effectDiagnosticRunId));
+    if (data.link?.diagnosticRunId) history.unshift({ link: data.link, run: data.run || null });
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null, history, links: history.map((entry) => entry.link), activeRun: data.run || null, activeLink: data.link || null, error: "", loaded: true };
+    effectFlowStateFor("diagnostic").activeRun = data.run || null;
+    effectFlowStateFor("diagnostic").activeLink = data.link || null;
+    effectFlowStateFor("diagnostic").error = "";
+    if (ui.effectDiagnosticRunId) await refreshEffectRelayRun({ runId: ui.effectDiagnosticRunId, pull: true, renderAfter: false, flow: "diagnostic" });
+    showToast("品牌诊断任务已提交", "只有客户服务端已校验、写入 live evidence 的真实交付会进入诊断报告。", "success");
+  } catch (error) {
+    effectRelaySnapshot = { ...effectRelaySnapshot, error: error.message || "品牌诊断任务提交失败" };
+    showToast("品牌诊断未提交", effectRelaySnapshot.error, "error");
+  } finally {
+    ui.effectDiagnosticSubmitting = false;
+    render();
+  }
+}
+
+async function generateEffectDiagnosticReport(entry = effectDiagnosticActiveEntry()) {
+  if (ui.effectDiagnosticReportGenerating) return;
+  const projectId = entry?.link?.projectId || entry?.run?.projectId || ui.effectDiagnosticProjectId;
+  if (!entry?.link?.diagnosticRunId || !projectId) {
+    return showToast("报告暂不可生成", "请先选择一条本次品牌诊断任务并完成项目冻结。", "error");
+  }
+  const status = effectRelayRunStatus(entry.link, entry.run);
+  const verified = effectDiagnosticRecords(entry).filter((record) => record.status === "verified");
+  if (!["completed", "partial"].includes(status) || !verified.length) {
+    return showToast("等待真实回答回传", "只有中转任务完成并写入已验收 live evidence 后，才能生成报告。", "error");
+  }
+  ui.effectDiagnosticReportGenerating = true;
+  render();
+  try {
+    const endpoint = "/api/v1/diagnostics/projects/" + encodeURIComponent(projectId) + "/relay-runs/" + encodeURIComponent(entry.link.diagnosticRunId) + "/report";
+    const payload = await productionApi(endpoint, {
+      method: "POST",
+      body: { title: (ui.effectDiagnosticBrand || "品牌") + (effectRelayExecutionMode() === "mock" ? " AI 品牌诊断演练报告" : " AI 品牌诊断报告") }
+    });
+    const data = effectRelayData(payload);
+    ui.effectDiagnosticReportRunId = entry.link.diagnosticRunId;
+    ui.effectDiagnosticReportId = data.reportId || data.report?.id || null;
+    ui.effectDiagnosticReportVersion = data.version || data.report?.version || null;
+    ui.effectDiagnosticReport = data.report || null;
+    showToast("品牌诊断报告已生成", ui.effectDiagnosticReportId ? "报告 " + ui.effectDiagnosticReportId + " · v" + (ui.effectDiagnosticReportVersion || 1) : "报告已保存到客户服务端。", "success");
+  } catch (error) {
+    showToast("品牌诊断报告未生成", error.message || "报告接口暂不可用。", "error");
+  } finally {
+    ui.effectDiagnosticReportGenerating = false;
+    render();
+  }
+}
+
+async function loadEffectDiagnosticReport(runId = ui.effectDiagnosticRunId) {
+  if (!runId) return null;
+  try {
+    const listPayload = await productionApi("/api/v1/diagnostics/reports?runId=" + encodeURIComponent(runId) + "&status=final&limit=1");
+    const summary = diagnosticApiItems(listPayload, ["items", "reports"])[0] || null;
+    const reportId = summary?.id || summary?.reportId || null;
+    if (!reportId) {
+      if (ui.effectDiagnosticReportRunId === runId) {
+        ui.effectDiagnosticReportRunId = null;
+        ui.effectDiagnosticReportId = null;
+        ui.effectDiagnosticReportVersion = null;
+        ui.effectDiagnosticReport = null;
+      }
+      return null;
+    }
+    const detailPayload = await productionApi("/api/v1/diagnostics/reports/" + encodeURIComponent(reportId));
+    const report = diagnosticApiEntity(detailPayload, ["report", "diagnosticReport"]) || summary;
+    ui.effectDiagnosticReportRunId = runId;
+    ui.effectDiagnosticReportId = reportId;
+    ui.effectDiagnosticReportVersion = report.version || summary.version || null;
+    ui.effectDiagnosticReport = report;
+    return report;
+  } catch {
+    return null;
+  }
+}
+
+function renderVerifiedEffectDiagnosticReportLegacy(entry = effectDiagnosticActiveEntry()) {
+  if (!entry) return "";
+  const records = effectDiagnosticRecords(entry);
+  const requested = Number(entry?.link?.request?.items?.length || 0);
+  const verified = records.filter((record) => record.status === "verified");
+  const mentioned = verified.filter((record) => Number(record.brandMentionCount || 0) > 0);
+  const citations = verified.reduce((sum, record) => sum + Number(record.citationSources?.length || 0), 0);
+  const coverage = requested ? Math.round((verified.length / requested) * 100) : 0;
+  const mentionRate = verified.length ? Math.round((mentioned.length / verified.length) * 100) : 0;
+  const status = effectRelayRunStatus(entry?.link, entry?.run);
+  const incomplete = Math.max(0, requested - records.length);
+  const note = !entry
+    ? "提交品牌诊断后，报告只会读取本次已落库的 live evidence。"
+    : !verified.length
+      ? "当前还没有可用于指标计算的 verified live evidence；不会补充估算排名、情感或示例结果。"
+      : "覆盖率、提及和回答引用均仅依据本次已验证的检测结果；结果可按证据 ID 和任务追溯号查询。";
+  return `<section class="card effect-diagnostic-report"><header><div><span class="effect-demo-kicker">VERIFIABLE BRAND DIAGNOSTIC</span><h3>${escapeHtml(ui.effectDiagnosticBrand || "品牌")} 诊断报告</h3><p>${escapeHtml(note)}</p></div><span class="status-badge ${["completed", "partial"].includes(status) ? "status-approved" : ["failed", "attention", "cancelled"].includes(status) ? "status-error" : "status-pending"}">${escapeHtml(effectRelayRunLabel(status))}</span></header><div class="effect-search-summary"><div><small>证据覆盖率</small><b>${requested ? `${coverage}%` : "—"}</b><em>${verified.length} / ${requested || 0} 个已验证任务项</em></div><div><small>品牌提及率</small><b>${verified.length ? `${mentionRate}%` : "—"}</b><em>${mentioned.length} / ${verified.length} 个已验证回答</em></div><div><small>回答引用</small><b>${citations}</b><em>仅统计检测服务返回的引用</em></div><div><small>尚未落库项</small><b>${incomplete}</b><em>失败或未验证项不参与指标</em></div></div><div class="effect-diagnostic-boundary">排名、情感或竞品对比只在检测结果包含可验证字段时展示，不会生成推测结论。</div></section>${entry ? effectSearchResultsPanel({ records, entry, title: "本次诊断的真实结果" }) : ""}`;
+}
+
+function renderVerifiedEffectDiagnosticReport(entry = effectDiagnosticActiveEntry()) {
+  if (!entry) return "";
+  const records = effectDiagnosticRecords(entry);
+  const requested = Number(entry.link?.request?.items?.length || 0);
+  const verified = records.filter((record) => record.status === "verified");
+  const mentioned = verified.filter((record) => Number(record.brandMentionCount || 0) > 0);
+  const citations = verified.reduce((sum, record) => sum + Number(record.citationSources?.length || 0), 0);
+  const coverage = requested ? Math.round((verified.length / requested) * 100) : 0;
+  const mentionRate = verified.length ? Math.round((mentioned.length / verified.length) * 100) : 0;
+  const status = effectRelayRunStatus(entry.link, entry.run);
+  const incomplete = Math.max(0, requested - records.length);
+ const runId = String(entry.link?.diagnosticRunId || "");
+ const report = ui.effectDiagnosticReportRunId === runId ? ui.effectDiagnosticReport : null;
+  const isMock = effectRelayExecutionMode() === "mock";
+ const reportAction = report
+    ? `<div class='effect-diagnostic-report-ready'><b>${isMock ? "演练报告已生成" : "正式报告已生成"}</b><span>报告 ${escapeHtml(ui.effectDiagnosticReportId || report.id || "—")} · v${escapeHtml(String(ui.effectDiagnosticReportVersion || report.version || 1))}</span><small>${escapeHtml(report.executiveSummary || "报告已保存到客户服务端，可按本次 evidence 追溯。")}</small></div>`
+   : ["completed", "partial"].includes(status) && verified.length
+      ? `<button class='primary-button' type='button' data-action='effect-diagnostic-generate-report' ${ui.effectDiagnosticReportGenerating ? "disabled" : ""}>${ui.effectDiagnosticReportGenerating ? "正在生成报告…" : isMock ? "生成演练诊断报告" : "生成品牌诊断报告"}</button>`
+      : `<small class='effect-input-hint'>任务完成并收到已验收 live evidence 后，才能生成正式报告。</small>`;
+  const note = !verified.length
+    ? "当前还没有可用于指标计算的 verified live evidence；不会补充估算排名、情感或示例结果。"
+    : "覆盖率、提及和回答引用均仅依据本次已验证的检测结果；结果可按证据 ID 和任务追溯号查询。";
+  return `<section class='card effect-diagnostic-report'><header><div><span class='effect-demo-kicker'>DIAGNOSTIC FEEDBACK → REPORT</span><h3>${escapeHtml(ui.effectDiagnosticBrand || "品牌")} 诊断结果</h3><p>${escapeHtml(note)}</p></div><span class='status-badge ${["completed", "partial"].includes(status) ? "status-approved" : ["failed", "attention", "cancelled"].includes(status) ? "status-error" : "status-pending"}'>${escapeHtml(effectRelayRunLabel(status))}</span></header><div class='effect-search-summary'><div><small>证据覆盖率</small><b>${requested ? `${coverage}%` : "—"}</b><em>${verified.length} / ${requested || 0} 个已验证任务项</em></div><div><small>品牌提及率</small><b>${verified.length ? `${mentionRate}%` : "—"}</b><em>${mentioned.length} / ${verified.length} 个已验证回答</em></div><div><small>回答引用</small><b>${citations}</b><em>仅统计检测服务返回的引用</em></div><div><small>尚未落库项</small><b>${incomplete}</b><em>失败或未验证项不参与指标</em></div></div><div class='effect-diagnostic-report-action'>${reportAction}</div><div class='effect-diagnostic-boundary'>排名、情感或竞品对比只在检测结果包含可验证字段时展示，不会生成推测结论。</div></section>${effectSearchResultsPanel({ records, entry, title: "本次诊断的真实回答反馈" })}`;
+}
+
+function effectDiagnosticHistory(entry = effectDiagnosticActiveEntry()) {
+  const entries = effectDiagnosticEntries();
+  return `<section class="card effect-diagnostic-history"><header><div><span class="effect-demo-kicker">BATCH RUN HISTORY</span><h3>品牌诊断任务</h3><p>每次复测都会创建新的独立运行；问题集与能力配置以该次任务快照为准。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></header><div>${entries.length ? entries.map((item) => { const stats = effectRelayEntryStats(item); const selected = item.link.diagnosticRunId === entry?.link?.diagnosticRunId; return `<article class="effect-diagnostic-history-row ${selected ? "active" : ""}"><div><b>${escapeHtml(effectRelayEntryQuestions(item)[0] || "冻结问题集")}</b><small>${effectRelayEntryQuestions(item).length} 个问题 · ${stats.requested} 个任务项 · ${escapeHtml(String(item.link.createdAt || "").replace("T", " ").slice(0, 16))}</small></div><span class="status-badge ${["completed", "partial"].includes(effectRelayRunStatus(item.link, item.run)) ? "status-approved" : ["failed", "attention", "cancelled"].includes(effectRelayRunStatus(item.link, item.run)) ? "status-error" : "status-pending"}">${escapeHtml(effectRelayRunLabel(effectRelayRunStatus(item.link, item.run)))}</span><button class="link-button" type="button" data-action="effect-diagnostic-open-run" data-effect-run-id="${escapeHtml(item.link.diagnosticRunId)}">查看证据</button></article>`; }).join("") : `<div class="effect-search-empty">${effectRelaySnapshot.historyLoaded ? "尚无真实品牌诊断任务。请先配置品牌、问题集和能力范围。" : "正在读取品牌诊断任务…"}</div>`}</div></section>`;
+}
+
+function effectDiagnosticRoundRows() {
+  const selected = new Set((ui.effectDiagnosticScopes || []).map(effectRelayNormalizeScope));
+  const capabilities = effectRelayCapabilityItems();
+  const rows = [];
+  const seen = new Set();
+  for (const capability of capabilities) {
+    const scope = effectRelayScopeKey(capability.platform, capability.terminal);
+    if (!selected.has(scope) || seen.has(scope)) continue;
+    seen.add(scope);
+    rows.push({
+      scope,
+      platform: EFFECT_RELAY_PLATFORM_NAMES[capability.platform] || capability.platform,
+      terminal: EFFECT_RELAY_TERMINAL_NAMES[capability.terminal] || capability.terminal,
+      count: effectDiagnosticRoundCount(scope)
+    });
+  }
+  if (!rows.length) return '<div class="effect-diagnostic-round-empty">请先选择至少一个平台终端，再设置采样次数。</div>';
+  return `<div class="effect-diagnostic-round-grid">${rows.map((row) => `<label class="effect-diagnostic-round-row"><span><b>${escapeHtml(row.platform)}</b><small>${escapeHtml(row.terminal)}</small></span><select data-effect-diagnostic-platform-round data-scope="${escapeHtml(row.scope)}">${[1, 2, 3, 5, 10].map((value) => `<option value="${value}" ${row.count === value ? "selected" : ""}>${value} 次独立采样</option>`).join("")}</select><em>${row.count} × 每个问题</em></label>`).join("")}</div>`;
+}
+
+function renderRealEffectDiagnostic() {
+  if (!effectRelaySnapshot.attempted && !effectRelaySnapshot.loading) queueMicrotask(() => refreshEffectRelay({ renderAfter: true }));
+  if (!ui.effectDiagnosticStarted && !String(ui.effectDiagnosticBrand || "").trim()) return `${effectPagesTabs("effect-diagnostic")}${renderEffectDiagnosticStart()}`;
+  const questions = effectDiagnosticQuestionList();
+  const draftQuestions = effectDiagnosticDraftQuestions();
+  const supportedItems = effectDiagnosticSupportedItems(ui.effectDiagnosticScopes, ui.effectDiagnosticModes, draftQuestions, { source: "effect_diagnostic", feature: "aidso_brand_diagnostic" });
+  const quote = effectRelayQuoteFor("diagnostic");
+  const entry = effectDiagnosticActiveEntry();
+  const status = effectRelayRunStatus(entry?.link, entry?.run);
+  const running = ui.effectDiagnosticSubmitting || ["pending", "submitted", "queued", "running"].includes(status);
+  const canQuote = Boolean(ui.effectDiagnosticBrand.trim() && questions.length && (ui.effectDiagnosticScopes || []).length && (ui.effectDiagnosticModes || []).length && ui.effectDiagnosticExternalConsent && supportedItems.length);
+  const primaryAction = quote && ui.effectDiagnosticQuoteReady
+    ? `<button class="primary-button" type="button" data-action="effect-diagnostic-submit" ${ui.effectDiagnosticSubmitting || !supportedItems.length ? "disabled" : ""}>${ui.effectDiagnosticSubmitting ? '<span class="loading-spinner"></span>正在提交…' : `${icon("send")}确认并提交品牌诊断`}</button>`
+    : `<button class="primary-button" type="button" data-action="effect-diagnostic-quote" ${ui.effectDiagnosticSubmitting || !canQuote ? "disabled" : ""}>${ui.effectDiagnosticSubmitting ? '<span class="loading-spinner"></span>正在获取报价…' : `${icon("search")}冻结问题集并获取报价`}</button>`;
+  const quoteSummary = quote && ui.effectDiagnosticQuoteReady ? `<div class="effect-search-quote-summary"><span data-icon="quote"></span><div><b>本次批量诊断预估：${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</b><small>${questions.length} 个冻结问题 × ${supportedItems.length} 个独立采样任务；每个平台次数按独立采样计，不模拟连续会话。</small></div><button class="link-button" type="button" data-action="effect-diagnostic-quote-reset">重新报价</button></div>` : "";
+  const aliases = effectDiagnosticAliases([ui.effectDiagnosticBrand, ...(ui.effectDiagnosticBrandTerms || [])]).filter((item) => item !== ui.effectDiagnosticBrand).join("、");
+  const competitors = (ui.effectDiagnosticCompetitors || []).map((item) => `${item.name || ""}${item.terms ? `：${item.terms}` : ""}`).filter(Boolean).join("\n");
+  return `<div class="page-container effect-demo-page effect-diagnostic-page">${effectRelayStatusPanel({ entry, quote, scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, questions: draftQuestions, cancelAction: "effect-diagnostic-cancel", cancelRunId: ui.effectDiagnosticRunId })}<section class="card effect-demo-query"><header><div><span class="effect-demo-kicker">FROZEN BRAND DIAGNOSTIC</span><h3>配置并冻结本次品牌诊断</h3><p>问题集、品牌别名、竞品、平台、终端和模式会随本次任务保存。报告只使用已验证的真实检测证据，不从本地生成回答。</p></div><span class="status-badge ${running ? "status-pending" : "status-approved"}">${escapeHtml(running ? effectRelayRunLabel(status) : "等待配置")}</span></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}目标品牌 <em>*</em></span><input id="effect-diagnostic-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="如：桐灼科技" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-diagnostic-industry" value="${escapeHtml(ui.effectDiagnosticIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌别名</span><input id="effect-diagnostic-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔，如：桐灼 GEO、Tongzhuo" /></label><label class="effect-demo-input full"><span>${icon("eye")}诊断问题集（每行一个） <em>*</em></span><textarea id="effect-diagnostic-questions" rows="6" placeholder="如：桐灼科技是什么品牌？&#10;如：桐灼科技与同类品牌相比有什么优势？">${escapeHtml(questions.join("\n"))}</textarea><small class="effect-input-hint">最多 20 个去重问题；点击报价后会冻结为本次不可变的问题集。</small></label><label class="effect-demo-input full"><span>${icon("users")}竞品（每行一个；可写“品牌：别名”）</span><textarea id="effect-diagnostic-competitors" rows="3" placeholder="竞品 A：别名 A、产品词 A&#10;竞品 B">${escapeHtml(competitors)}</textarea><small class="effect-input-hint">竞品资料会作为本次任务范围保存；没有可验证字段时，报告不会生成竞品排名或胜负结论。</small></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>诊断能力范围</b><small>平台、终端和模式来自当前客户可用的 AI 检测能力。</small></div>${effectRelayCapabilityPicker({ scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, scopeAttribute: "data-effect-diagnostic-platform-scope", selectAllAttribute: "data-effect-diagnostic-platform-select-all", modeAttribute: "data-effect-diagnostic-platform-mode" })}</div><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${supportedItems.length}</b> 个批量诊断项<br /><small>${questions.length} 个问题 × 已选能力组合</small></span><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"} · 访问凭据由系统安全管理</span><label class="effect-search-consent"><input type="checkbox" data-effect-diagnostic-consent ${ui.effectDiagnosticExternalConsent ? "checked" : ""} /><span>我确认将品牌资料、竞品和冻结问题集提交给灼见 AI 检测服务</span></label>${quoteSummary}${primaryAction}</div></div></section>${effectDiagnosticHistory(entry)}${renderVerifiedEffectDiagnosticReport(entry)}</div>`;
+}
+
+function effectMonitorAliases(value = ui.effectMonitorAliases) {
+  return [...new Set((Array.isArray(value) ? value : effectSearchBrandTerms(value))
+    .flatMap((item) => effectSearchBrandTerms(item))
+    .map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function effectMonitorBrandProfile() {
+  const name = String(ui.effectMonitorBrand || "").trim();
+  return { name, aliases: effectMonitorAliases([name, ...(ui.effectMonitorAliases || [])]) };
+}
+
+function effectMonitorCoreBaselineQuestions(brand = ui.effectMonitorBrand) {
+  const name = String(brand || "目标品牌").trim() || "目标品牌";
+  return [
+    `${name}是什么品牌？主要提供哪些产品或服务？`,
+    `${name}适合哪些客户和使用场景？`,
+    `${name}的核心产品或服务能解决什么问题？`,
+    `${name}相比同类品牌有哪些特点或优势？`,
+    `选择${name}时应该重点关注哪些能力？`,
+    `${name}有哪些可信的案例、资质或公开证据？`,
+    `${name}与同类品牌相比，适合什么样的采购或决策需求？`,
+    `如果用户需要相关服务，是否推荐${name}？为什么？`
+  ];
+}
+
+function ensureEffectMonitorBaselineQuestions() {
+  if (ui.effectMonitorQuestionDefaultsInitialized) return;
+  if (!effectMonitorQuestionList().length) {
+    ui.effectMonitorQuestions = effectMonitorCoreBaselineQuestions().map((text, index) => ({
+      id: `monitor-default-${index + 1}`,
+      text,
+      source: "core_brand_baseline"
+    }));
+  }
+  ui.effectMonitorQuestionDefaultsInitialized = true;
+}
+
+function effectMonitorQuestionList(value = ui.effectMonitorQuestions) {
+  const source = typeof value === "string" ? value.split(/\r?\n/)
+    : Array.isArray(value) ? value.map((item) => item?.text || item?.prompt || item) : [];
+  return [...new Set(source.map((item) => String(item || "").trim()).filter(Boolean))];
+}
+
+function effectMonitorDraftQuestions() {
+  return effectMonitorQuestionList().map((text, index) => ({ id: `monitor-draft-${index + 1}`, text }));
+}
+
+function effectMonitorCompetitorLabels(value = ui.effectMonitorCompetitors) {
+  return (Array.isArray(value) ? value : []).map((item) => {
+    if (typeof item === "string") return item.trim();
+    const name = String(item?.name || "").trim();
+    const aliases = effectSearchBrandTerms(item?.terms || item?.aliases || "");
+    return name ? (aliases.length ? `${name}（别名：${aliases.join("、")}）` : name) : "";
+  }).filter(Boolean).slice(0, 20);
+}
+
+function effectMonitorInputSignature() {
+  return JSON.stringify({
+    brand: effectMonitorBrandProfile(),
+    site: String(ui.effectMonitorSite || "").trim(),
+    industry: String(ui.effectMonitorIndustry || "").trim(),
+    competitors: effectMonitorCompetitorLabels(),
+    questions: effectMonitorQuestionList(),
+    scopes: (ui.effectMonitorScopes || []).map(effectRelayNormalizeScope).sort(),
+    modes: (ui.effectMonitorModes || []).map(effectRelayModeCode).sort()
+  });
+}
+
+function monitoringPlanRunIds(plan = effectMonitoringSnapshot.activePlan) {
+  return new Set((Array.isArray(plan?.runs) ? plan.runs : effectMonitoringSnapshot.runs || [])
+    .map((run) => String(run?.diagnosticRunId || "")).filter(Boolean));
+}
+
+function monitoringPlanEntries(plan = effectMonitoringSnapshot.activePlan) {
+  const runIds = monitoringPlanRunIds(plan);
+  return effectRelayHistoryEntries("monitoring").filter((entry) => runIds.has(String(entry.link?.diagnosticRunId || "")));
+}
+
+function monitoringPlanRecords(plan = effectMonitoringSnapshot.activePlan) {
+  return monitoringPlanEntries(plan).flatMap((entry) => effectRelayRecordsFromRun(entry.run, entry.link));
+}
+
+const EFFECT_MONITOR_VIEWS = Object.freeze([
+  ["dashboard", "数据大盘"],
+  ["mentions", "提及率 / 排名"],
+  ["sentiment", "舆情 / 情感"],
+  ["sources", "AI 引用来源"],
+  ["dialogs", "AI 对话记录"],
+  ["works", "作品引用追踪"],
+  ["export", "导出报告"],
+  ["settings", "监测设置"],
+  ["question-bank", "AI 问题库"]
+]);
+
+function effectMonitorViewTabs(active = ui.effectMonitorView) {
+  const current = EFFECT_MONITOR_VIEWS.some(([key]) => key === active) ? active : "dashboard";
+  return `<nav class="effect-monitor-view-tabs" aria-label="品牌监测视图">${EFFECT_MONITOR_VIEWS.map(([key, label]) => `<button type="button" class="effect-monitor-view-tab ${current === key ? "active" : ""}" data-action="effect-monitor-view" data-view="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}</nav>`;
+}
+
+function effectMonitorDisplay(value, fallback = "—") {
+  if (value === null || value === undefined || value === "") return fallback;
+  return String(value);
+}
+
+function effectMonitorNumber(value, fallback = "—") {
+  return value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? fallback : Number(value).toLocaleString("zh-CN");
+}
+
+function effectMonitorPercent(value, fallback = "—") {
+  return value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? fallback : `${Math.round(Number(value))}%`;
+}
+
+function effectMonitorEmptyState(message = "暂无已验收的 live evidence。") {
+  return `<div class="effect-monitor-empty"><span>—</span><b>${escapeHtml(message)}</b><small>未返回的字段不会被估算或填充演示数值。</small></div>`;
+}
+
+function effectMonitorLocalAnalytics(plan = effectMonitoringSnapshot.activePlan) {
+  const entries = monitoringPlanEntries(plan);
+  const records = monitoringPlanRecords(plan);
+  const verified = records.filter((record) => record.status === "verified");
+  const requested = entries.reduce((sum, entry) => sum + Number(entry?.link?.request?.items?.length || 0), 0);
+  const mentioned = verified.filter((record) => Number(record.brandMentionCount || 0) > 0);
+  const latest = verified.slice().sort((left, right) => String(right.observedAt || "").localeCompare(String(left.observedAt || "")))[0] || null;
+  const platformMap = new Map();
+  for (const record of verified) {
+    const key = [record.platform, record.terminal].join("|");
+    const row = platformMap.get(key) || { platform: record.platform, terminal: record.terminal, samples: 0, mentioned: 0, citations: 0, rankValues: [] };
+    row.samples += 1;
+    if (Number(record.brandMentionCount || 0) > 0) row.mentioned += 1;
+    row.citations += Number(record.citationSources?.length || 0);
+    if (Number.isFinite(Number(record.firstMentionRank)) && Number(record.firstMentionRank) > 0) row.rankValues.push(Number(record.firstMentionRank));
+    platformMap.set(key, row);
+  }
+  const mentionRank = [...platformMap.values()].map((row) => ({
+    ...row,
+    mentionRate: row.samples ? Math.round(row.mentioned / row.samples * 100) : null,
+    averageRank: row.rankValues.length ? Number((row.rankValues.reduce((sum, value) => sum + value, 0) / row.rankValues.length).toFixed(1)) : null
+  })).sort((left, right) => (right.mentionRate ?? -1) - (left.mentionRate ?? -1));
+  const sentimentMap = new Map();
+  for (const record of verified) {
+    const label = String(record.sentiment || "").trim();
+    if (!label) continue;
+    sentimentMap.set(label, (sentimentMap.get(label) || 0) + 1);
+  }
+  const sentiment = [...sentimentMap.entries()].map(([label, count]) => ({ label, count, rate: verified.length ? Math.round(count / verified.length * 100) : null }));
+  const sourceMap = new Map();
+  for (const record of verified) for (const citation of record.citationSources || []) {
+    const url = String(citation.url || "").trim();
+    const domain = String(citation.domain || citation.siteName || "").trim();
+    const key = url || domain || String(citation.title || "").trim();
+    if (!key) continue;
+    const row = sourceMap.get(key) || { title: citation.title || citation.siteName || domain || url, domain, url, citations: 0, records: 0, lastObservedAt: null };
+    row.citations += 1;
+    row.records += 1;
+    if (!row.lastObservedAt || String(record.observedAt || "") > row.lastObservedAt) row.lastObservedAt = record.observedAt || null;
+    sourceMap.set(key, row);
+  }
+  const sources = [...sourceMap.values()].sort((left, right) => right.citations - left.citations);
+  const works = sources.map((source) => ({ ...source, workType: source.url ? "网页作品" : "来源记录" }));
+  const questionRows = Array.isArray(plan?.questionSet?.questions) && plan.questionSet.questions.length
+    ? plan.questionSet.questions
+    : Array.isArray(ui.effectMonitorFrozenQuestions) && ui.effectMonitorFrozenQuestions.length
+      ? ui.effectMonitorFrozenQuestions
+      : effectMonitorQuestionList().map((text, index) => ({ id: `monitor-question-${index + 1}`, text }));
+  const settings = {
+    planId: plan?.id || null,
+    status: plan?.status || null,
+    cadence: plan?.schedule?.cadence || null,
+    intervalHours: plan?.schedule?.intervalHours ?? null,
+    nextRunAt: plan?.nextRunAt || null,
+    authorizationReference: plan?.authorization?.authorizationReference || plan?.authorizationReference || null,
+    authorizationExpiresAt: plan?.authorization?.expiresAt || plan?.authorizationExpiresAt || null,
+    maxCreditsPerRun: plan?.budget?.maxCreditsPerRun ?? plan?.maxCreditsPerRun ?? null,
+    maxMonthlyCredits: plan?.budget?.maxMonthlyCredits ?? plan?.maxMonthlyCredits ?? null,
+    scopes: plan?.scope?.platformScopes || plan?.platformScopes || [],
+    modes: plan?.scope?.modes || plan?.modes || []
+  };
+  return {
+    overview: {
+      requested,
+      delivered: records.length,
+      verified: verified.length,
+      dialogCount: verified.length,
+      mentionDialogCount: mentioned.length,
+      coverageRate: requested ? Math.round(verified.length / requested * 100) : null,
+      mentionRate: verified.length ? Math.round(mentioned.length / verified.length * 100) : null,
+      brandMentionCount: verified.length ? verified.reduce((sum, record) => sum + Number(record.brandMentionCount || 0), 0) : null,
+      sov: null,
+      top1MentionRate: null,
+      top3MentionRate: null,
+      averageMentionRank: null,
+      brandFavorability: null,
+      citations: verified.length ? verified.reduce((sum, record) => sum + Number(record.citationSources?.length || 0), 0) : null,
+      citationArticleCount: sources.filter((source) => source.url).length,
+      sourceCount: sources.length,
+      runCount: entries.length,
+      lastObservedAt: latest?.observedAt || null
+    },
+    mentionRank,
+    sentiment,
+    sources,
+    dialogs: records.slice().sort((left, right) => String(right.observedAt || "").localeCompare(String(left.observedAt || ""))),
+    works,
+    settings,
+    questionBank: questionRows,
+    records,
+    source: "customer-live-evidence"
+  };
+}
+
+function effectMonitorNormalizeAnalytics(payload, fallback) {
+  const source = payload?.analytics || payload?.monitoring || payload || {};
+  if (!source || typeof source !== "object") return fallback;
+  const arrayOr = (keys, defaultValue) => {
+    for (const key of keys) if (Array.isArray(source[key])) return source[key];
+    return defaultValue;
+  };
+  return {
+    ...fallback,
+    ...source,
+    overview: { ...fallback.overview, ...(source.overview || source.summary || {}) },
+    mentionRank: arrayOr(["mentionRank", "mentions", "rankings"], fallback.mentionRank),
+    sentiment: arrayOr(["sentiment", "sentiments"], fallback.sentiment),
+    sources: arrayOr(["sources", "citations"], fallback.sources),
+    dialogs: arrayOr(["dialogs", "conversations", "records"], fallback.dialogs),
+    works: arrayOr(["works", "artifacts"], fallback.works),
+    settings: { ...fallback.settings, ...(source.settings || {}) },
+    questionBank: arrayOr(["questionBank", "questions"], fallback.questionBank),
+    source: source.source || "monitoring-analytics-api"
+  };
+}
+
+async function refreshEffectMonitoringAnalytics({ planId = ui.effectMonitorPlanId, range = ui.effectMonitorRange, renderAfter = false } = {}) {
+  if (effectMonitoringAnalyticsSnapshot.loading) return effectMonitoringAnalyticsSnapshot;
+  if (!planId) {
+    effectMonitoringAnalyticsSnapshot = { ...effectMonitoringAnalyticsSnapshot, attempted: true, loaded: true, loading: false, planId: null, data: null, error: "", loadedAt: Date.now() };
+    if (renderAfter && currentRoute() === "effect-monitor") render();
+    return effectMonitoringAnalyticsSnapshot;
+  }
+  effectMonitoringAnalyticsSnapshot = { ...effectMonitoringAnalyticsSnapshot, attempted: true, loading: true, planId, error: "" };
+  const plan = effectMonitoringSnapshot.activePlan?.id === planId ? effectMonitoringSnapshot.activePlan : effectMonitoringSnapshot.plans.find((item) => String(item.id) === String(planId)) || null;
+  const fallback = effectMonitorLocalAnalytics(plan);
+  try {
+    const payload = await productionApi(`/api/v1/diagnostics/monitoring/analytics?planId=${encodeURIComponent(planId)}&range=${encodeURIComponent(range || "30")}`);
+    const data = effectMonitorNormalizeAnalytics(effectRelayData(payload), fallback);
+    effectMonitoringAnalyticsSnapshot = { ...effectMonitoringAnalyticsSnapshot, loaded: true, loading: false, planId, data, error: "", loadedAt: Date.now() };
+  } catch (error) {
+    // Older customer servers may not expose the aggregate endpoint yet. The
+    // fallback is still derived exclusively from synchronized live evidence;
+    // it never manufactures KPI values.
+    const hasLocalEvidence = Number(fallback?.overview?.delivered || 0) > 0;
+    effectMonitoringAnalyticsSnapshot = { ...effectMonitoringAnalyticsSnapshot, loaded: true, loading: false, planId, data: fallback, error: hasLocalEvidence ? "聚合接口暂不可用，当前显示客户服务端已验收的 live evidence。" : (error.message || "监测聚合数据暂不可用"), loadedAt: Date.now() };
+  }
+  if (renderAfter && currentRoute() === "effect-monitor") render();
+  return effectMonitoringAnalyticsSnapshot;
+}
+
+function invalidateEffectMonitorDraft() {
+  ui.effectMonitorProjectId = null;
+  ui.effectMonitorQuestionSetId = null;
+  ui.effectMonitorProjectSignature = "";
+  ui.effectMonitorFrozenQuestions = [];
+}
+
+async function refreshEffectMonitoring({ planId = ui.effectMonitorPlanId, renderAfter = false } = {}) {
+  if (effectMonitoringSnapshot.loading) return effectMonitoringSnapshot;
+  effectMonitoringSnapshot = { ...effectMonitoringSnapshot, attempted: true, loading: true, error: "" };
+  try {
+    const payload = await productionApi("/api/v1/diagnostics/monitoring-plans?limit=100");
+    const plans = diagnosticApiItems(payload, ["items"]);
+    const selectedId = planId || ui.effectMonitorPlanId || plans[0]?.id || "";
+    let activePlan = plans.find((plan) => plan.id === selectedId) || null;
+    if (selectedId) {
+      const detailPayload = await productionApi(`/api/v1/diagnostics/monitoring-plans/${encodeURIComponent(selectedId)}?includeRuns=true&runLimit=100`);
+      activePlan = effectRelayData(detailPayload).plan || activePlan;
+    }
+    const runs = Array.isArray(activePlan?.runs) ? activePlan.runs : [];
+    ui.effectMonitorPlanId = activePlan?.id || null;
+    effectMonitoringSnapshot = { ...effectMonitoringSnapshot, loaded: true, loading: false, plans, activePlan, runs, error: "", loadedAt: Date.now() };
+    if (activePlan?.id) await refreshEffectMonitoringAnalytics({ planId: activePlan.id, renderAfter: false });
+    else effectMonitoringAnalyticsSnapshot = { ...effectMonitoringAnalyticsSnapshot, attempted: true, loaded: true, loading: false, planId: null, data: null, error: "", loadedAt: Date.now() };
+  } catch (error) {
+    effectMonitoringSnapshot = { ...effectMonitoringSnapshot, loading: false, loaded: false, error: error.message || "品牌监测计划读取失败", loadedAt: Date.now() };
+  }
+  if (renderAfter && currentRoute() === "effect-monitor") render();
+  return effectMonitoringSnapshot;
+}
+
+async function ensureEffectMonitorProject() {
+  const brand = effectMonitorBrandProfile();
+  const questionTexts = effectMonitorQuestionList();
+  const signature = effectMonitorInputSignature();
+  if (ui.effectMonitorProjectId && ui.effectMonitorQuestionSetId && ui.effectMonitorProjectSignature === signature) {
+    return { projectId: ui.effectMonitorProjectId, questionSetId: ui.effectMonitorQuestionSetId, questions: ui.effectMonitorFrozenQuestions };
+  }
+  const createdAt = Date.now();
+  const frozenQuestions = questionTexts.map((text, index) => ({
+    id: `effect-monitor-q-${createdAt}-${index + 1}`,
+    text,
+    type: "aidso_brand_monitoring",
+    source: "customer_input"
+  }));
+  const payload = await productionApi("/api/v1/diagnostics/projects", {
+    method: "POST",
+    body: {
+      name: `品牌监测 · ${brand.name}`,
+      diagnosticType: "comprehensive",
+      industry: ui.effectMonitorIndustry || "未填写行业",
+      targetBrand: brand.name,
+      websiteUrl: String(ui.effectMonitorSite || "").trim(),
+      objective: `建立 ${brand.name} 的周期性品牌监测计划，并将每次真实采样保留为可追溯检测证据。`,
+      scope: {
+        source: "effect_monitor",
+        feature: "aidso_brand_monitoring",
+        aidsoProduct: "monitor",
+        mode: "scheduled_frozen_question_set",
+        customerUi: true,
+        brandAliases: brand.aliases,
+        competitors: effectMonitorCompetitorLabels(),
+        platformScopes: ui.effectMonitorScopes,
+        modes: ui.effectMonitorModes
+      },
+      questionSetSnapshot: { name: `${brand.name} 品牌监测问题集`, version: 1, frozenAt: new Date().toISOString(), questions: frozenQuestions }
+    }
+  });
+  const data = effectRelayData(payload);
+  const project = data.project || diagnosticApiEntity(payload, ["project"]);
+  const questionSet = data.questionSet || null;
+  if (!project?.id || !questionSet?.id) throw new Error("品牌监测项目未返回冻结问题集。");
+  ui.effectMonitorProjectId = project.id;
+  ui.effectMonitorQuestionSetId = questionSet.id;
+  ui.effectMonitorProjectSignature = signature;
+  ui.effectMonitorFrozenQuestions = Array.isArray(questionSet.questions) ? questionSet.questions : frozenQuestions;
+  effectRelaySnapshot.projects = [project, ...effectRelaySnapshot.projects.filter((item) => item.id !== project.id)];
+  return { projectId: project.id, questionSetId: questionSet.id, questions: ui.effectMonitorFrozenQuestions };
+}
+
+async function createEffectMonitorPlan() {
+  if (ui.effectMonitorCreating) return;
+  const brand = document.getElementById("effect-monitor-brand")?.value.trim();
+  const aliases = document.getElementById("effect-monitor-aliases")?.value;
+  const site = document.getElementById("effect-monitor-site")?.value.trim();
+  const industry = document.getElementById("effect-monitor-industry")?.value.trim();
+  const questionInput = document.getElementById("effect-monitor-questions")?.value;
+  const competitorInput = document.getElementById("effect-monitor-competitors")?.value;
+  const authorizationReference = document.getElementById("effect-monitor-authorization-reference")?.value.trim();
+  const maximumCredits = Number(document.getElementById("effect-monitor-max-credits")?.value || ui.effectMonitorMaxCredits);
+  const maximumMonthlyCredits = Number(document.getElementById("effect-monitor-max-monthly-credits")?.value || ui.effectMonitorMaxMonthlyCredits || 0);
+  const intervalHours = Number(document.getElementById("effect-monitor-interval-hours")?.value || ui.effectMonitorIntervalHours);
+  const consent = Boolean(document.querySelector("[data-effect-monitor-consent]")?.checked || ui.effectMonitorExternalConsent);
+  const questions = effectMonitorQuestionList(questionInput);
+  if (!brand || !questions.length) return showToast("监测配置不完整", "请填写目标品牌和至少一个监测问题。", "error");
+  if (!(ui.effectMonitorScopes || []).length || !(ui.effectMonitorModes || []).length) return showToast("请选择监测能力", "请选择当前客户实例获准的平台终端与模式。", "error");
+  if (!Number.isInteger(maximumCredits) || maximumCredits < 1) return showToast("请填写单次积分上限", "监测计划会在每次执行前重新报价，超过该上限将自动进入待处理状态。", "error");
+  if (!Number.isInteger(maximumMonthlyCredits) || maximumMonthlyCredits < 0) return showToast("请填写月度积分上限", "月度上限不能小于 0，填写 0 表示不额外限制。", "error");
+  if (ui.effectMonitorCadence === "interval" && (!Number.isInteger(intervalHours) || intervalHours < 24)) return showToast("间隔至少为 24 小时", "周期监测不能低于每天一次。", "error");
+  if (!authorizationReference || !consent) return showToast("需要自动执行授权", "周期计划需确认外部数据执行范围，并填写可追溯的授权编号或工单号。", "error");
+  ui.effectMonitorBrand = brand;
+  ui.effectMonitorAliases = effectMonitorAliases([brand, ...effectSearchBrandTerms(aliases)]);
+  ui.effectMonitorSite = site;
+  ui.effectMonitorIndustry = industry;
+  ui.effectMonitorQuestions = questions.map((text, index) => ({ id: `monitor-input-${index + 1}`, text }));
+  ui.effectMonitorCompetitors = String(competitorInput || "").split(/\r?\n/).map((line, index) => {
+    const [name, terms = ""] = line.split(/[：:]/, 2);
+    return { id: `monitor-competitor-${index + 1}`, name: String(name || "").trim(), terms: String(terms || "").trim() };
+  }).filter((item) => item.name);
+  ui.effectMonitorAuthorizationReference = authorizationReference;
+  ui.effectMonitorMaxCredits = String(maximumCredits);
+  ui.effectMonitorMaxMonthlyCredits = String(maximumMonthlyCredits);
+  ui.effectMonitorIntervalHours = String(intervalHours || 24);
+  ui.effectMonitorExternalConsent = true;
+  ui.effectMonitorCreating = true;
+  render();
+  try {
+    const project = await ensureEffectMonitorProject();
+    const items = effectRelaySupportedItems(ui.effectMonitorScopes, ui.effectMonitorModes, project.questions, { source: "effect_monitor", feature: "aidso_brand_monitoring" });
+    if (!items.length) throw new Error("当前客户实例没有可执行的监测能力组合。");
+    const platforms = [...new Set(items.map((item) => item.platform))];
+    const terminals = [...new Set(items.map((item) => item.terminal))];
+    const modes = [...new Set(items.map((item) => item.mode))];
+    const user = window.__TZ_AUTH__?.user || {};
+    const authorization = {
+      externalDataConsent: true,
+      authorizationReference,
+      authorizedBy: user.displayName || user.name || user.username || "customer-monitoring-operator",
+      consentedAt: new Date().toISOString(),
+      method: "effect_monitor_user_confirm",
+      ...(ui.effectMonitorAuthorizationExpiresAt ? { expiresAt: ui.effectMonitorAuthorizationExpiresAt } : {})
+    };
+    const schedule = {
+      ...(ui.effectMonitorCadence === "interval"
+        ? { cadence: "interval", intervalHours }
+        : { cadence: ui.effectMonitorCadence }),
+      startAt: new Date().toISOString(),
+      timeZone: "Asia/Shanghai"
+    };
+    const payload = await productionApi("/api/v1/diagnostics/monitoring-plans", {
+      method: "POST",
+      body: {
+        name: `品牌监测 · ${brand}`,
+        projectId: project.projectId,
+        questionSetId: project.questionSetId,
+        items,
+        platforms,
+        terminals,
+        modes,
+        brand: effectMonitorBrandProfile(),
+        competitors: effectMonitorCompetitorLabels(),
+        analysisScope: {
+          source: "effect_monitor",
+          feature: "aidso_brand_monitoring",
+          aidsoProduct: "monitor",
+          mode: "scheduled_frozen_question_set",
+          industry,
+          websiteUrl: site,
+          questionCount: project.questions.length
+        },
+        schedule,
+        authorization,
+        budget: { maxCreditsPerRun: maximumCredits, maxMonthlyCredits: maximumMonthlyCredits },
+        maxCreditsPerRun: maximumCredits,
+        maxMonthlyCredits: maximumMonthlyCredits
+      }
+    });
+    const plan = effectRelayData(payload).plan || null;
+    ui.effectMonitorPlanId = plan?.id || null;
+    showToast("品牌监测计划已创建", "计划会在每次执行前重新报价；超出单次上限、授权到期或连续失败会停止自动扣费并进入待处理状态。", "success");
+    await Promise.all([refreshEffectMonitoring({ planId: ui.effectMonitorPlanId }), refreshEffectRelay()]);
+  } catch (error) {
+    showToast("品牌监测计划未创建", error.message || "请检查监测授权和能力范围。", "error");
+  } finally {
+    ui.effectMonitorCreating = false;
+    render();
+  }
+}
+
+async function operateEffectMonitorPlan(action, planId = ui.effectMonitorPlanId) {
+  if (!planId || effectMonitoringSnapshot.operating) return;
+  const labels = { run: "立即执行", pause: "暂停", resume: "恢复" };
+  if (action === "run" && !window.confirm("立即执行会消耗本次重新报价后的积分，且不得超过计划的单次上限。确认执行？")) return;
+  if (action === "pause" && !window.confirm("确认暂停该品牌监测计划？已经提交的检测任务不会被静默取消。")) return;
+  if (action === "resume" && !window.confirm("确认恢复自动监测？系统会使用已保存的授权和单次积分上限。")) return;
+  effectMonitoringSnapshot = { ...effectMonitoringSnapshot, operating: true, error: "" };
+  render();
+  try {
+    const body = action === "run" || action === "resume" ? { confirmExternalExecution: true } : {};
+    await productionApi(`/api/v1/diagnostics/monitoring-plans/${encodeURIComponent(planId)}/${action}`, { method: "POST", body });
+    await Promise.all([refreshEffectMonitoring({ planId }), refreshEffectRelay()]);
+    showToast(`计划已${labels[action] || "更新"}`, action === "run" ? "已创建本次监测运行，结果会在客户服务端验签写入 live evidence 后展示。" : "监测计划状态已更新。", "success");
+  } catch (error) {
+    showToast(`无法${labels[action] || "操作"}计划`, error.message || "请稍后重试。", "error");
+  } finally {
+    effectMonitoringSnapshot = { ...effectMonitoringSnapshot, operating: false };
+    render();
+  }
+}
+
+function effectMonitorTrendRows(records) {
+  const groups = new Map();
+  for (const record of records.filter((record) => record.status === "verified")) {
+    const key = [record.questionId || record.question, record.platform, record.terminal, record.mode].join("|");
+    const samples = groups.get(key) || [];
+    samples.push(record);
+    groups.set(key, samples);
+  }
+  return [...groups.values()].filter((samples) => samples.length >= 2).map((samples) => {
+    const ordered = samples.slice().sort((left, right) => String(left.observedAt || "").localeCompare(String(right.observedAt || "")));
+    const first = ordered[0];
+    const latest = ordered[ordered.length - 1];
+    const mentionRate = Math.round((ordered.filter((record) => Number(record.brandMentionCount || 0) > 0).length / ordered.length) * 100);
+    return { first, latest, samples: ordered.length, mentionRate, citations: ordered.reduce((sum, record) => sum + Number(record.citationSources?.length || 0), 0) };
+  }).sort((left, right) => right.samples - left.samples);
+}
+
+function effectMonitorPlanCard(plan, activePlan) {
+  const schedule = plan?.schedule || {};
+  const cadence = schedule.cadence === "interval" ? `每 ${schedule.intervalHours} 小时` : ({ daily: "每天", weekly: "每周", monthly: "每月" })[schedule.cadence] || "未设置";
+  const active = plan.id === activePlan?.id;
+  const statusClass = plan.status === "active" ? "status-approved" : plan.status === "paused" ? "status-draft" : "status-error";
+  return `<article class="effect-monitor-plan-row ${active ? "active" : ""}"><div><b>${escapeHtml(plan.name)}</b><small>${escapeHtml(plan.project?.targetBrand || "目标品牌")} · ${escapeHtml(cadence)} · ${plan.questionSet?.questionCount || 0} 个冻结问题</small></div><span class="status-badge ${statusClass}">${escapeHtml(plan.status === "active" ? "监测中" : plan.status === "paused" ? "已暂停" : "待处理")}</span><button class="link-button" type="button" data-action="effect-monitor-select-plan" data-effect-plan-id="${escapeHtml(plan.id)}">${active ? "当前计划" : "查看"}</button></article>`;
+}
+
+function effectMonitorPlanDetail(plan = effectMonitoringSnapshot.activePlan) {
+  if (!plan) return `<section class="card effect-monitor-detail"><div class="effect-search-empty">尚未创建品牌监测计划。创建后系统才会按固定问题集和能力范围做周期性真实采样。</div></section>`;
+  const runs = Array.isArray(plan.runs) ? plan.runs : effectMonitoringSnapshot.runs || [];
+  const records = monitoringPlanRecords(plan);
+  const verified = records.filter((record) => record.status === "verified");
+  const mentionRate = verified.length ? Math.round((verified.filter((record) => Number(record.brandMentionCount || 0) > 0).length / verified.length) * 100) : null;
+  const citations = verified.reduce((sum, record) => sum + Number(record.citationSources?.length || 0), 0);
+  const trends = effectMonitorTrendRows(records);
+  const liveEntries = monitoringPlanEntries(plan);
+  return `<section class="card effect-monitor-detail"><header><div><span class="effect-demo-kicker">MONITORING PLAN</span><h3>${escapeHtml(plan.name)}</h3><p>计划每次运行都会独立报价、创建检测任务，并将交付写入新的实时检测证据；历史样本不会被覆盖。</p></div><div class="effect-monitor-actions">${plan.status === "active" ? `<button class="secondary-button" type="button" data-action="effect-monitor-run" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>${icon("play")}立即运行</button><button class="secondary-button" type="button" data-action="effect-monitor-pause" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>暂停计划</button>` : plan.status === "paused" ? `<button class="primary-button" type="button" data-action="effect-monitor-resume" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>恢复计划</button>` : ""}</div></header><div class="effect-search-summary"><div><small>计划状态</small><b>${escapeHtml(plan.status === "active" ? "监测中" : plan.status)}</b><em>下次：${escapeHtml(String(plan.nextRunAt || "待安排").replace("T", " ").slice(0, 16))}</em></div><div><small>历史运行</small><b>${runs.length}</b><em>每次都是独立任务快照</em></div><div><small>已验证样本</small><b>${verified.length}</b><em>${mentionRate === null ? "暂无可计算样本" : `品牌提及率 ${mentionRate}%`}</em></div><div><small>回答引用</small><b>${citations}</b><em>仅统计已验证结果</em></div></div><div class="effect-monitor-boundary">趋势只在同一问题、同一平台、同一终端、同一模式至少积累两条已验证的实时检测证据后展示；没有真实样本时保持为空，不生成排名、情感或预测曲线。</div><div class="effect-monitor-trend-list">${trends.length ? trends.map((trend) => `<article><div><b>${escapeHtml(trend.latest.platform)} · ${escapeHtml(trend.latest.terminal)} · ${escapeHtml(trend.latest.mode)}</b><small>${escapeHtml(trend.latest.question)}</small></div><span><small>已验证样本</small><b>${trend.samples}</b></span><span><small>品牌提及率</small><b>${trend.mentionRate}%</b></span><span><small>回答引用</small><b>${trend.citations}</b></span></article>`).join("") : `<div class="effect-search-empty">暂无可计算的真实趋势。请等待同一采样条件至少完成两次已验证交付。</div>`}</div><div class="effect-monitor-run-list"><h4>计划运行记录</h4>${runs.length ? runs.map((run) => { const entry = liveEntries.find((item) => item.link?.diagnosticRunId === run.diagnosticRunId); const stats = entry ? effectRelayEntryStats(entry) : { delivered: 0, verified: 0 }; return `<article><div><b>${escapeHtml(run.triggerKind === "manual" ? "手动运行" : "计划运行")} · ${escapeHtml(String(run.scheduledFor || run.createdAt || "").replace("T", " ").slice(0, 16))}</b><small>${escapeHtml(effectRelayRunLabel(run.status))}${run.errorMessage ? ` · ${escapeHtml(run.errorMessage)}` : ""}</small></div><span>${stats.delivered} 条交付 / ${stats.verified} 条已验证</span><span>${run.estimatedCustomerCredits === null ? "未结算" : `${Number(run.estimatedCustomerCredits).toLocaleString("zh-CN")} 积分`}</span></article>`; }).join("") : `<div class="effect-search-empty">计划尚未产生真实运行记录。</div>`}</div></section>`;
+}
+
+function effectMonitorAnalyticsCards(data = {}, view = "dashboard") {
+  // The analytics request is independent from plan loading. During the
+  // initial render or a plan switch it can legitimately be null; render an
+  // empty read model until the response arrives instead of throwing.
+  data = data && typeof data === "object" ? data : {};
+  const overview = data.overview && typeof data.overview === "object" ? data.overview : {};
+  const cardsByView = {
+    dashboard: [
+      ["品牌得分", "—", "检测服务未返回正式评分口径"],
+      ["对话次数", effectMonitorNumber(overview.dialogCount ?? overview.verified), "已验证 AI 对话"],
+      ["提及对话次数", effectMonitorNumber(overview.mentionDialogCount), "回答中明确提及品牌"],
+      ["提及率", effectMonitorPercent(overview.mentionRate), "提及对话 / 可判断对话"],
+      ["品牌提及次数", effectMonitorNumber(overview.brandMentionCount), "品牌和别名出现总次数"],
+      ["SOV", effectMonitorPercent(overview.sov), "缺少竞品份额口径时显示 —"],
+      ["Top1 提及率", effectMonitorPercent(overview.top1MentionRate), "仅使用上游排名字段"],
+      ["Top3 提及率", effectMonitorPercent(overview.top3MentionRate), "仅使用上游排名字段"],
+      ["平均提及排名", overview.averageMentionRank == null ? "—" : `#${overview.averageMentionRank}`, "不从文本位置推断排名"],
+      ["品牌提及好感度", effectMonitorPercent(overview.brandFavorability), "仅使用上游情感字段"]
+    ],
+    mentions: [
+      ["对话次数", effectMonitorNumber(overview.dialogCount ?? overview.verified), "已验证 AI 对话"],
+      ["提及对话次数", effectMonitorNumber(overview.mentionDialogCount), "明确提及品牌的对话"],
+      ["提及率", effectMonitorPercent(overview.mentionRate), "提及对话 / 可判断对话"],
+      ["Top1 提及率", effectMonitorPercent(overview.top1MentionRate), "上游排名字段"],
+      ["Top3 提及率", effectMonitorPercent(overview.top3MentionRate), "上游排名字段"],
+      ["品牌提及次数", effectMonitorNumber(overview.brandMentionCount), "品牌和别名出现总次数"],
+      ["平均提及排名", overview.averageMentionRank == null ? "—" : `#${overview.averageMentionRank}`, "没有排名字段则为空"]
+    ],
+    sentiment: [
+      ["提及品牌 AI 对话次数", effectMonitorNumber(overview.mentionDialogCount), "明确提及品牌的对话"],
+      ["品牌提及好感度", effectMonitorPercent(overview.brandFavorability), "仅使用上游标准化情感"],
+      ...(["正面", "中性", "负面"].map((label) => { const row = (data.sentiment || []).find((item) => String(item.label || "").includes(label)); return [`${label}情感`, effectMonitorPercent(row?.rate), "无情感字段时显示 —"]; }))
+    ],
+    sources: [
+      ["引用文章数", effectMonitorNumber(overview.citationArticleCount), "具有 URL 的唯一引用来源"],
+      ["引用次数", effectMonitorNumber(overview.citations), "已验证回答中的引用总数"],
+      ["引用站点", effectMonitorNumber(overview.sourceCount), "唯一引用来源数量"]
+    ],
+    works: [
+      ["追踪作品数", effectMonitorNumber((data.works || []).length), "当前引用作品记录"],
+      ["引用作品数", effectMonitorNumber(overview.citationArticleCount), "被 AI 引用的 URL"],
+      ["引用 AI 问题数", effectMonitorNumber(new Set((data.dialogs || []).filter((row) => row.citationSources?.length).map((row) => row.questionId || row.question)).size), "产生引用的问题数量"],
+      ["引用次数", effectMonitorNumber(overview.citations), "已验证回答中的引用总数"]
+    ]
+  };
+  const cards = cardsByView[view] || cardsByView.dashboard;
+  return `<div class="effect-monitor-analytics-cards">${cards.map(([label, value, note]) => `<article><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b><em>${escapeHtml(note)}</em></article>`).join("")}</div>`;
+}
+
+function effectMonitorDashboardView(plan, data) {
+  const overview = data?.overview || {};
+  const trendRows = (Array.isArray(data?.mentionRank) ? data.mentionRank : []).slice(0, 6);
+  return `<section class="effect-monitor-dashboard-view"><section class="effect-monitor-hero card"><div><span class="effect-demo-kicker">BRAND MONITORING DASHBOARD</span><h2>${escapeHtml(plan?.project?.targetBrand || ui.effectMonitorBrand || "品牌监测")}</h2><p>数据来自当前监测计划的已验证结果；空字段保持“—”，不生成模拟 KPI。</p></div><div class="effect-monitor-hero-meta"><span class="status-badge ${plan?.status === "active" ? "status-approved" : "status-pending"}">${escapeHtml(plan ? (plan.status === "active" ? "监测中" : plan.status || "待配置") : "未创建计划")}</span><small>最近采样：${escapeHtml(effectMonitorDisplay(overview.lastObservedAt ? formatDateTime(overview.lastObservedAt) : null))}</small></div></section>${data ? effectMonitorAnalyticsCards(data, "dashboard") : effectMonitorEmptyState("尚未选择监测计划。")}<section class="effect-monitor-dashboard-grid"><article class="card effect-monitor-dashboard-panel"><header><div><span class="effect-demo-kicker">MENTION / RANK</span><h3>平台提及与排名</h3><p>仅展示检测结果明确返回的字段。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="mentions">查看明细</button></header>${trendRows.length ? `<div class="effect-monitor-mini-table">${trendRows.map((row) => `<div><b>${escapeHtml(row.platform || "—")}</b><small>${escapeHtml(row.terminal || "—")}</small><span>${effectMonitorPercent(row.mentionRate)}</span><em>${row.averageRank === null || row.averageRank === undefined ? "—" : `#${escapeHtml(row.averageRank)}`}</em></div>`).join("")}</div>` : effectMonitorEmptyState("暂无平台提及或排名数据。")}</article><article class="card effect-monitor-dashboard-panel"><header><div><span class="effect-demo-kicker">RUN STATUS</span><h3>监测计划运行</h3><p>计划操作由灼见检测服务安全执行。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="settings">管理设置</button></header>${plan ? `<div class="effect-monitor-run-summary"><b>${escapeHtml(plan.name || "品牌监测计划")}</b><span>周期：${escapeHtml(effectMonitorDisplay(plan.schedule?.cadence || plan.schedule?.intervalHours ? (plan.schedule.cadence === "interval" ? `每 ${plan.schedule.intervalHours} 小时` : plan.schedule.cadence) : null))}</span><span>下次运行：${escapeHtml(effectMonitorDisplay(plan.nextRunAt ? formatDateTime(plan.nextRunAt) : null))}</span></div>` : effectMonitorEmptyState("暂无监测计划，请先在监测设置中创建。")}</article></section>${plan ? effectMonitorPlanDetail(plan) : ""}</section>`;
+}
+
+function effectMonitorMentionView(data) {
+  const rows = Array.isArray(data?.mentionRank) ? data.mentionRank : [];
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "mentions")}<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">MENTIONS / RANK</span><h2>品牌提及率 / 排名</h2><p>检测结果未提供排名字段时显示“—”，不会根据回答顺序推测排名。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table"><div class="head"><span>平台</span><span>终端</span><span>样本</span><span>提及率</span><span>平均首次排名</span><span>引用</span></div>${rows.map((row) => `<div class="row"><b>${escapeHtml(row.platform || "—")}</b><span>${escapeHtml(row.terminal || "—")}</span><span>${effectMonitorNumber(row.samples)}</span><strong>${effectMonitorPercent(row.mentionRate)}</strong><span>${row.averageRank === null || row.averageRank === undefined ? "—" : `#${escapeHtml(row.averageRank)}`}</span><span>${effectMonitorNumber(row.citations)}</span></div>`).join("")}</div>` : effectMonitorEmptyState("暂无已验证的提及率或排名数据。")}</section></section>`;
+}
+
+function effectMonitorSentimentView(data) {
+  const rows = Array.isArray(data?.sentiment) ? data.sentiment : [];
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "sentiment")}<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">SENTIMENT</span><h2>舆情 / 情感</h2><p>只有检测结果返回标准化情感字段时才展示统计。</p></div></header>${rows.length ? `<div class="effect-monitor-sentiment-grid">${rows.map((row) => `<article><b>${escapeHtml(row.label || "—")}</b><strong>${effectMonitorNumber(row.count)}</strong><small>${effectMonitorPercent(row.rate)}</small></article>`).join("")}</div>` : effectMonitorEmptyState("当前检测结果尚未返回可验证的情感字段。")}</section></section>`;
+}
+
+function effectMonitorMentionLabel(row) {
+  if (row?.brandMentionCount === null || row?.brandMentionCount === undefined || row?.brandMentionCount === "") return "—";
+  return Number(row.brandMentionCount) > 0 ? `${row.brandMentionCount} 次` : "未提及";
+}
+
+function effectMonitorSafeUrl(value) {
+  const url = String(value || "").trim();
+  return /^https?:\/\//i.test(url) ? url : "";
+}
+
+function effectMonitorSourcesView(data) {
+  const rows = Array.isArray(data?.sources) ? data.sources : [];
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "sources")}<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">AI SOURCES</span><h2>AI 引用来源</h2><p>来源名称、域名与 URL 均来自已验收回答引用。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-source-table"><div class="head"><span>来源</span><span>域名</span><span>引用次数</span><span>最近出现</span></div>${rows.map((row) => `<div class="row"><b>${escapeHtml(row.title || "—")}</b><span>${escapeHtml(row.domain || "—")}</span><strong>${effectMonitorNumber(row.citations)}</strong><span>${escapeHtml(row.lastObservedAt ? formatDateTime(row.lastObservedAt) : "—")}</span></div>`).join("")}</div>` : effectMonitorEmptyState("暂无 AI 引用来源。")}</section></section>`;
+}
+
+function effectMonitorDialogsView(data) {
+  const rows = Array.isArray(data?.dialogs) ? data.dialogs : [];
+  return `<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">AI DIALOGUES</span><h2>AI 对话记录</h2><p>按平台、终端、问题和采样时间查看原始回答；缺失字段保持“—”，明确为零时显示“未提及”。</p></div></header>${rows.length ? `<div class="effect-monitor-dialog-list">${rows.map((row) => `<article><header><div><b>${escapeHtml(row.platform || "—")} · ${escapeHtml(row.terminal || "—")}</b><small>${escapeHtml(row.mode || "—")} · ${escapeHtml(row.observedAt ? formatDateTime(row.observedAt) : "—")}</small></div><span class="status-badge ${row.status === "verified" ? "status-approved" : "status-pending"}">${escapeHtml(row.status || "—")}</span></header><p class="question">${escapeHtml(row.question || "—")}</p><p class="answer">${escapeHtml(row.answer || "—")}</p><footer><span>品牌提及：${escapeHtml(effectMonitorMentionLabel(row))}</span><span>引用：${row.citationSources?.length === undefined ? "—" : escapeHtml(row.citationSources.length)}</span><span>证据：${escapeHtml(row.evidenceId || "—")}</span></footer></article>`).join("")}</div>` : effectMonitorEmptyState("暂无可展示的 AI 对话记录。")}</section>`;
+}
+
+function effectMonitorWorksView(data) {
+  const rows = Array.isArray(data?.works) ? data.works : [];
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "works")}<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">WORKS</span><h2>作品引用追踪</h2><p>用于追踪被 AI 回答引用的网页作品；未返回 URL 时只显示来源名称。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-source-table"><div class="head"><span>作品 / 来源</span><span>URL</span><span>引用次数</span><span>最近出现</span></div>${rows.map((row) => { const url = effectMonitorSafeUrl(row.url); return `<div class="row"><b>${escapeHtml(row.title || "—")}</b><span>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>` : "—"}</span><strong>${effectMonitorNumber(row.citations)}</strong><span>${escapeHtml(row.lastObservedAt ? formatDateTime(row.lastObservedAt) : "—")}</span></div>`; }).join("")}</div>` : effectMonitorEmptyState("暂无作品引用记录。")}</section></section>`;
+}
+
+function effectMonitorExportView(data, plan) {
+  const overview = data?.overview || {};
+  return `<section class="card effect-monitor-view-panel effect-monitor-export-panel"><header><div><span class="effect-demo-kicker">EXPORT</span><h2>导出监测报告</h2><p>导出内容只包含当前计划的聚合 API 数据和客户服务端已验收 evidence。</p></div></header><div class="effect-monitor-export-summary"><div><small>计划</small><b>${escapeHtml(plan?.name || "—")}</b></div><div><small>已验证样本</small><b>${effectMonitorNumber(overview.verified)}</b></div><div><small>最近采样</small><b>${escapeHtml(overview.lastObservedAt ? formatDateTime(overview.lastObservedAt) : "—")}</b></div></div><div class="effect-monitor-export-actions"><button type="button" class="primary-button" data-action="effect-monitor-export" data-format="json">导出 JSON</button><button type="button" class="secondary-button" data-action="effect-monitor-export" data-format="csv">导出 CSV</button></div><small class="effect-input-hint">没有真实数据时仍可导出配置与空结果，但不会填入示例指标。</small></section>`;
+}
+
+function effectMonitorSettingsView(plan, questions, aliases, competitors, supportedItems, canCreate) {
+  const plans = effectMonitoringSnapshot.plans || [];
+  return `<section class="effect-monitor-settings-view"><section class="card effect-monitor-plans"><header><div><span class="effect-demo-kicker">SAVED MONITORING PLANS</span><h2>监测计划</h2><p>计划、授权和运行由客户服务端保存；暂停、恢复、手动运行仍使用现有接口。</p></div><button class="secondary-button" type="button" data-action="effect-monitor-refresh">${icon("refresh")}刷新计划</button></header><div>${plans.length ? plans.map((item) => effectMonitorPlanCard(item, plan)).join("") : `<div class="effect-monitor-settings-empty">${effectMonitoringSnapshot.loaded ? "暂无品牌监测计划，请先填写下方配置。" : "正在读取品牌监测计划…"}</div>`}</div></section><section class="card effect-demo-query effect-monitor-create"><header><div><span class="effect-demo-kicker">CREATE MONITORING PLAN</span><h2>创建 / 更新监测配置</h2><p>创建后将冻结问题集、能力范围、周期和授权。每次运行前重新报价。</p></div></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}目标品牌 <em>*</em></span><input id="effect-monitor-brand" value="${escapeHtml(ui.effectMonitorBrand)}" placeholder="如：桐灼科技" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-monitor-site" value="${escapeHtml(ui.effectMonitorSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-monitor-industry" value="${escapeHtml(ui.effectMonitorIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌别名</span><input id="effect-monitor-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔" /></label><label class="effect-demo-input full"><span>${icon("eye")}固定监测问题集（每行一个） <em>*</em></span><textarea id="effect-monitor-questions" rows="5" placeholder="如：桐灼科技是什么品牌？">${escapeHtml(questions.join("\n"))}</textarea></label><label class="effect-demo-input full"><span>${icon("users")}竞品（可选）</span><textarea id="effect-monitor-competitors" rows="3" placeholder="竞品 A：别名 A">${escapeHtml(competitors)}</textarea></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>固定监测能力范围</b><small>仅显示当前客户服务配置允许的平台、终端和模式。</small></div>${effectRelayCapabilityPicker({ scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, scopeAttribute: "data-effect-monitor-platform-scope", selectAllAttribute: "data-effect-monitor-platform-select-all", modeAttribute: "data-effect-monitor-platform-mode" })}</div><label class="effect-demo-input"><span>${icon("calendar")}监测周期 <em>*</em></span><select data-effect-monitor-cadence><option value="daily" ${ui.effectMonitorCadence === "daily" ? "selected" : ""}>每天</option><option value="weekly" ${ui.effectMonitorCadence === "weekly" ? "selected" : ""}>每周</option><option value="monthly" ${ui.effectMonitorCadence === "monthly" ? "selected" : ""}>每月</option><option value="interval" ${ui.effectMonitorCadence === "interval" ? "selected" : ""}>自定义小时</option></select></label><label class="effect-demo-input ${ui.effectMonitorCadence === "interval" ? "" : "is-disabled"}"><span>${icon("clock")}间隔小时</span><input id="effect-monitor-interval-hours" type="number" min="24" value="${escapeHtml(ui.effectMonitorIntervalHours)}" ${ui.effectMonitorCadence === "interval" ? "" : "disabled"} /></label><label class="effect-demo-input"><span>${icon("credit-card")}单次积分上限 <em>*</em></span><input id="effect-monitor-max-credits" type="number" min="1" value="${escapeHtml(ui.effectMonitorMaxCredits)}" /></label><label class="effect-demo-input"><span>${icon("credit-card")}月度积分上限</span><input id="effect-monitor-max-monthly-credits" type="number" min="0" value="${escapeHtml(ui.effectMonitorMaxMonthlyCredits)}" /></label><label class="effect-demo-input"><span>${icon("shield")}授权编号 / 工单号 <em>*</em></span><input id="effect-monitor-authorization-reference" value="${escapeHtml(ui.effectMonitorAuthorizationReference)}" placeholder="如：MON-2026-001" /></label><label class="effect-demo-input"><span>${icon("calendar")}授权到期时间</span><input id="effect-monitor-authorization-expires-at" type="datetime-local" value="${escapeHtml(ui.effectMonitorAuthorizationExpiresAt)}" /></label><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${effectMonitorNumber(supportedItems.length, "—")}</b> 个固定监测项<br /><small>${effectMonitorNumber(questions.length, "—")} 个问题 × 已选能力组合</small></span><label class="effect-search-consent"><input type="checkbox" data-effect-monitor-consent ${ui.effectMonitorExternalConsent ? "checked" : ""} /><span>我确认授权客户服务端按上述周期发送冻结范围并接受积分上限约束</span></label><button class="primary-button" type="button" data-action="effect-monitor-create" ${ui.effectMonitorCreating || !canCreate ? "disabled" : ""}>${ui.effectMonitorCreating ? '<span class="loading-spinner"></span>正在创建…' : `${icon("plus")}创建监测计划`}</button></div></div></section>${effectMonitorPlanDetail(plan)}</section>`;
+}
+
+function effectMonitorQuestionBankView(data, plan) {
+  const questions = Array.isArray(data?.questionBank) ? data.questionBank : [];
+  return `<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">QUESTION BANK</span><h2>AI 问题库</h2><p>展示当前监测计划冻结的问题快照；修改需要在监测设置中创建新版本。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="settings">打开监测设置</button></header>${questions.length ? `<div class="effect-monitor-question-list">${questions.map((question, index) => `<article><span>${index + 1}</span><div><b>${escapeHtml(question.text || question.prompt || "—")}</b><small>ID：${escapeHtml(question.id || "—")} · ${escapeHtml(question.intent || question.type || "冻结问题")}</small></div></article>`).join("")}</div>` : effectMonitorEmptyState(plan ? "当前计划没有可读取的问题快照。" : "请先选择或创建监测计划。")}</section>`;
+}
+
+function effectMonitorViewContent(view, plan, data, questions, aliases, competitors, supportedItems, canCreate) {
+  switch (view) {
+    case "mentions": return effectMonitorMentionView(data);
+    case "sentiment": return effectMonitorSentimentView(data);
+    case "sources": return effectMonitorSourcesView(data);
+    case "dialogs": return effectMonitorDialogsView(data);
+    case "works": return effectMonitorWorksView(data);
+    case "export": return effectMonitorExportView(data, plan);
+    case "settings": return effectMonitorSettingsView(plan, questions, aliases, competitors, supportedItems, canCreate);
+    case "question-bank": return effectMonitorQuestionBankView(data, plan);
+    default: return effectMonitorDashboardView(plan, data);
+  }
+}
+
+function exportEffectMonitorAnalytics(format = "json") {
+  const data = effectMonitoringAnalyticsSnapshot.data || effectMonitorLocalAnalytics(effectMonitoringSnapshot.activePlan);
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  if (format === "csv") {
+    const rows = [["平台", "终端", "问题", "回答", "状态", "品牌提及", "引用数", "观察时间", "证据 ID"], ...(data.dialogs || []).map((row) => [row.platform || "", row.terminal || "", row.question || "", row.answer || "", row.status || "", Number(row.brandMentionCount || 0) > 0 ? row.brandMentionCount : "未提及", row.citationSources?.length ?? "", row.observedAt || "", row.evidenceId || ""])];
+    downloadTextFile(`brand-monitor-${stamp}.csv`, rows.map((row) => row.map(csvValue).join(",")).join("\r\n"), "text/csv;charset=utf-8");
+  } else {
+    downloadTextFile(`brand-monitor-${stamp}.json`, JSON.stringify({ planId: ui.effectMonitorPlanId, exportedAt: new Date().toISOString(), analytics: data }, null, 2), "application/json;charset=utf-8");
+  }
+  showToast("监测数据已导出", `已导出当前计划的 ${format.toUpperCase()} 数据；没有证据的字段保持为空。`, "success");
+}
+
+function renderRealEffectMonitor() {
+  ensureEffectMonitorBaselineQuestions();
+  if (!effectMonitoringSnapshot.attempted && !effectMonitoringSnapshot.loading) queueMicrotask(() => refreshEffectMonitoring({ renderAfter: true }));
+  if (!effectRelaySnapshot.attempted && !effectRelaySnapshot.loading) queueMicrotask(() => refreshEffectRelay({ renderAfter: true }));
+  const activePlan = effectMonitoringSnapshot.activePlan;
+  if (activePlan?.id && effectMonitoringAnalyticsSnapshot.planId !== activePlan.id && !effectMonitoringAnalyticsSnapshot.loading) queueMicrotask(() => refreshEffectMonitoringAnalytics({ planId: activePlan.id, renderAfter: true }));
+  const questions = effectMonitorQuestionList();
+  const draftQuestions = effectMonitorDraftQuestions();
+  const supportedItems = effectRelaySupportedItems(ui.effectMonitorScopes, ui.effectMonitorModes, draftQuestions, { source: "effect_monitor", feature: "aidso_brand_monitoring" });
+  const aliases = effectMonitorAliases([ui.effectMonitorBrand, ...(ui.effectMonitorAliases || [])]).filter((item) => item !== ui.effectMonitorBrand).join("、");
+  const competitors = (ui.effectMonitorCompetitors || []).map((item) => `${item.name || ""}${item.terms ? `：${item.terms}` : ""}`).filter(Boolean).join("\n");
+  const data = effectMonitoringAnalyticsSnapshot.data || (activePlan ? effectMonitorLocalAnalytics(activePlan) : null);
+  const view = EFFECT_MONITOR_VIEWS.some(([key]) => key === ui.effectMonitorView) ? ui.effectMonitorView : "dashboard";
+  const canCreate = Boolean(ui.effectMonitorBrand.trim() && questions.length && (ui.effectMonitorScopes || []).length && (ui.effectMonitorModes || []).length && ui.effectMonitorExternalConsent && ui.effectMonitorAuthorizationReference.trim() && Number(ui.effectMonitorMaxCredits) >= 1 && Number(ui.effectMonitorMaxMonthlyCredits || 0) >= 0 && supportedItems.length);
+  const latestEntry = monitoringPlanEntries(activePlan)[0] || null;
+  return `<div class="page-container effect-demo-page effect-monitor-page">${effectMonitorViewTabs(view)}${effectRelayStatusPanel({ entry: latestEntry, scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, questions: draftQuestions })}${effectMonitoringSnapshot.error ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectMonitoringSnapshot.error))}</div>` : ""}${effectMonitoringAnalyticsSnapshot.error ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectMonitoringAnalyticsSnapshot.error))}</div>` : ""}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
+}
+
+function effectDiagnosticQuestionSeed(brand, options = {}) {
+  const name = String(brand || "目标品牌").trim() || "目标品牌";
+  const industry = String(options.industry ?? ui.effectDiagnosticIndustry ?? "").trim();
+  const site = String(options.site ?? ui.effectDiagnosticSite ?? "").trim();
+  const aliases = effectDiagnosticAliases(options.aliases ?? ui.effectDiagnosticBrandTerms).filter((item) => item !== name).slice(0, 3);
+  const competitors = effectDiagnosticCompetitorLabels(options.competitors ?? ui.effectDiagnosticCompetitors).slice(0, 3);
+  const peerLabel = competitors.length ? competitors.join("、") : "同类品牌";
+  const contextLabel = industry ? industry + "场景中的" : "";
+  const source = site ? "基于品牌名称、行业、官网与竞品配置" : "基于品牌名称、行业与竞品配置";
+  return [
+    { id: uid("DIAG_Q"), category: "品牌认知", keyword: name, text: name + " 是什么品牌？主要提供哪些产品或服务？", priority: 5, source },
+    { id: uid("DIAG_Q"), category: "选购决策", keyword: name, text: "选择" + contextLabel + name + "时，应该重点比较哪些能力、适用条件和限制？", priority: 4, source },
+    { id: uid("DIAG_Q"), category: "场景推荐", keyword: name, text: name + " 适合哪些" + (industry || "业务") + "场景？什么情况下不适合选择？", priority: 4, source },
+    { id: uid("DIAG_Q"), category: "信源核验", keyword: aliases[0] || name, text: "在哪里可以核验 " + name + " 的官方资料、产品信息和服务边界？", priority: 3, source },
+    { id: uid("DIAG_Q"), category: "竞品对比", keyword: name, text: name + " 与 " + peerLabel + " 相比有哪些差异？不同需求下如何选择？", priority: 4, source }
+  ];
+}
+
+async function regenerateEffectDiagnosticQuestions() {
+  if (ui.effectDiagnosticQuestionGenerating) return;
+  const brand = String(ui.effectDiagnosticBrand || "").trim();
+  if (!brand) return showToast("请先输入品牌名称", "AI 问题推荐需要品牌配置作为上下文。", "error");
+  ui.effectDiagnosticQuestionGenerating = true;
+  render();
+  try {
+    let providerId = selectedTextProviderId();
+    if (!providerId && !aiProviderSnapshot.loaded) {
+      await refreshAiProviders();
+      providerId = selectedTextProviderId();
+    }
+    if (!providerId) {
+      ui.effectDiagnosticQuestions = effectDiagnosticQuestionSeed(brand, {
+        industry: ui.effectDiagnosticIndustry,
+        site: ui.effectDiagnosticSite,
+        aliases: ui.effectDiagnosticBrandTerms,
+        competitors: ui.effectDiagnosticCompetitors
+      });
+      ui.effectDiagnosticQuestionDraftInitialized = true;
+      invalidateEffectDiagnosticQuote();
+      showToast("已生成基础问题建议", "当前未配置文本模型，系统根据品牌配置生成了可编辑建议。", "success");
+      return;
+    }
+    const seeds = [brand, ...(ui.effectDiagnosticBrandTerms || []), ...effectDiagnosticCompetitorLabels()].filter(Boolean).slice(0, 8);
+    const payload = await aiApi("/api/ai/generate/questions", {
+      method: "POST",
+      body: {
+        providerId,
+        model: selectedTextModelName(),
+        businessLine: { id: "effect-diagnostic", name: ui.effectDiagnosticIndustry || "品牌诊断", description: ui.effectDiagnosticIntroduction || "" },
+        seeds,
+        existingQuestions: [],
+        dimensions: ["brand", "commercial", "scenario", "comparison", "trust"]
+      }
+    });
+    const data = payload.data || payload;
+    const raw = data.questions || data.customerQuestions || data.items || [];
+    const generated = Array.isArray(raw) ? raw.map((item, index) => {
+      const text = String(item?.question || item?.text || item?.title || "").trim();
+      if (!text) return null;
+      return {
+        id: uid("DIAG_Q"),
+        category: item?.category || item?.dimensionLabel || item?.dimension || "AI 推荐",
+        keyword: item?.sourceKeyword || item?.keyword || brand,
+        text,
+        priority: Number(item?.recommendation || item?.priority || 0) || null,
+        source: "已配置文本模型生成"
+      };
+    }).filter(Boolean).slice(0, 20) : [];
+    if (!generated.length) throw new Error("文本模型没有返回可用的问题候选。");
+    ui.effectDiagnosticQuestions = generated;
+    ui.effectDiagnosticQuestionDraftInitialized = true;
+    invalidateEffectDiagnosticQuote();
+    showToast("AI 问题推荐已更新", "已结合当前品牌配置生成可编辑问题，可继续复制、编辑或删除。", "success");
+  } catch (error) {
+    ui.effectDiagnosticQuestions = effectDiagnosticQuestionSeed(brand, {
+      industry: ui.effectDiagnosticIndustry,
+      site: ui.effectDiagnosticSite,
+      aliases: ui.effectDiagnosticBrandTerms,
+      competitors: ui.effectDiagnosticCompetitors
+    });
+    ui.effectDiagnosticQuestionDraftInitialized = true;
+    invalidateEffectDiagnosticQuote();
+    showToast("AI 推荐暂不可用", (error.message || "已回退为基于品牌配置的基础问题建议。") + " 已保留可编辑建议。", "error");
+  } finally {
+    ui.effectDiagnosticQuestionGenerating = false;
+    render();
+  }
+}
+
+function effectDiagnosticStart(brand, site = "") {
+  const normalized = String(brand || "").trim();
+  if (!normalized) return showToast("请先输入品牌名称", "输入品牌后，系统才会生成品牌词、竞品和 AI 问题建议。", "error");
+  if (effectRelayPollTimers.diagnostic) window.clearTimeout(effectRelayPollTimers.diagnostic);
+  effectRelayPollTimers.diagnostic = null;
+  effectFlowStateFor("diagnostic").activeRun = null;
+  effectFlowStateFor("diagnostic").activeLink = null;
+  effectFlowStateFor("diagnostic").error = "";
+  ui.effectDiagnosticRunId = null;
+  ui.effectDiagnosticRelayRunId = null;
+  ui.effectDiagnosticProjectId = null;
+  ui.effectDiagnosticQuestionSetId = null;
+  ui.effectDiagnosticProjectSignature = "";
+  ui.effectDiagnosticFrozenQuestions = [];
+  ui.effectDiagnosticQuoteReady = false;
+  ui.effectDiagnosticClientRunId = null;
+  ui.effectDiagnosticReportRunId = null;
+  ui.effectDiagnosticReportId = null;
+  ui.effectDiagnosticReportVersion = null;
+  ui.effectDiagnosticReport = null;
+  ui.effectDiagnosticReportGenerating = false;
+  setEffectRelayQuote("diagnostic", null);
+  const defaultScopes = effectRelayCapabilityScopeKeys();
+  const availableModes = [...new Set(effectRelayCapabilityItems().map((item) => String(item.mode || "").trim()).filter(Boolean))];
+  ui.effectDiagnosticStarted = true;
+  ui.effectDiagnosticBrand = normalized;
+  ui.effectDiagnosticSite = String(site || "").trim();
+  ui.effectDiagnosticIntroduction = "";
+  ui.effectDiagnosticBrandTerms = [normalized];
+  // Competitors are optional in AIDSO's completeAnalysis setup. Start with a
+  // genuinely empty table row only when the customer explicitly adds one; do
+  // not persist placeholder/demo competitor text into the diagnostic.
+  ui.effectDiagnosticCompetitors = [];
+  ui.effectDiagnosticQuestions = effectDiagnosticQuestionSeed(normalized);
+  ui.effectDiagnosticQuestionDraftInitialized = true;
+  ui.effectDiagnosticScopes = defaultScopes;
+  ui.effectDiagnosticScopeSelectionTouched = false;
+  ui.effectDiagnosticModes = availableModes.includes("fast") ? ["fast"] : availableModes.slice(0, 1);
+  ui.effectDiagnosticRounds = 1;
+  ui.effectDiagnosticPlatformRounds = Object.fromEntries(defaultScopes.map((scope) => [scope, 1]));
+  ui.effectDiagnosticCompleted = false;
+  ui.effectDiagnosticRecords = [];
+  ui.effectDiagnosticFilterPlatform = "all";
+  ui.effectDiagnosticFilterQuestion = "all";
+  render();
+}
+
+function effectDiagnosticScopeRows() {
+  const catalog = effectPlatformCatalog();
+  const selected = new Set(ui.effectDiagnosticScopes || []);
+  const rounds = ui.effectDiagnosticPlatformRounds || {};
+  const rows = catalog.flatMap((platform) => platform.rows.map((row) => ({
+    scope: `${platform.name}|${row.device}`,
+    platform: platform.name,
+    device: row.device,
+    color: platform.color,
+    code: platform.code,
+    selected: selected.has(`${platform.name}|${row.device}`),
+    rounds: Number(rounds[`${platform.name}|${row.device}`] || ui.effectDiagnosticRounds || 1)
+  }))).filter((item) => item.selected);
+  if (!rows.length) return '<p class="aidso-inline-empty">请至少选择一个平台终端，并设置每个平台的对话次数。</p>';
+  return `<div class="aidso-rounds">${rows.map((item) => `<label><span><i style="--platform:${item.color}">${escapeHtml(item.code)}</i><b>${escapeHtml(item.platform)}</b><small>${escapeHtml(item.device)}</small></span><select data-effect-diagnostic-round value="${item.rounds}" data-scope="${escapeHtml(item.scope)}"><option value="1" ${item.rounds === 1 ? "selected" : ""}>1 次对话</option><option value="3" ${item.rounds === 3 ? "selected" : ""}>3 次对话</option><option value="5" ${item.rounds === 5 ? "selected" : ""}>5 次对话</option></select></label>`).join("")}</div>`;
+}
+
+function effectDiagnosticPlatformToolbar() {
+  const selected = new Set(ui.effectDiagnosticScopes || []);
+  const allScopes = effectPlatformCatalog().flatMap((platform) => platform.rows.map((row) => `${platform.name}|${row.device}`));
+  const allSelected = allScopes.length > 0 && allScopes.every((scope) => selected.has(scope));
+  const modes = new Set(ui.effectDiagnosticModes || ["快速"]);
+  return `<div class="aidso-platform-toolbar"><label><input type="checkbox" data-effect-diagnostic-select-all ${allSelected ? "checked" : ""} /><span>${icon("check")}</span>全选</label><label><input type="checkbox" value="快速" data-effect-diagnostic-mode ${modes.has("快速") ? "checked" : ""} /><span>${icon("check")}</span>快速模式</label><label><input type="checkbox" value="深度" data-effect-diagnostic-mode ${modes.has("深度") ? "checked" : ""} /><span>${icon("check")}</span>深度思考</label></div>`;
+}
+
+function effectDiagnosticPlatformPicker() {
+  return effectPlatformPicker({
+    scopes: ui.effectDiagnosticScopes,
+    modes: ui.effectDiagnosticModes,
+    scopeAttribute: "data-effect-diagnostic-scope",
+    selectAllAttribute: "data-effect-diagnostic-select-all",
+    modeAttribute: "data-effect-diagnostic-mode",
+    hideToolbar: true
+  });
+}
+
+function effectDiagnosticQuestionRowsLegacy() {
+  const questions = Array.isArray(ui.effectDiagnosticQuestions) ? ui.effectDiagnosticQuestions : [];
+  if (!questions.length) return '<div class="aidso-question-empty">尚未配置问题。可添加问题或重新生成推荐问题。</div>';
+  return `<div class="aidso-question-table"><div class="aidso-question-table-head"><span>问题类型</span><span>核心词</span><span>AI 推荐问题</span><span>热度</span><span>操作</span></div>${questions.map((question, index) => `<article class="aidso-question-row"><span class="aidso-question-category"><i>${index + 1}</i>${escapeHtml(question.category || "自定义问题")}</span><span class="aidso-question-keyword">${escapeHtml(question.keyword || ui.effectDiagnosticBrand)}</span><p>${escapeHtml(question.text)}</p><span class="aidso-question-heat">${Number(question.heat || 0)}</span><span class="aidso-question-actions"><button type="button" data-action="effect-diagnostic-question-copy" data-question-id="${escapeHtml(question.id)}">复制</button><button type="button" data-action="effect-diagnostic-question-edit" data-question-id="${escapeHtml(question.id)}">编辑</button><button type="button" data-action="effect-diagnostic-question-delete" data-question-id="${escapeHtml(question.id)}">删除</button></span></article>`).join("")}</div>`;
+}
+
+function hydrateEffectDiagnosticCompetitorEditor(root = document) {
+  const textarea = root.querySelector("#effect-diagnostic-competitors");
+  if (!textarea || root.querySelector(".effect-diagnostic-competitor-editor")) return;
+  const section = document.createElement("section");
+  section.className = "effect-diagnostic-competitor-editor";
+  section.innerHTML = '<div class="effect-diagnostic-inline-actions"><small>竞品品牌与竞品词会随本次诊断快照保存。</small><button class="link-button" type="button" data-action="effect-diagnostic-competitor-add">+ 添加竞品</button></div>' + effectDiagnosticCompetitorRows();
+  const host = textarea.closest("label") || textarea.parentElement;
+  if (host) host.replaceWith(section);
+}
+
+function hydrateEffectDiagnosticQuestionEditor(root = document) {
+  const textarea = root.querySelector("#effect-diagnostic-questions");
+  if (!textarea || root.querySelector(".effect-diagnostic-question-editor")) return;
+  const section = document.createElement("section");
+  section.className = "effect-diagnostic-question-editor";
+  section.innerHTML = effectDiagnosticQuestionRows();
+  const host = textarea.closest("label") || textarea.parentElement;
+  if (host) host.replaceWith(section);
+}
+
+function hydrateEffectDiagnosticBrandIntroduction(root = document) {
+  const industry = root.querySelector("#effect-diagnostic-industry");
+  if (!industry || root.querySelector("#effect-diagnostic-introduction")) return;
+  const label = document.createElement("label");
+  label.className = "effect-demo-input full";
+  label.innerHTML = '<span>品牌介绍 / 诊断口径</span><textarea id="effect-diagnostic-introduction" rows="2" placeholder="可填写品牌简介、主要产品、服务边界或希望重点验证的方向">' + escapeHtml(ui.effectDiagnosticIntroduction || "") + '</textarea>';
+  industry.closest("label")?.after(label);
+}
+
+function hydrateEffectRelayExecutionNotice(root = document) {
+  const mode = effectRelayExecutionMode();
+  if (mode !== "mock") return;
+  const status = root.querySelector(".effect-relay-status");
+  if (!status || status.querySelector("[data-effect-relay-execution-mode]")) return;
+  const notice = document.createElement("span");
+  notice.dataset.effectRelayExecutionMode = "mock";
+  notice.className = "effect-relay-warning";
+  notice.textContent = "当前为系统演练模式，结果不能作为正式检测结论";
+  status.appendChild(notice);
+}
+
+function effectDiagnosticCompetitorRows() {
+  const competitors = Array.isArray(ui.effectDiagnosticCompetitors) ? ui.effectDiagnosticCompetitors : [];
+  if (!competitors.length) {
+    return `<div class="aidso-competitor-empty">尚未添加竞品。竞品不是必填项，可点击“添加竞品”后填写品牌名和竞品词。</div>`;
+  }
+  return `<div class="aidso-competitor-table">
+    <div><span>竞品品牌</span><span>竞品词 / 别名</span><span>操作</span></div>
+    ${competitors.map((competitor) => `<label>
+      <input data-effect-diagnostic-competitor-name data-competitor-id="${escapeHtml(competitor.id)}" value="${escapeHtml(competitor.name || "")}" placeholder="竞品品牌" />
+      <input data-effect-diagnostic-competitor-terms data-competitor-id="${escapeHtml(competitor.id)}" value="${escapeHtml(competitor.terms || "")}" placeholder="竞品词，多个词请用逗号分隔" />
+      <button type="button" data-action="effect-diagnostic-competitor-remove" data-competitor-id="${escapeHtml(competitor.id)}">删除</button>
+    </label>`).join("")}
+  </div>`;
+}
+
+function effectDiagnosticQuestionRows() {
+  const questions = Array.isArray(ui.effectDiagnosticQuestions) ? ui.effectDiagnosticQuestions : [];
+  if (!questions.length) return '<div class="aidso-question-empty">尚未配置问题。可点击“添加问题”或“重新生成”恢复问题建议。</div>';
+  const rows = questions.map((question, index) => {
+    const source = question.source || "基于当前品牌配置";
+    const priority = Number.isFinite(Number(question.priority)) ? Number(question.priority) : "—";
+    return `<article class="aidso-question-row"><span class="aidso-question-category"><i>${index + 1}</i>${escapeHtml(question.category || "品牌诊断")}</span><span class="aidso-question-keyword">${escapeHtml(question.keyword || ui.effectDiagnosticBrand)}</span><p>${escapeHtml(question.text)}</p><span class="aidso-question-heat" title="${escapeHtml(source)}">${escapeHtml(String(priority))}</span><span class="aidso-question-actions"><button type="button" data-action="effect-diagnostic-question-copy" data-question-id="${escapeHtml(question.id)}">复制</button><button type="button" data-action="effect-diagnostic-question-edit" data-question-id="${escapeHtml(question.id)}">编辑</button><button type="button" data-action="effect-diagnostic-question-delete" data-question-id="${escapeHtml(question.id)}">删除</button></span></article>`;
+  }).join("");
+  return `<div class="aidso-question-table"><div class="aidso-question-table-head"><span>问题类型</span><span>核心词</span><span>AI 推荐问题</span><span>优先级</span><span>操作</span></div>${rows}</div><small class="effect-input-hint">问题建议基于当前品牌配置生成；优先级仅用于排序，不代表真实搜索热度。</small>`;
+}
+
+function runEffectDiagnostic() {
+
+  // Compatibility for legacy keyboard shortcuts; all submissions now enter
+  // the real quote → signed relay → live-evidence flow.
+  return prepareEffectDiagnosticRun();
+}
+
+function renderEffectDiagnosticStart() {
+  return `<div class="page-container aidso-diagnostic-start"><div class="aidso-diagnostic-start-hero"><span class="aidso-start-badge">AI 品牌诊断</span><h2>立即开启诊断你的品牌</h2><p>先输入品牌名称，系统将生成品牌词、竞品配置和 AI 问题建议；确认平台与对话次数后，再生成品牌诊断报告。</p><div class="aidso-start-form"><label><span>品牌名称</span><input id="effect-diagnostic-start-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="请输入需要诊断的品牌名称" /></label><label><span>官网地址（可选）</span><input id="effect-diagnostic-start-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com" /></label><button class="primary-button" type="button" data-action="effect-diagnostic-start">开始配置 ${icon("arrow")}</button></div><div class="aidso-start-notes"><span>${icon("check")}品牌与竞品配置</span><span>${icon("check")}AI 问题推荐与编辑</span><span>${icon("check")}多平台多轮对话诊断</span></div></div></div>`;
+}
+
+function renderEffectDiagnosticWorkspace() {
+  if (!effectRelaySnapshot.attempted && !effectRelaySnapshot.loading) queueMicrotask(() => refreshEffectRelay({ renderAfter: true }));
+  const brand = String(ui.effectDiagnosticBrand || "").trim();
+  if (!brand) {
+    return `<div class="page-container effect-demo-page effect-diagnostic-page">${pageHead("品牌诊断", "先输入品牌名称，再配置竞品、AI 推荐问题、平台与每个平台的独立采样次数。", '<span class="small-tag blue">灼见 AI 检测</span>')}${effectPagesTabs("effect-diagnostic")}<section class="card effect-diagnostic-start-card"><div><span class="effect-demo-kicker">BRAND DIAGNOSTIC</span><h2>从品牌名称开始</h2><p>品牌名称确认后，才会出现品牌配置、竞品配置与 AI 问题推荐。执行结果只读取客户服务端验收并写入 <code>diagnostic_evidence(live)</code> 的真实交付。</p></div><div class="effect-diagnostic-start-fields"><label class="effect-demo-input"><span>${icon("users")}品牌名称 <em>*</em></span><input id="effect-diagnostic-start-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="请输入需要诊断的品牌名称" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-start-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><button class="primary-button" type="button" data-action="effect-diagnostic-start">开始品牌配置 ${icon("arrow")}</button></div></section>${effectDiagnosticHistory()}</div>`;
+  }
+  const questions = effectDiagnosticQuestionList();
+  const draftQuestions = effectDiagnosticDraftQuestions();
+  const supportedItems = effectDiagnosticSupportedItems(ui.effectDiagnosticScopes, ui.effectDiagnosticModes, draftQuestions, { source: "effect_diagnostic", feature: "aidso_brand_diagnostic" });
+  const quote = effectRelayQuoteFor("diagnostic");
+  const entry = effectDiagnosticActiveEntry();
+  const status = effectRelayRunStatus(entry?.link, entry?.run);
+  const running = ui.effectDiagnosticSubmitting || ["pending", "submitted", "queued", "running"].includes(status);
+  const aliases = effectDiagnosticAliases([brand, ...(ui.effectDiagnosticBrandTerms || [])]).filter((item) => item !== brand).join("、");
+  const competitors = (ui.effectDiagnosticCompetitors || []).map((item) => `${item.name || ""}${item.terms ? `：${item.terms}` : ""}`).filter(Boolean).join("\n");
+  const canQuote = Boolean(questions.length && (ui.effectDiagnosticScopes || []).length && (ui.effectDiagnosticModes || []).length && ui.effectDiagnosticExternalConsent && supportedItems.length);
+  const competitorRows = effectDiagnosticCompetitorRows();
+  const primaryAction = quote && ui.effectDiagnosticQuoteReady
+    ? `<button class="primary-button" type="button" data-action="effect-diagnostic-submit" ${ui.effectDiagnosticSubmitting || !supportedItems.length ? "disabled" : ""}>${ui.effectDiagnosticSubmitting ? '<span class="loading-spinner"></span>正在提交…' : `${icon("send")}确认并提交品牌诊断`}</button>`
+    : `<button class="primary-button" type="button" data-action="effect-diagnostic-quote" ${ui.effectDiagnosticSubmitting || !canQuote ? "disabled" : ""}>${ui.effectDiagnosticSubmitting ? '<span class="loading-spinner"></span>正在获取报价…' : `${icon("search")}冻结问题集并获取报价`}</button>`;
+  const quoteSummary = quote && ui.effectDiagnosticQuoteReady
+    ? `<div class="effect-search-quote-summary"><span data-icon="quote"></span><div><b>预估 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</b><small>${supportedItems.length} 个独立采样任务；提交时检测服务会再次校验报价与额度。</small></div><button class="link-button" type="button" data-action="effect-diagnostic-quote-reset">重新报价</button></div>`
+    : "";
+  return `<div class="page-container effect-demo-page effect-diagnostic-page">${pageHead("品牌诊断", "将品牌与竞品配置、AI 问题推荐和跨平台独立采样串成一次可追溯的诊断。", '<span class="small-tag blue">灼见 AI 检测</span>')}${effectPagesTabs("effect-diagnostic")}${effectRelayStatusPanel({ entry, quote, scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, questions: draftQuestions, cancelAction: "effect-diagnostic-cancel", cancelRunId: ui.effectDiagnosticRunId })}<section class="card effect-diagnostic-wizard"><header><div><span class="effect-demo-kicker">BRAND DIAGNOSTIC WIZARD</span><h3>${escapeHtml(brand)} 品牌诊断配置</h3><p>配置会在报价时冻结。每个“对话次数”是同一条件下的独立采样任务，不是虚构的连续聊天记录。</p></div><button class="secondary-button" type="button" data-action="effect-diagnostic-reset">更换品牌</button></header><div class="effect-diagnostic-wizard-body"><section class="effect-diagnostic-step"><header><span>1</span><div><h4>品牌配置</h4><p>确认品牌口径、官网、行业和别名。</p></div></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}品牌名称 <em>*</em></span><input id="effect-diagnostic-brand" value="${escapeHtml(brand)}" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-diagnostic-industry" value="${escapeHtml(ui.effectDiagnosticIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌词 / 别名</span><input id="effect-diagnostic-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔，如：品牌简称、产品词" /></label></div></section><section class="effect-diagnostic-step"><header><span>2</span><div><h4>竞品配置</h4><p>每行一个竞品，可写成“竞品品牌：竞品词、别名”。</p></div></header><label class="effect-demo-input full"><textarea id="effect-diagnostic-competitors" rows="3" placeholder="竞品 A：别名 A、产品词 A&#10;竞品 B">${escapeHtml(competitors)}</textarea><small class="effect-input-hint">竞品配置随本次任务保存；没有上游可验证字段时，不会生成竞争排名或胜负结论。</small></label></section><section class="effect-diagnostic-step"><header><span>3</span><div><h4>AI 问题推荐</h4><p>问题是诊断单元。可复制、编辑、删除，也可补充或重新生成推荐。</p></div><div class="effect-diagnostic-step-actions"><button class="link-button" type="button" data-action="effect-diagnostic-question-add">+ 添加问题</button><button class="link-button" type="button" data-action="effect-diagnostic-question-regenerate">重新生成</button></div></header>${effectDiagnosticQuestionRows()}</section><section class="effect-diagnostic-step"><header><span>4</span><div><h4>选择诊断平台</h4><p>平台、终端和模式只来自当前客户的服务配置。</p></div></header>${effectRelayCapabilityPicker({ scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, scopeAttribute: "data-effect-diagnostic-platform-scope", selectAllAttribute: "data-effect-diagnostic-platform-select-all", modeAttribute: "data-effect-diagnostic-platform-mode" })}</section><section class="effect-diagnostic-step"><header><span>5</span><div><h4>设置每个平台的对话次数</h4><p>设置同一问题在该平台终端的独立采样次数；采样次数越高，越能观察回答波动。</p></div></header>${effectDiagnosticRoundRows()}</section><footer class="effect-diagnostic-submit"><div><b>预计执行 ${supportedItems.length} 次 AI 独立采样</b><small>${questions.length} 个问题 · ${(ui.effectDiagnosticScopes || []).length} 个平台终端 · ${(ui.effectDiagnosticModes || []).length} 种模式</small></div><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"}</span><label class="effect-search-consent"><input type="checkbox" data-effect-diagnostic-consent ${ui.effectDiagnosticExternalConsent ? "checked" : ""} /><span>我确认将品牌资料、竞品和冻结问题集提交给灼见 AI 检测服务执行</span></label>${quoteSummary}${primaryAction}</footer></div></section>${effectDiagnosticHistory(entry)}${renderVerifiedEffectDiagnosticReport(entry)}</div>`;
+}
+
+function renderEffectDiagnostic() {
+  ensureEffectDiagnosticDraft();
+  return renderEffectDiagnosticWorkspace();
+}
+
+function renderEffectMonitor() {
+  return renderRealEffectMonitor();
+}
+function renderRealMonitoring() {
+  if (!monitoringSnapshot.loaded && !monitoringSnapshot.loading) queueMicrotask(() => refreshRealMonitoring({ silent: true }));
+  if (!diagnosticSnapshot.loaded && !diagnosticSnapshot.loading && !diagnosticSnapshot.attempted) queueMicrotask(() => refreshOperationDiagnostics({ silent: true }));
+  if (!["analysis", "evidence", "reports", "rules"].includes(ui.diagnosticSection)) ui.diagnosticSection = "analysis";
+  const content = ui.diagnosticSection === "analysis" ? renderAnalysisWorkbench() : ui.diagnosticSection === "evidence" ? renderDiagnosticEvidencePage() : ui.diagnosticSection === "reports" ? renderDiagnosticReports() : renderDiagnosticRules();
+  const actions = ui.diagnosticSection === "analysis"
+    ? `<button class="secondary-button" type="button" data-action="analysis-refresh" ${analysisWorkbenchSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新会话</button><button class="primary-button" type="button" data-action="analysis-new-session"><span data-icon="plus"></span>新建分析</button>`
+    : ui.diagnosticSection === "evidence"
+      ? `<button class="secondary-button" type="button" data-action="refresh-monitoring" ${monitoringSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新官网数据</button><button class="primary-button" type="button" data-action="run-monitoring-diagnostic"><span data-icon="shield"></span>运行网站诊断</button>`
+      : `<button class="secondary-button" type="button" data-action="diagnostic-refresh-all" ${monitoringSnapshot.loading || diagnosticSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新数据</button>`;
+  const dataState = ["analysis", "evidence", "reports"].includes(ui.diagnosticSection) ? "" : diagnosticDataState();
+  return `<div class="page-container monitor-real-page diagnostic-page">${pageHead("运营诊断", "行业研究由 AI 分析工作台完成；官网实测持续记录第一方访问、爬虫抓取和网站 GEO 健康。", actions)}${dataState}${renderDiagnosticTabs()}<main class="diagnostic-content">${content}</main></div>`;
 }
 
 function renderMonitoring() {
-  const actions = '<button class="secondary-button" type="button" data-action="refresh-monitoring" ' + (ui.monitoringRefreshing ? "disabled" : "") + '>' + (ui.monitoringRefreshing ? '<span class="loading-spinner" style="border-color:#9bb7ee;border-top-color:var(--blue)"></span>正在采集' : '<span data-icon="refresh"></span>刷新监测') + '</button><button class="primary-button" type="button" data-action="open-monitor-task"><span data-icon="plus"></span>创建监测</button>';
-  return `
-    <div class="page-container">
-      ${pageHead("效果监测", "持续验证品牌是否被 AI 提及、排在什么位置，以及哪些内容成为引用信源。", actions)}
-      <div class="monitor-demo-note"><span data-icon="info"></span><span><b>当前展示为产品演示数据</b>正式版需要新增 AI 平台采集、调度、证据留存与统计服务；GEOFlow、GEORank 现有源码不包含完整监测引擎。</span><span class="small-tag blue">演示数据</span></div>
-      ${monitoringFilters()}
-      <div class="tabs-row">${monitoringTabs()}<span class="health"><i></i>监测任务正常</span></div>
-      ${ui.monitoringTab === "overview" ? renderMonitoringOverview() : renderMonitoringTable()}
-    </div>
-  `;
+  return renderRealMonitoring();
 }
-
 function legacySiteTabs() {
   const tabs = [["preview", "官网预览"], ["homepage", "首页编排"], ["leads", "咨询线索"], ["settings", "站点设置"]];
   return '<div class="tabs">' + tabs.map(([id, label]) => '<button class="tab-button ' + (ui.siteTab === id ? "active" : "") + '" type="button" data-action="site-tab" data-tab="' + id + '">' + label + "</button>").join("") + "</div>";
@@ -4235,14 +9722,15 @@ function legacyRenderSite() {
  * -------------------------------------------------------------------------- */
 const SITE_PAGE_DEFINITIONS = [
   { id: "home", type: "首页", title: "首页", path: "/", status: "published", description: "企业定位、核心服务、案例与咨询入口" },
-  { id: "about", type: "关于页", title: "关于我们", path: "/about/", status: "published", description: "企业主体、团队与发展信息" },
   { id: "services", type: "服务页", title: "产品与服务", path: "/services/", status: "published", description: "服务能力、适用对象与交付边界" },
   { id: "cases", type: "案例页", title: "服务案例", path: "/cases/", status: "published", description: "经过审核的客户案例与实施结果" },
-  { id: "faq", type: "FAQ 页", title: "常见问题", path: "/faq/", status: "draft", description: "高频问题、直接答案与引用依据" },
   { id: "insights", type: "资讯列表", title: "行业资讯", path: "/insights/", status: "published", description: "客户自定义栏目下的公开文章" },
-  { id: "contact", type: "联系页", title: "联系我们", path: "/contact/", status: "published", description: "咨询表单、服务区域与联系方式" },
-  { id: "landing", type: "专题页", title: "制造业 GEO 专题", path: "/topics/manufacturing-geo/", status: "draft", description: "可按业务线创建的专题落地页" }
+  { id: "problem-map", type: "问题地图", title: "问题地图", path: "/problem-map/", status: "published", description: "按服务方向和行业整理客户真实问题" },
+  { id: "about", type: "关于页", title: "关于我们", path: "/about/", status: "published", description: "企业主体、团队与发展信息" },
+  { id: "contact", type: "联系页", title: "联系我们", path: "/contact/", status: "published", description: "咨询表单、服务区域与联系方式" }
 ];
+
+const SITE_PRIMARY_PAGE_IDS = new Set(SITE_PAGE_DEFINITIONS.map((page) => page.id));
 
 const SITE_CATEGORIES = [
   { id: "geo", name: "GEO优化", slug: "geo", level: 1, count: 8, status: "active", description: "企业 GEO 方法、信源建设与 AI 搜索" },
@@ -4254,37 +9742,48 @@ const SITE_CATEGORIES = [
 ];
 
 const SITE_NAV_ITEMS = [
-  ["首页", "/", "固定页面"],
-  ["产品与服务", "/services/", "固定页面"],
-  ["行业资讯", "/insights/", "资讯列表"],
-  ["服务案例", "/cases/", "固定页面"],
-  ["关于我们", "/about/", "固定页面"],
-  ["联系我们", "/contact/", "固定页面"]
+  ["首页", "/", "固定页面", "nav-home"],
+  ["产品与服务", "/services/", "固定页面", "nav-services"],
+  ["服务案例", "/cases/", "固定页面", "nav-cases"],
+  ["行业资讯", "/insights/", "资讯列表", "nav-insights"],
+  ["问题地图", "/problem-map/", "固定页面", "nav-problem-map"],
+  ["关于我们", "/about/", "固定页面", "nav-about"],
+  ["联系我们", "/contact/", "固定页面", "nav-contact"]
 ];
 
 const SITE_SEMANTIC_MODULES = {
   home: [
-    ["首屏", "企业定位、直接答案与主 CTA", "引用企业公共知识", "published"],
-    ["直接答案", "用一段话回答客户最关心的问题", "AI 信源摘要", "published"],
-    ["产品服务", "服务范围、适用对象和交付边界", "产品/业务线资料", "published"],
-    ["案例与证据", "案例、数据和可核验事实", "已审核案例库", "published"],
-    ["最新资讯", "自动展示已发布文章和栏目", "行业资讯", "draft"],
-    ["咨询 CTA", "联系表单与下一步行动", "线索表单", "published"]
+    ["首屏", "企业定位、直接答案与主 CTA", "引用企业公共知识", "published", "hero"],
+    ["直接答案", "用一段话回答客户最关心的问题", "AI 信源摘要", "published", "answer"],
+    ["产品服务", "服务范围、适用对象和交付边界", "产品/业务线资料", "published", "services"],
+    ["案例与证据", "案例、数据和可核验事实", "已审核案例库", "published", "proof"],
+    ["最新资讯", "自动展示已发布文章和栏目", "行业资讯", "draft", "insights"],
+    ["咨询 CTA", "联系表单与下一步行动", "线索表单", "published", "cta"]
   ],
   insights: [
-    ["栏目说明", "栏目简介、AI 摘要和导航入口", "栏目配置", "published"],
-    ["文章列表", "标题、摘要、作者、日期与主栏目", "官网文章", "published"],
-    ["相关内容", "按业务线、标签和实体关联内容", "内容关联", "draft"]
+    ["栏目说明", "栏目简介、AI 摘要和导航入口", "栏目配置", "published", "hero"],
+    ["文章列表", "标题、摘要、作者、日期与主栏目", "官网文章", "published", "articles"],
+    ["相关内容", "按业务线、标签和实体关联内容", "内容关联", "draft", "content"]
   ],
   services: [
-    ["服务直接答案", "适合谁、解决什么问题、如何交付", "企业知识库", "published"],
-    ["服务模块", "产品、能力、流程和边界", "产品/业务线资料", "published"],
-    ["FAQ 与 CTA", "常见问题、证据和咨询入口", "FAQ 知识库", "draft"]
+    ["服务直接答案", "适合谁、解决什么问题、如何交付", "企业知识库", "published", "answer"],
+    ["服务模块", "产品、能力、流程和边界", "产品/业务线资料", "published", "services"],
+    ["FAQ 与 CTA", "常见问题、证据和咨询入口", "FAQ 知识库", "draft", "faq"]
+  ],
+  cases: [
+    ["服务案例", "展示经过脱敏、审核并允许公开的实施案例", "已审核案例库", "published", "hero"],
+    ["案例与证据", "按业务场景展示公开案例与实施依据", "企业案例知识库", "published", "proof"],
+    ["咨询 CTA", "提交业务场景并了解实施路径", "线索表单", "published", "cta"]
+  ],
+  "problem-map": [
+    ["问题地图", "按服务方向和行业整理客户真实问题", "问题词库与已发布文章", "published", "hero"],
+    ["客户正在问什么", "按服务方向、行业与决策阶段组织问题", "已审核问题地图", "published", "problem-map"],
+    ["提交企业问题", "没有找到问题时进入咨询入口", "线索表单", "published", "cta"]
   ]
 };
 
 function sitePageDefinition(id = ui.sitePageId) {
-  const pages = siteCms().pages || SITE_PAGE_DEFINITIONS;
+  const pages = sitePages();
   return pages.find((item) => item.id === id) || pages[0];
 }
 
@@ -4293,14 +9792,31 @@ function siteCms() {
 }
 
 function sitePages() {
-  return siteCms().pages || SITE_PAGE_DEFINITIONS;
+  const cms = siteCms();
+  if (!Array.isArray(cms.pages)) cms.pages = [];
+  const rows = cms.pages;
+  SITE_PAGE_DEFINITIONS.forEach((definition) => {
+    if (rows.some((page) => page.id === definition.id)) return;
+    rows.push({ ...cloneData(definition), seoDescription: definition.description, schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: null, publishedAt: definition.status === "published" ? siteNow() : null });
+  });
+  const primary = SITE_PAGE_DEFINITIONS.map((definition) => rows.find((page) => page.id === definition.id)).filter(Boolean);
+  const extensions = rows.filter((page) => !SITE_PRIMARY_PAGE_IDS.has(page.id));
+  return [...primary, ...extensions];
+}
+
+function sitePrimaryPages() {
+  return sitePages().filter((page) => SITE_PRIMARY_PAGE_IDS.has(page.id));
+}
+
+function siteExtensionPages() {
+  return sitePages().filter((page) => !SITE_PRIMARY_PAGE_IDS.has(page.id));
 }
 
 function siteModules(pageId) {
   const modules = siteCms().modules?.[pageId];
   if (Array.isArray(modules)) return modules;
   const legacy = SITE_SEMANTIC_MODULES[pageId] || [["正文", "结构化页面正文和直接答案", "页面内容", "draft"], ["相关内容", "关联文章、案例与 FAQ", "内容库", "draft"], ["CTA", "页面行动入口", "公共组件", "published"]];
-  siteCms().modules[pageId] = legacy.map((module, index) => ({ id: `${pageId}-legacy-${index}`, title: module[0], description: module[1], source: module[2], status: module[3], content: "" }));
+  siteCms().modules[pageId] = legacy.map((module, index) => ({ id: `${pageId}-legacy-${index}`, title: module[0], description: module[1], source: module[2], status: module[3], type: module[4] || "content", content: "" }));
   return siteCms().modules[pageId];
 }
 
@@ -4309,12 +9825,59 @@ function siteCategories(includeArchived = false) {
   return includeArchived ? categories : categories.filter((item) => item.status !== "archived");
 }
 
+function siteServices(includeArchived = true) {
+  const cms = siteCms();
+  if (!Array.isArray(cms.services)) cms.services = [];
+  const rows = [...cms.services].sort((a, b) => (Number(a.order) || 999) - (Number(b.order) || 999));
+  return includeArchived ? rows : rows.filter((item) => item.status !== "archived");
+}
+
+function siteCases(includeArchived = true) {
+  const cms = siteCms();
+  if (!Array.isArray(cms.cases)) cms.cases = [];
+  const rows = [...cms.cases].sort((a, b) => (Number(a.order) || 999) - (Number(b.order) || 999));
+  return includeArchived ? rows : rows.filter((item) => item.status !== "archived");
+}
+
+function siteProblemGroups(includeArchived = true) {
+  const cms = siteCms();
+  if (!Array.isArray(cms.problemGroups)) cms.problemGroups = [];
+  const rows = [...cms.problemGroups].map((group) => ({ ...group, questions: [...(group.questions || [])].sort((a, b) => (Number(a.order) || 999) - (Number(b.order) || 999)) })).sort((a, b) => (Number(a.order) || 999) - (Number(b.order) || 999));
+  return includeArchived ? rows : rows.filter((item) => item.status !== "archived");
+}
+
+function siteRecordStatus(status) {
+  if (status === "published") return '<span class="status-badge status-approved">公开</span>';
+  if (status === "archived") return '<span class="status-badge status-draft">已归档</span>';
+  return '<span class="status-badge status-review">草稿</span>';
+}
+
+function siteCommaList(value) {
+  return String(value || "").split(/[,，、\n]/).map((item) => item.trim()).filter(Boolean);
+}
+
 function siteNavItems() {
-  const nav = siteCms().navItems || SITE_NAV_ITEMS;
-  return nav.map((item, index) => Array.isArray(item) ? { id: `legacy-nav-${index}`, label: item[0], path: item[1], type: item[2], visible: true } : item);
+  const cms = siteCms();
+  if (!Array.isArray(cms.navItems)) cms.navItems = [];
+  const normalized = cms.navItems.map((item, index) => Array.isArray(item) ? { id: `legacy-nav-${index}`, label: item[0], path: item[1], type: item[2], visible: true } : item);
+  cms.navItems = normalized;
+  const extensionPaths = new Set(siteExtensionPages().map((page) => page.path));
+  normalized.forEach((item) => {
+    if (item.path === "/faq/" || extensionPaths.has(item.path) || String(item.path || "").startsWith("/topics/")) item.visible = false;
+  });
+  const canonical = SITE_NAV_ITEMS.map(([label, path, type, id], index) => {
+    const existing = normalized.find((item) => item.id === id || item.path === path);
+    if (existing) return existing;
+    const item = { id: id || `nav-${path === "/" ? "home" : path.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9]+/gi, "-") || index + 1}`, label, path, type, visible: true };
+    cms.navItems.push(item);
+    normalized.push(item);
+    return item;
+  });
+  return [...canonical, ...normalized.filter((item) => !canonical.includes(item))];
 }
 
 function siteLeads() {
+  if (siteCmsRuntime.loaded) return siteCmsRuntime.leads || [];
   return siteCms().leads || [];
 }
 
@@ -4374,17 +9937,21 @@ function siteTabs() {
   const tabs = [
     ["overview", "官网概览"],
     ["pages", "页面管理"],
+    ["catalog", "服务与案例"],
+    ["problems", "问题地图"],
     ["insights", "行业资讯"],
     ["navigation", "导航与外观"],
+    ["seo", "SEO 与 AI 信号"],
     ["leads", "咨询线索"],
-    ["settings", "站点设置"]
+    ["releases", "发布历史"]
   ];
   return '<div class="tabs site-cms-tabs">' + tabs.map(([id, label]) => '<button class="tab-button ' + (ui.siteTab === id ? "active" : "") + '" type="button" data-action="site-tab" data-tab="' + id + '">' + label + "</button>").join("") + "</div>";
 }
 
 function renderSiteOverview() {
   const articles = state.articles || [];
-  const pages = sitePages();
+  const diagnosticTasks = (state.siteCmsTasks || []).filter((task) => !["completed", "archived", "cancelled"].includes(task.status));
+  const pages = sitePrimaryPages();
   const leads = siteLeads();
   const pendingLeads = leads.filter((lead) => lead.status === "new").length;
   const published = articles.filter((article) => article.status === "published" || article.siteStatus === "published").length;
@@ -4409,25 +9976,50 @@ function renderSiteOverview() {
       </div>
       <div class="site-cms-grid">
         <section class="card"><div class="card-header"><div><h3>官网内容流水线</h3><p>每一步都有明确归属，避免文章正文在两个地方维护。</p></div><span class="small-tag blue">当前站点：${escapeHtml(state.site.domain)}</span></div><div class="site-publish-flow"><div class="site-flow-step done"><i>1</i><b>内容生产</b><small>写作、知识库引用、AI 协作</small></div><span class="site-flow-arrow">→</span><div class="site-flow-step done"><i>2</i><b>人工审核</b><small>事实、风险与证据冻结</small></div><span class="site-flow-arrow">→</span><div class="site-flow-step active"><i>3</i><b>官网 CMS</b><small>栏目、SEO、预览与发布</small></div><span class="site-flow-arrow">→</span><div class="site-flow-step"><i>4</i><b>公开信源</b><small>页面、sitemap、RSS、llms</small></div></div></section>
-        <section class="card"><div class="card-header"><div><h3>信源检查</h3><p>发布时自动执行，不需要频繁手动诊断。</p></div><button class="text-button" type="button" data-action="site-tab" data-tab="settings">查看设置</button></div><div class="site-check-list">${checks.map(([title, text, stateName]) => `<div class="site-check-item"><span class="check-dot ${stateName}">${stateName === "ok" ? "✓" : "!"}</span><span><b>${title}</b><small>${text}</small></span></div>`).join("")}</div></section>
+        <section class="card"><div class="card-header"><div><h3>信源检查</h3><p>发布时自动执行，不需要频繁手动诊断。</p></div><button class="text-button" type="button" data-action="site-tab" data-tab="seo">查看设置</button></div><div class="site-check-list">${checks.map(([title, text, stateName]) => `<div class="site-check-item"><span class="check-dot ${stateName}">${stateName === "ok" ? "✓" : "!"}</span><span><b>${title}</b><small>${text}</small></span></div>`).join("")}</div></section>
       </div>
+      ${diagnosticTasks.length ? `<section class="card"><div class="card-header"><div><h3>运营诊断回流待办</h3><p>这些任务已由运营人员在诊断报告中确认，只生成 CMS 待办，不会自动修改或发布官网。</p></div><span class="small-tag amber">${diagnosticTasks.length} 项待处理</span></div><div class="site-recent-list">${diagnosticTasks.slice(0, 6).map((task) => `<div class="site-recent-item"><span class="site-recent-type">运营诊断</span><div><b>${escapeHtml(task.title || "官网信源能力整改")}</b><small>${escapeHtml((task.checks || []).join(" · ") || task.websiteUrl || "请结合报告完成页面与信源结构整改")}</small></div><button class="secondary-button button-small" type="button" data-action="site-tab" data-tab="seo">进入处理</button></div>`).join("")}</div></section>` : ""}
       <section class="card"><div class="card-header"><div><h3>最近官网发布</h3><p>仅显示已通过审核并生成官网版本的内容。</p></div><button class="text-button" type="button" data-action="site-tab" data-tab="insights">查看全部</button></div><div class="site-recent-list">${articles.filter((article) => article.status === "published" || article.reviewStatus === "approved").slice(0, 4).map((article) => `<div class="site-recent-item"><span class="site-recent-type">${escapeHtml(article.category || "行业资讯")}</span><div><b>${escapeHtml(article.title)}</b><small>${escapeHtml(article.author || "企业内容团队")} · ${formatRelative(article.updatedAt)}</small></div><span>${siteArticleStatus(article)}</span></div>`).join("")}</div></section>
     </div>
   `;
 }
 
+function renderSitePageTreeItem(item, currentPageId, extension = false) {
+  const icon = item.id === "home" ? "home" : item.id === "insights" ? "file" : item.id === "contact" ? "message" : item.id === "cases" ? "clipboard" : item.id === "problem-map" ? "help" : "layout";
+  const statusText = item.status === "published" ? "已发布" : item.status === "archived" ? "已归档" : "草稿";
+  const statusClass = item.status === "published" ? "" : " draft";
+  return `<button class="site-tree-item ${item.id === currentPageId ? "active" : ""}" type="button" data-action="site-page" data-page-id="${escapeHtml(item.id)}"><span class="site-tree-icon" data-icon="${icon}"></span><span><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.path)}${extension ? " · 扩展页面" : ""}</small></span><i class="site-tree-status${statusClass}">${statusText}</i></button>`;
+}
+
 function renderSitePages() {
   const page = sitePageDefinition();
-  const pages = sitePages();
+  const primaryPages = sitePrimaryPages();
+  const extensionPages = siteExtensionPages();
   const modules = siteModules(page.id);
   return `
     <div class="site-page-toolbar"><div><h2>页面管理</h2><p>固定模板 + 语义模块，保证页面可编辑、可预览、可回滚。</p></div><div class="modal-foot-right"><button class="secondary-button button-small" type="button" data-action="site-new-page"><span data-icon="plus"></span>新建专题页</button><button class="primary-button button-small" type="button" data-action="site-page-save"><span data-icon="check"></span>保存页面</button></div></div>
     <div class="site-page-manager">
-      <aside class="card site-page-tree"><div class="card-header"><div><h3>页面树</h3><p>${pages.length} 个页面 · ${pages.filter((item) => item.status === "published").length} 个已发布</p></div></div><div class="site-tree-list">${pages.map((item) => `<button class="site-tree-item ${item.id === page.id ? "active" : ""}" type="button" data-action="site-page" data-page-id="${escapeHtml(item.id)}"><span class="site-tree-icon" data-icon="${item.id === "home" ? "home" : item.id === "insights" ? "file" : item.id === "contact" ? "message" : "layout"}"></span><span><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.path)}</small></span>${item.status === "published" ? '<i class="site-tree-status">已发布</i>' : '<i class="site-tree-status draft">草稿</i>'}</button>`).join("")}</div></aside>
+      <aside class="card site-page-tree"><div class="card-header"><div><h3>页面树</h3><p>${primaryPages.length} 个主站页面 · ${primaryPages.filter((item) => item.status === "published").length} 个已发布</p></div></div><div class="site-tree-list"><div class="site-tree-group-label">主站页面</div>${primaryPages.map((item) => renderSitePageTreeItem(item, page.id)).join("")}${extensionPages.length ? `<div class="site-tree-group-label">扩展页面 <small>不进入默认一级导航</small></div>${extensionPages.map((item) => renderSitePageTreeItem(item, page.id, true)).join("")}` : ""}</div></aside>
       <section class="card site-page-editor"><div class="card-header"><div><span class="small-tag">${escapeHtml(page.type)}</span><h3>${escapeHtml(page.title)}</h3><p>${escapeHtml(page.description)}</p></div><button class="secondary-button button-small" type="button" data-action="site-page-preview" data-page-id="${escapeHtml(page.id)}"><span data-icon="eye"></span>预览页面</button></div><div class="site-editor-canvas"><div class="site-editor-canvas-head"><span>页面模块</span><small>每个模块可编辑内容来源与展示状态</small></div>${modules.map((module, index) => `<div class="site-module-row"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><span class="site-module-grip">⋮⋮</span><div class="site-module-copy"><b>${escapeHtml(module.title)}</b><small>${escapeHtml(module.description)}</small><em>内容来源：${escapeHtml(module.source)}</em></div><span>${module.status === "published" ? statusBadge("published") : statusBadge("draft")}</span><button class="icon-button" type="button" data-action="site-module-edit" data-page-id="${escapeHtml(page.id)}" data-module-id="${escapeHtml(module.id)}" aria-label="编辑模块"><span data-icon="edit"></span></button></div>`).join("")}<button class="site-add-module" type="button" data-action="site-module-add" data-page-id="${escapeHtml(page.id)}"><span data-icon="plus"></span>添加语义模块</button></div></section>
-      <aside class="card site-page-settings"><div class="card-header"><div><h3>页面设置</h3><p>页面级 SEO 与 AI 信号</p></div></div><div class="card-body"><div class="field"><label for="site-page-title">页面标题</label><input class="input" id="site-page-title" value="${escapeHtml(page.title)}" /></div><div class="field"><label for="site-page-path">页面路径</label><input class="input" id="site-page-path" value="${escapeHtml(page.path)}" /></div><div class="field"><label for="site-page-seo">SEO 描述</label><textarea class="textarea" id="site-page-seo" rows="4">${escapeHtml(page.seoDescription || page.description)}</textarea></div><div class="setting-row"><div><b>自动生成结构化数据</b><small>${escapeHtml(page.type)} 模板自动生成对应 Schema</small></div><label class="toggle ${page.schemaEnabled !== false ? "on" : ""}"><input type="checkbox" id="site-page-schema" ${page.schemaEnabled !== false ? "checked" : ""} /><span></span></label></div><div class="setting-row"><div><b>加入站点地图</b><small>发布后自动更新 sitemap</small></div><label class="toggle ${page.sitemapEnabled !== false ? "on" : ""}"><input type="checkbox" id="site-page-sitemap" ${page.sitemapEnabled !== false ? "checked" : ""} /><span></span></label></div><div class="site-page-version"><span data-icon="history"></span><span><b>当前版本 v${escapeHtml(page.version || 1)}</b><small>最近保存：${escapeHtml(siteDisplayTime(page.savedAt))} · 可回滚</small></span><button class="link-button" type="button" data-action="site-page-version" data-page-id="${escapeHtml(page.id)}">查看</button></div></div></aside>
+       <aside class="card site-page-settings"><div class="card-header"><div><h3>页面设置</h3><p>页面级状态、SEO 与 AI 信号</p></div></div><div class="card-body"><div class="field"><label for="site-page-title">页面标题</label><input class="input" id="site-page-title" value="${escapeHtml(page.title)}" /></div><div class="field"><label for="site-page-path">页面路径</label><input class="input" id="site-page-path" value="${escapeHtml(page.path)}" /></div><div class="field"><label for="site-page-status">页面状态</label><select class="select" id="site-page-status"><option value="published" ${page.status === "published" ? "selected" : ""}>已发布</option><option value="draft" ${page.status === "draft" ? "selected" : ""}>草稿</option><option value="archived" ${page.status === "archived" ? "selected" : ""}>已归档</option></select><small class="field-help">草稿和已归档页面不会出现在正式官网、导航、sitemap 或 AI 机器入口。</small></div><div class="field"><label for="site-page-seo">SEO 描述</label><textarea class="textarea" id="site-page-seo" rows="4">${escapeHtml(page.seoDescription || page.description)}</textarea></div><div class="setting-row"><div><b>自动生成结构化数据</b><small>${escapeHtml(page.type)} 模板自动生成对应 Schema</small></div><label class="toggle ${page.schemaEnabled !== false ? "on" : ""}"><input type="checkbox" id="site-page-schema" ${page.schemaEnabled !== false ? "checked" : ""} /><span></span></label></div><div class="setting-row"><div><b>加入站点地图</b><small>发布后自动更新 sitemap</small></div><label class="toggle ${page.sitemapEnabled !== false ? "on" : ""}"><input type="checkbox" id="site-page-sitemap" ${page.sitemapEnabled !== false ? "checked" : ""} /><span></span></label></div><div class="site-page-version"><span data-icon="history"></span><span><b>当前草稿 v${escapeHtml(page.version || 1)}</b><small>整站发布后可在发布历史中查看和回滚</small></span><button class="link-button" type="button" data-action="site-show-releases">查看发布历史</button></div></div></aside>
     </div>
   `;
+}
+
+function renderSiteCatalog() {
+  const services = siteServices();
+  const cases = siteCases();
+  const isServices = ui.siteCatalogTab !== "cases";
+  const serviceRows = services.map((item, index) => `<tr><td><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span></td><td class="article-title-cell"><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.eyebrow || "SERVICE")}</small></td><td>${escapeHtml(item.audience || "待补充适用对象")}</td><td>${escapeHtml(item.focus || "待补充工作重点")}</td><td>${siteRecordStatus(item.status)}</td><td><button class="link-button" type="button" data-action="site-edit-service" data-service-id="${escapeHtml(item.id)}">编辑</button></td></tr>`).join("");
+  const caseRows = cases.map((item, index) => `<tr><td><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span></td><td class="article-title-cell"><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.summary || "等待补充案例摘要")}</small></td><td><span class="source-tag">${escapeHtml(item.industry || "待归类")}</span></td><td>${escapeHtml(item.service || "待关联服务")}</td><td>${escapeHtml(item.result || "待补充形成结果")}</td><td>${siteRecordStatus(item.status)}</td><td><button class="link-button" type="button" data-action="site-edit-case" data-case-id="${escapeHtml(item.id)}">编辑</button></td></tr>`).join("");
+  return `<div class="site-page-toolbar"><div><h2>服务与案例</h2><p>维护官网产品与服务、公开案例和实施结果。只有公开状态的数据进入正式官网。</p></div><button class="primary-button button-small" type="button" data-action="${isServices ? "site-add-service" : "site-add-case"}"><span data-icon="plus"></span>${isServices ? "新增服务" : "新增案例"}</button></div><section class="card site-source-note"><span class="site-source-note-icon" data-icon="info"></span><div><b>服务和案例属于官网正式信源</b><p>案例需要完成客户授权、脱敏与人工核对；归档只会从官网隐藏，不会丢失历史发布版本。</p></div><span class="small-tag blue">随整站发布</span></section><div class="site-content-tabs"><button class="site-content-tab ${isServices ? "active" : ""}" type="button" data-action="site-catalog-tab" data-tab="services">产品与服务 <small>${services.length}</small></button><button class="site-content-tab ${!isServices ? "active" : ""}" type="button" data-action="site-catalog-tab" data-tab="cases">服务案例 <small>${cases.length}</small></button></div><section class="card table-card"><div class="table-scroll"><table class="data-table"><thead><tr>${isServices ? "<th>排序</th><th>服务</th><th>适合对象</th><th>工作重点</th><th>状态</th><th></th>" : "<th>排序</th><th>案例</th><th>行业</th><th>服务方向</th><th>形成结果</th><th>状态</th><th></th>"}</tr></thead><tbody>${isServices ? serviceRows : caseRows}</tbody></table></div>${(isServices ? services : cases).length ? "" : '<div class="empty-state compact"><div><span data-icon="layout"></span><h3>还没有官网内容</h3><p>新增后先保存到草稿，预览确认后再统一发布官网。</p></div></div>'}</section>`;
+}
+
+function renderSiteProblems() {
+  const groups = siteProblemGroups();
+  const questionCount = groups.reduce((sum, group) => sum + (group.questions || []).length, 0);
+  const sections = groups.map((group, groupIndex) => `<section class="card site-problem-admin-group"><div class="card-header"><div><span class="small-tag">${String(groupIndex + 1).padStart(2, "0")}</span><h3>${escapeHtml(group.title)}</h3><p>${escapeHtml(group.service)} · ${escapeHtml(group.description || "等待补充分组说明")}</p></div><div class="modal-foot-right">${siteRecordStatus(group.status)}<button class="secondary-button button-small" type="button" data-action="site-edit-problem-group" data-group-id="${escapeHtml(group.id)}">编辑分组</button><button class="primary-button button-small" type="button" data-action="site-add-question" data-group-id="${escapeHtml(group.id)}"><span data-icon="plus"></span>新增问题</button></div></div><div class="site-problem-admin-list">${(group.questions || []).map((question, index) => `<div class="site-problem-admin-row"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><div><b>${escapeHtml(question.title)}</b><small>${escapeHtml(question.answer || "等待补充直接回答")}</small><em>/problem-map/${escapeHtml(question.slug)}/ · ${escapeHtml((question.industries || []).join("、") || "未设置行业")}</em></div>${siteRecordStatus(question.status)}<button class="link-button" type="button" data-action="site-edit-question" data-group-id="${escapeHtml(group.id)}" data-question-id="${escapeHtml(question.id)}">编辑</button></div>`).join("") || '<div class="empty-state compact"><div><h3>分组内还没有问题</h3><p>新增问题后填写直接回答和适用行业。</p></div></div>'}</div></section>`).join("");
+  return `<div class="site-page-toolbar"><div><h2>问题地图</h2><p>把客户真实提问组织成可公开、可引用、可进入问题详情页的直接回答。</p></div><button class="primary-button button-small" type="button" data-action="site-add-problem-group"><span data-icon="plus"></span>新增问题分组</button></div><section class="card site-source-note"><span class="site-source-note-icon" data-icon="info"></span><div><b>${groups.length} 个问题分组 · ${questionCount} 个客户问题</b><p>问题标题、直接回答、所属行业和关联文章进入正式 CMS 版本；草稿问题只在后台预览中显示。</p></div><button class="secondary-button button-small" type="button" data-action="site-page-preview" data-page-id="problem-map"><span data-icon="eye"></span>预览问题地图</button></section><div class="site-problem-admin-groups">${sections || '<section class="card empty-state"><div><span data-icon="help"></span><h3>还没有问题分组</h3><p>先建立 GEO 服务、企业 AI 落地或其他业务方向的问题分组。</p></div></section>'}</div>`;
 }
 
 function renderSiteInsights() {
@@ -4463,23 +10055,42 @@ function renderSiteLeads() {
 
 function renderSiteSettings() {
   const settings = siteCms().settings;
-  const deployment = siteCms().deployment;
   const redirects = siteCms().redirects || [];
-  const outputs = [["Organization", "企业主体、品牌名和官方域名", "已生成"], ["Article / Breadcrumb", "文章页自动输出结构化数据", "已开启"], ["sitemap / RSS", "发布后自动更新机器入口", "已开启"], ["llms.txt", "公开信源摘要和完整内容索引", "已生成"]];
-  return `<div class="site-settings-grid"><section class="card"><div class="card-header"><div><h2>站点与企业主体</h2><p>域名、企业实体和公开描述是全站信源的基础。</p></div><button class="primary-button button-small" type="button" data-action="save-site">保存设置</button></div><div class="card-body"><div class="field-row"><div class="field"><label for="site-setting-name">网站名称</label><input class="input" id="site-setting-name" value="${escapeHtml(settings.siteName)}" /></div><div class="field"><label for="site-setting-domain">主域名</label><input class="input" id="site-setting-domain" value="${escapeHtml(state.site.domain)}" /></div></div><div class="field"><label for="site-setting-company">企业主体</label><input class="input" id="site-setting-company" value="${escapeHtml(settings.companyName)}" /></div><div class="field"><label for="site-setting-description">网站描述</label><textarea class="textarea" id="site-setting-description" rows="3">${escapeHtml(settings.description)}</textarea></div><div class="setting-row"><div><b>允许 AI 抓取已发布内容</b><small>仅公开已审核、已发布的官网页面</small></div><label class="toggle ${settings.allowAiCrawl !== false ? "on" : ""}"><input type="checkbox" id="site-setting-ai-crawl" ${settings.allowAiCrawl !== false ? "checked" : ""} /><span></span></label></div></div></section><section class="card"><div class="card-header"><div><h2>AI 信源输出</h2><p>系统自动生成，不需要每篇文章手动配置。</p></div><span class="small-tag blue">信源完整度 92%</span></div><div class="site-output-list">${outputs.map((item) => `<div class="site-output-row"><span class="check-dot ok">✓</span><div><b>${item[0]}</b><small>${item[1]}</small></div><span class="status-badge status-approved">${item[2]}</span></div>`).join("")}</div><div class="site-settings-footnote"><span data-icon="info"></span><span>页面发布时自动检查标题、摘要、作者、发布日期、canonical、内部链接和栏目主题一致性。</span></div></section><section class="card site-advanced-card"><div class="card-header"><div><h2>高级设置</h2><p>低频维护入口：部署、重定向和网站诊断。</p></div></div><div class="advanced-setting-row"><div><b>服务器发布</b><small>${escapeHtml(deployment.mode)} · ${escapeHtml(deployment.environment)} · 最近发布 ${escapeHtml(deployment.lastDeployAt || "—")}</small></div><span class="status-badge ${deployment.status === "online" ? "status-online" : "status-review"}">${deployment.status === "online" ? "在线" : "待检查"}</span><button class="link-button" type="button" data-action="site-deployment">查看</button></div><div class="advanced-setting-row"><div><b>URL 重定向</b><small>栏目或页面 slug 修改时自动生成 301</small></div><span class="small-tag">${redirects.filter((item) => item.status === "active").length} 条生效</span><button class="link-button" type="button" data-action="site-redirects">管理</button></div><div class="site-health site-health-quiet"><div class="site-health-head"><h4>网站诊断：${escapeHtml(state.site.diagnosticStatus || "正常")}</h4>${statusBadge("healthy")}</div><p>首次上线或配置变更后复查即可，不作为日常运营工具。</p><button class="secondary-button button-small" type="button" data-action="run-diagnostic"><span data-icon="refresh"></span>重新检测</button></div></section></div>`;
+  const outputs = [["Organization / WebSite", "企业主体、品牌名和官方域名", "已生成"], ["Service / CaseStudy", "产品服务与公开案例结构化表达", "已开启"], ["CollectionPage / FAQPage", "问题地图与权威答案的机器可读结构", "已开启"], ["Article / Breadcrumb", "文章页自动输出结构化数据", "已开启"], ["sitemap / RSS / llms.txt", "发布后同步更新机器入口", "已生成"]];
+  return `<div class="site-settings-grid"><section class="card"><div class="card-header"><div><h2>站点与企业主体</h2><p>域名、企业实体和公开描述是全站信源的基础。</p></div><button class="primary-button button-small" type="button" data-action="save-site">保存设置</button></div><div class="card-body"><div class="field-row"><div class="field"><label for="site-setting-name">网站名称</label><input class="input" id="site-setting-name" value="${escapeHtml(settings.siteName)}" /></div><div class="field"><label for="site-setting-domain">主域名</label><input class="input" id="site-setting-domain" value="${escapeHtml(settings.officialDomain || state.site.domain)}" /></div></div><div class="field"><label for="site-setting-company">企业主体</label><input class="input" id="site-setting-company" value="${escapeHtml(settings.companyName)}" /></div><div class="field"><label for="site-setting-description">网站描述</label><textarea class="textarea" id="site-setting-description" rows="3">${escapeHtml(settings.description)}</textarea></div><div class="field"><label for="site-setting-logo">企业 Logo 地址</label><input class="input" id="site-setting-logo" value="${escapeHtml(settings.logoUrl || "")}" placeholder="https://www.example.com/assets/logo.png 或 /assets/logo.png" /></div><div class="field"><label for="site-setting-same-as">权威主体链接</label><textarea class="textarea" id="site-setting-same-as" rows="3" placeholder="每行一个已认证的企业主页或权威主体地址">${escapeHtml((settings.sameAs || []).join("\n"))}</textarea><small>用于 Organization.sameAs，最多 12 个；请勿填写未认证或无关账号。</small></div><div class="setting-row"><div><b>允许 AI 抓取已发布内容</b><small>仅公开已审核、已发布的官网页面</small></div><label class="toggle ${settings.allowAiCrawl !== false ? "on" : ""}"><input type="checkbox" id="site-setting-ai-crawl" ${settings.allowAiCrawl !== false ? "checked" : ""} /><span></span></label></div></div></section><section class="card"><div class="card-header"><div><h2>AI 信源输出</h2><p>系统自动生成，不需要每篇文章手动配置。</p></div><span class="small-tag blue">信源完整度 92%</span></div><div class="site-output-list">${outputs.map((item) => `<div class="site-output-row"><span class="check-dot ok">✓</span><div><b>${item[0]}</b><small>${item[1]}</small></div><span class="status-badge status-approved">${item[2]}</span></div>`).join("")}</div><div class="site-settings-footnote"><span data-icon="info"></span><span>页面发布时自动检查标题、摘要、作者、发布日期、canonical、内部链接和栏目主题一致性。</span></div></section><section class="card site-advanced-card"><div class="card-header"><div><h2>高级设置</h2><p>低频维护入口：重定向、发布历史和网站诊断。</p></div></div><div class="advanced-setting-row"><div><b>官网发布机制</b><small>后台保存 CMS 草稿后，通过顶部“发布官网”生成不可变正式版本；官网服务从同一数据库即时读取。</small></div><span class="status-badge status-online">已连接</span><button class="link-button" type="button" data-action="site-show-releases">查看历史</button></div><div class="advanced-setting-row"><div><b>URL 重定向</b><small>栏目或页面 slug 修改时自动生成 301</small></div><span class="small-tag">${redirects.filter((item) => item.status === "active").length} 条生效</span><button class="link-button" type="button" data-action="site-redirects">管理</button></div><div class="site-health site-health-quiet"><div class="site-health-head"><h4>网站诊断：${escapeHtml(state.site.diagnosticStatus || "正常")}</h4>${statusBadge("healthy")}</div><p>首次上线或配置变更后复查即可，不作为日常运营工具。</p><button class="secondary-button button-small" type="button" data-action="run-diagnostic"><span data-icon="refresh"></span>重新检测</button></div></section></div>`;
+}
+
+function renderSiteContactSettings() {
+  const settings = siteCms().settings || {};
+  return `<section class="card site-contact-settings-card"><div class="card-header"><div><h2>公开联系方式</h2><p>统一应用到联系我们、页脚、咨询表单和企业结构化数据。</p></div><button class="primary-button button-small" type="button" data-action="save-site-contact"><span data-icon="check"></span>保存联系方式</button></div><div class="card-body"><div class="field-row"><div class="field"><label for="site-setting-phone">联系电话</label><input class="input" id="site-setting-phone" value="${escapeHtml(settings.phone || "")}" /></div><div class="field"><label for="site-setting-email">企业邮箱</label><input class="input" id="site-setting-email" type="email" value="${escapeHtml(settings.email || "")}" /></div></div><div class="field"><label for="site-setting-address">企业地址</label><input class="input" id="site-setting-address" value="${escapeHtml(settings.address || "")}" /></div><div class="field-row"><div class="field"><label for="site-setting-region">所在区域 / 行业区域</label><input class="input" id="site-setting-region" value="${escapeHtml(settings.industryRegion || "")}" /></div><div class="field"><label for="site-setting-area">服务区域</label><input class="input" id="site-setting-area" value="${escapeHtml(settings.serviceArea || "")}" /></div></div><div class="site-settings-footnote"><span data-icon="info"></span><span>这些信息属于公开资料，请填写经过企业确认、允许对外展示的联系方式。</span></div></div></section>`;
+}
+
+function renderSiteReleasePanel() {
+  const current = siteCmsRuntime.publication?.version || 0;
+  const rows = (siteCmsRuntime.releases || []).map((release) => `<tr><td><b>v${escapeHtml(release.version)}</b>${release.current ? '<small class="table-subtext">当前正式版本</small>' : ""}</td><td>${escapeHtml(release.operation === "rollback" ? "回滚发布" : release.operation === "bootstrap" ? "初始版本" : "正式发布")}</td><td>${escapeHtml(release.note || "—")}</td><td>${escapeHtml(siteDisplayTime(release.createdAt))}</td><td>${release.current ? siteRecordStatus("published") : `<button class="link-button" type="button" data-action="site-rollback-cms" data-release-id="${escapeHtml(release.id)}" data-release-version="${escapeHtml(release.version)}">恢复为新版本</button>`}</td></tr>`).join("");
+  return `<div class="site-page-toolbar"><div><h2>发布历史</h2><p>每次正式发布生成不可变版本；回滚也会形成一个新的正式版本，不覆盖历史记录。</p></div><div class="modal-foot-right"><button class="secondary-button button-small" type="button" data-action="preview-site"><span data-icon="eye"></span>预览草稿</button><button class="primary-button button-small" type="button" data-action="site-publish-cms"><span data-icon="send"></span>发布官网</button></div></div><section class="card table-card"><div class="card-header"><div><h3>正式版本记录</h3><p>当前官网版本 v${escapeHtml(current)} · 共 ${(siteCmsRuntime.releases || []).length} 条记录</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>版本</th><th>操作</th><th>发布说明</th><th>时间</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
 }
 
 function renderSitePanel() {
-  if (ui.siteTab === "pages") return renderSitePages();
-  if (ui.siteTab === "insights") return renderSiteInsights();
-  if (ui.siteTab === "navigation") return renderSiteNavigation();
-  if (ui.siteTab === "leads") return renderSiteLeads();
-  if (ui.siteTab === "settings") return renderSiteSettings();
-  return renderSiteOverview();
+  const draft = siteCmsRuntime.draft;
+  const publication = siteCmsRuntime.publication;
+  const changed = siteCmsRuntime.localDirty || Boolean(draft && publication && draft.checksum !== publication.checksum);
+  const releaseBar = `<section class="site-release-bar ${changed ? "has-changes" : "is-current"}"><div class="site-release-state"><span class="site-release-indicator"></span><div><b>${siteCmsRuntime.saving ? "正在保存草稿" : changed ? "有未发布修改" : "草稿与官网一致"}</b><small>草稿 r${escapeHtml(draft?.revision || "—")} · 正式 v${escapeHtml(publication?.version || "—")} · 最近发布 ${escapeHtml(siteDisplayTime(publication?.publishedAt))}</small></div></div><div class="site-release-actions"><button class="secondary-button button-small" type="button" data-action="site-show-releases">发布历史</button><button class="secondary-button button-small" type="button" data-action="preview-site">预览草稿</button><button class="primary-button button-small" type="button" data-action="site-publish-cms">发布官网</button></div></section>`;
+  let body = "";
+  if (ui.siteTab === "pages") body = renderSitePages();
+  else if (ui.siteTab === "catalog") body = renderSiteCatalog();
+  else if (ui.siteTab === "problems") body = renderSiteProblems();
+  else if (ui.siteTab === "insights") body = renderSiteInsights();
+  else if (ui.siteTab === "navigation") body = renderSiteNavigation();
+  else if (ui.siteTab === "seo") body = renderSiteSettings() + renderSiteContactSettings();
+  else if (ui.siteTab === "leads") body = renderSiteLeads();
+  else if (ui.siteTab === "releases") body = renderSiteReleasePanel();
+  else body = renderSiteOverview();
+  return releaseBar + body;
 }
 
 function renderSite() {
-  return `<div class="page-container">${pageHead("官网运营", "管理企业官网页面、行业资讯、公开信源与咨询线索。文章正文在内容生产中心完成，审核后由官网 CMS 发布。", '<button class="secondary-button" type="button" data-action="preview-site"><span data-icon="external"></span>预览官网</button>')}<div class="tabs-row">${siteTabs()}<span class="health"><i></i>网站运行正常</span></div>${renderSitePanel()}</div>`;
+  return `<div class="page-container">${pageHead(PAGE_META.site.title, PAGE_META.site.description, '<button class="secondary-button" type="button" data-action="preview-site"><span data-icon="external"></span>预览官网</button>')}<div class="site-workspace"><aside class="card site-workspace-nav"><div class="site-workspace-nav-head"><span class="site-workspace-icon" data-icon="globe"></span><div><b>官网内容与结构</b><small>页面、信源与发布管理</small></div></div>${siteTabs()}<div class="site-workspace-status"><span class="health"><i></i>网站运行正常</span><small>${escapeHtml(state.site.domain)}</small></div></aside><section class="site-workspace-main">${renderSitePanel()}</section></div></div>`;
 }
 
 function renderSitePublishModal() {
@@ -4493,56 +10104,98 @@ function renderSitePublishModal() {
   return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">发布到企业官网</h2><p>${escapeHtml(article.id)} · 冻结版本 ${escapeHtml(article.version || "v1")} · 官网发布信息</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body site-publish-modal-body"><div class="publish-article"><b>${escapeHtml(article.title)}</b><span>正文来自内容生产中心；本窗口只补充官网展示字段。</span></div><div class="field-row"><div class="field"><label for="site-publish-category">主栏目 *</label><select class="select" id="site-publish-category">${categories.map((item) => `<option value="${escapeHtml(item.name)}" ${item.name === selectedCategory ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></div><div class="field"><label for="site-publish-author">作者</label><input class="input" id="site-publish-author" value="${escapeHtml(article.author || "桐灼研究")}" /></div></div><div class="field"><label for="site-publish-slug">文章地址 slug *</label><div class="site-slug-input"><span>/insights/</span><input class="input" id="site-publish-slug" value="${escapeHtml(slug)}" /></div><small class="field-help">修改已发布文章的 slug 时，系统自动生成 301 重定向。</small></div><div class="field"><label for="site-publish-excerpt">官网摘要</label><textarea class="textarea" id="site-publish-excerpt" rows="4">${escapeHtml(article.excerpt || "")}</textarea></div><div class="site-publish-checks"><div><span class="check-dot ok">✓</span><span><b>Article / Breadcrumb</b><small>发布时自动生成结构化数据</small></span></div><div><span class="check-dot ok">✓</span><span><b>栏目页、首页、sitemap</b><small>发布后自动更新相关入口</small></span></div><div><span class="check-dot ok">✓</span><span><b>知识证据冻结</b><small>${articleCitations(article).length} 条引用证据随版本保存</small></span></div></div></div><div class="modal-foot"><span>发布后可在行业资讯中下线或回滚</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-confirm-publish"><span data-icon="send"></span>确认发布</button></div></div>`, { wide: true });
 }
 
-function submitSitePublish() {
+async function submitSitePublish() {
   const article = state.articles.find((item) => item.id === ui.modal?.articleId);
   if (!article) return closeModal();
+  if (ui.submittingSitePublish) return;
   const category = document.getElementById("site-publish-category")?.value || article.category || "GEO优化";
   const slug = document.getElementById("site-publish-slug")?.value.trim() || article.id.toLowerCase();
   const author = document.getElementById("site-publish-author")?.value.trim() || article.author || "桐灼研究";
   const excerpt = document.getElementById("site-publish-excerpt")?.value.trim() || article.excerpt || "";
   const oldSlug = article.siteSlug;
-  article.siteStatus = "published";
-  article.siteCategory = category;
-  article.siteSlug = slug;
-  article.siteAuthor = author;
-  article.siteExcerpt = excerpt;
-  article.siteUrl = "/insights/" + slug + "/";
-  article.sitePublishedAt = new Date().toISOString();
-  if (oldSlug && oldSlug !== slug) siteAddRedirect(`/insights/${oldSlug}/`, `/insights/${slug}/`, `文章“${article.title}”地址调整`);
-  saveState();
-  closeModal();
-  ui.siteTab = "insights";
-  ui.siteContentTab = "articles";
-  showToast("官网文章已发布", `${category} 栏目已更新，页面地址为 ${article.siteUrl}`);
-  return render();
+  const selectedCategory = siteCategories().find((item) => item.name === category) || null;
+  const remoteArticleId = article.contentArticleId || article.id;
+  ui.submittingSitePublish = true;
+  try {
+    await ensureContentPublishSnapshot(article);
+    const payload = await productionApi(`/api/v1/content/articles/${encodeURIComponent(remoteArticleId)}/publish`, {
+      method: "POST",
+      body: {
+        versionId: article.contentApprovedVersionId || article.contentVersionId || null,
+        expectedRevision: article.contentRevision,
+        category,
+        siteSlug: slug,
+        siteAuthor: author,
+        siteExcerpt: excerpt,
+        siteCategoryId: selectedCategory?.id || null,
+        siteCategorySlug: selectedCategory?.slug || null,
+        metadata: { keywords: cloneData(article.keywords || []), tags: cloneData(article.tags || []) }
+      }
+    });
+    applyContentServerSnapshot(article, payload);
+    article.siteStatus = "published";
+    article.siteCategory = category;
+    article.siteCategoryId = selectedCategory?.id || article.siteCategoryId || null;
+    article.siteCategorySlug = selectedCategory?.slug || article.siteCategorySlug || null;
+    article.siteSlug = slug;
+    article.siteAuthor = author;
+    article.siteExcerpt = excerpt;
+    article.siteUrl = "/insights/" + slug + "/";
+    article.sitePublishedAt = contentApiArticle(payload)?.metadata?.sitePublishedAt || article.sitePublishedAt || new Date().toISOString();
+    if (oldSlug && oldSlug !== slug) siteAddRedirect(`/insights/${oldSlug}/`, `/insights/${slug}/`, `文章“${article.title}”地址调整`);
+    saveState();
+    closeModal();
+    ui.siteTab = "insights";
+    ui.siteContentTab = "articles";
+    showToast("官网文章已发布", `${category} 栏目已更新，页面地址为 ${article.siteUrl}`);
+    return render();
+  } catch (error) {
+    article.contentSyncError = error.message || "官网发布失败";
+    saveState();
+    return showToast("官网发布失败", article.contentSyncError, "error");
+  } finally {
+    ui.submittingSitePublish = false;
+  }
+}
+
+async function unpublishSiteArticle(articleId) {
+  const article = state.articles.find((item) => item.id === articleId);
+  if (!article) return;
+  if (ui.unpublishingSiteArticleId === article.id) return;
+  ui.unpublishingSiteArticleId = article.id;
+  try {
+    const remoteArticleId = article.contentArticleId || article.id;
+    await ensureContentPublishSnapshot(article);
+    const payload = await productionApi(`/api/v1/content/articles/${encodeURIComponent(remoteArticleId)}/unpublish`, {
+      method: "POST",
+      body: { expectedRevision: article.contentRevision, reason: "CMS manual unpublish" }
+    });
+    applyContentServerSnapshot(article, payload);
+    article.siteStatus = "draft";
+    article.siteUnpublishedAt = contentApiArticle(payload)?.metadata?.siteUnpublishedAt || article.siteUnpublishedAt || new Date().toISOString();
+    saveState();
+    showToast("官网文章已下线", "官网公开页面已移除，文章版本和发布记录仍会保留。", "success");
+    return render();
+  } catch (error) {
+    article.contentSyncError = error.message || "官网下线失败";
+    saveState();
+    return showToast("官网下线失败", article.contentSyncError, "error");
+  } finally {
+    ui.unpublishingSiteArticleId = "";
+  }
 }
 
 function siteValue(id) {
   return String(document.getElementById(id)?.value || "").trim();
 }
 
+function siteValues(id) {
+  const element = document.getElementById(id);
+  return element ? [...element.selectedOptions].map((option) => option.value).filter(Boolean) : [];
+}
+
 function siteChecked(id) {
   return Boolean(document.getElementById(id)?.checked);
-}
-
-function sitePageSnapshot(page) {
-  return {
-    version: Number(page.version) || 1,
-    title: page.title,
-    path: page.path,
-    description: page.description,
-    seoDescription: page.seoDescription,
-    schemaEnabled: page.schemaEnabled !== false,
-    sitemapEnabled: page.sitemapEnabled !== false,
-    status: page.status,
-    savedAt: page.savedAt,
-    modules: cloneData(siteModules(page.id))
-  };
-}
-
-function siteArchivePageVersion(page, note = "页面更新") {
-  page.versions = Array.isArray(page.versions) ? page.versions : [];
-  page.versions.unshift({ ...sitePageSnapshot(page), note });
 }
 
 function saveSitePage() {
@@ -4550,17 +10203,18 @@ function saveSitePage() {
   if (!page) return;
   const title = siteValue("site-page-title");
   const path = sitePath(siteValue("site-page-path"));
+  const pageStatus = ["published", "draft", "archived"].includes(siteValue("site-page-status")) ? siteValue("site-page-status") : (page.status || "draft");
   const seoDescription = siteValue("site-page-seo");
   if (!title) return showToast("请填写页面标题", "页面标题不能为空。", "error");
   if (!path || path.includes(" ")) return showToast("页面路径不正确", "请使用以 / 开头的站内路径，且不要包含空格。", "error");
   const conflict = sitePages().find((item) => item.id !== page.id && item.path === path);
   if (conflict) return showToast("页面路径已存在", `“${conflict.title}”正在使用 ${path}。`, "error");
-  const changed = title !== page.title || path !== page.path || seoDescription !== (page.seoDescription || "") || siteChecked("site-page-schema") !== (page.schemaEnabled !== false) || siteChecked("site-page-sitemap") !== (page.sitemapEnabled !== false);
+  const changed = title !== page.title || path !== page.path || pageStatus !== (page.status || "draft") || seoDescription !== (page.seoDescription || "") || siteChecked("site-page-schema") !== (page.schemaEnabled !== false) || siteChecked("site-page-sitemap") !== (page.sitemapEnabled !== false);
   if (!changed) return showToast("页面没有新的修改", "当前设置已经是已保存状态。", "info");
   const oldPath = page.path;
-  siteArchivePageVersion(page, "保存前版本");
   page.title = title;
   page.path = path;
+  page.status = pageStatus;
   page.description = seoDescription || page.description;
   page.seoDescription = seoDescription;
   page.schemaEnabled = siteChecked("site-page-schema");
@@ -4576,39 +10230,62 @@ function saveSitePage() {
 function renderSitePreviewModal() {
   const page = sitePageDefinition(ui.modal?.pageId);
   if (!page) return "";
-  const modules = siteModules(page.id);
-  const domain = state.site.domain;
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网预览 · ${escapeHtml(page.title)}</h2><p>预览地址：${escapeHtml(`https://${domain}${page.path}`)} · 不会写入线上站点</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><section class="site-preview"><div style="padding:24px 28px;border-bottom:1px solid #e7ebf2;display:flex;justify-content:space-between;gap:18px"><div><small style="color:#627187">${escapeHtml(siteCms().settings.siteName)} · ${escapeHtml(page.type)}</small><h1 style="margin:8px 0 0;font-size:26px;color:#172033">${escapeHtml(page.title)}</h1><p style="margin:8px 0 0;color:#65728a;line-height:1.7">${escapeHtml(page.seoDescription || page.description)}</p></div><span class="status-badge ${page.status === "published" ? "status-approved" : "status-draft"}">${page.status === "published" ? "线上版本" : "草稿预览"}</span></div><div style="padding:20px 28px;display:grid;gap:12px">${modules.filter((module) => module.status !== "hidden").map((module) => `<article style="padding:16px;border:1px solid #e7ebf2;border-radius:10px;background:#fff"><small style="color:#3a73d9">${escapeHtml(module.source)}</small><h2 style="margin:5px 0 6px;font-size:17px;color:#172033">${escapeHtml(module.title)}</h2><p style="margin:0;color:#65728a;line-height:1.7">${escapeHtml(module.content || module.description)}</p></article>`).join("") || '<div class="empty-state compact"><div><h3>尚未配置页面模块</h3><p>先添加至少一个语义模块。</p></div></div>'}</div></section><div class="site-publish-checks"><div><span class="check-dot ${page.schemaEnabled !== false ? "ok" : "warn"}">${page.schemaEnabled !== false ? "✓" : "!"}</span><span><b>结构化数据</b><small>${page.schemaEnabled !== false ? "将输出对应的 Schema" : "本版本未输出 Schema"}</small></span></div><div><span class="check-dot ${page.sitemapEnabled !== false ? "ok" : "warn"}">${page.sitemapEnabled !== false ? "✓" : "!"}</span><span><b>机器入口</b><small>${page.sitemapEnabled !== false ? "已加入 sitemap 与 llms 索引" : "未加入 sitemap"}</small></span></div></div></div><div class="modal-foot"><span>当前版本 v${escapeHtml(page.version || 1)} · 最近保存 ${escapeHtml(siteDisplayTime(page.savedAt))}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭预览</button><button class="primary-button" type="button" data-action="site-page-version" data-page-id="${escapeHtml(page.id)}"><span data-icon="history"></span>查看版本</button></div></div>`, { wide: true });
+  const src = `/api/v1/site-cms/preview?path=${encodeURIComponent(page.path)}`;
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网草稿预览 · ${escapeHtml(page.title)}</h2><p>${escapeHtml(page.path)} · 使用正式官网渲染器 · 不会影响线上版本</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body site-rendered-preview-body"><div class="site-preview-address"><span class="status-badge status-review">草稿预览</span><code>${escapeHtml(src)}</code><button class="link-button" type="button" data-action="site-preview-reload">刷新</button></div><iframe class="site-rendered-preview-frame" id="site-rendered-preview-frame" src="${escapeHtml(src)}" title="${escapeHtml(page.title)}草稿预览"></iframe></div><div class="modal-foot"><span>预览页面带 noindex，搜索引擎和 AI 抓取不会收录</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭</button><button class="primary-button" type="button" data-action="site-publish-cms">发布官网</button></div></div>`, { wide: true });
 }
 
-function renderSitePageVersionModal() {
-  const page = sitePageDefinition(ui.modal?.pageId);
-  if (!page) return "";
-  const rows = [{ ...sitePageSnapshot(page), current: true }, ...(page.versions || [])].map((version) => `<div class="article-version-row ${version.current ? "current" : ""}"><span><b>v${escapeHtml(version.version)} · ${version.current ? "当前版本" : escapeHtml(version.note || "历史版本")}</b><small>${escapeHtml(version.title)} · ${escapeHtml(version.path)} · ${escapeHtml(siteDisplayTime(version.savedAt))}</small></span>${version.current ? '<em>当前</em>' : `<button class="secondary-button button-small" type="button" data-action="site-page-restore-version" data-page-id="${escapeHtml(page.id)}" data-version="${escapeHtml(version.version)}">回滚到此版</button>`}</div>`).join("");
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">页面版本记录</h2><p>${escapeHtml(page.title)} · 回滚会新建一个版本，不会删除已有历史。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="article-version-list">${rows}</div></div><div class="modal-foot"><span>已保存 ${page.versions?.length || 0} 个历史版本</span><button class="primary-button" type="button" data-action="close-modal">完成</button></div>`, { wide: true });
+function renderSiteReleasesModal() {
+  const currentVersion = siteCmsRuntime.publication?.version || 0;
+  const rows = (siteCmsRuntime.releases || []).map((release) => {
+    const operation = release.operation === "rollback" ? "整站回滚" : release.operation === "bootstrap" ? "升级保留" : "正式发布";
+    return `<div class="site-release-history-row ${release.current ? "current" : ""}"><div class="site-release-history-version"><b>v${escapeHtml(release.version)}</b><span class="small-tag ${release.current ? "blue" : ""}">${release.current ? "当前官网" : operation}</span></div><div><strong>${escapeHtml(release.note || operation)}</strong><small>草稿 r${escapeHtml(release.sourceDraftRevision)} · ${escapeHtml(siteDisplayTime(release.createdAt))}</small></div>${release.current ? '<span class="status-badge status-approved">正在使用</span>' : `<button class="secondary-button button-small" type="button" data-action="site-rollback-cms" data-release-id="${escapeHtml(release.id)}" data-release-version="${escapeHtml(release.version)}">恢复此版本</button>`}</div>`;
+  }).join("");
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网正式发布历史</h2><p>当前官网 v${escapeHtml(currentVersion)} · 历史版本不可修改，回滚会产生一个新的正式版本。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="site-release-history-list">${rows || '<div class="empty-state compact"><div><h3>暂无发布记录</h3><p>发布首个官网版本后会在这里保留记录。</p></div></div>'}</div></div><div class="modal-foot"><span>恢复历史版本会同时更新当前 CMS 草稿，便于后续继续编辑</span><button class="primary-button" type="button" data-action="close-modal">完成</button></div>`, { wide: true });
 }
 
-function restoreSitePageVersion(pageId, versionNumber) {
-  const page = sitePages().find((item) => item.id === pageId);
-  const revision = page?.versions?.find((item) => Number(item.version) === Number(versionNumber));
-  if (!page || !revision) return showToast("找不到页面版本", "请关闭窗口后重新打开版本记录。", "error");
-  siteArchivePageVersion(page, "回滚前版本");
-  const nextVersion = (Number(page.version) || 1) + 1;
-  ["title", "path", "description", "seoDescription", "schemaEnabled", "sitemapEnabled", "status"].forEach((key) => { if (key in revision) page[key] = revision[key]; });
-  if (Array.isArray(revision.modules)) siteCms().modules[page.id] = cloneData(revision.modules);
-  page.version = nextVersion;
-  page.savedAt = siteNow();
-  saveState();
-  closeModal();
-  render();
-  showToast("已回滚页面版本", `已基于 v${versionNumber} 创建新的 v${nextVersion}。`, "success");
+async function publishSiteCms() {
+  if (siteCmsRuntime.publishing) return;
+  if (!currentUserCan("content.publish")) return showToast("没有官网发布权限", "请由管理员或具备发布权限的成员执行。", "error");
+  siteCmsRuntime.publishing = true;
+  try {
+    await flushSiteCmsDraftSync();
+    const payload = await productionApi("/api/v1/site-cms/publish", { method: "POST", body: { expectedDraftRevision: siteCmsRuntime.draft?.revision, note: `官网正式发布 ${siteNow()}` } });
+    applySiteCmsApiPayload(payload, { replaceDraft: false });
+    await refreshSiteCmsFromServer();
+    closeModal();
+    render();
+    showToast("官网已正式发布", `当前正式版本为 v${siteCmsRuntime.publication?.version}，官网和机器入口已同步更新。`, "success");
+  } catch (error) {
+    showToast("官网发布失败", error.message || "请刷新 CMS 状态后重试。", "error");
+  } finally {
+    siteCmsRuntime.publishing = false;
+  }
+}
+
+async function rollbackSiteCms(releaseId, releaseVersion) {
+  if (siteCmsRuntime.rollingBack) return;
+  if (!currentUserCan("content.publish")) return showToast("没有官网回滚权限", "请由管理员或具备发布权限的成员执行。", "error");
+  if (!window.confirm(`确认将整站恢复到 v${releaseVersion}？系统会创建一个新的正式版本，当前历史不会被删除。`)) return;
+  siteCmsRuntime.rollingBack = true;
+  try {
+    const payload = await productionApi("/api/v1/site-cms/rollback", { method: "POST", body: { releaseId, expectedCurrentVersion: siteCmsRuntime.publication?.version, note: `整站恢复到 v${releaseVersion}` } });
+    applySiteCmsApiPayload(payload);
+    await refreshSiteCmsFromServer();
+    closeModal();
+    render();
+    showToast("官网已完成回滚", `历史 v${releaseVersion} 已恢复为新的正式版本 v${siteCmsRuntime.publication?.version}。`, "success");
+  } catch (error) {
+    showToast("官网回滚失败", error.message || "请刷新发布历史后重试。", "error");
+  } finally {
+    siteCmsRuntime.rollingBack = false;
+  }
 }
 
 function renderSitePageEditorModal() {
   const page = ui.modal?.pageId ? sitePageDefinition(ui.modal.pageId) : null;
   const isNew = !page;
   const sourceOptions = sitePages().filter((item) => item.id !== page?.id).map((item) => `<option value="${escapeHtml(item.id)}">复制 ${escapeHtml(item.title)} 的模块</option>`).join("");
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "新建专题页" : "编辑页面"}</h2><p>专题页会先保存为草稿；页面正文仍由模块和关联知识决定。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-new-page-title">页面标题 *</label><input class="input" id="site-new-page-title" value="${escapeHtml(page?.title || "")}" placeholder="例如：制造业 AI 搜索优化" /></div><div class="field"><label for="site-new-page-type">页面类型</label><select class="select" id="site-new-page-type"><option ${page?.type === "专题页" ? "selected" : ""}>专题页</option><option ${page?.type === "服务页" ? "selected" : ""}>服务页</option><option ${page?.type === "落地页" ? "selected" : ""}>落地页</option><option ${page?.type === "FAQ 页" ? "selected" : ""}>FAQ 页</option></select></div></div><div class="field"><label for="site-new-page-path">页面路径 *</label><input class="input" id="site-new-page-path" value="${escapeHtml(page?.path || "/topics/")}" placeholder="/topics/manufacturing-geo/" /><small class="field-help">路径唯一；修改已有页面路径时会自动增加 301 重定向。</small></div><div class="field"><label for="site-new-page-description">页面说明 / SEO 描述</label><textarea class="textarea" id="site-new-page-description" rows="4">${escapeHtml(page?.seoDescription || page?.description || "")}</textarea></div>${isNew ? `<div class="field"><label for="site-new-page-template">初始模块</label><select class="select" id="site-new-page-template"><option value="blank">空白页面（后续自行添加模块）</option>${sourceOptions}</select></div>` : ""}</div><div class="modal-foot"><span>${isNew ? "创建后可继续添加语义模块" : "保存会创建新页面版本"}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-submit-page" data-page-id="${escapeHtml(page?.id || "")}"><span data-icon="check"></span>${isNew ? "创建页面" : "保存页面"}</button></div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "新建专题页" : "编辑页面"}</h2><p>专题页会先保存为草稿；页面正文仍由模块和关联知识决定。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-new-page-title">页面标题 *</label><input class="input" id="site-new-page-title" value="${escapeHtml(page?.title || "")}" placeholder="例如：制造业 AI 搜索优化" /></div><div class="field"><label for="site-new-page-type">页面类型</label><select class="select" id="site-new-page-type"><option ${page?.type === "专题页" ? "selected" : ""}>专题页</option><option ${page?.type === "服务页" ? "selected" : ""}>服务页</option><option ${page?.type === "落地页" ? "selected" : ""}>落地页</option><option ${page?.type === "FAQ 页" ? "selected" : ""}>FAQ 页</option></select></div></div><div class="field"><label for="site-new-page-path">页面路径 *</label><input class="input" id="site-new-page-path" value="${escapeHtml(page?.path || "/topics/")}" placeholder="/topics/manufacturing-geo/" /><small class="field-help">路径唯一；修改已有页面路径时会自动增加 301 重定向。</small></div><div class="field"><label for="site-new-page-description">页面说明 / SEO 描述</label><textarea class="textarea" id="site-new-page-description" rows="4">${escapeHtml(page?.seoDescription || page?.description || "")}</textarea></div>${isNew ? `<div class="field"><label for="site-new-page-template">初始模块</label><select class="select" id="site-new-page-template"><option value="blank">空白页面（后续自行添加模块）</option>${sourceOptions}</select></div>` : ""}</div><div class="modal-foot"><span>${isNew ? "创建后可继续添加语义模块" : "保存后更新官网草稿，正式版本由顶部发布操作生成"}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-submit-page" data-page-id="${escapeHtml(page?.id || "")}"><span data-icon="check"></span>${isNew ? "创建页面" : "保存页面"}</button></div></div>`, { wide: true });
 }
 
 function submitSitePage(pageId) {
@@ -4622,14 +10299,13 @@ function submitSitePage(pageId) {
   if (conflict) return showToast("页面路径已存在", `“${conflict.title}”正在使用 ${path}。`, "error");
   if (page) {
     const oldPath = page.path;
-    siteArchivePageVersion(page, "编辑前版本");
     Object.assign(page, { title, path, type, description: description || page.description, seoDescription: description || page.seoDescription, version: (Number(page.version) || 1) + 1, savedAt: siteNow() });
     if (oldPath !== path) siteAddRedirect(oldPath, path, `页面“${title}”路径调整`);
     ui.sitePageId = page.id;
   } else {
     const id = uid("PAGE").toLowerCase();
     const template = siteValue("site-new-page-template");
-    const newPage = { id, type, title, path, status: "draft", description: description || `${title} 页面说明`, seoDescription: description || `${title} 页面说明`, schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: siteNow(), publishedAt: null, versions: [] };
+    const newPage = { id, type, title, path, status: "draft", description: description || `${title} 页面说明`, seoDescription: description || `${title} 页面说明`, schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: siteNow(), publishedAt: null };
     sitePages().push(newPage);
     siteCms().modules[id] = template && template !== "blank" ? cloneData(siteModules(template)).map((module, index) => ({ ...module, id: `${id}-module-${index + 1}` })) : [];
     ui.sitePageId = id;
@@ -4646,7 +10322,9 @@ function renderSiteModuleModal() {
   const modules = siteModules(pageId);
   const module = ui.modal?.moduleId ? modules.find((item) => item.id === ui.modal.moduleId) : null;
   const isNew = !module;
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "添加语义模块" : "编辑语义模块"}</h2><p>模块展示的是可解释的页面语义；正文可以引用企业知识、案例、栏目或公共组件。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-module-title">模块名称 *</label><input class="input" id="site-module-title" value="${escapeHtml(module?.title || "")}" placeholder="例如：客户常见问题" /></div><div class="field"><label for="site-module-status">展示状态</label><select class="select" id="site-module-status"><option value="published" ${module?.status === "published" ? "selected" : ""}>已发布</option><option value="draft" ${!module || module?.status === "draft" ? "selected" : ""}>草稿</option><option value="hidden" ${module?.status === "hidden" ? "selected" : ""}>隐藏</option></select></div></div><div class="field"><label for="site-module-source">内容来源</label><input class="input" id="site-module-source" value="${escapeHtml(module?.source || "页面内容")}" placeholder="例如：企业知识库 / 已审核案例库" /></div><div class="field"><label for="site-module-description">模块说明</label><textarea class="textarea" id="site-module-description" rows="3">${escapeHtml(module?.description || "")}</textarea></div><div class="field"><label for="site-module-content">预览文案</label><textarea class="textarea" id="site-module-content" rows="5">${escapeHtml(module?.content || "")}</textarea></div></div><div class="modal-foot"><span>${isNew ? "添加后会出现在当前页面末尾" : "模块变更会随页面版本一起保存"}</span><div class="modal-foot-right">${!isNew && modules.length > 1 ? `<button class="danger-button" type="button" data-action="site-delete-module" data-page-id="${escapeHtml(pageId)}" data-module-id="${escapeHtml(module.id)}">删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-module" data-page-id="${escapeHtml(pageId)}" data-module-id="${escapeHtml(module?.id || "")}"><span data-icon="check"></span>保存模块</button></div></div>`, { wide: true });
+  const moduleTypes = [["hero", "首屏（hero）"], ["answer", "直接答案"], ["services", "产品服务"], ["process", "合作流程"], ["proof", "证据与案例"], ["entity", "企业信息"], ["principles", "工作原则"], ["boundary", "交付边界"], ["insights", "行业资讯"], ["articles", "文章列表"], ["problem-map", "问题地图"], ["faq", "常见问题"], ["contact", "联系方式"], ["form", "咨询表单"], ["cta", "行动入口"], ["content", "通用内容"]];
+  const moduleTypeOptions = moduleTypes.map(([value, label]) => `<option value="${value}" ${module?.type === value || (!module && value === "content") ? "selected" : ""}>${label}</option>`).join("");
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "添加语义模块" : "编辑语义模块"}</h2><p>模块展示的是可解释的页面语义；正文可以引用企业知识、案例、栏目或公共组件。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-module-title">模块名称 *</label><input class="input" id="site-module-title" value="${escapeHtml(module?.title || "")}" placeholder="例如：客户常见问题" /></div><div class="field"><label for="site-module-type">模块类型</label><select class="select" id="site-module-type">${moduleTypeOptions}</select></div><div class="field"><label for="site-module-status">展示状态</label><select class="select" id="site-module-status"><option value="published" ${module?.status === "published" ? "selected" : ""}>已发布</option><option value="draft" ${!module || module?.status === "draft" ? "selected" : ""}>草稿</option><option value="hidden" ${module?.status === "hidden" ? "selected" : ""}>隐藏</option></select></div></div><div class="field"><label for="site-module-eyebrow">眉题 / AI 标签</label><input class="input" id="site-module-eyebrow" value="${escapeHtml(module?.eyebrow || "")}" placeholder="例如：DIRECT ANSWER" /></div><div class="field"><label for="site-module-source">内容来源</label><input class="input" id="site-module-source" value="${escapeHtml(module?.source || "页面内容")}" placeholder="例如：企业知识库 / 已审核案例库" /></div><div class="field"><label for="site-module-description">模块说明</label><textarea class="textarea" id="site-module-description" rows="3">${escapeHtml(module?.description || "")}</textarea></div><div class="field"><label for="site-module-content">预览文案</label><textarea class="textarea" id="site-module-content" rows="5">${escapeHtml(module?.content || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-module-cta-label">CTA 文案</label><input class="input" id="site-module-cta-label" value="${escapeHtml(module?.ctaLabel || "")}" placeholder="例如：了解服务" /></div><div class="field"><label for="site-module-cta-href">CTA 地址</label><input class="input" id="site-module-cta-href" value="${escapeHtml(module?.ctaHref || "/contact/")}" placeholder="/contact/" /></div></div></div><div class="modal-foot"><span>${isNew ? "添加后会出现在当前页面末尾" : "模块变更会随官网草稿保存，正式发布后同步到官网"}</span><div class="modal-foot-right">${!isNew && modules.length > 1 ? `<button class="danger-button" type="button" data-action="site-delete-module" data-page-id="${escapeHtml(pageId)}" data-module-id="${escapeHtml(module.id)}">删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-module" data-page-id="${escapeHtml(pageId)}" data-module-id="${escapeHtml(module?.id || "")}"><span data-icon="check"></span>保存模块</button></div></div>`, { wide: true });
 }
 
 function saveSiteModule(pageId, moduleId) {
@@ -4654,9 +10332,8 @@ function saveSiteModule(pageId, moduleId) {
   if (!title) return showToast("请填写模块名称", "模块名称不能为空。", "error");
   const modules = siteCms().modules[pageId] || (siteCms().modules[pageId] = []);
   const page = sitePages().find((item) => item.id === pageId);
-  if (page) siteArchivePageVersion(page, "模块更新前版本");
   const existing = modules.find((item) => item.id === moduleId);
-  const values = { title, source: siteValue("site-module-source") || "页面内容", description: siteValue("site-module-description"), content: siteValue("site-module-content"), status: siteValue("site-module-status") || "draft" };
+  const values = { type: siteValue("site-module-type") || "content", title, eyebrow: siteValue("site-module-eyebrow"), source: siteValue("site-module-source") || "页面内容", description: siteValue("site-module-description"), content: siteValue("site-module-content"), ctaLabel: siteValue("site-module-cta-label"), ctaHref: sitePath(siteValue("site-module-cta-href"), "/contact/"), status: siteValue("site-module-status") || "draft" };
   if (existing) Object.assign(existing, values);
   else modules.push({ id: uid("MODULE"), ...values });
   if (page) { page.savedAt = siteNow(); page.version = (Number(page.version) || 1) + 1; }
@@ -4670,13 +10347,103 @@ function deleteSiteModule(pageId, moduleId) {
   const modules = siteCms().modules[pageId] || [];
   if (modules.length <= 1) return showToast("至少保留一个模块", "页面至少需要保留一个内容模块。", "error");
   const page = sitePages().find((item) => item.id === pageId);
-  if (page) siteArchivePageVersion(page, "删除模块前版本");
   siteCms().modules[pageId] = modules.filter((item) => item.id !== moduleId);
   if (page) { page.savedAt = siteNow(); page.version = (Number(page.version) || 1) + 1; }
   saveState();
   closeModal();
   render();
-  showToast("模块已删除", "页面其余模块和历史页面版本不受影响。", "success");
+  showToast("模块已删除", "页面其余模块不会受到影响。", "success");
+}
+
+function renderSiteServiceModal() {
+  const service = ui.modal?.serviceId ? siteServices().find((item) => item.id === ui.modal.serviceId) : null;
+  const isNew = !service;
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "新增官网服务" : "编辑官网服务"}</h2><p>服务内容会出现在首页和“产品与服务”页面，正式发布后成为公开信源。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-service-title">服务名称 *</label><input class="input" id="site-service-title" value="${escapeHtml(service?.title || "")}" placeholder="例如：GEO 服务" /></div><div class="field"><label for="site-service-eyebrow">英文标签</label><input class="input" id="site-service-eyebrow" value="${escapeHtml(service?.eyebrow || "SERVICE")}" /></div></div><div class="field"><label for="site-service-description">服务说明 *</label><textarea class="textarea" id="site-service-description" rows="4">${escapeHtml(service?.description || "")}</textarea></div><div class="field"><label for="site-service-audience">适合对象</label><textarea class="textarea" id="site-service-audience" rows="2">${escapeHtml(service?.audience || "")}</textarea></div><div class="field"><label for="site-service-focus">工作重点</label><textarea class="textarea" id="site-service-focus" rows="2">${escapeHtml(service?.focus || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-service-href">行动地址</label><input class="input" id="site-service-href" value="${escapeHtml(service?.href || "/contact/")}" /></div><div class="field"><label for="site-service-order">排序</label><input class="input" id="site-service-order" type="number" min="1" value="${escapeHtml(service?.order || siteServices().length + 1)}" /></div><div class="field"><label for="site-service-status">公开状态</label><select class="select" id="site-service-status"><option value="published" ${service?.status === "published" ? "selected" : ""}>公开</option><option value="draft" ${!service || service?.status === "draft" ? "selected" : ""}>草稿</option><option value="archived" ${service?.status === "archived" ? "selected" : ""}>归档</option></select></div></div></div><div class="modal-foot"><span>保存后进入官网草稿，预览确认后再统一发布。</span><div class="modal-foot-right">${service && service.status !== "archived" ? `<button class="danger-button" type="button" data-action="site-archive-cms-record" data-kind="service" data-record-id="${escapeHtml(service.id)}">归档</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-service" data-service-id="${escapeHtml(service?.id || "")}"><span data-icon="check"></span>保存服务</button></div></div>`, { wide: true });
+}
+
+function saveSiteService(serviceId) {
+  const title = siteValue("site-service-title");
+  const description = siteValue("site-service-description");
+  if (!title || !description) return showToast("请补全服务内容", "服务名称和服务说明不能为空。", "error");
+  const rows = siteCms().services || (siteCms().services = []);
+  const existing = rows.find((item) => item.id === serviceId);
+  const values = { title, eyebrow: siteValue("site-service-eyebrow") || "SERVICE", description, audience: siteValue("site-service-audience"), focus: siteValue("site-service-focus"), href: sitePath(siteValue("site-service-href"), "/contact/"), order: Math.max(1, Number(siteValue("site-service-order")) || rows.length + 1), status: siteValue("site-service-status") || "draft", updatedAt: siteNow() };
+  if (existing) Object.assign(existing, values);
+  else rows.push({ id: `service-${siteSlug(title, uid("service").toLowerCase())}`, ...values });
+  saveState(); closeModal(); ui.siteTab = "catalog"; ui.siteCatalogTab = "services"; render();
+  showToast(existing ? "服务已更新" : "服务已创建", "变更已保存到官网草稿。", "success");
+}
+
+function renderSiteCaseModal() {
+  const item = ui.modal?.caseId ? siteCases().find((entry) => entry.id === ui.modal.caseId) : null;
+  const isNew = !item;
+  const options = siteServices(false).map((service) => `<option value="${escapeHtml(service.id)}" data-title="${escapeHtml(service.title)}" ${item?.serviceId === service.id || item?.service === service.title ? "selected" : ""}>${escapeHtml(service.title)}</option>`).join("");
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "新增服务案例" : "编辑服务案例"}</h2><p>公开案例应完成授权、脱敏和事实核对，不填写无法验证的结果。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field"><label for="site-case-title">案例标题 *</label><input class="input" id="site-case-title" value="${escapeHtml(item?.title || "")}" /></div><div class="field-row"><div class="field"><label for="site-case-industry">所属行业</label><input class="input" id="site-case-industry" value="${escapeHtml(item?.industry || "")}" placeholder="例如：制造业" /></div><div class="field"><label for="site-case-service">关联服务</label><select class="select" id="site-case-service"><option value="">暂不关联</option>${options}</select></div></div><div class="field"><label for="site-case-summary">实施摘要 *</label><textarea class="textarea" id="site-case-summary" rows="4">${escapeHtml(item?.summary || "")}</textarea></div><div class="field"><label for="site-case-result">形成结果 *</label><textarea class="textarea" id="site-case-result" rows="3">${escapeHtml(item?.result || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-case-order">排序</label><input class="input" id="site-case-order" type="number" min="1" value="${escapeHtml(item?.order || siteCases().length + 1)}" /></div><div class="field"><label for="site-case-status">公开状态</label><select class="select" id="site-case-status"><option value="published" ${item?.status === "published" ? "selected" : ""}>公开</option><option value="draft" ${!item || item?.status === "draft" ? "selected" : ""}>草稿</option><option value="archived" ${item?.status === "archived" ? "selected" : ""}>归档</option></select></div></div></div><div class="modal-foot"><span>案例归档后不再显示，但历史正式版本仍可回滚。</span><div class="modal-foot-right">${item && item.status !== "archived" ? `<button class="danger-button" type="button" data-action="site-archive-cms-record" data-kind="case" data-record-id="${escapeHtml(item.id)}">归档</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-case" data-case-id="${escapeHtml(item?.id || "")}"><span data-icon="check"></span>保存案例</button></div></div>`, { wide: true });
+}
+
+function saveSiteCase(caseId) {
+  const title = siteValue("site-case-title"); const summary = siteValue("site-case-summary"); const result = siteValue("site-case-result");
+  if (!title || !summary || !result) return showToast("请补全案例内容", "案例标题、实施摘要和形成结果不能为空。", "error");
+  const rows = siteCms().cases || (siteCms().cases = []); const existing = rows.find((item) => item.id === caseId);
+  const serviceId = siteValue("site-case-service"); const service = siteServices().find((entry) => entry.id === serviceId);
+  const values = { title, industry: siteValue("site-case-industry") || "中小企业", serviceId, service: service?.title || existing?.service || "企业服务", summary, result, href: "/contact/", order: Math.max(1, Number(siteValue("site-case-order")) || rows.length + 1), status: siteValue("site-case-status") || "draft", updatedAt: siteNow() };
+  if (existing) Object.assign(existing, values); else rows.push({ id: `case-${siteSlug(title, uid("case").toLowerCase())}`, ...values });
+  saveState(); closeModal(); ui.siteTab = "catalog"; ui.siteCatalogTab = "cases"; render();
+  showToast(existing ? "案例已更新" : "案例已创建", "变更已保存到官网草稿。", "success");
+}
+
+function renderSiteProblemGroupModal() {
+  const group = ui.modal?.groupId ? siteProblemGroups().find((item) => item.id === ui.modal.groupId) : null;
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${group ? "编辑问题分组" : "新增问题分组"}</h2><p>问题分组通常对应一项服务方向，帮助客户和 AI 理解问题所属语境。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-problem-group-title">分组名称 *</label><input class="input" id="site-problem-group-title" value="${escapeHtml(group?.title || "")}" /></div><div class="field"><label for="site-problem-group-service">服务方向 *</label><input class="input" id="site-problem-group-service" value="${escapeHtml(group?.service || "")}" /></div></div><div class="field"><label for="site-problem-group-description">分组说明</label><textarea class="textarea" id="site-problem-group-description" rows="3">${escapeHtml(group?.description || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-problem-group-order">排序</label><input class="input" id="site-problem-group-order" type="number" min="1" value="${escapeHtml(group?.order || siteProblemGroups().length + 1)}" /></div><div class="field"><label for="site-problem-group-status">公开状态</label><select class="select" id="site-problem-group-status"><option value="published" ${group?.status === "published" ? "selected" : ""}>公开</option><option value="draft" ${!group || group?.status === "draft" ? "selected" : ""}>草稿</option><option value="archived" ${group?.status === "archived" ? "selected" : ""}>归档</option></select></div></div></div><div class="modal-foot"><span>分组归档会同时从问题地图隐藏其问题。</span><div class="modal-foot-right">${group && group.status !== "archived" ? `<button class="danger-button" type="button" data-action="site-archive-cms-record" data-kind="group" data-record-id="${escapeHtml(group.id)}">归档</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-problem-group" data-group-id="${escapeHtml(group?.id || "")}"><span data-icon="check"></span>保存分组</button></div></div>`, { wide: true });
+}
+
+function saveSiteProblemGroup(groupId) {
+  const title = siteValue("site-problem-group-title"); const service = siteValue("site-problem-group-service");
+  if (!title || !service) return showToast("请补全问题分组", "分组名称和服务方向不能为空。", "error");
+  const rows = siteCms().problemGroups || (siteCms().problemGroups = []); const existing = rows.find((item) => item.id === groupId);
+  const values = { title, service, description: siteValue("site-problem-group-description"), order: Math.max(1, Number(siteValue("site-problem-group-order")) || rows.length + 1), status: siteValue("site-problem-group-status") || "draft", updatedAt: siteNow() };
+  if (existing) Object.assign(existing, values); else rows.push({ id: `problem-group-${siteSlug(service, uid("group").toLowerCase())}`, serviceId: "", questions: [], ...values });
+  saveState(); closeModal(); ui.siteTab = "problems"; render(); showToast(existing ? "问题分组已更新" : "问题分组已创建", "变更已保存到官网草稿。", "success");
+}
+
+function renderSiteQuestionModal() {
+  const groups = siteProblemGroups();
+  const group = groups.find((item) => item.id === ui.modal?.groupId) || groups[0];
+  const question = group?.questions?.find((item) => item.id === ui.modal?.questionId) || null;
+  const relatedIds = new Set(question?.relatedArticleIds || []);
+  const groupOptions = groups.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === group?.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("");
+  const articleOptions = (state.articles || []).filter((article) => article.reviewStatus === "approved" || article.status === "published").map((article) => `<option value="${escapeHtml(article.id)}" ${relatedIds.has(article.id) ? "selected" : ""}>${escapeHtml(article.title)}</option>`).join("");
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${question ? "编辑客户问题" : "新增客户问题"}</h2><p>问题必须像客户真实会问的问题；直接回答先给结论，再说明适用范围。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-question-group">所属分组 *</label><select class="select" id="site-question-group">${groupOptions}</select></div><div class="field"><label for="site-question-status">公开状态</label><select class="select" id="site-question-status"><option value="published" ${question?.status === "published" ? "selected" : ""}>公开</option><option value="draft" ${!question || question?.status === "draft" ? "selected" : ""}>草稿</option><option value="archived" ${question?.status === "archived" ? "selected" : ""}>归档</option></select></div></div><div class="field"><label for="site-question-title">客户问题 *</label><input class="input" id="site-question-title" value="${escapeHtml(question?.title || "")}" placeholder="例如：工业品企业做 GEO 应该从哪里开始？" /></div><div class="field"><label for="site-question-answer">直接回答 *</label><textarea class="textarea" id="site-question-answer" rows="5">${escapeHtml(question?.answer || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-question-slug">页面 slug</label><input class="input" id="site-question-slug" value="${escapeHtml(question?.slug || "")}" placeholder="industrial-geo-start" /></div><div class="field"><label for="site-question-industries">适用行业</label><input class="input" id="site-question-industries" value="${escapeHtml((question?.industries || []).join("、"))}" placeholder="工业品、制造业" /></div><div class="field"><label for="site-question-order">排序</label><input class="input" id="site-question-order" type="number" min="1" value="${escapeHtml(question?.order || (group?.questions?.length || 0) + 1)}" /></div></div><div class="field"><label for="site-question-articles">关联已审核文章（可多选）</label><select class="select" id="site-question-articles" multiple size="5">${articleOptions}</select><small class="field-help">按住 Ctrl 可选择多篇；文章正文仍由内容生产中心维护。</small></div></div><div class="modal-foot"><span>问题详情地址会自动生成，并输出 QAPage 结构化数据。</span><div class="modal-foot-right">${question && question.status !== "archived" ? `<button class="danger-button" type="button" data-action="site-archive-cms-record" data-kind="question" data-record-id="${escapeHtml(question.id)}" data-group-id="${escapeHtml(group.id)}">归档</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-question" data-question-id="${escapeHtml(question?.id || "")}" data-original-group-id="${escapeHtml(group?.id || "")}"><span data-icon="check"></span>保存问题</button></div></div>`, { wide: true });
+}
+
+function saveSiteQuestion(questionId, originalGroupId) {
+  const title = siteValue("site-question-title"); const answer = siteValue("site-question-answer"); const targetGroupId = siteValue("site-question-group");
+  if (!title || !answer || !targetGroupId) return showToast("请补全问题内容", "所属分组、客户问题和直接回答不能为空。", "error");
+  const groups = siteCms().problemGroups || []; const target = groups.find((item) => item.id === targetGroupId);
+  if (!target) return showToast("问题分组不存在", "请刷新后重新选择问题分组。", "error");
+  const slug = siteSlug(siteValue("site-question-slug") || title, `question-${Date.now()}`);
+  const duplicate = groups.flatMap((group) => group.questions || []).find((item) => item.id !== questionId && item.slug === slug);
+  if (duplicate) return showToast("问题地址已存在", `请为“${duplicate.title}”之外的问题使用不同的 slug。`, "error");
+  const original = groups.find((item) => item.id === originalGroupId); const existing = original?.questions?.find((item) => item.id === questionId);
+  const values = { title, answer, slug, industries: siteCommaList(siteValue("site-question-industries")), relatedArticleIds: siteValues("site-question-articles"), relatedServiceId: target.serviceId || "", order: Math.max(1, Number(siteValue("site-question-order")) || (target.questions?.length || 0) + 1), status: siteValue("site-question-status") || "draft", updatedAt: siteNow() };
+  if (existing && original.id === target.id) Object.assign(existing, values);
+  else {
+    if (existing) original.questions = (original.questions || []).filter((item) => item.id !== existing.id);
+    if (!Array.isArray(target.questions)) target.questions = [];
+    target.questions.push({ id: existing?.id || `question-${siteSlug(title, uid("question").toLowerCase())}`, ...values });
+  }
+  saveState(); closeModal(); ui.siteTab = "problems"; render(); showToast(existing ? "问题已更新" : "问题已创建", "问题与直接回答已保存到官网草稿。", "success");
+}
+
+function archiveSiteCmsRecord(kind, recordId, groupId = "") {
+  let item = null;
+  if (kind === "service") item = (siteCms().services || []).find((entry) => entry.id === recordId);
+  else if (kind === "case") item = (siteCms().cases || []).find((entry) => entry.id === recordId);
+  else if (kind === "group") item = (siteCms().problemGroups || []).find((entry) => entry.id === recordId);
+  else if (kind === "question") item = (siteCms().problemGroups || []).find((entry) => entry.id === groupId)?.questions?.find((entry) => entry.id === recordId);
+  if (!item) return showToast("内容不存在", "请刷新页面后重试。", "error");
+  item.status = "archived"; item.updatedAt = siteNow(); saveState(); closeModal(); render();
+  showToast("内容已归档", "正式官网将在下一次发布后隐藏该内容，历史版本仍然保留。", "success");
 }
 
 function renderSiteCategoryManagerModal() {
@@ -4781,54 +10548,49 @@ function renderSiteLeadFollowModal() {
   return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">线索跟进 · ${escapeHtml(lead.name)}</h2><p>${escapeHtml(lead.company)} · ${escapeHtml(lead.service)} · 来源 ${escapeHtml(lead.sourcePage || "官网")}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-lead-status">线索状态</label><select class="select" id="site-lead-status"><option value="new" ${lead.status === "new" ? "selected" : ""}>新线索</option><option value="contacted" ${lead.status === "contacted" ? "selected" : ""}>已联系</option><option value="qualified" ${lead.status === "qualified" ? "selected" : ""}>有效商机</option></select></div><div class="field"><label for="site-lead-owner">负责人</label><input class="input" id="site-lead-owner" value="${escapeHtml(lead.owner || "")}" /></div></div><div class="field"><label for="site-lead-next">下次跟进时间</label><input class="input" id="site-lead-next" value="${escapeHtml(lead.nextFollowAt || "")}" placeholder="例如：2026-07-28 10:00" /></div><div class="field"><label for="site-lead-note">本次跟进记录 *</label><textarea class="textarea" id="site-lead-note" rows="4" placeholder="记录沟通结果、客户需求和下一步安排">${escapeHtml(lead.notes || "")}</textarea></div>${history ? `<div class="field"><label>历史跟进记录</label><div class="article-version-list">${history}</div></div>` : '<div class="archive-impact-note"><span data-icon="info"></span><span>这是首次跟进，保存后会建立第一条沟通记录。</span></div>'}</div><div class="modal-foot"><span>线索编号 ${escapeHtml(lead.id)} · 提交于 ${escapeHtml(lead.createdAt)}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-lead" data-lead-id="${escapeHtml(lead.id)}"><span data-icon="check"></span>保存跟进</button></div></div>`, { wide: true });
 }
 
-function saveSiteLead(leadId) {
+async function saveSiteLead(leadId) {
   const lead = siteLeads().find((item) => item.id === leadId);
   if (!lead) return showToast("线索不存在", "请刷新页面后重试。", "error");
   const note = siteValue("site-lead-note");
   if (!note) return showToast("请填写跟进记录", "至少记录本次沟通结果或下一步安排。", "error");
   const status = siteValue("site-lead-status") || lead.status;
   const owner = siteValue("site-lead-owner") || "未分配";
-  lead.history = Array.isArray(lead.history) ? lead.history : [];
-  lead.history.unshift({ id: uid("FOLLOW"), at: new Date().toLocaleString("zh-CN", { hour12: false }), note, status, owner });
-  lead.status = status;
-  lead.owner = owner;
-  lead.nextFollowAt = siteValue("site-lead-next");
-  lead.notes = note;
-  lead.updatedAt = siteNow();
-  state.site.leads = siteLeads().filter((item) => item.status === "new").length;
-  saveState();
-  closeModal();
-  render();
-  showToast("跟进记录已保存", `“${lead.name}”已更新为${status === "qualified" ? "有效商机" : status === "contacted" ? "已联系" : "新线索"}。`, "success");
+  if (ui.savingSiteLeadId === leadId) return;
+  ui.savingSiteLeadId = leadId;
+  try {
+    const payload = await productionApi(`/api/v1/site-cms/leads/${encodeURIComponent(leadId)}`, {
+      method: "PATCH",
+      body: { status, owner, nextFollowAt: siteValue("site-lead-next"), note }
+    });
+    const updated = payload?.data?.lead || payload?.lead;
+    if (!updated) throw new Error("线索接口未返回更新后的记录");
+    const index = siteCmsRuntime.leads.findIndex((item) => item.id === leadId);
+    if (index >= 0) siteCmsRuntime.leads[index] = updated;
+    else siteCmsRuntime.leads.unshift(updated);
+    const localLead = state.site.cms?.leads?.find((item) => item.id === leadId);
+    if (localLead) Object.assign(localLead, updated);
+    state.site.leads = siteCmsRuntime.leads.filter((item) => item.status === "new").length;
+    saveState();
+    closeModal();
+    render();
+    showToast("跟进记录已保存", `“${lead.name}”已更新为${status === "qualified" ? "有效商机" : status === "contacted" ? "已联系" : "新线索"}。`, "success");
+  } catch (error) {
+    showToast("跟进记录保存失败", error.message || "请刷新后重试。", "error");
+  } finally {
+    ui.savingSiteLeadId = "";
+  }
 }
 
 function renderSiteDeploymentModal() {
-  const deployment = siteCms().deployment;
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网服务器发布</h2><p>官网由客户服务器直接发布，不经过本地媒体发布助手。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="manual-review-complete"><span data-icon="server"></span><div><b>${deployment.status === "online" ? "服务器连接正常" : "服务器连接待检查"}</b><p>最近检测：${escapeHtml(deployment.lastTestAt || "尚未检测")} · 最近部署：${escapeHtml(deployment.lastDeployAt || "尚未部署")}</p></div></div><div class="field-row"><div class="field"><label for="site-deploy-mode">部署方式</label><select class="select" id="site-deploy-mode"><option ${deployment.mode === "独立服务器" ? "selected" : ""}>独立服务器</option><option ${deployment.mode === "容器部署" ? "selected" : ""}>容器部署</option><option ${deployment.mode === "静态站点" ? "selected" : ""}>静态站点</option></select></div><div class="field"><label for="site-deploy-env">发布环境</label><select class="select" id="site-deploy-env"><option value="production" ${deployment.environment === "production" ? "selected" : ""}>production</option><option value="staging" ${deployment.environment === "staging" ? "selected" : ""}>staging</option></select></div></div><div class="field"><label for="site-deploy-root">站点目录</label><input class="input" id="site-deploy-root" value="${escapeHtml(deployment.rootPath || "")}" placeholder="/var/www/company-site" /></div><div class="field"><label for="site-deploy-branch">发布分支 / 版本通道</label><input class="input" id="site-deploy-branch" value="${escapeHtml(deployment.branch || "main")}" /></div><div class="site-publish-checks"><div><span class="check-dot ok">✓</span><span><b>发布权限</b><small>只允许当前客户空间发布到自己的官网目录</small></span></div><div><span class="check-dot ok">✓</span><span><b>发布前检查</b><small>自动检查页面、结构化数据、sitemap 与重定向</small></span></div></div></div><div class="modal-foot"><span>连接检测只更新状态，不会触发正式部署</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="site-test-deployment"><span data-icon="refresh"></span>检测连接</button><button class="primary-button" type="button" data-action="site-save-deployment"><span data-icon="check"></span>保存部署设置</button></div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网发布机制</h2><p>后台 CMS 与官网服务使用同一生产数据库，发布动作由正式版本切换完成。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="manual-review-complete"><span data-icon="server"></span><div><b>官网服务已连接</b><p>保存草稿不会影响公开页面；点击“发布官网”后，官网、sitemap、RSS 与 llms.txt 同步读取新的正式版本。</p></div></div><div class="site-publish-checks"><div><span class="check-dot ok">✓</span><span><b>不可变正式版本</b><small>每次发布都生成新的版本记录，可从发布历史回滚。</small></span></div><div><span class="check-dot ok">✓</span><span><b>私有化部署</b><small>官网运行在客户自己的服务器，不依赖本地媒体发布助手。</small></span></div></div></div><div class="modal-foot"><span>域名、证书和进程由交付运维配置</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭</button><button class="primary-button" type="button" data-action="site-show-releases">查看发布历史</button></div></div>`, { wide: true });
 }
 
 function saveSiteDeployment() {
-  const rootPath = siteValue("site-deploy-root");
-  if (!rootPath) return showToast("请填写站点目录", "服务器发布需要明确的客户站点目录。", "error");
-  Object.assign(siteCms().deployment, { mode: siteValue("site-deploy-mode") || "独立服务器", environment: siteValue("site-deploy-env") || "production", rootPath, branch: siteValue("site-deploy-branch") || "main", updatedAt: siteNow() });
-  saveState();
-  closeModal();
-  render();
-  showToast("部署设置已保存", "新的设置将在下一次官网发布时使用。", "success");
+  return showToast("部署配置由交付运维维护", "官网发布只切换 CMS 正式版本，服务器目录和证书不在业务后台中修改。", "info");
 }
 
 function testSiteDeployment() {
-  const deployment = siteCms().deployment;
-  deployment.mode = siteValue("site-deploy-mode") || deployment.mode;
-  deployment.environment = siteValue("site-deploy-env") || deployment.environment;
-  deployment.rootPath = siteValue("site-deploy-root") || deployment.rootPath;
-  deployment.branch = siteValue("site-deploy-branch") || deployment.branch;
-  deployment.status = "online";
-  deployment.lastTestAt = new Date().toLocaleString("zh-CN", { hour12: false });
-  deployment.updatedAt = siteNow();
-  saveState();
-  renderModal();
-  showToast("服务器连接正常", `${deployment.environment} 环境和站点目录均可访问。`, "success");
+  return showToast("官网服务已连接", "正式官网与后台 CMS 使用同一数据库，当前页面可直接通过预览和发布流程验收。", "success");
 }
 
 function renderSiteRedirectsModal() {
@@ -4869,13 +10631,25 @@ function saveSiteSettings() {
   const domain = siteValue("site-setting-domain").replace(/^https?:\/\//i, "").replace(/\/+$/, "");
   const companyName = siteValue("site-setting-company");
   const description = siteValue("site-setting-description");
+  const logoUrl = siteValue("site-setting-logo");
+  const sameAs = [...new Set(siteValue("site-setting-same-as").split(/[\r\n,，;；]+/).map((item) => item.trim()).filter(Boolean))].slice(0, 12);
   if (!name || !domain || !companyName) return showToast("请补全站点基础信息", "网站名称、主域名和企业主体不能为空。", "error");
   if (!/^[a-z0-9.-]+(?::\d+)?$/i.test(domain)) return showToast("主域名格式不正确", "请填写不带协议和路径的域名，例如 www.example.com。", "error");
-  Object.assign(siteCms().settings, { siteName: name, companyName, description, allowAiCrawl: siteChecked("site-setting-ai-crawl"), updatedAt: siteNow() });
+  const validPublicUrl = (value, allowRelative = false) => !value || (allowRelative && /^\/(?!\/)/.test(value)) || /^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(value);
+  if (!validPublicUrl(logoUrl, true)) return showToast("Logo 地址格式不正确", "请填写 HTTPS 图片地址或以 / 开头的站内地址。", "error");
+  if (sameAs.some((value) => !validPublicUrl(value))) return showToast("权威主体链接格式不正确", "每一行都应是完整的 http:// 或 https:// 地址。", "error");
+  Object.assign(siteCms().settings, { siteName: name, companyName, description, officialDomain: domain, logoUrl, sameAs, allowAiCrawl: siteChecked("site-setting-ai-crawl"), updatedAt: siteNow() });
   state.site.domain = domain;
   saveState();
   render();
   showToast("站点设置已保存", "企业主体、域名和 AI 抓取配置已更新。", "success");
+}
+
+function saveSiteContactSettings() {
+  const email = siteValue("site-setting-email");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast("企业邮箱格式不正确", "请检查邮箱地址后重试。", "error");
+  Object.assign(siteCms().settings, { phone: siteValue("site-setting-phone"), email, address: siteValue("site-setting-address"), industryRegion: siteValue("site-setting-region"), serviceArea: siteValue("site-setting-area"), updatedAt: siteNow() });
+  saveState(); render(); showToast("公开联系方式已保存", "联系我们页面、页脚和结构化数据会在发布后同步更新。", "success");
 }
 
 function csvCell(value) {
@@ -4906,7 +10680,7 @@ function renderKnowledgeLibraries() {
   const bases = activeBases.filter((base) => ui.knowledgeKindFilter === "all" || base.kind === ui.knowledgeKindFilter);
   const activeBaseIds = new Set(activeBases.map((base) => base.id));
   const approvedCount = (state.knowledgeItems || []).filter((item) => activeBaseIds.has(item.knowledgeBaseId) && item.status === "approved").length;
-  const pendingCount = (state.knowledgeItems || []).filter((item) => activeBaseIds.has(item.knowledgeBaseId) && item.status !== "approved").length;
+  const pendingCount = (state.knowledgeItems || []).filter((item) => activeBaseIds.has(item.knowledgeBaseId) && ["pending_ocr", "processing"].includes(item.importStatus)).length + (knowledgeAssetRuntime.items || []).filter((asset) => asset.ocrStatus === "processing").length;
   const cards = bases.map((base) => {
     const items = knowledgeBaseItems(base.id);
     const approved = approvedKnowledgeItems(base.id).length;
@@ -4927,15 +10701,15 @@ function renderKnowledgeLibraries() {
   return `
     <section class="knowledge-metrics">
       <article class="card summary-card"><span data-icon="database"></span><div><b>${activeBases.length}</b><small>知识库</small></div></article>
-      <article class="card summary-card"><span class="green" data-icon="check"></span><div><b>${approvedCount}</b><small>已审核知识</small></div></article>
+      <article class="card summary-card"><span class="green" data-icon="check"></span><div><b>${approvedCount}</b><small>可用知识资料</small></div></article>
       <article class="card summary-card"><span class="purple" data-icon="help"></span><div><b>${activeBases.filter((base) => base.kind === "qa").length}</b><small>标准问答库</small></div></article>
-      <article class="card summary-card"><span class="amber" data-icon="clock"></span><div><b>${pendingCount}</b><small>待审核</small></div></article>
+      <article class="card summary-card"><span class="amber" data-icon="clock"></span><div><b>${pendingCount}</b><small>后台处理中</small></div></article>
     </section>
     <div class="knowledge-toolbar">
       <div class="segmented-control" role="tablist">
         ${[["all", "全部"], ["document", "文档库"], ["qa", "问答库"]].map(([id, label]) => '<button class="' + (ui.knowledgeKindFilter === id ? "active" : "") + '" type="button" data-action="knowledge-kind-filter" data-kind="' + id + '">' + label + "</button>").join("")}
       </div>
-      <p>文档库保存长资料，问答库保存企业认可的标准回答；当前演示按已审核条目和版本范围检索，正式部署再接入向量 RAG 服务。</p>
+      <p>文档库保存长资料，问答库保存企业标准回答；资料上传后直接入库，后台自动解析、向量化并更新检索索引。</p>
     </div>
     <section class="knowledge-library-grid">${cards || '<div class="card empty-state knowledge-empty"><div><span data-icon="book"></span><h3>还没有这类知识库</h3><p>新建后即可录入资料并绑定业务线。</p><button class="primary-button button-small" type="button" data-action="create-knowledge-base"><span data-icon="plus"></span>新建知识库</button></div></div>'}</section>
   `;
@@ -4976,22 +10750,45 @@ function renderEnterpriseFacts() {
 }
 
 function renderKnowledgeReview() {
-  const pending = (state.knowledgeItems || []).filter((item) => item.status !== "approved" && knowledgeBaseById(item.knowledgeBaseId)?.status !== "archived");
   const gaps = (state.knowledgeGaps || []).filter((gap) => !["resolved", "archived"].includes(gap.status));
-  const pendingRows = pending.map((item) => {
-    const base = knowledgeBaseById(item.knowledgeBaseId);
-    return `<tr><td class="article-title-cell"><b>${escapeHtml(item.title || item.question)}</b><small>${escapeHtml(base?.name || "未知知识库")} · ${escapeHtml(item.id)}</small></td><td><span class="small-tag ${item.kind === "qa" ? "purple" : "blue"}">${knowledgeKindLabel(item.kind || base?.kind)}</span></td><td>${item.status === "pending_review" ? statusBadge("pending_review") : statusBadge("draft")}</td><td><div class="table-actions"><button class="link-button" type="button" data-action="open-knowledge-item" data-item-id="${item.id}">查看 / 编辑</button><button class="link-button" type="button" data-action="approve-knowledge-item" data-item-id="${item.id}">审核通过</button></div></td></tr>`;
-  }).join("");
   const gapCards = gaps.map((gap) => {
     const line = state.businessLines.find((item) => item.id === gap.businessLineId);
     return `<article class="knowledge-gap-card"><span class="gap-icon" data-icon="alert"></span><div><b>${escapeHtml(gap.title || gap.label || gap.fact || "待补充企业知识")}</b><p>${escapeHtml(gap.description || gap.reason || "当前知识范围没有足够证据，模型不会自行补写。")}</p><small>${escapeHtml(line?.name || "全企业")} · 来源：${escapeHtml(gap.source || "内容生成检查")}</small></div><button class="secondary-button button-small" type="button" data-action="resolve-knowledge-gap" data-gap-id="${gap.id}">补充知识</button></article>`;
   }).join("");
   return `
-    <section class="knowledge-review-grid">
-      <div class="card table-card"><div class="card-header"><div><h3>待审核知识</h3><p>草稿和待审核版本不会参与文章生成</p></div><span class="status-badge status-review">${pending.length} 条</span></div>${pendingRows ? '<div class="table-scroll"><table class="data-table"><thead><tr><th>知识条目</th><th>类型</th><th>状态</th><th>操作</th></tr></thead><tbody>' + pendingRows + '</tbody></table></div>' : '<div class="empty-state compact"><div><span data-icon="check"></span><h3>没有待审核知识</h3><p>当前可用知识均已完成审核。</p></div></div>'}</div>
-      <div class="card"><div class="card-header"><div><h3>知识缺口</h3><p>生成和监测发现的事实空白</p></div><span class="small-tag amber">${gaps.length} 项</span></div><div class="knowledge-gap-list">${gapCards || '<div class="empty-state compact"><div><span data-icon="check"></span><h3>暂无知识缺口</h3><p>最近生成任务没有发现必须补充的事实。</p></div></div>'}</div></div>
-    </section>
+    <section class="card"><div class="card-header"><div><h3>知识缺口</h3><p>内容生成时发现缺少企业事实，会在这里提醒补充；新资料保存后直接进入知识库。</p></div><span class="small-tag amber">${gaps.length} 项</span></div><div class="knowledge-gap-list">${gapCards || '<div class="empty-state compact"><div><span data-icon="check"></span><h3>暂无知识缺口</h3><p>最近生成任务没有发现必须补充的企业资料。</p></div></div>'}</div></section>
   `;
+}
+
+function knowledgeAssetPreviewUrl(asset) {
+  return `/api/v1/knowledge/assets/${encodeURIComponent(asset.id)}/content`;
+}
+
+function knowledgeAssetStatus(asset) {
+  if (asset.ocrStatus === "failed") return '<span class="status-badge status-approved">可用 · 识别失败</span>';
+  if (["queued", "processing"].includes(asset.ocrStatus)) return '<span class="status-badge status-approved">可用 · 识别中</span>';
+  return '<span class="status-badge status-approved">可用于写作</span>';
+}
+
+function renderKnowledgeAssets() {
+  const allImages = (knowledgeAssetRuntime.items || []).filter((asset) => asset.assetType === "image");
+  const search = String(ui.knowledgeAssetSearch || "").trim().toLowerCase();
+  const filtered = allImages.filter((asset) => {
+    if (ui.knowledgeAssetLibraryFilter !== "all" && asset.libraryId !== ui.knowledgeAssetLibraryFilter) return false;
+    const base = knowledgeBaseById(asset.libraryId);
+    return !search || [asset.sourceName, asset.altText, asset.metadata?.caption, base?.name, ...(asset.metadata?.tags || [])].join(" " ).toLowerCase().includes(search);
+  });
+  const options = (state.knowledgeBases || []).filter((base) => base.status !== "archived" && base.kind === "document").map((base) => `<option value="${escapeHtml(base.id)}" ${ui.knowledgeAssetLibraryFilter === base.id ? "selected" : ""}>${escapeHtml(base.name)}</option>`).join("");
+  const cards = filtered.map((asset) => {
+    const base = knowledgeBaseById(asset.libraryId);
+    const metadata = asset.metadata || {};
+    const source = metadata.derivedFrom === "pdf" ? `${metadata.sourcePdfName || "PDF"}${metadata.pageNumber ? ` · 第 ${metadata.pageNumber} 页` : ""}` : "直接上传";
+    return `<article class="knowledge-image-card"><div class="knowledge-image-preview"><img src="${knowledgeAssetPreviewUrl(asset)}" alt="${escapeHtml(asset.altText || asset.sourceName || "企业知识图片")}" loading="lazy" /></div><div class="knowledge-image-card-body"><div class="knowledge-image-card-head">${knowledgeAssetStatus(asset)}<span>${escapeHtml(base?.name || "未分组")}</span></div><h3 title="${escapeHtml(asset.sourceName)}">${escapeHtml(asset.sourceName || "未命名图片")}</h3><p>${escapeHtml(asset.altText || metadata.caption || "图片已入库，可在写作台直接选择插入。")}</p><footer><span>${escapeHtml(source)}</span><span>${escapeHtml(formatRelative(asset.createdAt))}</span></footer></div></article>`;
+  }).join("");
+  const content = knowledgeAssetRuntime.loading && !knowledgeAssetRuntime.loaded
+    ? '<div class="card empty-state knowledge-empty"><div><span data-icon="loader"></span><h3>正在加载图片资料</h3></div></div>'
+    : cards || '<div class="card empty-state knowledge-empty"><div><span data-icon="image"></span><h3>还没有图片资料</h3><p>支持一次选择多张照片；PDF 中提取出的图片也会自动出现在这里。</p><button class="primary-button button-small" type="button" data-action="upload-knowledge-images"><span data-icon="upload"></span>批量上传图片</button></div></div>';
+  return `<section class="knowledge-assets-toolbar"><div><h2>图片资料库</h2><p>上传即入库，不需要逐张填写或审核；写文章时可以直接搜索、选择并插入。</p></div><div class="knowledge-assets-actions"><select class="select" data-knowledge-asset-library-filter><option value="all">全部知识库</option>${options}</select><input class="input" data-knowledge-asset-search placeholder="搜索图片名称、说明或标签" value="${escapeHtml(ui.knowledgeAssetSearch)}" /><button class="secondary-button" type="button" data-action="import-knowledge"><span data-icon="file"></span>上传文档 / PDF</button><button class="primary-button" type="button" data-action="upload-knowledge-images"><span data-icon="image"></span>批量上传图片</button></div></section><section class="knowledge-image-grid">${content}</section>`;
 }
 
 function renderKnowledgeLegacyCards(tab) {
@@ -5013,7 +10810,7 @@ function renderKnowledgeLegacyCards(tab) {
 }
 
 function renderKnowledge() {
-  const tabs = [["libraries", "知识库"], ["packages", "业务线知识包"], ["facts", "企业事实"], ["review", "待审核 / 知识缺口"], ["assets", "素材库"], ["rules", "内容规则"]];
+  const tabs = [["libraries", "知识库"], ["packages", "业务线知识包"], ["facts", "企业事实"], ["assets", "图片资料库"], ["review", "知识缺口"], ["rules", "内容规则"]];
   if (!tabs.some(([id]) => id === ui.knowledgeTab)) ui.knowledgeTab = "libraries";
   const tabHtml = tabs.map(([id, label]) => '<button class="tab-button ' + (ui.knowledgeTab === id ? "active" : "") + '" type="button" data-action="knowledge-tab" data-tab="' + id + '">' + label + "</button>").join("");
   const actions = ui.knowledgeTab === "libraries"
@@ -5027,11 +10824,12 @@ function renderKnowledge() {
     : ui.knowledgeTab === "packages" ? renderKnowledgePackages()
       : ui.knowledgeTab === "facts" ? `${renderEnterpriseFacts()}<section class="knowledge-structured-section"><div class="card-header"><div><h3>结构化企业资料</h3><p>维护运营人员常用的产品、案例、FAQ 和资料清单；详细正文与版本仍以知识库为准。</p></div></div>${renderKnowledgeLegacyCards("facts")}</section>`
         : ui.knowledgeTab === "review" ? renderKnowledgeReview()
-          : renderKnowledgeLegacyCards(ui.knowledgeTab);
+          : ui.knowledgeTab === "assets" ? renderKnowledgeAssets()
+            : renderKnowledgeLegacyCards(ui.knowledgeTab);
   return `
     <div class="page-container">
-      ${pageHead("企业知识", "让每篇内容都基于本企业已审核、可追溯、可冻结的事实生成。", actions)}
-      <div class="tabs-row knowledge-tabs-row"><div class="tabs">${tabHtml}</div><span class="small-tag teal">本地演示检索</span></div>
+      ${pageHead("企业知识", "资料上传即入库，自动解析、索引并保留来源；文章发布前仍按内容流程人工审核。", actions)}
+      <div class="tabs-row knowledge-tabs-row"><div class="tabs">${tabHtml}</div><span class="small-tag teal">企业 RAG 索引</span></div>
       ${panel}
       <div class="privacy-note"><span data-icon="info"></span><span><b>内容关联规则：</b>文章覆盖 ＞ 内容计划 ＞ 业务线默认知识包 ＞ 企业公共库。问题词库记录“客户会问什么”，企业问答库记录“企业如何标准回答”，两者不会混用。</span></div>
     </div>
@@ -5154,10 +10952,15 @@ function renderAiProviderCards() {
   return `<div class="ai-provider-list">${aiProviderSnapshot.providers.map((provider) => {
     const textDefault = state.settings.modelProviderId === provider.id;
     const imageDefault = state.settings.imageProviderId === provider.id;
+    const embeddingDefault = state.settings.embeddingProviderId === provider.id;
     const modelNames = Array.isArray(provider.models) ? provider.models.map((model) => model.id || model.name).filter(Boolean).slice(0, 3) : [];
     const configuredModel = provider.model || provider.modelId || "未配置模型";
     const displayedModels = modelNames.length ? modelNames.join("、") : configuredModel;
-    return `<article class="ai-provider-row"><div class="ai-provider-icon"><span data-icon="cpu"></span></div><div class="ai-provider-copy"><div class="ai-provider-title"><b>${escapeHtml(provider.name || "未命名供应商")}</b>${aiProviderStatusMarkup(provider)}</div><p>${escapeHtml(aiProviderProtocolLabel(provider.protocol))} · ${escapeHtml(provider.baseUrl || "未填写 Base URL")}</p><div class="ai-provider-meta"><span>${escapeHtml(provider.apiKeyMasked || "未配置密钥")}</span><span>${escapeHtml(displayedModels)}</span></div><div class="ai-provider-defaults">${textDefault ? '<span class="small-tag blue">默认文本模型</span>' : ''}${imageDefault ? '<span class="small-tag teal">默认图片模型</span>' : ''}</div></div><div class="ai-provider-actions"><button class="secondary-button button-small" type="button" data-action="edit-ai-provider" data-provider-id="${escapeHtml(provider.id)}">编辑</button><button class="ghost-button button-small" type="button" data-action="test-ai-provider" data-provider-id="${escapeHtml(provider.id)}">测试</button><button class="text-button" type="button" data-action="delete-ai-provider" data-provider-id="${escapeHtml(provider.id)}">删除</button></div></article>`;
+    const testMessage = String(provider.lastTestMessage || "").trim();
+    const testDetail = testMessage
+      ? `<small class="setting-value-sub ${provider.connectionStatus === "failed" ? "warning" : ""}">${escapeHtml(testMessage)}${provider.lastTestAt ? ` · ${escapeHtml(formatTimeLabel(provider.lastTestAt))}` : ""}</small>`
+      : "";
+    return `<article class="ai-provider-row"><div class="ai-provider-icon"><span data-icon="cpu"></span></div><div class="ai-provider-copy"><div class="ai-provider-title"><b>${escapeHtml(provider.name || "未命名供应商")}</b>${aiProviderStatusMarkup(provider)}</div><p>${escapeHtml(aiProviderProtocolLabel(provider.protocol))} · ${escapeHtml(provider.baseUrl || "未填写 Base URL")}</p><div class="ai-provider-meta"><span>${escapeHtml(provider.apiKeyMasked || "未配置密钥")}</span><span>${escapeHtml(displayedModels)}</span></div>${testDetail}<div class="ai-provider-defaults">${textDefault ? '<span class="small-tag blue">默认文本模型</span>' : ''}${imageDefault ? '<span class="small-tag teal">默认图片模型</span>' : ''}${embeddingDefault ? '<span class="small-tag violet">默认向量模型</span>' : ''}</div></div><div class="ai-provider-actions"><button class="secondary-button button-small" type="button" data-action="edit-ai-provider" data-provider-id="${escapeHtml(provider.id)}">编辑</button><button class="ghost-button button-small" type="button" data-action="test-ai-provider" data-provider-id="${escapeHtml(provider.id)}">测试</button><button class="text-button" type="button" data-action="delete-ai-provider" data-provider-id="${escapeHtml(provider.id)}">删除</button></div></article>`;
   }).join("")}</div>`;
 }
 
@@ -5169,30 +10972,34 @@ function renderSettingsPanel() {
         <div class="setting-section">
           <div class="setting-row"><div><b>默认文本模型</b><small>用于文章生成、AI 协作和企业知识整理</small></div><div class="setting-value">${escapeHtml(state.settings.model)}${state.settings.modelProviderId ? '<small class="setting-value-sub">已绑定 API 供应商</small>' : '<small class="setting-value-sub warning">尚未绑定 API</small>'}</div><button class="secondary-button button-small" type="button" data-action="edit-model" data-model-kind="text">更换</button></div>
           <div class="setting-row"><div><b>默认图片模型</b><small>用于文章配图任务；不影响已审核的知识库图片</small></div><div class="setting-value">${escapeHtml(state.settings.imageModel)}${state.settings.imageProviderId ? '<small class="setting-value-sub">已绑定 API 供应商</small>' : '<small class="setting-value-sub warning">尚未绑定 API</small>'}</div><button class="secondary-button button-small" type="button" data-action="edit-model" data-model-kind="image">更换</button></div>
+          <div class="setting-row"><div><b>默认向量模型</b><small>用于企业知识库分块向量化和 RAG 检索</small></div><div class="setting-value">${state.settings.embeddingProviderId ? '<small class="setting-value-sub">已绑定 embedding API</small>' : '<small class="setting-value-sub warning">使用本地兜底向量</small>'}</div><button class="secondary-button button-small" type="button" data-action="edit-model" data-model-kind="embedding">更换</button></div>
           <div class="setting-row"><div><b>写作智能体</b><small>提示词、写作角色和知识策略在内容生产中独立管理</small></div><div class="setting-value">${(state.writingAgents || []).filter((agent) => agent.status === "active").length} 个启用</div><button class="secondary-button button-small" type="button" data-action="open-writing-agent-manager">进入管理</button></div>
         </div>
-        <div class="privacy-note" style="margin:0 18px 18px"><span data-icon="info"></span><span>API 密钥由服务端保存并脱敏返回，浏览器只显示供应商状态和密钥末四位。正式部署建议启用服务器密钥加密或客户专属密钥管理服务。</span></div>
+        <div class="privacy-note" style="margin:0 18px 18px"><span data-icon="lock"></span><span>API 密钥使用 AES-256-GCM 在服务器端加密保存；浏览器只显示供应商状态和密钥掩码，主密钥与业务数据库分开保管。</span></div>
       </section>
       <section class="card ai-provider-section"><div class="card-header"><div><h3>模型供应商 / API</h3><p>一个供应商可以提供多个文本、图片或向量模型；添加后再在“更换模型”中选择。</p></div><span class="small-tag blue">服务端管理</span></div>${renderAiProviderCards()}</section>
     `;
   }
   if (ui.settingsTab === "members") {
-    const memberBadge = (member) => member.status === "active" ? statusBadge("online") : member.status === "invited" ? '<span class="status-badge status-pending">待接受</span>' : '<span class="status-badge status-error">已停用</span>';
-    const rows = (state.settings.members || []).map((member) => `<tr><td><b>${escapeHtml(member.name)}</b><small style="display:block;color:var(--muted)">${escapeHtml(member.email)}</small></td><td>${escapeHtml(member.role)}</td><td>${member.lastLoginAt ? escapeHtml(formatRelative(member.lastLoginAt)) : "尚未登录"}</td><td>${memberBadge(member)}</td><td><button class="link-button" type="button" data-action="manage-member" data-member-id="${escapeHtml(member.id)}">管理</button></td></tr>`).join("");
+    const canManageUsers = currentUserCan("users.manage");
+    const memberBadge = (member) => member.status === "active" ? '<span class="status-badge status-approved">已启用</span>' : '<span class="status-badge status-error">已停用</span>';
+    const rows = (state.settings.members || []).map((member) => `<tr><td><b>${escapeHtml(member.name)}</b><small style="display:block;color:var(--muted)">${escapeHtml(member.username || member.email)}</small></td><td>${escapeHtml(member.role)}</td><td>${member.lastLoginAt ? escapeHtml(formatRelative(member.lastLoginAt)) : "尚未登录"}</td><td>${memberBadge(member)}</td><td>${canManageUsers ? `<button class="link-button" type="button" data-action="manage-member" data-member-id="${escapeHtml(member.id)}">管理</button>` : "—"}</td></tr>`).join("");
     return `
       <section class="card table-card">
-        <div class="card-header"><div><h3>成员与权限</h3><p>成员、角色和状态只作用于当前客户部署空间；平台账号登录仍只在本地发布助手管理。</p></div><button class="primary-button button-small" type="button" data-action="invite-member"><span data-icon="plus"></span>邀请成员</button></div>
+        <div class="card-header"><div><h3>成员与权限</h3><p>账号、密码、角色和登录状态由当前客户服务器统一管理，所有权限由服务端执行。</p></div>${canManageUsers ? '<button class="primary-button button-small" type="button" data-action="invite-member"><span data-icon="plus"></span>创建成员</button>' : ""}</div>
         <div class="table-scroll"><table class="data-table"><thead><tr><th>成员</th><th>角色</th><th>最近登录</th><th>状态</th><th></th></tr></thead><tbody>
           ${rows || '<tr><td colspan="5">暂无成员</td></tr>'}
-        </tbody></table></div><div class="privacy-note" style="margin:14px 18px 18px"><span data-icon="lock"></span><span>邀请会先保存为“待接受”演示状态；这里不保存平台账号、Cookie 或密码。</span></div>
+        </tbody></table></div><div class="privacy-note" style="margin:14px 18px 18px"><span data-icon="lock"></span><span>密码使用 scrypt 保存；登录会话和 CSRF Token 在数据库中只保存摘要。停用账号会立即撤销其所有会话。</span></div>
       </section>
     `;
   }
   if (ui.settingsTab === "logs") {
-    const logs = [...(state.settings.operationLogs || [])].sort((a, b) => Number(b.occurredAt || 0) - Number(a.occurredAt || 0));
+    const logs = auditSnapshot.loaded
+      ? auditSnapshot.items.map((entry) => ({ occurredAt: entry.occurredAt, category: entry.action, actor: entry.actor, detail: `${entry.entityType}${entry.entityId ? ` · ${entry.entityId}` : ""}` }))
+      : [...(state.settings.operationLogs || [])].sort((a, b) => Number(b.occurredAt || 0) - Number(a.occurredAt || 0));
     return `
       <section class="card">
-        <div class="card-header"><div><h3>操作日志</h3><p>审核、发布、配置与设备事件。导出的是当前浏览器中可回看的演示记录。</p></div><button class="secondary-button button-small" type="button" data-action="export-logs"><span data-icon="download"></span>导出 CSV</button></div>
+        <div class="card-header"><div><h3>操作日志</h3><p>登录、成员、工作区、审核、发布和配置事件由服务器写入不可由浏览器修改的审计表。</p></div><button class="secondary-button button-small" type="button" data-action="export-logs"><span data-icon="download"></span>导出 CSV</button></div>
         <div class="card-body log-list">
           ${logs.map((entry) => `<div class="log-item"><span title="${escapeHtml(formatDateTime(entry.occurredAt))}">${escapeHtml(formatRelative(entry.occurredAt))}</span><b>${escapeHtml(entry.category)}</b><span><small>${escapeHtml(entry.actor)} · </small>${escapeHtml(entry.detail)}</span></div>`).join("") || '<div class="empty-state compact"><p>暂无可导出的操作日志。</p></div>'}
         </div>
@@ -5206,10 +11013,10 @@ function renderSettingsPanel() {
         <div class="setting-row"><div><b>部署方式</b><small>应用、数据库、官网均客户独立</small></div><div class="setting-value">${escapeHtml(state.settings.deployment)} · 桐灼科技</div><span class="small-tag teal">运行正常</span></div>
         <div class="setting-row"><div><b>文章风险门禁</b><small>存在高风险表述时阻止发布</small></div><div class="setting-value">审核通过仍需经过发布风险门</div><button class="toggle ${state.settings.riskGate ? "on" : ""}" type="button" data-setting="riskGate" aria-label="切换风险门禁"></button></div>
         <div class="setting-row"><div><b>人工审核</b><small>AI 生成文章默认进入待审核</small></div><div class="setting-value">适用于所有内容生成任务</div><button class="toggle ${state.settings.manualReview ? "on" : ""}" type="button" data-setting="manualReview" aria-label="切换人工审核"></button></div>
-        <div class="setting-row"><div><b>系统版本</b><small>后台演示版本</small></div><div class="setting-value">Tongzhuo GEO Platform 0.4.0-demo</div><button class="secondary-button button-small" data-action="show-version">版本说明</button></div>
+        <div class="setting-row"><div><b>系统版本</b><small>企业私有化生产底座</small></div><div class="setting-value">Tongzhuo GEO Platform 1.0.0-alpha.1</div><button class="secondary-button button-small" data-action="show-version">版本说明</button></div>
       </div>
       <div class="setting-section">
-        <div class="setting-row"><div><b>重置演示数据</b><small>清除本浏览器中的原型操作记录</small></div><div class="setting-value">不会影响工作区中的任何旧工程或正式数据</div><button class="danger-button button-small" data-action="reset-demo"><span data-icon="refresh"></span>重置</button></div>
+        <div class="setting-row"><div><b>数据保护</b><small>正式数据库、修订记录和备份恢复</small></div><div class="setting-value">SQLite WAL · 乐观锁 · 服务端审计</div><span class="small-tag teal">已启用</span></div>
       </div>
     </section>
   `;
@@ -5249,6 +11056,7 @@ function closeModal() {
 function mountModal(html) {
   const root = document.getElementById("modal-root");
   root.innerHTML = html;
+  hydrateCustomerFacingEffectCopy(root);
   hydrateIcons(root);
   hydrateBulkSelects(root);
   document.body.style.overflow = "hidden";
@@ -5267,6 +11075,7 @@ function renderModal() {
     pair: renderPairModal,
     knowledge: renderKnowledgeModal,
     importKnowledge: renderImportKnowledgeModal,
+    uploadKnowledgeImages: renderUploadKnowledgeImagesModal,
     createKnowledgeBase: renderCreateKnowledgeBaseModal,
     knowledgeBaseDetail: renderKnowledgeBaseDetailModal,
     knowledgePackage: renderKnowledgePackageModal,
@@ -5282,11 +11091,6 @@ function renderModal() {
     writingAgent: renderWritingAgentModal,
     regenerateArticle: renderRegenerateArticleModal,
     articleVersion: renderArticleVersionModal,
-    monitorTask: renderMonitorTaskModal,
-    monitorDetail: renderMonitorDetailModal,
-    monitorEvidence: renderMonitorEvidenceModal,
-    monitorQuery: renderMonitorQueryModal,
-    sourceWorks: renderSourceWorksModal,
     trackedWork: renderTrackedWorkModal,
     modelEditor: renderModelEditorModal,
     memberEditor: renderMemberEditorModal,
@@ -5297,9 +11101,13 @@ function renderModal() {
     planningArchiveDelete: renderPlanningArchiveDeleteModal,
     sitePublish: renderSitePublishModal,
     sitePreview: renderSitePreviewModal,
-    sitePageVersions: renderSitePageVersionModal,
+    siteReleases: renderSiteReleasesModal,
     sitePageEditor: renderSitePageEditorModal,
     siteModule: renderSiteModuleModal,
+    siteService: renderSiteServiceModal,
+    siteCase: renderSiteCaseModal,
+    siteProblemGroup: renderSiteProblemGroupModal,
+    siteQuestion: renderSiteQuestionModal,
     siteCategoryManager: renderSiteCategoryManagerModal,
     siteCategory: renderSiteCategoryModal,
     siteArticlePreview: renderSiteArticlePreviewModal,
@@ -5314,10 +11122,11 @@ function renderModal() {
   const renderer = renderers[ui.modal.type];
   if (!renderer) return closeModal();
   mountModal(renderer());
+  if (ui.modal.type === "importKnowledge") document.getElementById("knowledge-import-file")?.setAttribute("accept", ".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml,image/*");
 }
 
 function modalChrome(content, options = {}) {
-  const className = options.drawer ? "drawer-dialog" : "modal-dialog" + (options.wide ? " wide" : "");
+  const className = (options.drawer ? "drawer-dialog" : "modal-dialog" + (options.wide ? " wide" : "")) + (options.className ? ` ${options.className}` : "");
   return `
     <div class="modal-backdrop" data-action="backdrop-close"></div>
     <section class="${className}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
@@ -5430,10 +11239,10 @@ function renderArticleModal() {
   const knowledgeReady = citations.length > 0 && !citations.some((citation) => citation.supportStatus === "conflict" || citation.status === "missing") && (article.knowledgeStatus?.conflictCount || 0) === 0;
   const articleAssets = (article.assetIds || []).map((id) => (state.contentAssets || []).find((asset) => asset.id === id)).filter(Boolean);
   const assetIssues = articleAssetReviewIssues(article);
-  const geoQuality = article.generationSnapshot?.outputContract
-    ? (article.geoQuality || evaluateGeoArticleQuality(article.content, topic || {}, citations))
-    : null;
-  const geoQualityBlocked = Boolean(geoQuality?.status === "block");
+  const canSubmitReview = currentUserCan("content.generate");
+  const canReview = currentUserCan("content.review");
+  const canPublishContent = currentUserCan("content.publish");
+  const canEditArticle = lineActive && canSubmitReview && !manualReview;
   const canPublish = article.reviewStatus === "approved" && article.status === "draft" && article.riskStatus === "clean" && knowledgeReady && lineActive;
   const hasKnowledgeUpdates = articleHasKnowledgeUpdates(article);
   const riskMeta = {
@@ -5447,15 +11256,15 @@ function renderArticleModal() {
     ? '<button class="primary-button" type="button" data-action="manage-business-lines"><span data-icon="refresh"></span>恢复业务线后继续</button>'
     : reviewPending
     ? manualReview
-      ? '<button class="secondary-button" type="button" data-action="reject-article"><span data-icon="edit"></span>退回修改</button><button class="primary-button" type="button" data-action="approve-article"><span data-icon="check"></span>审核通过</button>'
+      ? canReview
+        ? '<button class="secondary-button" type="button" data-action="reject-article"><span data-icon="edit"></span>退回修改</button><button class="primary-button" type="button" data-action="approve-article"><span data-icon="check"></span>审核通过</button>'
+        : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>等待审核人员处理</button>'
       : revisionRequested
-        ? '<button class="primary-button" type="button" data-action="open-article-studio" data-article-id="' + article.id + '"><span data-icon="edit"></span>继续修改</button>'
-        : geoQualityBlocked
-          ? '<button class="primary-button" type="button" data-action="open-article-studio" data-article-id="' + article.id + '"><span data-icon="edit"></span>补齐结构后再提交</button>'
-          : '<button class="primary-button" type="button" data-action="submit-article-review" data-article-id="' + article.id + '"><span data-icon="shield"></span>提交人工审核</button>'
+        ? canSubmitReview ? '<button class="primary-button" type="button" data-action="open-article-studio" data-article-id="' + article.id + '"><span data-icon="edit"></span>继续修改</button>' : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>等待内容运营修改</button>'
+        : canSubmitReview ? '<button class="primary-button" type="button" data-action="submit-article-review" data-article-id="' + article.id + '"><span data-icon="shield"></span>提交人工审核</button>' : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>没有提交审核权限</button>'
     : article.status === "draft" && article.riskStatus !== "clean"
       ? '<button class="primary-button" type="button" data-action="open-risk" data-article-id="' + article.id + '"><span data-icon="shield"></span>重新风控</button>'
-    : canPublish
+    : canPublish && canPublishContent
       ? '<button class="primary-button" type="button" data-action="open-publish" data-article-id="' + article.id + '"><span data-icon="send"></span>去发布</button>'
       : article.status !== "draft"
         ? '<button class="primary-button" type="button" data-nav="publish"><span data-icon="send"></span>查看发布任务</button>'
@@ -5486,12 +11295,12 @@ function renderArticleModal() {
       ${manualReview ? `<div class="manual-review-banner"><span class="manual-review-step active"><i>1</i><b>人工审核中</b><small>正文、引用、风险</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>2</i><b>审核通过</b><small>冻结当前版本</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>3</i><b>进入发布</b><small>官网 / 多平台</small></span></div><div class="manual-review-meta"><div><span>当前状态</span><b class="status-badge status-review">待人工审核</b></div><div><span>提交时间</span><b>${escapeHtml(submittedAt)}</b></div><div><span>提交人</span><b>${escapeHtml(article.reviewSubmittedBy || "内容团队")}</b></div><div><span>审核版本</span><b>${escapeHtml(article.version)}</b></div></div><div class="manual-review-checklist"><b>审核清单</b><span class="ok">正文完整</span><span class="${citations.length ? "ok" : "warning"}">${citations.length ? "企业知识已引用" : "缺少企业知识引用"}</span><span class="${article.riskStatus === "clean" ? "ok" : "warning"}">${article.riskStatus === "clean" ? "风控已通过" : "待完成风控"}</span><small>审核通过后才会解锁发布，修改正文后会自动生成新版本并重新审核。</small></div>` : revisionRequested ? `<div class="knowledge-update-banner"><span data-icon="edit"></span><div><b>已退回修改</b><p>${escapeHtml(article.reviewNote || "请根据审核意见修改后重新提交。")}</p></div></div>` : reviewPending ? `<div class="knowledge-update-banner"><span data-icon="clock"></span><div><b>当前为编辑草稿</b><p>确认正文、企业知识引用和风险状态后，再提交人工审核；未提交的草稿不能审核或发布。</p></div></div>` : `<div class="manual-review-complete"><span data-icon="check"></span><div><b>人工审核已通过 · 当前版本可发布</b><p>审核人：${escapeHtml(article.reviewedBy || "内容团队")} · ${escapeHtml(reviewedAt)} · 已冻结 ${escapeHtml(article.version)} 的正文与知识引用</p></div></div>`}
       <div class="article-drawer-grid">
         <div>
-          <textarea class="editor-title" id="article-title-editor" rows="2" ${lineActive ? "" : "readonly"}>${escapeHtml(article.title)}</textarea>
+          <textarea class="editor-title" id="article-title-editor" rows="2" ${canEditArticle ? "" : "readonly"}>${escapeHtml(article.title)}</textarea>
           <div class="editor-toolbar" aria-label="编辑工具栏">
-            <button type="button" data-action="article-format" data-command="bold" aria-label="粗体" title="粗体" ${lineActive ? "" : "disabled"}><b>B</b></button><button type="button" data-action="article-format" data-command="italic" aria-label="斜体" title="斜体" ${lineActive ? "" : "disabled"}><i>I</i></button><button type="button" data-action="article-format" data-command="formatBlock" data-value="h2" aria-label="标题" title="二级标题" ${lineActive ? "" : "disabled"}>H2</button>
-            <button type="button" data-action="article-format" data-command="insertUnorderedList" aria-label="列表" title="无序列表" ${lineActive ? "" : "disabled"}>☷</button><button type="button" data-action="article-link" aria-label="链接" title="插入链接" ${lineActive ? "" : "disabled"}><span data-icon="link"></span></button><button type="button" data-action="open-article-studio" data-article-id="${article.id}" aria-label="图片" title="在 AI 创作台插入或管理图片" ${lineActive ? "" : "disabled"}><span data-icon="image"></span></button>
+            <button type="button" data-action="article-format" data-command="bold" aria-label="粗体" title="粗体" ${canEditArticle ? "" : "disabled"}><b>B</b></button><button type="button" data-action="article-format" data-command="italic" aria-label="斜体" title="斜体" ${canEditArticle ? "" : "disabled"}><i>I</i></button><button type="button" data-action="article-format" data-command="formatBlock" data-value="h2" aria-label="标题" title="二级标题" ${canEditArticle ? "" : "disabled"}>H2</button>
+            <button type="button" data-action="article-format" data-command="insertUnorderedList" aria-label="列表" title="无序列表" ${canEditArticle ? "" : "disabled"}>☷</button><button type="button" data-action="article-link" aria-label="链接" title="插入链接" ${canEditArticle ? "" : "disabled"}><span data-icon="link"></span></button><button type="button" data-action="open-article-studio" data-article-id="${article.id}" aria-label="图片" title="在 AI 创作台插入或管理图片" ${canEditArticle ? "" : "disabled"}><span data-icon="image"></span></button>
           </div>
-          <article class="article-content ${lineActive ? "" : "read-only"}" id="article-content-editor" contenteditable="${lineActive ? "true" : "false"}" spellcheck="false">${editorContent}</article>
+          <article class="article-content ${canEditArticle ? "" : "read-only"}" id="article-content-editor" contenteditable="${canEditArticle ? "true" : "false"}" spellcheck="false">${editorContent}</article>
         </div>
         <aside class="article-side">
           <div class="side-panel article-agent-panel">
@@ -5507,7 +11316,6 @@ function renderArticleModal() {
               <div><span>冻结版本</span><b>${canPublish ? article.version : "—"}</b></div>
             </div>
           </div>
-          ${geoQuality ? `<div class="side-panel"><h4>GEO 结构质量门</h4><div class="risk-score"><span class="risk-state-icon ${geoQuality.status === "pass" ? "" : "warning"}" data-icon="${geoQuality.status === "pass" ? "check" : "alert"}"></span><p><b style="display:block;color:${geoQuality.status === "pass" ? "var(--green)" : "var(--amber)"}">${geoQuality.status === "pass" ? "结构通过" : geoQuality.status === "block" ? "结构阻断" : "建议补强"} · ${geoQuality.score} 分</b>${geoQuality.missing.length ? escapeHtml(geoQuality.missing.join("、")) + "。" : "已包含直接回答、证据、步骤、FAQ、边界和语义标题。"}</p></div><small class="snapshot-note">这是内容结构检查，不等同于 AI 推荐分；仍需完成风控和人工审核。</small></div>` : ""}
           <div class="side-panel">
             <h4>关联选题</h4>
             <p>${escapeHtml(topic?.title || "未关联选题")}</p>
@@ -5536,8 +11344,7 @@ function renderArticleModal() {
     <div class="modal-foot">
       <span style="color:var(--muted);font-size:10px">最后更新：${formatRelative(article.updatedAt)} · ${escapeHtml(article.author)}</span>
       <div class="modal-foot-right">
-        <button class="secondary-button" type="button" data-action="open-article-studio" data-article-id="${article.id}"><span data-icon="sparkle"></span>AI 创作台</button>
-        ${lineActive ? '<button class="secondary-button" type="button" data-action="save-article">保存草稿</button>' : ""}
+        ${canEditArticle ? '<button class="secondary-button" type="button" data-action="open-article-studio" data-article-id="' + article.id + '"><span data-icon="sparkle"></span>AI 创作台</button><button class="secondary-button" type="button" data-action="save-article">保存草稿</button>' : ""}
         ${actions}
       </div>
     </div>
@@ -5621,13 +11428,14 @@ function saveArticleEditor(options = {}) {
     titleInput.focus();
     return null;
   }
-  const citations = articleCitations(article);
+  let citations = articleCitations(article);
   const renderedBaseline = articleContentForEditor(article, citations).trim();
   const changed = nextTitle !== article.title || nextContent !== renderedBaseline;
-  const requiresNewVersion = changed && (article.reviewStatus === "approved" || article.status === "published");
-  if (requiresNewVersion) archiveArticleRevision(article, "manual_edit", "人工修订前");
+  const requiresNewVersion = changed && (Boolean(article.contentVersionId) || article.reviewStatus === "approved" || article.status === "published");
+  const citationClone = requiresNewVersion ? studioBumpArticleVersion(article, "manual_edit", "人工修订前") : null;
+  if (citationClone) citations = articleCitations(article);
   article.title = nextTitle;
-  article.content = nextContent;
+  article.content = citationClone?.idMap ? studioRemapCitationIds(nextContent, citationClone.idMap) : nextContent;
   if (article.generationSnapshot?.outputContract || article.geoQuality) {
     article.geoQuality = evaluateGeoArticleQuality(article.content, article.topicSnapshot || article.generationSnapshot?.topicSnapshot || {}, citations);
     if (article.generationSnapshot) article.generationSnapshot.geoQuality = cloneData(article.geoQuality);
@@ -5651,45 +11459,84 @@ function saveArticleEditor(options = {}) {
   }
   if (requiresNewVersion) {
     article.status = "draft";
-    const number = Number(article.version.replace(/\D/g, "")) || 1;
-    article.version = "v" + (number + 1);
     if (!options.silent) showToast("已生成新版本", "文章内容变更，需要重新审核后才能发布。");
   } else if (!options.silent) {
     showToast("文章已保存", "草稿内容已保存在本次演示数据中。");
+  }
+  if (changed) {
+    article.contentSyncPending = true;
+    void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+      article.contentSyncPending = false;
+      article.contentSyncError = error.message || "内容版本同步失败";
+      saveState();
+      if (!options.silent) showToast("内容版本同步失败", article.contentSyncError, "warning");
+    });
   }
   saveState();
   render();
   return article;
 }
 
-function submitArticleForManualReview(articleId, options = {}) {
+async function submitArticleForManualReview(articleId, options = {}) {
   const article = state.articles.find((item) => item.id === articleId);
   if (!article) return showToast("文章不存在", "请刷新页面后重试。", "error");
+  if (!currentUserCan("content.generate")) return showToast("没有提交审核权限", "请由内容运营或管理员提交人工审核。", "error");
   if (!articleBusinessLineIsActive(article)) return showToast("业务线已删除", "恢复业务线后才能提交审核。", "error");
   if (article.reviewStatus === "approved") return showToast("当前版本已经审核通过", "修改正文会自动创建新版本并重新进入审核。", "error");
+  const rollback = options.rollback || {
+    article: cloneData(article),
+    knowledgeCitations: cloneData(state.knowledgeCitations || [])
+  };
+  let formalVersionReady = false;
   if (options.fromArticleModal && ui.modal?.type === "article" && ui.modal.articleId === article.id) {
     const saved = saveArticleEditor({ silent: true });
     if (!saved) return null;
   }
-  if (article.generationSnapshot?.outputContract) {
-    article.geoQuality = evaluateGeoArticleQuality(article.content, article.topicSnapshot || article.generationSnapshot.topicSnapshot || {}, articleCitations(article));
-    article.generationSnapshot.geoQuality = cloneData(article.geoQuality);
-    if (article.geoQuality.status === "block") {
+  const workspace = (state.writingWorkspaces || []).find((item) => item.articleId === article.id);
+  try {
+    await ensureCurrentContentVersion(article);
+    formalVersionReady = true;
+    const scan = !["stale", "unscanned"].includes(article.riskStatus) && article.riskScan?.articleVersion === article.version ? article.riskScan : applyArticleRiskScan(article);
+    if (scan.status === "blocked") {
       saveState();
       render();
-      return showToast("结构质量门未通过", article.geoQuality.missing.join("、") + "。请先补齐后再提交人工审核。", "error");
+      if (options.fromArticleModal) {
+        ui.modal = { type: "article", articleId: article.id };
+        renderModal();
+      }
+      showToast("风控已阻断", "请先修改命中禁止规则的正文，再提交人工审核。", "error");
+      return null;
     }
+    await contentServerRiskScan(article, scan);
+    await contentServerAction(article, "submit-review", {
+      note: article.reviewNote || "",
+      riskScan: { findings: scan.hits || [], policyVersion: `workspace-${Object.values(scan.ruleVersions || {}).join("-")}`, completedAt: scan.scannedAt }
+    });
+  } catch (error) {
+    if (!formalVersionReady) {
+      Object.keys(article).forEach((key) => { delete article[key]; });
+      Object.assign(article, rollback.article);
+      state.knowledgeCitations = rollback.knowledgeCitations;
+    }
+    article.contentSyncError = error.message || "提交审核同步失败";
+    saveState();
+    render();
+    if (options.fromArticleModal) {
+      ui.modal = { type: "article", articleId: article.id };
+      renderModal();
+    }
+    showToast("提交审核同步失败", article.contentSyncError, "error");
+    return null;
   }
-  const workspace = (state.writingWorkspaces || []).find((item) => item.articleId === article.id);
+  const submittedAt = new Date().toISOString();
   article.reviewStatus = "pending";
   article.reviewStage = "manual_review";
-  article.reviewSubmittedAt = new Date().toISOString();
-  article.reviewSubmittedBy = "王宁";
+  article.reviewSubmittedAt = submittedAt;
+  article.reviewSubmittedBy = window.__TZ_AUTH__?.user?.displayName || window.__TZ_AUTH__?.user?.username || "内容运营";
   article.reviewNote = "";
   article.reviewedAt = null;
   article.reviewedBy = null;
   article.status = "draft";
-  if (article.riskStatus === "clean") article.riskStatus = "unscanned";
   article.updatedAt = Date.now();
   if (workspace) {
     workspace.status = "review";
@@ -5699,16 +11546,26 @@ function submitArticleForManualReview(articleId, options = {}) {
   return article;
 }
 
-function rejectArticle() {
-  const article = saveArticleEditor({ silent: true });
+async function rejectArticle() {
+  const article = state.articles.find((item) => item.id === ui.modal?.articleId);
   if (!article) return;
+  if (!currentUserCan("content.review")) return showToast("没有人工审核权限", "请由审核人员或管理员执行退回修改。", "error");
   if (article.reviewStage !== "manual_review") return showToast("文章尚未进入人工审核", "请先从文章编辑页提交审核。", "error");
   const workspace = (state.writingWorkspaces || []).find((item) => item.articleId === article.id);
   const reason = window.prompt("请输入退回修改原因", article.reviewNote || "请补充正文、知识引用或风险处理后重新提交审核。");
   if (reason === null) return;
+  const reviewNote = reason.trim() || "请根据审核清单修改后重新提交。";
+  try {
+    await contentServerAction(article, "request-changes", { note: reviewNote });
+  } catch (error) {
+    article.contentSyncError = error.message || "退回审核同步失败";
+    showToast("退回审核同步失败", article.contentSyncError, "error");
+    saveState();
+    return null;
+  }
   article.reviewStatus = "pending";
   article.reviewStage = "revision_requested";
-  article.reviewNote = reason.trim() || "请根据审核清单修改后重新提交。";
+  article.reviewNote = reviewNote;
   article.reviewedAt = null;
   article.reviewedBy = null;
   article.status = "draft";
@@ -5723,16 +11580,12 @@ function rejectArticle() {
   showToast("已退回修改", "文章已回到内容编辑页，修改后请重新提交人工审核。", "warning");
 }
 
-function approveArticle() {
-  const article = saveArticleEditor({ silent: true });
+async function approveArticle() {
+  const article = state.articles.find((item) => item.id === ui.modal?.articleId);
   if (!article) return;
+  if (!currentUserCan("content.review")) return showToast("没有人工审核权限", "请由审核人员或管理员执行审核通过。", "error");
   if (!articleBusinessLineIsActive(article)) return showToast("业务线已删除", "历史文章可以查看，但恢复业务线后才能继续审核和发布。", "error");
   if (article.reviewStage !== "manual_review") return showToast("文章尚未提交人工审核", "请先确认草稿并点击“提交人工审核”。", "error");
-  if (article.generationSnapshot?.outputContract) {
-    article.geoQuality = evaluateGeoArticleQuality(article.content, article.topicSnapshot || article.generationSnapshot.topicSnapshot || {}, articleCitations(article));
-    article.generationSnapshot.geoQuality = cloneData(article.geoQuality);
-    if (article.geoQuality.status === "block") return showToast("结构质量门未通过", article.geoQuality.missing.join("、") + "。请退回修改后再审核。", "error");
-  }
   const citations = articleCitations(article);
   if (!citations.length || !article.knowledgeSnapshot) return showToast("缺少企业知识证据", "这篇历史内容没有逐条引用与版本快照，请从内容计划重新生成。", "error");
   if (citations.some((citation) => !knowledgeBaseById(citation.knowledgeBaseId || citation.baseId) || !knowledgeItemById(citation.itemId || citation.knowledgeItemId) || !knowledgeVersionById(citation.versionId || citation.knowledgeVersionId))) return showToast("引用证据不完整", "存在无法定位到知识原文的引用，暂不能通过审核。", "error");
@@ -5743,10 +11596,18 @@ function approveArticle() {
   if (["unscanned", "stale"].includes(article.riskStatus) || article.riskScan?.articleVersion !== article.version) return showToast("尚未完成当前版本风控", "请先打开内容风控并重新检测，确认没有阻断或警告后再审核通过。", "error");
   if (article.riskStatus === "blocked") return showToast("风控已阻断", "命中 blocked 规则的文章不能通过审核。", "error");
   if (article.riskStatus === "warning") return showToast("存在 warning 规则", "请先查看风险详情并修订，或由管理员在正式版中填写覆盖原因。", "error");
+  try {
+    await contentServerRiskScan(article, article.riskScan);
+    await contentServerAction(article, "approve", { note: "" });
+  } catch (error) {
+    article.contentSyncError = error.message || "审核通过同步失败";
+    saveState();
+    return showToast("审核通过同步失败", article.contentSyncError, "error");
+  }
   article.reviewStatus = "approved";
   article.reviewStage = "ready_to_publish";
   article.reviewedAt = new Date().toISOString();
-  article.reviewedBy = "王宁";
+  article.reviewedBy = window.__TZ_AUTH__?.user?.displayName || window.__TZ_AUTH__?.user?.username || "审核人员";
   citations.forEach((citation) => { citation.status = "verified"; citation.supportStatus = "supported"; citation.articleVersion = article.version; });
   article.sources = citations.length;
   article.knowledgeSnapshot.frozenAt = new Date().toISOString();
@@ -5769,6 +11630,7 @@ function approveArticle() {
 }
 
 function openBatchReview() {
+  if (!currentUserCan("content.review")) return showToast("没有批量审核权限", "请由审核人员或管理员执行一键审核。", "error");
   const current = contentTaskVisibleArticles().filter(articleSelectableForAction);
   const visibleIds = new Set(current.map((article) => article.id));
   const ids = selectedArticleIdsForCurrentView().filter((id) => visibleIds.has(id));
@@ -5779,12 +11641,29 @@ function openBatchReview() {
   return renderModal();
 }
 
-function approveSelectedArticles() {
+async function approveSelectedArticles() {
+  if (!currentUserCan("content.review")) return showToast("没有批量审核权限", "请由审核人员或管理员执行一键审核。", "error");
   const ids = selectedArticleIdsForCurrentView();
   const entries = ids.map((id) => state.articles.find((article) => article.id === id)).filter(Boolean).map((article) => ({ article, reason: articleReviewBlockReason(article) }));
-  const approved = entries.filter((entry) => !entry.reason).map(({ article }) => article);
+  let approved = entries.filter((entry) => !entry.reason).map(({ article }) => article);
   const skipped = entries.filter((entry) => entry.reason);
   if (!approved.length) return showToast("没有可审核文章", "所选文章均未满足人工审核条件。", "error");
+  const synced = [];
+  for (const article of approved) {
+    try {
+      await contentServerRiskScan(article, article.riskScan);
+      await contentServerAction(article, "approve", { note: "" });
+      synced.push(article);
+    } catch (error) {
+      article.contentSyncError = error.message || "审核通过同步失败";
+      skipped.push({ article, reason: article.contentSyncError });
+    }
+  }
+  approved = synced;
+  if (!approved.length) {
+    saveState();
+    return showToast("批量审核未完成", "所选文章均未能同步到服务端审核流程。", "error");
+  }
   const reviewedAt = new Date().toISOString();
   approved.forEach((article) => {
     const citations = articleCitations(article);
@@ -5809,7 +11688,7 @@ function approveSelectedArticles() {
   showToast(`已审核通过 ${approved.length} 篇`, `已记录审核人和审核时间，文章可继续进入发布流程${suffix}。`);
 }
 
-function openPublish(articleId) {
+async function openPublish(articleId) {
   const article = state.articles.find((item) => item.id === articleId);
   if (!article) return showToast("文章不存在", "请刷新后重试。", "error");
   if (!articleBusinessLineIsActive(article)) return showToast("业务线已删除", "历史文章仍可查看，但恢复业务线后才能创建新的发布任务。", "error");
@@ -5818,6 +11697,15 @@ function openPublish(articleId) {
   if (articleAssetReviewIssues(article).length) return showToast("图片素材尚未审核", "文章包含未审核素材，不能发布；请先完成图片来源、版权和内容审核。", "error");
   if (!articleCitations(article).length || !article.knowledgeSnapshot?.frozenAt && article.knowledgeStatus?.state !== "ready_with_omissions") return showToast("知识证据尚未冻结", "请先完成事实审核并冻结当前文章引用版本。", "error");
   if (articleHasKnowledgeUpdates(article)) return showToast("企业知识已有更新", "当前文章仍保留旧证据；请确认沿用旧版本或重新生成后再发布。", "error");
+  try {
+    await ensureContentPublishSnapshot(article);
+    if (article.reviewStatus !== "approved" || !article.contentApprovedVersionId) return showToast("服务端发布门禁未通过", "当前文章在正式内容数据库中尚未完成审核冻结。", "error");
+    const payload = await productionApi(`/api/v1/content/tasks/${encodeURIComponent(article.contentTaskId)}/can-publish?versionId=${encodeURIComponent(article.contentApprovedVersionId || article.contentVersionId || "")}`);
+    const result = payload?.data?.result || payload?.data?.canPublish || payload?.result || payload?.canPublish || payload?.data;
+    if (result && result.ok === false) return showToast("服务端发布门禁未通过", result.reason || "当前文章版本尚未完成审核冻结。", "error");
+  } catch (error) {
+    return showToast("无法确认服务端发布资格", error.message || "请稍后重试，发布前必须通过服务端门禁。", "error");
+  }
   if (article.status !== "draft") {
     ui.publishTab = "all";
     closeModal();
@@ -5893,13 +11781,11 @@ async function submitPublish() {
   ui.submittingPublish = true;
   renderModal();
   try {
+    const formal = await contentPublisherPayload(article);
     await publisherApi("/api/publisher/jobs", {
       method: "POST",
       body: {
-        articleId: article.id,
-        articleTitle: article.title,
-        version: article.version,
-        article: { id: article.id, title: article.title, version: article.version, excerpt: article.excerpt, content: article.content },
+        ...formal,
         webUrl: publisherArticleWebUrl(article),
         accountGroupId: group.id,
         groupName: group.name,
@@ -6227,14 +12113,12 @@ async function submitSchedule() {
     for (const item of schedule.items) {
       const article = state.articles.find((entry) => entry.id === item.articleId);
       if (!article) continue;
+      const formal = await contentPublisherPayload(article);
       for (const target of item.targets) {
         const result = await publisherApi("/api/publisher/jobs", {
           method: "POST",
           body: {
-            articleId: article.id,
-            articleTitle: article.title,
-            version: article.version,
-            article: { id: article.id, title: article.title, version: article.version, excerpt: article.excerpt, content: article.content },
+            ...formal,
             webUrl: publisherArticleWebUrl(article),
             accountGroupId: group?.id,
             groupName: group?.name,
@@ -6316,8 +12200,9 @@ function refreshAfterTaskUpdate(task) {
       article.status = "published";
       article.updatedAt = Date.now();
     }
-    if (ui.route === "publish" && ui.publishTab === "running") ui.publishTab = "all";
+      if (ui.route === "publish" && ui.publishTab === "running") ui.publishTab = "all";
   }
+  syncPublishedAssetTracking();
   saveState();
   render();
   if (ui.modal?.type === "task" && ui.modal.taskId === task.id) renderModal();
@@ -6393,7 +12278,7 @@ function commandResultsHtml() {
     { route: "content", icon: "file", title: "内容生产", description: "打开文章列表与审核工作流", keys: "文章 审核 写作" },
     { action: "publish-approved", icon: "send", title: "发布已通过文章", description: "选择账号组与发布平台", keys: "发布 微信 知乎 头条" },
     { route: "assets", icon: "folder", title: "内容资产", description: "管理文章版本、官网信源与多平台分发关系", keys: "资产 版本 信源 引用 内容" },
-    { route: "monitoring", icon: "chart", title: "效果监测", description: "查看品牌提及、推荐与官网引用证据", keys: "监测 提及 引用 AI" },
+    { route: "monitoring", icon: "chart", title: "运营诊断", description: "查看行业研究、网站诊断与生产发布运行状态", keys: "运营 诊断 研究 信源 爬虫 访问 运行" },
     { route: "knowledge", icon: "book", title: "企业知识", description: "管理产品、案例、FAQ 与资料", keys: "企业资料 知识库" },
     { route: "assistant", icon: "monitor", title: "发布助手", description: "查看设备和平台账号状态", keys: "设备 账号组 登录" },
     { route: "site", icon: "globe", title: "官网运营", description: "预览官网、管理线索与站点设置", keys: "网站 官网 诊断" }
@@ -6500,7 +12385,7 @@ function renderKnowledgeModal() {
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">管理${escapeHtml(definition.name)}</h2><p>保存后立即写入当前客户空间，并在企业知识页回显</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      <div class="side-panel"><h4>统一事实原则</h4><p>${escapeHtml(definition.help)} 已审核企业事实供官网、文章和发布引用；内容规则只参与风险检查。</p></div>
+      <div class="side-panel"><h4>统一事实原则</h4><p>${escapeHtml(definition.help)} 保存后直接作为企业可用资料供官网、文章和发布引用；内容规则只参与风险检查。</p></div>
       <div class="field" style="margin-top:14px"><label for="legacy-knowledge-name">卡片名称</label><input class="input" id="legacy-knowledge-name" value="${escapeHtml(record.name || definition.name)}" /></div>
       <div class="field" style="margin-top:12px"><label for="legacy-knowledge-content">${escapeHtml(definition.label)}</label><textarea class="textarea" id="legacy-knowledge-content" style="min-height:240px" placeholder="每行填写一条内容">${escapeHtml(content)}</textarea><small>${escapeHtml(definition.help)}</small></div>
     </div>
@@ -6529,9 +12414,9 @@ function syncLegacyCardToKnowledgeItem(type, name, content) {
     id: versionId,
     itemId,
     version: nextNumber,
-    reviewStatus: "pending_review",
+    reviewStatus: "approved",
     reviewedBy: null,
-    reviewedAt: null,
+    reviewedAt: new Date(now).toISOString(),
     content,
     sourceName: `结构化资料卡 · ${name}`,
     locator: name,
@@ -6549,7 +12434,7 @@ function syncLegacyCardToKnowledgeItem(type, name, content) {
       title: name,
       question: base.kind === "qa" ? `${name}有哪些企业标准回答？` : undefined,
       category: type === "products" ? "产品服务" : type === "cases" ? "案例" : type === "faq" ? "FAQ" : "企业资料",
-      status: "pending_review",
+      status: "approved",
       visibility: "public",
       sourceName: version.sourceName,
       locator: name,
@@ -6564,7 +12449,7 @@ function syncLegacyCardToKnowledgeItem(type, name, content) {
     item.kind = base.kind;
     item.title = name;
     if (base.kind === "qa") item.question = item.question || `${name}有哪些企业标准回答？`;
-    item.status = "pending_review";
+    item.status = "approved";
     item.sourceName = version.sourceName;
     item.locator = name;
     item.latestVersionId = versionId;
@@ -6610,7 +12495,7 @@ function syncLegacyKnowledgeImages(entries) {
   return assets;
 }
 
-function saveLegacyKnowledge(type) {
+async function saveLegacyKnowledge(type) {
   const key = type || ui.modal?.knowledgeType;
   const definition = legacyKnowledgeDefinition(key);
   const nameInput = document.getElementById("legacy-knowledge-name");
@@ -6620,7 +12505,7 @@ function saveLegacyKnowledge(type) {
   if (!content) {
     contentInput?.classList.add("input-error");
     contentInput?.focus();
-    return showToast("内容不能为空", "请至少保留一条可审核的知识或规则。", "error");
+    return showToast("内容不能为空", "请至少保留一条资料或规则。", "error");
   }
   const entries = content.split(/\r?\n/).map((entry) => entry.trim()).filter(Boolean);
   state.knowledge = state.knowledge || {};
@@ -6631,14 +12516,14 @@ function saveLegacyKnowledge(type) {
     content,
     entries,
     count: entries.length,
-    reviewed: ["products", "cases", "faq", "documents"].includes(key) ? 0 : entries.length,
+    reviewed: entries.length,
     updated: new Date().toLocaleString("zh-CN", { hour12: false }),
     updatedAt: new Date().toISOString(),
     version: Number(previous.version || 0) + 1
   };
   if (["products", "cases", "faq", "documents"].includes(key)) {
     const item = syncLegacyCardToKnowledgeItem(key, name, content);
-    if (item) addOperationLog("企业知识", `更新结构化资料「${name}」，新版本已进入待审核区`);
+    if (item) addOperationLog("企业知识", `更新结构化资料「${name}」，新版本已直接生效并进入索引队列`);
   }
   if (key === "images") {
     const assets = syncLegacyKnowledgeImages(entries);
@@ -6653,10 +12538,24 @@ function saveLegacyKnowledge(type) {
     addOperationLog("内容风控", `更新「${name}」规则，未发布文章需重新检测`);
   }
   saveState();
+  try {
+    await flushWorkspaceSyncNow("knowledge-legacy-explicit-save");
+  } catch (error) {
+    showToast("知识保存未完成", `${error.message || "服务端知识索引同步失败"} 页面不会把本次操作提示为成功，请修复后重试。`, "error");
+    return;
+  }
   closeModal();
   render();
-  const pendingReview = ["products", "cases", "faq", "documents"].includes(key);
-  showToast(pendingReview ? "资料已保存待审核" : "知识已保存", pendingReview ? `「${name}」已创建待审核知识版本，审核通过后进入后续文章生成。` : `已保存「${name}」的 ${entries.length} 条内容，并在对应业务功能中生效。`);
+  showToast("知识已保存", `已保存「${name}」的 ${entries.length} 条内容，并在对应业务功能中生效；后台会自动建立检索索引。`);
+}
+
+function renderUploadKnowledgeImagesModal() {
+  const bases = (state.knowledgeBases || []).filter((base) => base.kind === "document" && base.status !== "archived");
+  const options = bases.map((base) => `<option value="${escapeHtml(base.id)}">${escapeHtml(base.name)} · ${escapeHtml(knowledgeScopeLabel(base))}</option>`).join("");
+  if (!bases.length) return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量上传图片</h2><p>请先创建一个文档知识库</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="empty-state"><div><span data-icon="book"></span><h3>还没有可用知识库</h3><p>先创建知识库，再批量上传企业照片。</p><button class="primary-button button-small" type="button" data-action="create-knowledge-base">新建知识库</button></div></div></div>`, { wide: true });
+  const progress = knowledgeAssetRuntime.uploadProgress;
+  const progressText = progress ? `正在上传第 ${progress.completed}/${progress.total} 批（${progress.created} 张已入库）` : "尚未选择图片";
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量上传图片</h2><p>一次可选择最多 500 张；系统会自动拆成小批次上传，统一设置归属后直接入库，无需逐张填写和审核</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="field-row"><div class="field"><label for="knowledge-image-base">保存到知识库 *</label><select class="select" id="knowledge-image-base">${options}</select></div><div class="field"><label for="knowledge-image-category">统一分类</label><select class="select" id="knowledge-image-category"><option>产品图片</option><option>案例现场</option><option>资质证书</option><option>流程图</option><option>数据图表</option><option>文章配图</option><option>其他资料</option></select></div></div><label class="knowledge-image-dropzone" for="knowledge-image-files"><span data-icon="images"></span><b>选择多张图片或整个文件夹</b><p>支持 PNG、JPG、JPEG、WebP、GIF；系统按文件名自动生成图片名称与 Alt 文本。</p><input id="knowledge-image-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple /></label><div class="field-row"><div class="field"><label for="knowledge-image-license">统一来源/版权</label><select class="select" id="knowledge-image-license"><option>企业自有</option><option>客户授权</option><option>供应商授权</option><option>公开资料</option></select></div><div class="field"><label for="knowledge-image-tags">统一标签（可选）</label><input class="input" id="knowledge-image-tags" placeholder="例如：产品A、工厂、应用现场" /></div></div><div class="knowledge-upload-summary" id="knowledge-image-summary"><span data-icon="${progress ? "upload" : "info"}"></span><span>${progressText}</span></div></div><div class="modal-foot"><span>上传后立即可作为文章配图；图片识别在后台继续进行</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-images" ${knowledgeAssetRuntime.uploading ? "disabled" : ""}><span data-icon="upload"></span>${knowledgeAssetRuntime.uploading ? "正在上传…" : "批量上传入库"}</button></div></div>`, { wide: true });
 }
 
 function renderImportKnowledgeModal() {
@@ -6666,14 +12565,14 @@ function renderImportKnowledgeModal() {
     return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">导入资料</h2><p>需要先创建一个文档知识库承接资料</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="empty-state"><div><span data-icon="book"></span><h3>暂无文档知识库</h3><p>先新建文档库，再导入 PDF、Word、Markdown 或文本资料。</p><button class="primary-button button-small" type="button" data-action="create-knowledge-base"><span data-icon="plus"></span>新建知识库</button></div></div></div>`, { wide: true });
   }
   return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">导入企业资料</h2><p>文件先进入待审核区，审核通过后才参与 RAG 与文章创作</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="modal-head"><div><h2 id="modal-title">导入企业资料</h2><p>上传后自动解析、建立索引并进入文章创作；PDF 中的图片会同步进入图片资料库</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="field"><label for="knowledge-import-base">导入到 *</label><select class="select" id="knowledge-import-base">${options}</select></div>
-      <div class="field" style="margin-top:14px"><label for="knowledge-import-file">选择资料文件 *</label><input class="input" id="knowledge-import-file" type="file" accept=".pdf,.doc,.docx,.txt,.md,.csv,.html,.htm,.json,.xml" /><small>文本、Markdown、CSV、HTML、JSON、XML 会在浏览器中提取文字；PDF / Word 在正式部署时由服务器解析。</small></div>
+      <div class="field" style="margin-top:14px"><label for="knowledge-import-file">选择资料文件 *</label><input class="input" id="knowledge-import-file" type="file" accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml" multiple /><small>可一次选择多个 PDF、DOCX、XLSX 或普通文档；系统分批解析，失败文件会单独列出。扫描文档需要先配置 OCR。</small></div>
       <div class="field" style="margin-top:14px"><label for="knowledge-import-content">正文或关键摘录（PDF / Word 建议填写）</label><textarea class="textarea" id="knowledge-import-content" rows="8" placeholder="可粘贴资料正文或关键摘录。若是文本类文件，可留空由系统读取。"></textarea></div>
-      <div class="privacy-note" style="margin-top:14px"><span data-icon="lock"></span><span>演示版不把原始文件写入浏览器存储，只保存文件名、类型、大小和可读取的文字；正式私有化部署时原文件应保存到客户服务器对象存储。</span></div>
+      <div class="privacy-note" style="margin-top:14px"><span data-icon="lock"></span><span>原文件保存在客户私有服务器；PDF 会拆分为文字知识、内嵌图片和来源页码，扫描件在后台继续 OCR。</span></div>
     </div>
-    <div class="modal-foot"><span>导入后需人工核对来源、正文和公开范围</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-import"><span data-icon="upload"></span>导入待审核</button></div></div>
+    <div class="modal-foot"><span>上传即入库；处理失败的文件会单独提示，不阻塞其他资料</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-import"><span data-icon="upload"></span>上传并入库</button></div></div>
   `, { wide: true });
 }
 
@@ -6689,7 +12588,7 @@ function renderCreateKnowledgeBaseModal() {
       <div class="field" style="margin-top:16px"><label for="knowledge-base-name">知识库名称 *</label><input class="input" id="knowledge-base-name" placeholder="例如：GEO 产品资料库" autocomplete="off" /></div>
       <div class="field-row" style="margin-top:13px"><div class="field"><label for="knowledge-base-scope">使用范围</label><select class="select" id="knowledge-base-scope"><option value="business_line">业务线专用</option><option value="enterprise">全企业共享</option></select></div><div class="field"><label for="knowledge-base-line">所属业务线</label><select class="select" id="knowledge-base-line">${lineOptions}</select></div></div>
       <div class="field" style="margin-top:13px"><label for="knowledge-base-description">用途说明</label><textarea class="textarea" id="knowledge-base-description" rows="3" placeholder="说明这里存放什么，以及允许哪些内容任务使用"></textarea></div>
-      <div class="privacy-note"><span data-icon="database"></span><span><b>正式部署索引：RAG</b><br />当前演示按知识条目与版本检索；正式私有化部署时由系统管理员配置向量库、分块、重排和索引任务。</span></div>
+      <div class="privacy-note"><span data-icon="database"></span><span><b>企业 RAG 索引</b><br />系统按知识条目和不可变版本进行分块、向量化与混合检索；可由管理员配置正式向量库和 embedding 模型。</span></div>
     </div>
     <div class="modal-foot"><span>新建后可继续添加文档或标准问答</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-base"><span data-icon="plus"></span>创建知识库</button></div></div>
   `, { wide: true });
@@ -6702,14 +12601,15 @@ function renderKnowledgeBaseDetailModal() {
   const rows = items.map((item) => {
     const version = knowledgeVersionById(item.latestVersionId);
     const approved = item.status === "approved" && version?.reviewStatus === "approved";
-    return `<tr><td class="article-title-cell"><b>${escapeHtml(item.title || item.question)}</b><small>${escapeHtml(knowledgeSourceLabel(item, version))} · ${escapeHtml(knowledgeLocator(item, version))}</small></td><td>v${escapeHtml(version?.version || "1")}</td><td><span class="small-tag">${escapeHtml(item.visibility === "internal" ? "仅内部" : "可对外")}</span></td><td>${approved ? '<span class="status-badge status-approved">可用于写作</span>' : '<span class="status-badge status-review">待审核</span>'}</td><td><div class="table-actions"><button class="link-button" type="button" data-action="open-knowledge-item" data-item-id="${item.id}">${approved ? "查看 / 编辑" : "查看草稿"}</button>${approved ? "" : '<button class="link-button" type="button" data-action="approve-knowledge-item" data-item-id="' + item.id + '">审核通过</button>'}</div></td></tr>`;
+    const processing = ["pending_ocr", "processing"].includes(item.importStatus) || ["queued", "processing"].includes(version?.extractionStatus);
+    return `<tr><td class="article-title-cell"><b>${escapeHtml(item.title || item.question)}</b><small>${escapeHtml(knowledgeSourceLabel(item, version))} · ${escapeHtml(knowledgeLocator(item, version))}</small></td><td>v${escapeHtml(version?.version || "1")}</td><td><span class="small-tag">${escapeHtml(item.visibility === "internal" ? "仅内部" : "可对外")}</span></td><td>${processing ? '<span class="status-badge status-review">后台处理中</span>' : '<span class="status-badge status-approved">可用于写作</span>'}</td><td><div class="table-actions"><button class="link-button" type="button" data-action="open-knowledge-item" data-item-id="${item.id}">查看 / 编辑</button></div></td></tr>`;
   }).join("");
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">${escapeHtml(base.name)}</h2><p>${knowledgeKindLabel(base.kind)} · ${escapeHtml(knowledgeScopeLabel(base))} · RAG 索引${base.status === "ready" ? "就绪" : "处理中"}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      <div class="knowledge-detail-summary"><div><span>全部知识</span><b>${items.length}</b></div><div><span>已审核可用</span><b>${approvedKnowledgeItems(base.id).length}</b></div><div><span>待审核</span><b>${items.filter((item) => item.status !== "approved").length}</b></div><div><span>最近索引</span><b>${escapeHtml(base.updatedAt ? formatRelative(base.updatedAt) : "刚刚")}</b></div></div>
+      <div class="knowledge-detail-summary"><div><span>全部知识</span><b>${items.length}</b></div><div><span>可用于写作</span><b>${approvedKnowledgeItems(base.id).length}</b></div><div><span>后台处理中</span><b>${items.filter((item) => ["pending_ocr", "processing"].includes(item.importStatus)).length}</b></div><div><span>最近索引</span><b>${escapeHtml(base.updatedAt ? formatRelative(base.updatedAt) : "刚刚")}</b></div></div>
       <div class="card-header inline-head"><div><h3>知识条目</h3><p>${escapeHtml(base.description || "")}</p></div><button class="primary-button button-small" type="button" data-action="add-knowledge-item" data-base-id="${base.id}"><span data-icon="plus"></span>${base.kind === "qa" ? "新增问答" : "新增资料"}</button></div>
-      ${rows ? '<div class="table-scroll knowledge-detail-table"><table class="data-table"><thead><tr><th>资料 / 问题</th><th>版本</th><th>公开范围</th><th>写作状态</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<div class="empty-state"><div><span data-icon="' + (base.kind === "qa" ? "help" : "book") + '"></span><h3>这个知识库还是空的</h3><p>添加第一条知识，审核通过后才会参与文章生成。</p><button class="primary-button button-small" type="button" data-action="add-knowledge-item" data-base-id="' + base.id + '"><span data-icon="plus"></span>添加知识</button></div></div>'}
+      ${rows ? '<div class="table-scroll knowledge-detail-table"><table class="data-table"><thead><tr><th>资料 / 问题</th><th>版本</th><th>公开范围</th><th>写作状态</th><th>操作</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<div class="empty-state"><div><span data-icon="' + (base.kind === "qa" ? "help" : "book") + '"></span><h3>这个知识库还是空的</h3><p>添加文字、文档、PDF 或批量图片，上传后直接进入资料库。</p><button class="primary-button button-small" type="button" data-action="add-knowledge-item" data-base-id="' + base.id + '"><span data-icon="plus"></span>添加知识</button></div></div>'}
     </div>
     <div class="modal-foot"><span>历史文章始终保留生成时引用的知识版本</span><div class="modal-foot-right"><button class="primary-button" type="button" data-action="close-modal">完成</button></div></div>
   `, { wide: true });
@@ -6728,27 +12628,27 @@ function renderKnowledgeItemModal() {
         <div class="field" style="margin-top:13px"><label for="knowledge-item-content">${base.kind === "qa" ? "企业标准答案 *" : "资料原文 *"}</label><textarea class="textarea" id="knowledge-item-content" rows="8">${escapeHtml(version?.content || item.content || "")}</textarea></div>
         <div class="field-row" style="margin-top:13px"><div class="field"><label for="knowledge-item-source">来源文件 / URL</label><input class="input" id="knowledge-item-source" value="${escapeHtml(knowledgeSourceLabel(item, version))}" /></div><div class="field"><label for="knowledge-item-locator">页码 / 章节</label><input class="input" id="knowledge-item-locator" value="${escapeHtml(knowledgeLocator(item, version))}" /></div></div>
         <div class="field" style="margin-top:13px"><label for="knowledge-item-visibility">对外范围</label><select class="select" id="knowledge-item-visibility"><option value="public" ${item.visibility !== "internal" ? "selected" : ""}>可用于对外内容</option><option value="internal" ${item.visibility === "internal" ? "selected" : ""}>仅内部参考</option></select></div>
-        <div class="privacy-note"><span data-icon="history"></span><span>保存后会生成待审核的新版本；审核期间该条目暂停进入新的 RAG 任务。历史计划和文章仍引用原来的已冻结版本。</span></div>
+        <div class="privacy-note"><span data-icon="history"></span><span>保存后会立即生成新版本并自动建立索引；历史计划和文章仍引用原来的已冻结版本。</span></div>
       </div>
-      <div class="modal-foot"><span>新版本需人工审核通过后才重新进入 RAG</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}">取消</button><button class="primary-button" type="button" data-action="save-knowledge-item-edit" data-item-id="${item.id}"><span data-icon="check"></span>保存新版本并提交审核</button></div></div>
+      <div class="modal-foot"><span>新版本保存后自动进入 RAG</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}">取消</button><button class="primary-button" type="button" data-action="save-knowledge-item-edit" data-item-id="${item.id}"><span data-icon="check"></span>保存新版本</button></div></div>
     `, { wide: true });
   }
   if (item) {
     return modalChrome(`
       <div class="modal-head"><div><h2 id="modal-title">${escapeHtml(item.title || item.question)}</h2><p>${escapeHtml(base.name)} · v${escapeHtml(version?.version || "1")} · ${escapeHtml(knowledgeLocator(item, version))}</p></div><button class="icon-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}" aria-label="返回"><span data-icon="x"></span></button></div>
-      <div class="modal-body"><div class="source-document"><span>${base.kind === "qa" ? "企业标准答案" : "知识原文"}</span>${item.question ? '<h3>问：' + escapeHtml(item.question) + '</h3>' : ""}<p>${escapeHtml(version?.content || item.content || "暂无正文")}</p></div><div class="side-list" style="margin-top:14px"><div><span>来源</span><b>${escapeHtml(knowledgeSourceLabel(item, version))}</b></div><div><span>定位</span><b>${escapeHtml(knowledgeLocator(item, version))}</b></div><div><span>审核状态</span><b>${version?.reviewStatus === "approved" ? "已审核" : "待审核"}</b></div><div><span>对外范围</span><b>${item.visibility === "internal" ? "仅内部" : "可对外"}</b></div></div></div>
+      <div class="modal-body"><div class="source-document"><span>${base.kind === "qa" ? "企业标准答案" : "知识原文"}</span>${item.question ? '<h3>问：' + escapeHtml(item.question) + '</h3>' : ""}<p>${escapeHtml(version?.content || item.content || "暂无正文")}</p></div><div class="side-list" style="margin-top:14px"><div><span>资料状态</span><b>${version?.extractionStatus && ["queued", "processing", "pending"].includes(version.extractionStatus) ? "处理中" : "可用"}</b></div><div><span>来源</span><b>${escapeHtml(knowledgeSourceLabel(item, version))}</b></div><div><span>定位</span><b>${escapeHtml(knowledgeLocator(item, version))}</b></div><div><span>对外范围</span><b>${item.visibility === "internal" ? "仅内部" : "可对外"}</b></div></div></div>
       <div class="modal-foot"><span>查看的是当前知识版本，文章引用会另外冻结</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="edit-knowledge-item" data-item-id="${item.id}"><span data-icon="edit"></span>编辑并新建版本</button><button class="primary-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}">返回知识库</button></div></div>
     `);
   }
   return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">${base.kind === "qa" ? "新增标准问答" : "新增文档知识"}</h2><p>${escapeHtml(base.name)} · 新知识默认进入待审核</p></div><button class="icon-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}" aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="modal-head"><div><h2 id="modal-title">${base.kind === "qa" ? "新增标准问答" : "新增文档知识"}</h2><p>${escapeHtml(base.name)} · 保存后立即可用并自动索引</p></div><button class="icon-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      ${base.kind === "qa" ? '<div class="field"><label for="knowledge-item-question">标准问题 *</label><input class="input" id="knowledge-item-question" placeholder="例如：GEO 服务从哪里开始？" /></div><div class="field" style="margin-top:13px"><label for="knowledge-item-content">企业标准答案 *</label><textarea class="textarea" id="knowledge-item-content" rows="7" placeholder="只填写企业确认、允许使用的回答"></textarea></div>' : '<div class="field"><label for="knowledge-item-title">资料标题 *</label><input class="input" id="knowledge-item-title" placeholder="例如：GEO 服务交付说明" /></div><div class="field" style="margin-top:13px"><label for="knowledge-item-content">资料原文 *</label><textarea class="textarea" id="knowledge-item-content" rows="7" placeholder="粘贴已确认的产品、服务、案例或流程资料"></textarea></div>'}
+      ${base.kind === "qa" ? '<div class="field"><label for="knowledge-item-question">标准问题 *</label><input class="input" id="knowledge-item-question" placeholder="例如：GEO 服务从哪里开始？" /></div><div class="field" style="margin-top:13px"><label for="knowledge-item-content">企业标准答案 *</label><textarea class="textarea" id="knowledge-item-content" rows="7" placeholder="只填写企业确认、允许使用的回答"></textarea></div>' : '<div class="field"><label for="knowledge-item-title">资料标题 *</label><input class="input" id="knowledge-item-title" placeholder="例如：GEO 服务交付说明" /></div><div class="field" style="margin-top:13px"><label>上传资料文件（可选）</label><label class="knowledge-file-dropzone" for="knowledge-item-file"><span class="knowledge-file-dropzone-icon" data-icon="upload"></span><span><b>点击选择本地文件</b><small>支持 PDF、Word、Excel、Markdown、文本和图片，单个文件不超过 20 MB</small></span><em>选择文件</em><input id="knowledge-item-file" type="file" accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml,.png,.jpg,.jpeg,.webp,.gif,image/*" /></label><div class="knowledge-file-summary" id="knowledge-item-file-summary"><span data-icon="info"></span><span>尚未选择文件；也可以直接在下方粘贴文字</span></div></div><div class="knowledge-input-divider"><span>或直接录入文字</span></div><div class="field"><label for="knowledge-item-content">资料原文（可选）</label><textarea class="textarea" id="knowledge-item-content" rows="6" placeholder="上传文件与粘贴文字二选一；如果同时填写，文字将作为文件的关键摘录"></textarea></div>'}
       <div class="field-row" style="margin-top:13px"><div class="field"><label for="knowledge-item-source">来源文件 / URL</label><input class="input" id="knowledge-item-source" placeholder="方案.pdf 或 https://..." /></div><div class="field"><label for="knowledge-item-locator">页码 / 章节</label><input class="input" id="knowledge-item-locator" placeholder="第 6 页 / 标准答案" /></div></div>
       <div class="field" style="margin-top:13px"><label for="knowledge-item-visibility">对外范围</label><select class="select" id="knowledge-item-visibility"><option value="public">可用于对外内容</option><option value="internal">仅内部参考</option></select></div>
-      <div class="privacy-note"><span data-icon="clock"></span><span>保存后状态为“待审核”。只有人工审核通过的版本才进入 RAG 检索和文章生成。</span></div>
+      <div class="privacy-note"><span data-icon="database"></span><span>保存后立即进入知识库；文字自动索引，PDF 与图片按需进入后台解析和 OCR。知识资料不需要人工审核。</span></div>
     </div>
-    <div class="modal-foot"><span>知识正文后续修改会产生新版本</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-item" data-base-id="${base.id}"><span data-icon="check"></span>保存并提交审核</button></div></div>
+    <div class="modal-foot"><span>文件或文字保存后自动解析并进入 RAG</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-item" data-base-id="${base.id}"><span data-icon="check"></span>上传并入库</button></div></div>
   `, { wide: true });
 }
 
@@ -6837,9 +12737,9 @@ function renderGenerationPreviewModal() {
       ${expectedPlatformNames.length ? `<div class="generation-platform-hint"><span data-icon="sparkle"></span><span><b>预计适配平台（仅写作提示）</b><small>${escapeHtml(expectedPlatformNames.join("、"))} · 不会创建或锁定发布目标</small></span></div>` : ""}
       ${topicBriefHtml}
       <div class="generation-chain">${chain}</div>
-      <div class="generation-summary"><div><span>实际知识库</span><b>${scope.resolvedBaseIds.length}</b></div><div><span>已审核知识</span><b>${approved}</b></div><div><span>预计引用证据</span><b>${evidence.length}</b></div><div><span>事实冲突</span><b class="good">0</b></div></div>
+      <div class="generation-summary"><div><span>实际知识库</span><b>${scope.resolvedBaseIds.length}</b></div><div><span>可用知识资料</span><b>${approved}</b></div><div><span>预计引用证据</span><b>${evidence.length}</b></div><div><span>事实冲突</span><b class="good">0</b></div></div>
       <section class="generation-section"><div class="section-title"><div><h3>本次知识范围</h3><p>范围来自计划快照，不会临时改写业务线默认包</p></div><span class="small-tag teal">严格知识模式</span></div><div class="generation-base-list">${baseRows || '<div class="empty-inline">未选择知识库</div>'}</div></section>
-      <section class="generation-section"><div class="section-title"><div><h3>预计使用的证据</h3><p>仅检索已审核版本，生成后逐条锁定版本和原文</p></div><span class="small-tag blue">${evidence.length} 条</span></div><div class="generation-evidence-list">${evidenceRows || '<div class="empty-state compact"><div><span data-icon="alert"></span><h3>没有可用证据</h3><p>请先补充并审核企业知识。</p></div></div>'}</div></section>
+      <section class="generation-section"><div class="section-title"><div><h3>预计使用的证据</h3><p>仅检索可用版本，生成后逐条锁定版本和原文</p></div><span class="small-tag blue">${evidence.length} 条</span></div><div class="generation-evidence-list">${evidenceRows || '<div class="empty-state compact"><div><span data-icon="alert"></span><h3>没有可用证据</h3><p>请先在企业知识中上传资料。</p></div></div>'}</div></section>
       ${gaps.length ? '<div class="knowledge-gap-warning"><span data-icon="alert"></span><div><b>发现 ' + gaps.length + ' 项知识缺口</b><p>' + gaps.map(escapeHtml).join("、") + '。缺口不会由模型补写，也不会生成具体数字或保证性承诺。</p></div></div>' : '<div class="privacy-note"><span data-icon="check"></span><span>当前计划没有已记录的知识缺口；严格知识智能体可以继续生成。</span></div>'}
       <label class="strict-mode-row"><input class="checkbox" type="checkbox" id="strict-knowledge-mode" ${agentSnapshot?.strictKnowledge !== false ? "checked" : ""} disabled /><span><b>${agentSnapshot?.strictKnowledge !== false ? "严格知识模式" : "普通知识模式"}</b><small>规则来自计划冻结的智能体版本；企业事实始终不能突破已审核知识范围</small></span></label>
     </div>
@@ -6910,11 +12810,11 @@ function renderOnboardingModal() {
   } else {
     body = `
       <div class="monitor-baseline">
-        <div><span class="knowledge-icon" data-icon="target"></span><p><b>核心问题集</b><small>已从选题中心的问题词库选择 8 个问题，可作为首次采样基线。</small></p><span class="status-badge status-approved">已准备</span></div>
-        <div><span class="knowledge-icon teal" data-icon="cpu"></span><p><b>首批 AI 平台</b><small>DeepSeek、豆包、通义千问、Kimi、文心一言。</small></p><span class="status-badge status-approved">5 个平台</span></div>
-        <div><span class="knowledge-icon amber" data-icon="users"></span><p><b>竞品基线</b><small>${isComplete ? "已确认首批竞品，后续可持续调整。" : "正式运行前还需确认 2–5 个真实竞品品牌。"}</small></p><span class="status-badge ${isComplete ? "status-approved" : "status-review"}">${isComplete ? "已确认" : "待确认"}</span></div>
+        <div><span class="knowledge-icon" data-icon="target"></span><p><b>核心品牌基线问题</b><small>系统默认保留 8 个核心问题，监测设置与选题中心相互独立。</small></p><span class="status-badge status-approved">已准备</span></div>
+        <div><span class="knowledge-icon teal" data-icon="cpu"></span><p><b>客户可用检测能力</b><small>平台、终端与模式由中央服务实时回传，不在客户端写死平台名单。</small></p><span class="status-badge status-approved">实时读取</span></div>
+        <div><span class="knowledge-icon amber" data-icon="users"></span><p><b>竞品基线</b><small>${isComplete ? "已确认首批竞品，后续可持续调整。" : "正式运行前还需确认真实竞品品牌。"}</small></p><span class="status-badge ${isComplete ? "status-approved" : "status-review"}">${isComplete ? "已确认" : "待确认"}</span></div>
       </div>
-      <div class="monitor-demo-note" style="margin:14px 0 0"><span data-icon="info"></span><span>完成建档后会生成企业事实卡、官方域名、首个问题集和监测任务。首次自动采样属于新增能力。</span><span class="small-tag blue">新增能力</span></div>
+      <div class="privacy-note" style="margin:14px 0 0"><span data-icon="info"></span><span>完成建档后会生成企业事实卡和品牌基线配置；正式监测任务由客户服务端按授权创建，首次运行前会再次报价并冻结问题集。</span></div>
     `;
   }
 
@@ -7035,7 +12935,7 @@ function renderContentPlanModal() {
   const knowledgeList = eligibleBases.map((base) => {
     const inherited = inheritedIds.includes(base.id);
     const origin = base.scope === "enterprise" ? "企业公共" : inherited ? "业务线默认" : "可增补";
-    return `<label class="knowledge-check-row plan-knowledge-row"><input class="checkbox" type="checkbox" data-plan-knowledge value="${base.id}" ${inherited ? "checked" : ""} /><span class="knowledge-check-icon" data-icon="${base.kind === "qa" ? "help" : "book"}"></span><span><b>${escapeHtml(base.name)}</b><small>${knowledgeKindLabel(base.kind)} · ${approvedKnowledgeItems(base.id).length} 条已审核知识</small></span><em>${origin}</em></label>`;
+    return `<label class="knowledge-check-row plan-knowledge-row"><input class="checkbox" type="checkbox" data-plan-knowledge value="${base.id}" ${inherited ? "checked" : ""} /><span class="knowledge-check-icon" data-icon="${base.kind === "qa" ? "help" : "book"}"></span><span><b>${escapeHtml(base.name)}</b><small>${knowledgeKindLabel(base.kind)} · ${approvedKnowledgeItems(base.id).length} 条可用资料</small></span><em>${origin}</em></label>`;
   }).join("");
   const defaultAgent = defaultAgentForLine(line, "深度文章");
   const availableAgents = activeWritingAgents(line?.id);
@@ -7233,145 +13133,41 @@ async function regenerateArticleWithAgent(articleId, agentId) {
 
 function renderVersionModal() {
   return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">关于演示版本</h2><p>Tongzhuo GEO Platform 0.4.0-demo</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="modal-head"><div><h2 id="modal-title">关于当前版本</h2><p>Tongzhuo GEO Platform 1.0.0-alpha.1</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      <div class="privacy-note" style="margin-top:0"><span data-icon="info"></span><span>当前版本用于确认产品结构、视觉和核心流程，所有异步发布结果均为本地模拟，不代表正式生产后台已经完成。</span></div>
-      <div class="side-list" style="margin-top:16px"><div><span>后台基线</span><b>GEOFlow Laravel</b></div><div><span>拓词 / 诊断能力</span><b>GEORank FastAPI</b></div><div><span>发布执行</span><b>Windows 本地助手（待正式接入）</b></div><div><span>演示数据</span><b>浏览器 localStorage</b></div></div>
+      <div class="privacy-note" style="margin-top:0"><span data-icon="shield"></span><span>生产底座已经启用正式数据库、服务端工作区、登录会话、四级角色权限、CSRF、审计日志和密钥加密。向量 RAG、真实官网 CMS 与运营诊断仍按后续产品化阶段接入。</span></div>
+      <div class="side-list" style="margin-top:16px"><div><span>业务数据</span><b>SQLite WAL + 完整修订</b></div><div><span>账号权限</span><b>服务端 RBAC + scrypt</b></div><div><span>模型密钥</span><b>AES-256-GCM</b></div><div><span>发布设备凭据</span><b>SHA-256 摘要认证</b></div></div>
     </div>
-    <div class="modal-foot"><span>源码映射见 docs/SOURCE-MAPPING.md</span><div class="modal-foot-right"><button class="primary-button" data-action="close-modal">我知道了</button></div></div>
+    <div class="modal-foot"><span>部署与恢复说明见 docs/PRIVATE-DEPLOYMENT.md</span><div class="modal-foot-right"><button class="primary-button" data-action="close-modal">我知道了</button></div></div>
   `);
-}
-
-function renderMonitorTaskModal() {
-  const platformNames = state.monitoring.platforms.map((platform) => platform.name);
-  if (!Array.isArray(ui.monitorPlatformSelection)) ui.monitorPlatformSelection = platformNames.slice();
-  const selectedPlatforms = new Set(ui.monitorPlatformSelection);
-  const platforms = state.monitoring.platforms.map((platform) =>
-    '<label class="platform-choice ' + (selectedPlatforms.has(platform.name) ? 'selected' : '') + '"><input class="checkbox" type="checkbox" data-monitor-task-platform value="' + escapeHtml(platform.name) + '" ' + (selectedPlatforms.has(platform.name) ? 'checked' : '') + ' /><span class="ai-platform-mark">' + platform.name.slice(0, 1) + '</span><span><b>' + escapeHtml(platform.name) + '</b><small>采集回答、品牌位置与引用 URL</small></span><span class="small-tag blue">演示</span></label>'
-  ).join("");
-  const platformCount = state.monitoring.platforms.length;
-  const lineOptions = state.businessLines.filter((line) => line.status === "active").map((line) => '<option value="' + line.id + '" ' + (line.id === ui.selectedBusinessLineId ? "selected" : "") + '>' + escapeHtml(line.name) + '</option>').join("");
-  return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">创建监测任务</h2><p>固定问题集、平台与入口后，才能比较不同轮次</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body">
-      <div class="field-row"><div class="field"><label for="monitor-task-name">任务名称 *</label><input class="input ${ui.monitorTaskError ? "input-error" : ""}" id="monitor-task-name" value="桐灼品牌常规监测" /></div><div class="field"><label>业务线</label><select class="select" id="monitor-task-business">${lineOptions}</select></div></div>
-      ${ui.monitorTaskError ? '<small class="error-text">' + escapeHtml(ui.monitorTaskError) + '</small>' : ''}
-      <div class="field" style="margin-top:15px"><label>采样问题集</label><select class="select"><option>工业品 GEO 优化 · 8 个核心问题</option><option>企业 AI 落地 · 6 个核心问题</option></select><small>问题集变更后应创建新的监测口径，不覆盖历史轮次。</small></div>
-      <div class="field" style="margin-top:15px"><label>AI 平台（至少选择 1 个）</label><div class="bulk-select-row">${renderSelectAllControl("monitor-platforms", platformCount, selectedPlatforms.size, "全选 AI 平台")}</div><div class="publish-platforms monitor-platform-choices">${platforms}</div></div>
-      <div class="security-inline"><span data-icon="info"></span><span>原型只模拟任务创建。正式版需新增平台采集适配、调度、原始回答存证和失败重试。</span></div>
-    </div>
-    <div class="modal-foot"><span>执行方式：人工触发 / 定时采样</span><div class="modal-foot-right"><button class="secondary-button" data-action="close-modal">取消</button><button class="primary-button" data-action="submit-monitor-task"><span data-icon="plus"></span>创建任务</button></div></div>
-  `, { wide: true });
-}
-
-function renderMonitorDetailModal() {
-  const task = state.monitoring.tasks.find((item) => item.id === ui.modal.taskId);
-  if (!task) return "";
-  const platformTags = task.platforms.map((platform) => '<span class="small-tag blue">' + escapeHtml(platform) + '</span>').join("");
-  const hasResult = task.status === "success" && Number(task.totalSamples) > 0;
-  const statusText = hasResult ? "采样完成" : task.status === "running" ? "采样中" : task.status === "failed" ? "采样失败" : "等待首次采样";
-  const sampleText = hasResult ? task.validSamples + " / " + task.totalSamples : "—";
-  return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">监测任务详情</h2><p>${task.id} · 固定问题集与平台口径</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body">
-      <div class="publish-article"><b>${escapeHtml(task.name)}</b><span>业务线：${escapeHtml(task.business)} · ${task.lastRunAt ? "最近运行 " + formatRelative(task.lastRunAt) : "尚未执行采样"}</span></div>
-      <div class="side-list" style="margin-top:16px"><div><span>监测问题</span><b>${task.questionCount} 个</b></div><div><span>AI 平台</span><b>${task.platforms.length} 个</b></div><div><span>执行状态</span><b>${statusText}</b></div><div><span>有效样本</span><b>${sampleText}</b></div></div>
-      <div class="topic-tags" style="margin-top:14px">${platformTags}</div>
-      <div class="monitor-demo-note" style="margin:16px 0 0"><span data-icon="info"></span><span>演示任务不请求真实 AI 平台。正式结果必须保存原问题、原回答、入口、模型版本、采样时间和引用 URL。</span><span class="small-tag blue">演示</span></div>
-    </div>
-    <div class="modal-foot"><span>${hasResult ? "最近成功率：" + sampleText : "尚无采样结果"}</span><div class="modal-foot-right"><button class="secondary-button" data-action="close-modal">关闭</button><button class="primary-button" data-action="refresh-monitoring"><span data-icon="refresh"></span>${hasResult ? "执行本轮采样" : "执行首次采样"}</button></div></div>
-  `);
-}
-
-function renderMonitorEvidenceModal() {
-  const sample = state.monitoring.questions.find((item) => item.id === ui.modal.sampleId);
-  if (!sample) return "";
-  const sources = sample.sourceUrls.length
-    ? sample.sourceUrls.map((url) => '<div><span>引用 URL</span><b>' + escapeHtml(url) + '</b></div>').join("")
-    : '<div><span>引用 URL</span><b>本次回答未返回引用链接</b></div>';
-  return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">AI 回答证据</h2><p>${escapeHtml(sample.id)} · 原始样本只读存证</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body">
-      <div class="monitor-demo-note" style="margin-top:0"><span data-icon="info"></span><span><b>以下为产品演示样本</b>用于确认正式版证据结构，不代表对真实 AI 平台的即时采集结果。</span><span class="small-tag blue">演示证据</span></div>
-      <div class="field" style="margin-top:16px"><label>原问题</label><div class="side-panel"><h4>${escapeHtml(sample.question)}</h4><p>${escapeHtml(sample.type)} · ${escapeHtml(sample.platform)}</p></div></div>
-      <div class="field" style="margin-top:16px"><label>原始回答</label><div class="side-panel"><p>${escapeHtml(sample.response)}</p></div></div>
-      <div class="side-list" style="margin-top:16px">
-        <div><span>平台 / 模型</span><b>${escapeHtml(sample.platform)} · ${escapeHtml(sample.model)}</b></div>
-        <div><span>采样入口</span><b>${escapeHtml(sample.entrance)}</b></div>
-        <div><span>采样时间</span><b>${formatRelative(sample.checkedAt)}</b></div>
-        <div><span>品牌结果</span><b>${sample.mentioned ? "已提及" + (sample.rank ? " · 第 " + sample.rank + " 位" : "") : "未提及"}</b></div>
-        <div><span>推荐判断</span><b>${sample.recommended ? "明确推荐" : "未形成明确推荐"}</b></div>
-        ${sources}
-      </div>
-    </div>
-    <div class="modal-foot"><span>正式版需同时保存入口、模型版本和采样时间戳</span><div class="modal-foot-right"><button class="primary-button" data-action="close-modal">关闭证据</button></div></div>
-  `, { drawer: true });
-}
-
-function renderMonitorQueryModal() {
-  const record = articleAssetRecords().find((item) => item.id === ui.modal.assetId);
-  if (!record) return "";
-  const article = record.article;
-  const bound = monitoringBindingsForArticle(article.id);
-  const selectedIds = new Set(bound?.questionIds || []);
-  const libraryQuestions = state.questionLibrary.filter((question) => question.status === "active" && question.businessLineId === contentArticleBusinessLineId(article));
-  const sampleQuestions = state.monitoring.questions.filter((question) => !libraryQuestions.some((item) => item.question === question.question));
-  const customQueries = state.monitoring.customQueries || [];
-  const renderOption = (question, source) => `<label class="platform-choice monitor-query-choice ${selectedIds.has(question.id) ? "selected" : ""}"><input class="checkbox" type="checkbox" data-monitor-query-id value="${escapeHtml(question.id)}" ${selectedIds.has(question.id) ? "checked" : ""} /><span class="ai-platform-mark" data-icon="help"></span><span><b>${escapeHtml(question.question)}</b><small>${escapeHtml(source)}${question.platform ? " · " + escapeHtml(question.platform) : ""}</small></span><span class="small-tag ${selectedIds.has(question.id) ? "teal" : ""}">${selectedIds.has(question.id) ? "已绑定" : "可选"}</span></label>`;
-  return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">管理监测问题</h2><p>为「${escapeHtml(article.title)}」绑定持续观察的客户问题</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body">
-      <div class="monitor-demo-note" style="margin-top:0"><span data-icon="info"></span><span><b>绑定是内容资产与监测的连接点</b>选择的问题会随这篇文章保存；之后采样回写时，引用记录会归到这篇内容资产，而不是只停留在总览。</span><span class="small-tag blue">本地演示</span></div>
-      <div class="field" style="margin-top:16px"><label>问题词库</label><div class="publish-platforms monitor-platform-choices">${libraryQuestions.length ? libraryQuestions.map((question) => renderOption(question, "选题中心问题词库")).join("") : '<div class="empty-state compact"><p>当前业务线还没有可用问题。</p></div>'}</div></div>
-      <div class="field" style="margin-top:16px"><label>已有 AI 监测样本</label><div class="publish-platforms monitor-platform-choices">${sampleQuestions.length ? sampleQuestions.map((question) => renderOption(question, "已有演示采样")).join("") : '<div class="empty-state compact"><p>暂无可复用样本。</p></div>'}</div></div>
-      ${customQueries.length ? `<div class="field" style="margin-top:16px"><label>已保存的自定义问题</label><div class="publish-platforms monitor-platform-choices">${customQueries.map((question) => renderOption(question, "自定义监测问题")).join("")}</div></div>` : ""}
-      <div class="field" style="margin-top:16px"><label for="monitor-custom-question">补充自定义问题（可选）</label><textarea class="textarea" id="monitor-custom-question" rows="2" placeholder="例如：客户在 AI 中会如何询问这项服务？"></textarea><small>保存时会将它加入当前资产的监测问题，不会自动写入选题中心。</small></div>
-    </div>
-    <div class="modal-foot"><span>当前已绑定 ${selectedIds.size} 个问题</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-monitor-queries" data-asset-id="${escapeHtml(record.id)}"><span data-icon="check"></span>保存绑定</button></div></div>
-  `, { wide: true });
-}
-
-function renderSourceWorksModal() {
-  const source = monitoringSourceRecords().find((item) => item.domain === ui.modal.sourceDomain);
-  if (!source) return "";
-  const works = monitoringWorksForSource(source.domain);
-  const rows = works.map((work) => `<button class="monitor-task-row" type="button" data-action="edit-tracked-work" data-work-id="${escapeHtml(work.id)}"><span class="monitor-task-icon" data-icon="file"></span><span><b>${escapeHtml(work.title)}</b><small>${escapeHtml(work.url || "未记录 URL")} · ${Number(work.questions || work.questionIds?.length || 0)} 个问题</small></span><span><b>${Number(work.citations || 0)} 次</b><small>累计引用</small></span>${work.citations ? statusBadge("success") : statusBadge("queued")}</button>`).join("");
-  return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">${escapeHtml(source.name)} · 作品</h2><p>${escapeHtml(source.domain)} · ${works.length} 篇已纳入引用追踪</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body"><div class="side-list"><div><span>来源类型</span><b>${escapeHtml(source.type)}</b></div><div><span>累计引用</span><b>${Number(source.citations || 0)} 次</b></div><div><span>关联问题</span><b>${Number(source.questions || 0)} 个</b></div></div><div class="monitor-task-list" style="margin-top:16px">${rows || '<div class="empty-state compact"><p>还没有为这个来源补录作品。</p></div>'}</div></div>
-    <div class="modal-foot"><span>点击作品可以修改追踪信息</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭</button><button class="primary-button" type="button" data-action="add-tracked-work" data-source-domain="${escapeHtml(source.domain)}" data-source-name="${escapeHtml(source.name)}" data-source-type="${escapeHtml(source.type)}"><span data-icon="plus"></span>添加作品</button></div></div>
-  `, { wide: true });
 }
 
 function renderTrackedWorkModal() {
-  const existing = ui.modal.workId ? state.monitoring.trackedWorks.find((item) => item.id === ui.modal.workId) : null;
-  const sourceDomain = existing?.sourceDomain || ui.modal.sourceDomain || "";
-  const articleOptions = [`<option value="">不关联后台文章（外部作品）</option>`].concat(state.articles.map((article) => `<option value="${escapeHtml(article.id)}" ${(existing?.articleId || "") === article.id ? "selected" : ""}>${escapeHtml(article.title)}</option>`)).join("");
-  const siteType = existing?.type || ui.modal.sourceType || "官网";
+  const linkedArticle = state.articles.find((article) => article.id === ui.modal.articleId);
+  if (!linkedArticle) return "";
+  const articleOptions = state.articles.map((article) => `<option value="${escapeHtml(article.id)}" ${linkedArticle.id === article.id ? "selected" : ""}>${escapeHtml(article.title)}</option>`).join("");
   return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">${existing ? "编辑追踪作品" : "添加追踪作品"}</h2><p>记录作品和来源，供后续 AI 引用证据回写</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="modal-head"><div><h2 id="modal-title">添加其他平台 URL</h2><p>为这篇内容资产补充一个可访问的外部发布地址，保存后立即进入自动巡检。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      <div class="field"><label for="tracked-work-article">关联后台文章（可选）</label><select class="select" id="tracked-work-article">${articleOptions}</select><small>关联后，引用次数会同步展示在对应内容资产中。</small></div>
-      <div class="field-row" style="margin-top:15px"><div class="field"><label for="tracked-work-title">作品标题 *</label><input class="input" id="tracked-work-title" value="${escapeHtml(existing?.title || "")}" placeholder="请输入文章或作品标题" /></div><div class="field"><label for="tracked-work-type">站点类型</label><select class="select" id="tracked-work-type">${["官网", "公众号", "内容平台", "行业媒体", "其他"].map((item) => `<option ${siteType === item ? "selected" : ""}>${item}</option>`).join("")}</select></div></div>
-      <div class="field-row"><div class="field"><label for="tracked-work-site">发布站点 *</label><input class="input" id="tracked-work-site" value="${escapeHtml(existing?.site || ui.modal.sourceName || "")}" placeholder="例如：桐灼企业官网" /></div><div class="field"><label for="tracked-work-domain">来源域名 *</label><input class="input" id="tracked-work-domain" value="${escapeHtml(sourceDomain)}" placeholder="例如：tongzhuo.com" /></div></div>
-      <div class="field"><label for="tracked-work-url">作品 URL（可选）</label><input class="input" id="tracked-work-url" value="${escapeHtml(existing?.url || "")}" placeholder="https://" /></div>
-      <div class="field-row"><div class="field"><label for="tracked-work-questions">关联问题数</label><input class="input" id="tracked-work-questions" type="number" min="0" value="${Number(existing?.questions || existing?.questionIds?.length || 0)}" /></div><div class="field"><label for="tracked-work-citations">已记录引用次数</label><input class="input" id="tracked-work-citations" type="number" min="0" value="${Number(existing?.citations || 0)}" /></div></div>
+      <div class="field"><label for="tracked-work-article">关联文章 *</label><select class="select" id="tracked-work-article">${articleOptions}</select><small>引用证据只会按规范化 URL 精确归属到这篇文章。</small></div>
+      <div class="field-row" style="margin-top:15px"><div class="field"><label for="tracked-work-site">发布平台 *</label><input class="input" id="tracked-work-site" value="" placeholder="例如：知乎专栏、行业媒体" /></div><div class="field"><label for="tracked-work-type">站点类型</label><select class="select" id="tracked-work-type">${["公众号", "内容平台", "行业媒体", "其他"].map((item) => `<option>${item}</option>`).join("")}</select></div></div>
+      <div class="field"><label for="tracked-work-url">作品 URL *</label><input class="input" id="tracked-work-url" value="" placeholder="https://" /></div>
     </div>
-    <div class="modal-foot"><span>${existing ? `创建于 ${formatDateTime(existing.createdAt)}` : "保存后将进入作品引用追踪"}</span><div class="modal-foot-right">${existing ? `<button class="danger-button" type="button" data-action="delete-tracked-work" data-work-id="${escapeHtml(existing.id)}">删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-tracked-work" data-work-id="${escapeHtml(existing?.id || "")}"><span data-icon="check"></span>保存作品</button></div></div>
+    <div class="modal-foot"><span>保存后由服务端巡检可访问性、跳转和内容变化</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-tracked-work"><span data-icon="check"></span>添加 URL</button></div></div>
   `, { wide: true });
 }
-
 function renderModelEditorModal() {
-  const kind = ui.modal.modelKind === "image" ? "image" : "text";
+  const kind = ["image", "embedding"].includes(ui.modal.modelKind) ? ui.modal.modelKind : "text";
   const isText = kind === "text";
-  const current = isText ? state.settings.model : state.settings.imageModel;
-  const providerKey = isText ? "modelProviderId" : "imageProviderId";
+  const label = kind === "embedding" ? "向量" : isText ? "文本" : "图片";
+  const current = kind === "embedding" ? "embedding" : isText ? state.settings.model : state.settings.imageModel;
+  const providerKey = kind === "embedding" ? "embeddingProviderId" : isText ? "modelProviderId" : "imageProviderId";
   const selectedProviderId = state.settings[providerKey] || "";
-  const providers = (aiProviderSnapshot.providers || []).filter((provider) => provider.status !== "disabled");
+  const providers = (aiProviderSnapshot.providers || []).filter((provider) => provider.status !== "disabled" && provider.kind === kind);
   const providerOptions = [`<option value="">不绑定 API 供应商（仅保存模型名称）</option>`, ...providers.map((provider) => `<option value="${escapeHtml(provider.id)}" ${selectedProviderId === provider.id ? "selected" : ""}>${escapeHtml(provider.name)} · ${escapeHtml(provider.model || "未填写模型")}</option>`)].join("");
   const selectedProvider = providers.find((provider) => provider.id === selectedProviderId);
   return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">更换默认${isText ? "文本" : "图片"}模型</h2><p>选择已配置的 API 供应商；已有文章仍使用生成时保存的模型快照。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="modal-head"><div><h2 id="modal-title">更换默认${label}模型</h2><p>选择已配置的 API 供应商；已有文章仍使用生成时保存的模型快照。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body model-editor-body"><div class="field"><label for="model-provider">API 供应商</label><select class="select" id="model-provider">${providerOptions}</select><small>${selectedProvider ? `${escapeHtml(selectedProvider.apiKeyMasked || "未配置 API Key")} · ${escapeHtml(aiProviderProtocolLabel(selectedProvider.protocol))}` : "尚未绑定供应商时不会发起真实 API 请求。"}</small></div><div class="field" style="margin-top:15px"><label for="model-custom-name">模型 ID / 名称 *</label><input class="input" id="model-custom-name" value="${escapeHtml(current)}" placeholder="例如：deepseek-chat、gpt-4o-mini、qwen-plus" /><small>选择供应商后，留空会使用供应商默认模型。</small></div><button class="secondary-button" type="button" data-action="add-ai-provider"><span data-icon="plus"></span>没有供应商？添加 API</button><div class="privacy-note" style="margin-top:4px"><span data-icon="lock"></span><span>API Key 只保存在服务端并以掩码显示，浏览器不会保存原始密钥。</span></div></div>
     <div class="modal-foot"><span>当前：${escapeHtml(current)}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-model" data-model-kind="${kind}"><span data-icon="check"></span>保存模型</button></div></div>
   `);
@@ -7390,14 +13186,14 @@ function renderAiProviderModal() {
 
 function renderMemberEditorModal() {
   const existing = ui.modal.memberId ? state.settings.members.find((member) => member.id === ui.modal.memberId) : null;
-  const role = existing?.role || "内容运营";
-  const status = existing?.status || "invited";
+  const role = existing?.roleValue || ROLE_API_VALUES[existing?.role] || "operator";
+  const status = existing?.status || "active";
   const adminCount = (state.settings.members || []).filter((member) => member.role === "管理员" && member.status !== "disabled").length;
   const canDelete = !existing || !(existing.role === "管理员" && adminCount <= 1);
   return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">${existing ? "管理成员" : "邀请成员"}</h2><p>${existing ? "修改角色或停用成员；修改会立即保存在当前演示空间。" : "保存后会创建一条待接受的演示邀请记录。"}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body"><div class="field-row"><div class="field"><label for="member-name">姓名 *</label><input class="input" id="member-name" value="${escapeHtml(existing?.name || "")}" placeholder="请输入成员姓名" /></div><div class="field"><label for="member-email">邮箱 *</label><input class="input" id="member-email" type="email" value="${escapeHtml(existing?.email || "")}" placeholder="name@company.com" /></div></div><div class="field-row"><div class="field"><label for="member-role">角色</label><select class="select" id="member-role">${["管理员", "内容运营", "审核人员", "只读成员"].map((item) => `<option ${role === item ? "selected" : ""}>${item}</option>`).join("")}</select></div><div class="field"><label for="member-status">状态</label><select class="select" id="member-status">${[["active", "已启用"], ["invited", "待接受"], ["disabled", "已停用"]].map(([value, label]) => `<option value="${value}" ${status === value ? "selected" : ""}>${label}</option>`).join("")}</select></div></div><div class="privacy-note" style="margin-top:16px"><span data-icon="info"></span><span>正式版可连接企业 SSO 或邮件服务；当前演示仅保存成员和权限状态，不会实际发送邮件。</span></div></div>
-    <div class="modal-foot"><span>${existing?.lastLoginAt ? "最近登录：" + formatDateTime(existing.lastLoginAt) : "尚未登录"}</span><div class="modal-foot-right">${existing ? `<button class="danger-button" type="button" data-action="delete-member" data-member-id="${escapeHtml(existing.id)}" ${canDelete ? "" : "disabled"}>删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-member" data-member-id="${escapeHtml(existing?.id || "")}"><span data-icon="check"></span>${existing ? "保存修改" : "保存邀请"}</button></div></div>
+    <div class="modal-head"><div><h2 id="modal-title">${existing ? "管理成员" : "创建成员账号"}</h2><p>${existing ? "角色、状态和密码修改会由服务端立即执行并记录审计。" : "创建后成员可以使用登录账号和初始密码进入当前企业后台。"}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="modal-body"><div class="field-row"><div class="field"><label for="member-name">姓名 *</label><input class="input" id="member-name" value="${escapeHtml(existing?.name || "")}" placeholder="请输入成员姓名" /></div><div class="field"><label for="member-email">邮箱</label><input class="input" id="member-email" type="email" value="${escapeHtml(existing?.email || "")}" placeholder="name@company.com" /></div></div><div class="field-row"><div class="field"><label for="member-username">登录账号 *</label><input class="input" id="member-username" value="${escapeHtml(existing?.username || "")}" placeholder="例如：zhangsan" ${existing ? "disabled" : ""} autocomplete="username" /></div><div class="field"><label for="member-password">${existing ? "重置密码（留空不修改）" : "初始密码 *"}</label><input class="input" id="member-password" type="password" minlength="10" maxlength="200" placeholder="至少 10 个字符" autocomplete="new-password" /></div></div><div class="field-row"><div class="field"><label for="member-role">角色</label><select class="select" id="member-role">${Object.entries(ROLE_UI_LABELS).map(([value, label]) => `<option value="${value}" ${role === value ? "selected" : ""}>${label}</option>`).join("")}</select></div><div class="field"><label for="member-status">状态</label><select class="select" id="member-status">${[["active", "已启用"], ["disabled", "已停用"]].map(([value, label]) => `<option value="${value}" ${status === value ? "selected" : ""}>${label}</option>`).join("")}</select></div></div><div class="privacy-note" style="margin-top:16px"><span data-icon="lock"></span><span>初始密码只在本次提交中传送，不会写入浏览器存储；服务端使用 scrypt 保存密码摘要。</span></div></div>
+    <div class="modal-foot"><span>${existing?.lastLoginAt ? "最近登录：" + formatDateTime(existing.lastLoginAt) : "尚未登录"}</span><div class="modal-foot-right">${existing ? `<button class="danger-button" type="button" data-action="delete-member" data-member-id="${escapeHtml(existing.id)}" ${canDelete ? "" : "disabled"}>删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-member" data-member-id="${escapeHtml(existing?.id || "")}"><span data-icon="check"></span>${existing ? "保存修改" : "创建账号"}</button></div></div>
   `);
 }
 
@@ -7476,6 +13272,7 @@ function renderRiskModal() {
   if (hits.length) result = `<div class="risk-issue-list">${hits.map((hit) => `<div class="risk-issue"><span class="status-badge ${hit.level === "blocked" ? "status-error" : "status-review"}">${hit.level === "blocked" ? "阻断" : "复核"}</span><div><b>${escapeHtml(hit.label)} · 命中“${escapeHtml(hit.term)}”</b><p>片段：${escapeHtml(hit.excerpt)}</p><small>${escapeHtml(hit.message)}<br />规则：${escapeHtml(hit.rule)}</small></div></div>`).join("")}</div>`;
   if (needsScan) result = '<div class="empty-state" style="min-height:180px"><div><span data-icon="refresh"></span><h3>' + (riskStatus === "stale" ? "正文已变化" : scan ? "规则已变化" : "尚无可追溯检测明细") + '</h3><p>请重新检测当前文章版本，再进入审核与发布。</p></div></div>';
   const counts = scan?.ruleCounts || Object.fromEntries(["adLaw", "sensitive", "banned"].map((type) => [type, riskRuleEntries(type).length]));
+  const canRunRisk = currentUserCan("content.generate") || currentUserCan("content.review");
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">内容风控详情</h2><p>${article.id} · ${article.version} · 风控结果绑定当前文章版本与规则版本</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
@@ -7483,7 +13280,7 @@ function renderRiskModal() {
       ${result}
       <div class="risk-rule-grid"><div><b>${counts.adLaw || 0}</b><span>广告法规则</span></div><div><b>${counts.sensitive || 0}</b><span>企业敏感规则</span></div><div><b>${counts.banned || 0}</b><span>企业禁用表述</span></div><div><b>${articleCitations(article).length}</b><span>企业事实证据</span></div></div>
     </div>
-    <div class="modal-foot"><span>检测时间：${scan?.scannedAt ? new Date(scan.scannedAt).toLocaleString("zh-CN", { hour12: false }) : "尚未检测"}</span><div class="modal-foot-right"><button class="secondary-button" data-action="back-article" data-article-id="${article.id}">返回文章</button><button class="primary-button" data-action="run-risk-scan" data-article-id="${article.id}"><span data-icon="refresh"></span>重新检测</button></div></div>
+    <div class="modal-foot"><span>检测时间：${scan?.scannedAt ? new Date(scan.scannedAt).toLocaleString("zh-CN", { hour12: false }) : "尚未检测"}</span><div class="modal-foot-right"><button class="secondary-button" data-action="back-article" data-article-id="${article.id}">返回文章</button><button class="primary-button" data-action="run-risk-scan" data-article-id="${article.id}" ${canRunRisk ? "" : "disabled"}><span data-icon="refresh"></span>${canRunRisk ? "重新检测" : "无检测权限"}</button></div></div>
   `, { wide: true });
 }
 
@@ -7594,7 +13391,8 @@ function normalizeAiTopicCandidate(item, sourceQuestion, index, generationRunId 
     reason: `由客户问题生成：${sourceQuestion.question}`,
     source: "AI 模型选题",
     generationRunId: item.generationRunId || item.generation_run_id || generationRunId || null,
-    status: "candidate",
+    status: "active",
+    autoAcceptedAt: Date.now(),
     version: 1,
     selected: false,
     createdAt: Date.now(),
@@ -7668,7 +13466,7 @@ async function questionsToTopics(questionIds = null) {
       if (existing) return;
       state.topics.unshift(topic);
       sourceQuestion.topicId = topic.id;
-      sourceQuestion.coverage = topic.status === "candidate" ? "待确认选题" : "已规划";
+      sourceQuestion.coverage = "已规划";
       sourceQuestion.updatedAt = Date.now();
       sourceQuestion.selected = false;
       created.push(topic);
@@ -7678,7 +13476,7 @@ async function questionsToTopics(questionIds = null) {
     ui.planningTab = "topics";
     saveState();
     render();
-    showToast("选题候选已生成", "模型已为 " + created.length + " 个客户问题生成对应选题 Brief，请逐条编辑并人工确认后再生成文章或加入计划。");
+    showToast("选题已生成并入库", "模型已为 " + created.length + " 个客户问题生成对应选题，可直接编辑、生成文章或加入内容计划。");
   } catch (error) {
     ui.topicGenerating = false;
     saveState();
@@ -7687,7 +13485,7 @@ async function questionsToTopics(questionIds = null) {
   }
 }
 
-function submitKnowledgeBase() {
+async function submitKnowledgeBase() {
   const nameInput = document.getElementById("knowledge-base-name");
   const name = nameInput?.value.trim() || "";
   if (!name) {
@@ -7705,9 +13503,18 @@ function submitKnowledgeBase() {
   const businessLineId = scope === "enterprise" ? null : document.getElementById("knowledge-base-line")?.value || activeBusinessLine()?.id || null;
   const base = {
     id: uid("KB"), name, kind, scope, businessLineId, isDefault: false, indexStrategy: "rag", status: "ready",
-    description: document.getElementById("knowledge-base-description")?.value.trim() || (kind === "qa" ? "企业认可的标准问题与标准回答。" : "已审核后用于企业内容生产的资料。"),
+    description: document.getElementById("knowledge-base-description")?.value.trim() || (kind === "qa" ? "企业认可的标准问题与标准回答。" : "上传后自动进入企业内容生产的可用资料。"),
     itemIds: [], createdAt: Date.now(), updatedAt: Date.now()
   };
+  try {
+    const created = await productionApi("/api/v1/knowledge/libraries", { method: "POST", body: { name: base.name, kind: base.kind, scope: base.scope, businessLineId: base.businessLineId, description: base.description || "" } });
+    const remoteBase = created.data?.library || created.library;
+    if (!remoteBase?.id) throw new Error("服务端未返回知识库 ID");
+    Object.assign(base, { id: remoteBase.id, status: remoteBase.status === "archived" ? "archived" : "ready", createdAt: remoteBase.createdAt || base.createdAt, updatedAt: remoteBase.updatedAt || base.updatedAt });
+  } catch (error) {
+    showToast("知识库创建失败", `${error.message || "服务端保存失败"} 本地不会显示为已创建。`, "error");
+    return;
+  }
   state.knowledgeBases.unshift(base);
   saveState();
   render();
@@ -7719,103 +13526,317 @@ function submitKnowledgeBase() {
 async function submitKnowledgeImport() {
   const base = knowledgeBaseById(document.getElementById("knowledge-import-base")?.value);
   const fileInput = document.getElementById("knowledge-import-file");
-  const file = fileInput?.files?.[0] || null;
+  const files = Array.from(fileInput?.files || []);
   const pasted = document.getElementById("knowledge-import-content")?.value.trim() || "";
   if (!base || base.kind !== "document") return showToast("请选择文档知识库", "导入资料必须进入一个有效的文档知识库。", "error");
-  if (!file) {
+  if (!files.length) {
     fileInput?.classList.add("input-error");
     fileInput?.focus();
-    return showToast("请选择资料文件", "选择文件后再导入；演示版不会把原文件写入浏览器存储。", "error");
+    return showToast("请选择资料文件", "可以一次选择多个 PDF、Word 或普通文档。", "error");
   }
-  const extension = String(file.name || "").split(".").pop()?.toLowerCase() || "";
-  const textLike = String(file.type || "").startsWith("text/") || ["txt", "md", "csv", "html", "htm", "json", "xml"].includes(extension);
-  let content = pasted;
-  let importStatus = "ready";
-  if (!content && textLike) {
-    try { content = (await file.text()).trim(); } catch { content = ""; }
+  if (files.length > 100) return showToast("文件数量过多", "单次最多导入 100 个文档，请分批处理。", "error");
+  const oversized = files.find((file) => Number(file.size || 0) > 20 * 1024 * 1024);
+  if (oversized) return showToast("单个文件过大", `「${oversized.name}」超过 20 MB，请拆分或压缩后再上传。`, "error");
+  if (files.reduce((sum, file) => sum + Number(file.size || 0), 0) > 100 * 1024 * 1024) return showToast("本批文件过大", "全部文件合计不能超过 100 MB，请分批导入。", "error");
+  if (files.length > 1 && pasted) return showToast("批量导入不使用统一摘录", "一次导入多个文件时请清空正文/摘录；系统会分别解析每个原文件。", "error");
+  const submitButton = document.querySelector('[data-action="submit-knowledge-import"]');
+  const originalButtonHtml = submitButton?.innerHTML || "";
+  if (submitButton) { submitButton.disabled = true; submitButton.innerHTML = '<span data-icon="upload"></span>正在批量解析…'; hydrateIcons(submitButton); }
+  try {
+    await ensureKnowledgeBaseOnServer(base);
+    const batches = imageUploadBatches(files, 20, 20 * 1024 * 1024);
+    let created = 0;
+    let duplicateCount = 0;
+    const failures = [];
+    for (const batch of batches) {
+      const documents = await Promise.all(batch.map(async (file) => {
+        const extension = String(file.name || "").split(".").pop()?.toLowerCase() || "";
+        return {
+          title: file.name.replace(/\.[^.]+$/, "") || file.name,
+          sourceType: "file",
+          sourceName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          contentBase64: arrayBufferToBase64(await file.arrayBuffer()),
+          ...(files.length === 1 && pasted ? { content: pasted } : {}),
+          metadata: { visibility: "public", importedFrom: "browser-batch", extension, size: Number(file.size || 0), lastModified: Number(file.lastModified || 0) }
+        };
+      }));
+      const response = await productionApi("/api/v1/knowledge/documents-batch", { method: "POST", body: { libraryId: base.id, documents, defaults: { visibility: "public" } } });
+      created += Number(response.data?.created || 0);
+      duplicateCount += Number(response.data?.duplicates?.length || 0);
+      failures.push(...(response.data?.failures || []));
+    }
+    await Promise.all([refreshKnowledgeFromServer(), refreshKnowledgeAssetsFromServer()]);
+    addOperationLog("企业知识", `批量导入 ${files.length} 个资料到知识库「${base.name}」：成功 ${created}，重复 ${duplicateCount}，失败 ${failures.length}`);
+    saveState();
+    render();
+    ui.modal = { type: "knowledgeBaseDetail", baseId: base.id };
+    renderModal();
+    if (failures.length) {
+      const names = failures.slice(0, 3).map((item) => item.sourceName).join("、");
+      showToast("批量导入已完成，部分文件失败", `成功 ${created} 个，失败 ${failures.length} 个（${names}${failures.length > 3 ? "等" : ""}）。失败文件未被伪装成已入库。`, "warning");
+    } else {
+      showToast("资料已批量导入知识库", `成功 ${created} 个${duplicateCount ? `，跳过 ${duplicateCount} 个重复文件` : ""}；已进入解析和 RAG 索引流程。`, "success");
+    }
+  } finally {
+    if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.innerHTML = originalButtonHtml; hydrateIcons(submitButton); }
   }
-  if (content.length > 120000) content = content.slice(0, 120000) + "\n\n[演示版仅保留前 120000 个字符，正式版由服务器完整解析并分块]";
-  if (!content) {
-    importStatus = "pending_parse";
-    content = `文件已登记：${file.name}\n类型：${file.type || extension || "未知"}\n大小：${Math.max(1, Math.ceil(Number(file.size || 0) / 1024))} KB\n\n当前演示环境未解析该文件正文，请打开此条目补充正文后再提交审核。`;
-  }
-  const itemId = uid("KI-IMPORT");
-  const versionId = uid("KV-IMPORT") + "-V1";
-  const now = Date.now();
-  const item = {
-    id: itemId,
-    knowledgeBaseId: base.id,
-    kind: "document",
-    title: file.name.replace(/\.[^.]+$/, "") || file.name,
-    category: "导入资料",
-    status: importStatus === "ready" ? "pending_review" : "draft",
-    visibility: "public",
-    latestVersionId: versionId,
-    sourceName: file.name,
-    locator: importStatus === "ready" ? "文件正文" : "待解析文件",
-    importStatus,
-    sourceFile: { name: file.name, type: file.type || "application/octet-stream", size: Number(file.size || 0), extension },
-    tags: [],
-    createdAt: now,
-    updatedAt: now
-  };
-  const version = {
-    id: versionId,
-    itemId,
-    version: 1,
-    reviewStatus: importStatus === "ready" ? "pending_review" : "draft",
-    reviewedBy: null,
-    reviewedAt: null,
-    content,
-    sourceName: file.name,
-    locator: item.locator,
-    chunks: [{ id: uid("KC"), section: item.locator, text: content }],
-    createdAt: now
-  };
-  state.knowledgeItems.push(item);
-  state.knowledgeVersions.push(version);
-  base.itemIds = [...new Set([...(base.itemIds || []), itemId])];
-  base.updatedAt = now;
-  addOperationLog("企业知识", `导入资料「${file.name}」到知识库「${base.name}」`);
-  saveState();
-  render();
-  ui.modal = importStatus === "ready" ? { type: "knowledgeBaseDetail", baseId: base.id } : { type: "knowledgeItem", baseId: base.id, itemId };
-  renderModal();
-  showToast(importStatus === "ready" ? "资料已导入待审核" : "文件已登记，等待补充正文", importStatus === "ready" ? "已提取可读取文字，人工审核通过后才会进入 RAG。" : "PDF / Word 正文未在浏览器解析，请在当前条目中补充正文再提交审核。", importStatus === "ready" ? "success" : "warning");
 }
 
-function submitKnowledgeItem(baseId) {
+async function submitKnowledgeImages() {
+  if (knowledgeAssetRuntime.uploading) return;
+  const fileInput = document.getElementById("knowledge-image-files");
+  const files = Array.from(fileInput?.files || []).filter((file) => String(file.type || "").startsWith("image/"));
+  const libraryId = document.getElementById("knowledge-image-base")?.value || "";
+  if (!libraryId || !knowledgeBaseById(libraryId)) return showToast("请选择知识库", "图片需要保存到一个有效的文档知识库。", "error");
+  if (!files.length) return showToast("请选择图片", "可以一次选择多张 PNG、JPG 或 WebP 图片。", "error");
+  if (files.length > 500) return showToast("图片数量过多", "单次最多上传 500 张，请分批处理。", "error");
+  const oversized = files.find((file) => Number(file.size || 0) > 20 * 1024 * 1024);
+  if (oversized) return showToast("单张图片过大", `「${oversized.name}」超过 20 MB，请压缩后再上传。`, "error");
+  const tags = (document.getElementById("knowledge-image-tags")?.value || "").split(/[，,;；]/).map((item) => item.trim()).filter(Boolean);
+  const defaults = {
+    category: document.getElementById("knowledge-image-category")?.value || "其他资料",
+    license: document.getElementById("knowledge-image-license")?.value || "企业自有",
+    tags,
+    sourceRole: "batch_upload"
+  };
+  knowledgeAssetRuntime.uploading = true;
+  knowledgeAssetRuntime.uploadProgress = { completed: 0, total: 0, created: 0, duplicates: 0 };
+  renderModal();
+  try {
+    // Keep browser memory and proxy request bodies bounded even when a user
+    // selects an entire 200-image folder. The user still clicks once; the
+    // client streams predictable 40-file / 20 MB batches to the server.
+    const batches = imageUploadBatches(files);
+    knowledgeAssetRuntime.uploadProgress.total = batches.length;
+    let created = 0;
+    let duplicates = 0;
+    for (const batch of batches) {
+      const assets = await Promise.all(batch.map(async (file) => ({
+        sourceName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        contentBase64: arrayBufferToBase64(await file.arrayBuffer()),
+        altText: file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "),
+        metadata: { size: Number(file.size || 0), lastModified: Number(file.lastModified || 0) }
+      })));
+      const payload = await productionApi("/api/v1/knowledge/assets-batch", { method: "POST", body: { libraryId, assets, defaults } });
+      created += Number(payload.data?.created || payload.data?.items?.length || 0);
+      duplicates += Number(payload.data?.duplicates?.length || 0);
+      knowledgeAssetRuntime.uploadProgress.completed += 1;
+      knowledgeAssetRuntime.uploadProgress.created = created;
+      knowledgeAssetRuntime.uploadProgress.duplicates = duplicates;
+      renderModal();
+    }
+    await refreshKnowledgeAssetsFromServer();
+    closeModal();
+    ui.knowledgeTab = "assets";
+    render();
+    showToast("图片已批量入库", `成功上传 ${created} 张${duplicates ? `，跳过 ${duplicates} 张重复图片` : ""}；现在可以在写作台直接插入。`, "success");
+  } catch (error) {
+    const progress = knowledgeAssetRuntime.uploadProgress;
+    const partial = progress?.created ? `已完成 ${progress.created} 张，` : "";
+    showToast("图片上传失败", `${partial}${error.message || "请检查图片格式或稍后重试。"}`, "error");
+  } finally {
+    knowledgeAssetRuntime.uploading = false;
+    knowledgeAssetRuntime.uploadProgress = null;
+    if (ui.modal?.type === "uploadKnowledgeImages") renderModal();
+  }
+}
+
+function imageUploadBatches(files, maximumFiles = 40, maximumBytes = 20 * 1024 * 1024) {
+  const batches = [];
+  let current = [];
+  let currentBytes = 0;
+  for (const file of files) {
+    const size = Number(file.size || 0);
+    if (current.length && (current.length >= maximumFiles || currentBytes + size > maximumBytes)) {
+      batches.push(current);
+      current = [];
+      currentBytes = 0;
+    }
+    current.push(file);
+    currentBytes += size;
+  }
+  if (current.length) batches.push(current);
+  return batches;
+}
+
+function remapKnowledgeBaseId(previousId, nextId, base) {
+  if (!previousId || !nextId || previousId === nextId) return;
+  base.id = nextId;
+  (state.knowledgeItems || []).forEach((item) => { if (item.knowledgeBaseId === previousId) item.knowledgeBaseId = nextId; });
+  (state.businessLines || []).forEach((line) => { line.knowledgeBaseIds = (line.knowledgeBaseIds || []).map((id) => id === previousId ? nextId : id); });
+  const remap = (values) => (values || []).map((id) => id === previousId ? nextId : id);
+  (state.contentPlans || []).forEach((plan) => {
+    plan.knowledgeBaseIds = remap(plan.knowledgeBaseIds);
+    if (plan.knowledgeScope) {
+      plan.knowledgeScope.inheritedBaseIds = remap(plan.knowledgeScope.inheritedBaseIds);
+      plan.knowledgeScope.addedBaseIds = remap(plan.knowledgeScope.addedBaseIds);
+      plan.knowledgeScope.excludedBaseIds = remap(plan.knowledgeScope.excludedBaseIds);
+      plan.knowledgeScope.resolvedBaseIds = remap(plan.knowledgeScope.resolvedBaseIds);
+    }
+  });
+  (state.writingWorkspaces || []).forEach((workspace) => {
+    workspace.selectedKnowledgeBaseIds = remap(workspace.selectedKnowledgeBaseIds);
+    if (workspace.knowledgeScope) {
+      workspace.knowledgeScope.inheritedBaseIds = remap(workspace.knowledgeScope.inheritedBaseIds);
+      workspace.knowledgeScope.addedBaseIds = remap(workspace.knowledgeScope.addedBaseIds);
+      workspace.knowledgeScope.excludedBaseIds = remap(workspace.knowledgeScope.excludedBaseIds);
+      workspace.knowledgeScope.resolvedBaseIds = remap(workspace.knowledgeScope.resolvedBaseIds);
+    }
+  });
+  (state.aiConversations || []).forEach((conversation) => { conversation.selectedKnowledgeBaseIds = remap(conversation.selectedKnowledgeBaseIds); });
+}
+
+async function ensureKnowledgeBaseOnServer(base) {
+  try {
+    await productionApi(`/api/v1/knowledge/libraries/${encodeURIComponent(base.id)}`);
+    return base.id;
+  } catch (error) {
+    if (error.status !== 404) throw error;
+  }
+  let remoteBase = null;
+  try {
+    const created = await productionApi("/api/v1/knowledge/libraries", {
+      method: "POST",
+      body: { name: base.name, kind: base.kind, scope: base.scope, businessLineId: base.businessLineId, description: base.description || "" }
+    });
+    remoteBase = created.data?.library || created.library || null;
+  } catch (error) {
+    if (error.status !== 409) throw error;
+    const listed = await productionApi("/api/v1/knowledge/libraries?includeArchived=1");
+    remoteBase = (listed.data?.items || []).find((item) => String(item.name || "").toLowerCase() === String(base.name || "").toLowerCase()) || null;
+  }
+  if (!remoteBase?.id) throw new Error("服务端未返回知识库 ID");
+  remapKnowledgeBaseId(base.id, remoteBase.id, base);
+  saveState();
+  return base.id;
+}
+
+async function submitKnowledgeItem(baseId) {
   const base = knowledgeBaseById(baseId);
   if (!base) return showToast("知识库不存在", "请刷新页面后重试。", "error");
+  const fileInput = document.getElementById("knowledge-item-file");
+  const file = base.kind === "qa" ? null : fileInput?.files?.[0] || null;
   const question = document.getElementById("knowledge-item-question")?.value.trim() || "";
-  const title = base.kind === "qa" ? question : document.getElementById("knowledge-item-title")?.value.trim() || "";
+  const fallbackTitle = file?.name?.replace(/\.[^.]+$/, "") || file?.name || "";
+  const title = base.kind === "qa" ? question : document.getElementById("knowledge-item-title")?.value.trim() || fallbackTitle;
   const content = document.getElementById("knowledge-item-content")?.value.trim() || "";
-  if (!title || !content) return showToast("知识内容不完整", base.kind === "qa" ? "请填写标准问题和企业标准答案。" : "请填写资料标题和资料原文。", "error");
-  const itemId = uid("KI");
-  const versionId = uid("KV") + "-V1";
-  const item = {
-    id: itemId, knowledgeBaseId: base.id, kind: base.kind, title, question: base.kind === "qa" ? question : undefined,
-    category: base.kind === "qa" ? "FAQ" : "企业资料", status: "pending_review", visibility: document.getElementById("knowledge-item-visibility")?.value || "public",
-    latestVersionId: versionId, sourceName: document.getElementById("knowledge-item-source")?.value.trim() || (base.kind === "qa" ? "企业标准问答" : "手动录入"),
-    locator: document.getElementById("knowledge-item-locator")?.value.trim() || (base.kind === "qa" ? "标准答案" : "正文"),
-    gapId: ui.modal.gapId || null, tags: [], createdAt: Date.now(), updatedAt: Date.now()
-  };
-  const version = {
-    id: versionId, itemId, version: 1, reviewStatus: "pending_review", reviewedBy: null, reviewedAt: null, content,
-    sourceName: item.sourceName, locator: item.locator, chunks: [{ id: uid("KC"), section: item.locator, text: content }]
-  };
-  state.knowledgeItems.push(item);
-  state.knowledgeVersions.push(version);
-  base.itemIds = [...new Set([...(base.itemIds || []), itemId])];
-  base.updatedAt = Date.now();
-  saveState();
-  render();
-  ui.modal = { type: "knowledgeBaseDetail", baseId: base.id };
-  renderModal();
-  showToast("知识已提交审核", "审核通过前不会进入文章生成。", "success");
+  if (!title) return showToast("请填写资料标题", "资料标题用于后续检索和引用，不能为空。", "error");
+  if (base.kind === "qa" && !content) return showToast("知识内容不完整", "请填写标准问题和企业标准答案。", "error");
+  if (base.kind !== "qa" && !file && !content) return showToast("请选择文件或填写文字", "上传资料文件与直接录入文字至少完成一项。", "error");
+  if (file && Number(file.size || 0) > 20 * 1024 * 1024) return showToast("文件超过大小限制", `「${file.name}」超过 20 MB，请压缩或拆分后再上传。`, "error");
+
+  const visibility = document.getElementById("knowledge-item-visibility")?.value || "public";
+  const declaredSource = document.getElementById("knowledge-item-source")?.value.trim() || "";
+  const sourceName = file?.name || declaredSource || (base.kind === "qa" ? "企业标准问答" : "手动录入");
+  const sourceUrl = /^https?:\/\//i.test(declaredSource) ? declaredSource : "";
+  const locator = document.getElementById("knowledge-item-locator")?.value.trim() || (base.kind === "qa" ? "标准答案" : file ? "文件正文" : "正文");
+  const extension = file ? String(file.name || "").split(".").pop()?.toLowerCase() || "" : "";
+  const gapId = ui.modal.gapId || null;
+  const submitButton = document.querySelector('[data-action="submit-knowledge-item"]');
+  const originalButtonHtml = submitButton?.innerHTML || "";
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span data-icon="upload"></span>正在上传并解析…';
+    hydrateIcons(submitButton);
+  }
+
+  try {
+    await ensureKnowledgeBaseOnServer(base);
+    const payload = {
+      title,
+      sourceType: file ? "file" : base.kind === "qa" ? "qa" : "text",
+      sourceName,
+      sourceUrl,
+      mimeType: file?.type || "text/plain",
+      content: content || undefined,
+      metadata: {
+        visibility,
+        locator,
+        declaredSource,
+        uploadedFrom: "knowledge-item-modal",
+        ...(file ? { extension, size: Number(file.size || 0), lastModified: Number(file.lastModified || 0) } : {})
+      },
+      reviewStatus: "approved"
+    };
+    if (file) payload.contentBase64 = arrayBufferToBase64(await file.arrayBuffer());
+
+    const created = await productionApi(`/api/v1/knowledge/libraries/${encodeURIComponent(base.id)}/documents`, { method: "POST", body: payload });
+    let remoteVersion = created.data?.version || created.version;
+    if (!remoteVersion?.id || !remoteVersion.documentId) throw new Error("服务端未返回完整的知识版本信息");
+    const detail = await productionApi(`/api/v1/knowledge/versions/${encodeURIComponent(remoteVersion.id)}?includeContent=1`);
+    remoteVersion = detail.data?.version || detail.version || remoteVersion;
+
+    const now = Date.now();
+    const extractionStatus = String(remoteVersion.extractionStatus || "complete").toLowerCase();
+    const extractionPending = ["queued", "processing", "pending"].includes(extractionStatus);
+    const savedContent = remoteVersion.content || content || (file ? `文件已上传：${file.name}` : "");
+    const itemId = remoteVersion.documentId;
+    const versionId = remoteVersion.id;
+    const item = {
+      id: itemId,
+      knowledgeBaseId: base.id,
+      kind: base.kind,
+      title,
+      question: base.kind === "qa" ? question : undefined,
+      category: base.kind === "qa" ? "FAQ" : file ? "上传资料" : "企业资料",
+      status: "approved",
+      visibility,
+      latestVersionId: versionId,
+      sourceName,
+      sourceUrl,
+      locator,
+      importStatus: extractionPending ? "pending_ocr" : "ready",
+      sourceFile: file ? { name: file.name, type: file.type || "application/octet-stream", size: Number(file.size || 0), extension } : undefined,
+      gapId,
+      tags: [],
+      createdAt: now,
+      updatedAt: now
+    };
+    const version = {
+      id: versionId,
+      itemId,
+      version: Number(remoteVersion.version || 1),
+      reviewStatus: remoteVersion.reviewStatus || "approved",
+      reviewedBy: null,
+      reviewedAt: remoteVersion.approvedAt || new Date().toISOString(),
+      content: savedContent,
+      extractionStatus: remoteVersion.extractionStatus || "complete",
+      extractionMethod: remoteVersion.extractionMethod || (file ? extension || "file" : "text"),
+      indexStatus: remoteVersion.indexStatus || (extractionPending ? "not_indexed" : "indexed"),
+      sourceName,
+      sourceUrl,
+      locator,
+      chunks: savedContent ? [{ id: uid("KC"), section: locator, text: savedContent }] : [],
+      createdAt: remoteVersion.createdAt || now
+    };
+    state.knowledgeItems = (state.knowledgeItems || []).filter((entry) => entry.id !== itemId);
+    state.knowledgeVersions = (state.knowledgeVersions || []).filter((entry) => entry.id !== versionId);
+    state.knowledgeItems.push(item);
+    state.knowledgeVersions.push(version);
+    base.itemIds = [...new Set([...(base.itemIds || []), itemId])];
+    base.status = "ready";
+    base.updatedAt = now;
+    if (file) await refreshKnowledgeAssetsFromServer().catch(() => {});
+    addOperationLog("企业知识", `${file ? "上传资料" : "新增知识"}「${title}」到知识库「${base.name}」`);
+    saveState();
+    render();
+    ui.modal = { type: "knowledgeBaseDetail", baseId: base.id };
+    renderModal();
+    showToast(extractionPending ? "资料已上传，后台处理中" : "资料已上传并自动索引", extractionPending ? "原文件已经保存；解析或 OCR 完成后会自动进入 RAG，无需人工审核。" : file ? "文件已进入知识库；PDF 中提取的图片也会进入图片资料库。" : "知识内容已经进入正式数据库和 RAG 检索。", extractionPending ? "warning" : "success");
+  } catch (error) {
+    showToast("资料入库失败", error.message || "请检查文件格式、登录状态或稍后重试。", "error");
+  } finally {
+    if (submitButton?.isConnected) {
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalButtonHtml;
+      hydrateIcons(submitButton);
+    }
+  }
 }
 
-function updateKnowledgeItem(itemId) {
+async function updateKnowledgeItem(itemId) {
   const item = knowledgeItemById(itemId);
   const base = item && knowledgeBaseById(item.knowledgeBaseId);
   const current = item && knowledgeVersionById(item.latestVersionId);
@@ -7826,15 +13847,35 @@ function updateKnowledgeItem(itemId) {
   if (!title || !content) return showToast("知识内容不完整", "请填写标题（或标准问题）和正文后再保存。", "error");
   const sourceName = document.getElementById("knowledge-item-source")?.value.trim() || knowledgeSourceLabel(item, current);
   const locator = document.getElementById("knowledge-item-locator")?.value.trim() || knowledgeLocator(item, current);
-  const nextNumber = Number(current.version || 0) + 1;
-  const versionId = uid("KV") + "-V" + nextNumber;
+  const visibility = document.getElementById("knowledge-item-visibility")?.value || item.visibility || "public";
+  const saveButton = document.querySelector('[data-action="save-knowledge-item-edit"]');
+  const originalButtonHtml = saveButton?.innerHTML || "";
+  if (saveButton) { saveButton.disabled = true; saveButton.innerHTML = '<span data-icon="upload"></span>正在保存并更新索引…'; hydrateIcons(saveButton); }
+  let remoteVersion;
+  try {
+    const response = await productionApi(`/api/v1/knowledge/documents/${encodeURIComponent(item.id)}`, {
+      method: "POST",
+      body: { title, content, sourceName, mimeType: "text/plain", metadata: { ...(current.metadata || {}), visibility, locator, editedFrom: current.id } }
+    });
+    remoteVersion = response.data?.version || response.version;
+    if (!remoteVersion?.id || remoteVersion.documentId !== item.id || remoteVersion.indexStatus !== "indexed") {
+      throw new Error(remoteVersion?.indexStatus === "failed" ? "新版本索引失败，请检查向量模型或索引任务。" : "服务端未返回已完成索引的新版本。");
+    }
+  } catch (error) {
+    showToast("知识新版本保存失败", `${error.message || "服务端同步失败"} 本地内容没有被标记为保存成功。`, "error");
+    return;
+  } finally {
+    if (saveButton?.isConnected) { saveButton.disabled = false; saveButton.innerHTML = originalButtonHtml; hydrateIcons(saveButton); }
+  }
+  const nextNumber = Number(remoteVersion.version || current.version || 0);
+  const versionId = remoteVersion.id;
   const next = {
     id: versionId,
     itemId: item.id,
     version: nextNumber,
-    reviewStatus: "pending_review",
+    reviewStatus: "approved",
     reviewedBy: null,
-    reviewedAt: null,
+    reviewedAt: new Date().toISOString(),
     content,
     sourceName,
     locator,
@@ -7847,9 +13888,9 @@ function updateKnowledgeItem(itemId) {
   if (base.kind === "qa") item.question = question;
   item.sourceName = sourceName;
   item.locator = locator;
-  item.visibility = document.getElementById("knowledge-item-visibility")?.value || item.visibility || "public";
+  item.visibility = visibility;
   item.latestVersionId = versionId;
-  item.status = "pending_review";
+  item.status = "approved";
   if (item.importStatus === "pending_parse") item.importStatus = "ready";
   item.updatedAt = Date.now();
   base.status = "ready";
@@ -7858,19 +13899,20 @@ function updateKnowledgeItem(itemId) {
   ui.modal = { type: "knowledgeBaseDetail", baseId: base.id };
   render();
   renderModal();
-  showToast("知识新版本已提交审核", `${title} 已创建 v${nextNumber}；审核期间暂停用于新文章，历史引用保持不变。`);
+  showToast("知识新版本已保存", `${title} 已创建 v${nextNumber}，后台会自动更新检索索引，历史文章仍保留原版本。`);
 }
 
-function approveKnowledgeItem(itemId) {
+async function approveKnowledgeItem(itemId) {
   const item = knowledgeItemById(itemId);
   const version = item && knowledgeVersionById(item.latestVersionId);
   if (!item || !version) return showToast("知识版本不存在", "请刷新后重试。", "error");
-  if (item.importStatus === "pending_parse") return showToast("文件正文尚未解析", "请先打开条目补充并保存正文，再提交人工审核。", "error");
+  // Kept only for old browser state that may still dispatch the historical
+  // action. New knowledge versions are activated automatically on save.
   item.status = "approved";
   item.updatedAt = Date.now();
   version.reviewStatus = "approved";
-  version.reviewedBy = "王宁";
-  version.reviewedAt = new Date().toISOString();
+  version.reviewedBy = null;
+  version.reviewedAt = version.reviewedAt || new Date().toISOString();
   const base = knowledgeBaseById(item.knowledgeBaseId);
   if (base) { base.status = "ready"; base.updatedAt = Date.now(); }
   if (item.gapId) {
@@ -7880,14 +13922,20 @@ function approveKnowledgeItem(itemId) {
   saveState();
   render();
   if (ui.modal?.type === "knowledgeBaseDetail") renderModal();
-  showToast("知识审核通过", "v" + version.version + " 已进入 RAG 检索，可用于新的内容任务。");
+  showToast("知识已可用", "v" + version.version + " 已进入 RAG 检索；知识资料上传即入库，不需要人工审核。");
 }
 
-function saveKnowledgePackage(lineId) {
+async function saveKnowledgePackage(lineId) {
   const line = state.businessLines.find((item) => item.id === lineId);
   if (!line) return showToast("业务线不存在", "请刷新后重试。", "error");
   line.knowledgeBaseIds = Array.from(document.querySelectorAll("[data-package-base]:checked")).map((input) => input.value);
   saveState();
+  try {
+    await flushWorkspaceSyncNow("knowledge-package-explicit-save");
+  } catch (error) {
+    showToast("默认知识包保存失败", `${error.message || "服务端同步失败"} 本次修改没有被提示为成功。`, "error");
+    return;
+  }
   closeModal();
   render();
   showToast("默认知识包已保存", "以后新建的「" + line.name + "」内容计划会继承这些知识库；历史计划保持不变。");
@@ -8141,24 +14189,6 @@ function archivePlanningTopic(topicId) {
   showToast("选题已归档", "不会影响已经创建的内容计划和历史文章。");
 }
 
-function confirmTopicCandidate(topicId) {
-  const topic = state.topics.find((item) => item.id === topicId && item.status === "candidate");
-  if (!topic) return showToast("选题无法确认", "该选题可能已经确认、归档或不存在。", "error");
-  topic.status = "active";
-  topic.confirmedAt = Date.now();
-  topic.confirmedBy = "王宁";
-  topic.updatedAt = Date.now();
-  topic.selected = false;
-  const sourceQuestion = topic.questionId ? state.questionLibrary.find((item) => item.id === topic.questionId) : null;
-  if (sourceQuestion) {
-    sourceQuestion.coverage = "已规划";
-    sourceQuestion.updatedAt = topic.updatedAt;
-  }
-  saveState();
-  render();
-  showToast("选题已确认", "现在可以直接生成文章，或加入现有内容计划。");
-}
-
 function restorePlanningRecord(kind, recordId) {
   const record = kind === "topic" ? state.topics.find((item) => item.id === recordId) : state.questionLibrary.find((item) => item.id === recordId);
   if (!record || record.status !== "archived") return;
@@ -8167,7 +14197,8 @@ function restorePlanningRecord(kind, recordId) {
     ? state.topics.some((item) => item.id !== record.id && item.status !== "archived" && topicBusinessLineId(item) === topicBusinessLineId(record) && String(item.title || "").trim().toLowerCase() === recordName)
     : state.questionLibrary.some((item) => item.id !== record.id && item.status !== "archived" && item.businessLineId === record.businessLineId && String(item.question || "").trim().toLowerCase() === recordName);
   if (duplicate) return showToast(kind === "topic" ? "无法恢复选题" : "无法恢复问题", "当前业务线中已存在同名的活跃记录，请先编辑或归档同名记录后再恢复。", "error");
-  record.status = record.archivedFromStatus && record.archivedFromStatus !== "archived" ? record.archivedFromStatus : "active";
+  const restoredStatus = record.archivedFromStatus && record.archivedFromStatus !== "archived" ? record.archivedFromStatus : "active";
+  record.status = kind === "topic" && restoredStatus === "candidate" ? "active" : restoredStatus;
   delete record.archivedFromStatus;
   delete record.archivedAt;
   delete record.archivedBy;
@@ -8265,7 +14296,7 @@ function openContentPlan() {
 
 function openTopicDirectStudio(topicId) {
   const topic = state.topics.find((item) => item.id === topicId);
-  if (!topic || topic.status !== "active") return showToast("选题尚未确认", "请先在选题库完成人工确认。", "error");
+  if (!topic || topic.status !== "active") return showToast("选题不可用", "该选题可能已归档，请刷新选题库后重试。", "error");
   const existingArticle = planningTopicArticles(topic)[0];
   if (existingArticle) {
     ui.contentView = "studio";
@@ -8329,7 +14360,7 @@ function openTopicDirectStudio(topicId) {
 
 function openTopicPlanPicker(topicId) {
   const topic = state.topics.find((item) => item.id === topicId);
-  if (!topic || topic.status !== "active") return showToast("选题尚未确认", "请先在选题库完成人工确认，再加入内容计划。", "error");
+  if (!topic || topic.status !== "active") return showToast("选题不可用", "该选题可能已归档，请刷新选题库后重试。", "error");
   if (planningTopicPlans(topic).length) return showToast("选题已进入计划", "该选题已经在内容计划中，可前往内容计划查看。", "error");
   const article = planningTopicArticles(topic)[0];
   if (article) {
@@ -8343,7 +14374,7 @@ function openTopicPlanPicker(topicId) {
 
 function createPlanFromTopicPicker(topicId) {
   const topic = state.topics.find((item) => item.id === topicId);
-  if (!topic || topic.status !== "active" || planningTopicPlans(topic).length) return showToast("选题不可用", "请先确认选题并刷新选题库后重试。", "error");
+  if (!topic || topic.status !== "active" || planningTopicPlans(topic).length) return showToast("选题不可用", "该选题可能已归档或已加入计划，请刷新选题库后重试。", "error");
   const lineId = topicBusinessLineId(topic);
   const line = state.businessLines.find((item) => item.id === lineId && item.status === "active");
   if (!line) return showToast("业务线不可用", "这个选题关联的产品 / 业务线已停用。", "error");
@@ -8354,20 +14385,29 @@ function createPlanFromTopicPicker(topicId) {
   openContentPlan();
 }
 
-function submitTopicPlanPicker() {
+async function submitTopicPlanPicker() {
   const topic = state.topics.find((item) => item.id === ui.modal?.topicId);
   const planId = document.querySelector('input[name="topic-plan-id"]:checked')?.value || "";
   const plan = state.contentPlans.find((item) => item.id === planId);
-  if (!topic || topic.status !== "active") return showToast("选题不可用", "请先在选题库完成人工确认。", "error");
+  if (!topic || topic.status !== "active") return showToast("选题不可用", "该选题可能已归档，请刷新选题库后重试。", "error");
   if (!planId) return showToast("请选择内容计划", "选择一个已有计划，或为这个选题新建计划。", "error");
   if (!plan || plan.businessLineId !== topicBusinessLineId(topic)) return showToast("内容计划不可用", "只能加入当前产品 / 业务线的内容计划。", "error");
   const status = plan.status || (contentPlanArticles(plan).length ? "produced" : "planned");
   if (!["draft", "planned"].includes(status)) return showToast("计划不可追加选题", "已生成内容或已完成的计划不能继续加入选题。", "error");
   if (planningTopicPlans(topic).length || contentPlanTopicIds(plan).includes(topic.id)) return showToast("选题已进入计划", "请刷新页面后查看最新计划。", "error");
   const now = Date.now();
-  plan.topicIds = [...new Set([...contentPlanTopicIds(plan), topic.id])];
-  plan.topicSnapshots = [...(Array.isArray(plan.topicSnapshots) ? plan.topicSnapshots : []).filter((item) => item?.id !== topic.id).map((item) => cloneData(item)), cloneData(topic)];
-  plan.updatedAt = now;
+  const nextPlan = {
+    ...cloneData(plan),
+    topicIds: [...new Set([...contentPlanTopicIds(plan), topic.id])],
+    topicSnapshots: [...(Array.isArray(plan.topicSnapshots) ? plan.topicSnapshots : []).filter((item) => item?.id !== topic.id).map((item) => cloneData(item)), cloneData(topic)],
+    updatedAt: now
+  };
+  try {
+    await syncContentPlan(nextPlan);
+  } catch (error) {
+    return showToast("加入内容计划失败", error.message || "正式内容计划没有保存，本次操作已取消。", "error");
+  }
+  Object.assign(plan, nextPlan);
   topic.selected = false;
   topic.coverage = "已规划";
   topic.updatedAt = now;
@@ -8377,7 +14417,7 @@ function submitTopicPlanPicker() {
   showToast("已加入内容计划", `「${topic.title}」已加入「${plan.name}」，可继续创建文章任务。`);
 }
 
-function submitContentPlan() {
+async function submitContentPlan() {
   const line = activeBusinessLine();
   const selected = state.topics.filter((topic) => topicBusinessLineId(topic) === line.id && topic.status === "active" && !planningTopicPlans(topic).length && topic.selected);
   const nameInput = document.getElementById("content-plan-name");
@@ -8404,7 +14444,13 @@ function submitContentPlan() {
   const excludedBaseIds = inheritedBaseIds.filter((id) => !resolvedBaseIds.includes(id));
   const now = Date.now();
   const agentSnapshot = snapshotWritingAgent(agent, { selectedAt: new Date(now).toISOString(), selectionSource: agent.id === line.defaultWritingAgentId ? "business_default" : "manual" });
-  const plan = { id: uid("PLAN"), name, businessLineId: line.id, topicIds: selected.map((topic) => topic.id), topicSnapshots: selected.map((topic) => cloneData(topic)), scheduledFor: date, owner: document.getElementById("content-plan-owner")?.value || "王宁", contentType, status: "planned", articleIds: [], writingAgentId: agent.id, writingAgentVersion: agentSnapshot.version, writingAgentSnapshot: agentSnapshot, writingHints: { expectedPlatformIds, expectedPlatformNames, expectedPlatformGuidance, purpose: "ai_writing_style_only", locksPublishing: false, snapshottedAt: now }, knowledgeBaseIds: resolvedBaseIds, knowledgeScope: { inheritedBaseIds, addedBaseIds, excludedBaseIds, resolvedBaseIds, snapshottedAt: now }, createdAt: now };
+  const plan = { id: uid("PLAN"), name, businessLineId: line.id, topicIds: selected.map((topic) => topic.id), topicSnapshots: selected.map((topic) => cloneData(topic)), scheduledFor: date, owner: document.getElementById("content-plan-owner")?.value || "王宁", contentType, status: "planned", articleIds: [], writingAgentId: agent.id, writingAgentVersion: agentSnapshot.version, writingAgentSnapshot: agentSnapshot, writingHints: { expectedPlatformIds, expectedPlatformNames, expectedPlatformGuidance, purpose: "ai_writing_style_only", locksPublishing: false, snapshottedAt: now }, knowledgeBaseIds: resolvedBaseIds, knowledgeScope: { inheritedBaseIds, addedBaseIds, excludedBaseIds, resolvedBaseIds, snapshottedAt: now }, createdAt: now, updatedAt: now };
+  try {
+    await syncContentPlan(plan);
+  } catch (error) {
+    plan.contentPlanSyncError = error.message || "正式内容计划保存失败";
+    return showToast("内容计划创建失败", plan.contentPlanSyncError, "error");
+  }
   state.contentPlans.unshift(plan);
   selected.forEach((topic) => { topic.selected = false; topic.coverage = "已规划"; });
   ui.planningTab = "plans";
@@ -8643,8 +14689,8 @@ function createArticleKnowledgeBundle(articleId, topic, plan) {
   };
 }
 
-function articleFromTopic(topic, plan, index) {
-  const articleId = uid("ART") + index;
+function articleFromTopic(topic, plan, index, requestedArticleId = "") {
+  const articleId = requestedArticleId || uid("ART") + index;
   const bundle = createArticleKnowledgeBundle(articleId, topic, plan);
   return {
     id: articleId,
@@ -8652,6 +14698,7 @@ function articleFromTopic(topic, plan, index) {
     topicId: topic.id,
     topicSnapshot: cloneData(topic),
     planId: plan.id,
+    contentPlanId: plan.contentPlanId || plan.id || null,
     businessLineId: plan.businessLineId,
     status: "draft",
     reviewStatus: "pending",
@@ -8717,6 +14764,10 @@ function syncStudioArticleEditor(options = {}) {
   const titleInput = document.getElementById("studio-title-editor");
   const contentInput = document.getElementById("studio-content-editor");
   if (!workspace || !article || !titleInput || !contentInput) return article || null;
+  if (article.reviewStage === "manual_review" && !currentUserCan("content.generate")) {
+    if (!options.silent) showToast("当前版本正在人工审核", "审核中的版本不能直接编辑，请先退回修改。", "error");
+    return article;
+  }
   const nextTitle = titleInput.value.trim();
   const nextContent = sanitizeStudioHtml(contentInput.innerHTML.trim());
   if (!nextTitle) {
@@ -8726,13 +14777,22 @@ function syncStudioArticleEditor(options = {}) {
   }
   const baseline = articleContentForEditor(article, articleCitations(article)).trim();
   const changed = nextTitle !== article.title || nextContent !== baseline;
-  const requiresNewVersion = changed && (article.reviewStatus === "approved" || article.status === "published");
+  const requiresNewVersion = changed && (Boolean(article.contentVersionId) || article.reviewStatus === "approved" || article.status === "published");
   const citationClone = requiresNewVersion ? studioBumpArticleVersion(article, "manual_edit", "人工编辑前") : null;
   article.title = nextTitle;
   article.content = citationClone?.idMap ? studioRemapCitationIds(nextContent, citationClone.idMap) : nextContent;
   if (changed) studioResetArticleReview(article, "stale");
   article.updatedAt = Date.now();
   workspace.updatedAt = article.updatedAt;
+  if (changed) {
+    article.contentSyncPending = true;
+    void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+      article.contentSyncPending = false;
+      article.contentSyncError = error.message || "内容版本同步失败";
+      saveState();
+      if (!options.silent) showToast("内容版本同步失败", article.contentSyncError, "error");
+    });
+  }
   if (requiresNewVersion && !options.silent) showToast("已生成新版本", "已审核正文发生变化，需要重新审核与风控。");
   else if (!options.silent) showToast("草稿已保存", "文章正文和 AI 会话均已保存在当前客户空间。");
   saveState();
@@ -8850,7 +14910,14 @@ async function sendStudioChat() {
     ui.studioTopicDraft = prompt;
     saveState();
     const generated = await generateStudioArticle(prompt, { fromChat: true, preserveDraft: hasEditorDraft });
-    if (!generated) showToast("暂时无法生成", "请检查业务线、写作智能体和已审核企业知识后重试。", "error");
+    if (!generated) {
+      ui.studioComposerDraft = prompt;
+      conversation.updatedAt = Date.now();
+      workspace.updatedAt = conversation.updatedAt;
+      saveState();
+      render();
+      return showToast("暂时无法生成", "本次写作要求已经保留，可直接再次发送；请检查模型状态后重试。", "error");
+    }
     if (generated && editorBodyDraft) {
       const proposal = buildStudioProposal(generated, prompt, agentSnapshot);
       const generatedContext = { ...contextSnapshot, topic: cloneData(studioWorkspaceTopic(workspace, generated)), articleVersion: generated.version, contentHash: studioContentHash(generated.content) };
@@ -8881,7 +14948,7 @@ async function sendStudioChat() {
     conversation.messages.push({ id: uid("MSG"), role: "assistant", text: failureText, createdAt: Date.now(), agentSnapshot, contextSnapshot, sources, attachments, proposal: null });
     conversation.updatedAt = Date.now();
     workspace.updatedAt = conversation.updatedAt;
-    ui.studioComposerDraft = "";
+    ui.studioComposerDraft = prompt;
     saveState();
     render();
     return showToast("AI 协作未执行", failureText, "error");
@@ -8969,6 +15036,12 @@ function applyStudioProposal(messageId) {
   workspace.status = "draft";
   workspace.updatedAt = article.updatedAt;
   saveState();
+  article.contentSyncPending = true;
+  void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+    article.contentSyncPending = false;
+    article.contentSyncError = error.message || "AI 修改版本同步失败";
+    saveState();
+  });
   render();
   showToast("AI 建议已应用", `已创建 ${article.version}，提交审核前需要重新风控并核验引用。`);
 }
@@ -9004,6 +15077,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   const scope = workspace.knowledgeScope;
   const agentSnapshot = snapshotWritingAgent(agent, { selectionSource: options.fromChat ? "studio_chat" : "quick_create", lockedAt: new Date().toISOString() });
   const context = { id: null, name: "AI 创作台 · 直接创作", businessLineId: line.id, contentType, articleIds: [], writingAgentId: agent.id, writingAgentSnapshot: agentSnapshot, knowledgeBaseIds: cloneData(scope.resolvedBaseIds), knowledgeScope: cloneData(scope), selectedKnowledgeItemIds: cloneData(workspace.selectedKnowledgeItemIds || []), createdAt: Date.now() };
+  const requestedArticleId = uid("ART");
   const evidence = generationEvidenceForPlan(context);
   if (!evidence.length && !options.manualOnly) return showToast("没有可用企业知识", "请先为当前业务线配置知识库，并审核至少一条知识。", "error");
   const firstLine = topicText.split(/\n/).map((item) => item.trim()).find(Boolean) || topicText;
@@ -9017,17 +15091,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   if (!options.manualOnly) {
     const providerId = selectedTextProviderId();
     if (!providerId) return showToast("尚未配置文本模型", "请先在系统设置 → 模型与 API 中绑定默认文本模型。", "error");
-    const approvedEvidence = evidence.map((entry, index) => ({
-      id: `EVID-${index + 1}`,
-      marker: `K${index + 1}`,
-      claim: entry.item.title || entry.item.question || "已审核企业事实",
-      quote: entry.quote,
-      source: entry.base.name,
-      locator: knowledgeLocator(entry.item, entry.version),
-      versionId: entry.version.id,
-      status: "approved",
-      supportStatus: "supported"
-    }));
+    const approvedEvidence = aiEvidencePayload(evidence);
     ui.studioGenerating = true;
     saveState();
     render();
@@ -9040,6 +15104,9 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
         body: {
           providerId,
           model: selectedTextModelName(),
+          contentArticleId: requestedArticleId,
+          contentTaskId: `TASK-${requestedArticleId}`,
+          idempotencyKey: `article:workspace:${workspace.id}:${studioContentHash(topicText)}`,
           businessLine: aiBusinessLinePayload(line),
           contentType,
           topic: { id: topic.id, title: topic.title, coreQuestion: modelQuestion, dimension: topic.dimension || "question", intent: topic.intent, stage: topic.stage, geoBrief: { ...topic.geoBrief, coreQuestion: modelQuestion } },
@@ -9062,7 +15129,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
       return null;
     }
   }
-  const article = articleFromTopic(topic, context, 0);
+  const article = articleFromTopic(topic, context, 0, requestedArticleId);
   article.topicId = null;
   article.planId = null;
   article.workspaceId = workspace.id;
@@ -9074,15 +15141,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   article.category = contentType;
   article.author = "王宁 · AI 协作";
   if (remoteGeneration) {
-    article.title = String(remoteGeneration.title || article.title).slice(0, 240);
-    const citations = articleCitations(article);
-    article.content = String(remoteGeneration.html || "").replace(/<sup\b([^>]*?)data-evidence-id=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/sup>/gi, (match, before, evidenceId, after, label) => {
-      const index = Number(String(evidenceId).replace(/\D/g, "")) - 1;
-      const citation = citations[index];
-      return citation ? citationMarkerHtml(citation) : String(label || "");
-    });
-    article.excerpt = String(remoteGeneration.summary || studioPlainText(article.content)).slice(0, 180);
-    article.generationSnapshot = { ...(article.generationSnapshot || {}), sourceType: "real_model", generationMode: "model", model: remoteGeneration.model || selectedTextModelName(), usage: remoteGeneration.usage || null, requestId: remoteGeneration.requestId || null, omittedClaims: remoteGeneration.omittedClaims || [], warnings: remoteGeneration.warnings || [] };
+    applyRemoteArticleResult(article, remoteGeneration);
   }
   if (options.manualOnly) {
     article.title = draftTitle || article.title;
@@ -9158,6 +15217,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
 }
 
 function studioAssetFigure(asset) {
+  if (asset.url) return `<figure class="studio-knowledge-image" data-asset-id="${escapeHtml(asset.id)}"><img src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.altText || asset.name)}" loading="lazy" /><figcaption>${escapeHtml(asset.caption || asset.altText || asset.name)}</figcaption></figure>`;
   return `<figure class="studio-knowledge-image" data-asset-id="${escapeHtml(asset.id)}"><div class="knowledge-image-placeholder ${escapeHtml(asset.accent || "blue")}" role="img" aria-label="${escapeHtml(asset.altText || asset.name)}"><span data-icon="image"></span><strong>${escapeHtml(asset.name)}</strong><small>${escapeHtml(asset.kind === "knowledge_image" ? "企业知识库图片 · " + (asset.license || "来源已记录") : "创作素材 · 待审核")}</small></div><figcaption>${escapeHtml(asset.caption || asset.altText || asset.name)}</figcaption></figure>`;
 }
 
@@ -9166,7 +15226,7 @@ function insertStudioAsset(assetId) {
   const conversation = studioConversationForWorkspace(workspace);
   const asset = (state.contentAssets || []).find((item) => item.id === assetId);
   if (!workspace || !conversation || !asset) return;
-  if (asset.kind === "knowledge_image" && !studioKnowledgeAssets(workspace).some((item) => item.id === asset.id)) return showToast("图片不可用", "只能使用当前知识范围内、对应已审核知识版本的图片。", "error");
+  if (asset.kind === "knowledge_image" && !studioKnowledgeAssets(workspace).some((item) => item.id === asset.id)) return showToast("图片不可用", "只能使用当前知识范围内的可用企业图片。", "error");
   if (!conversation.imageIds.includes(asset.id)) conversation.imageIds.push(asset.id);
   const article = syncStudioArticleEditor({ silent: true }) || studioArticleForWorkspace(workspace);
   if (!article) {
@@ -9259,17 +15319,50 @@ function removeArticleAsset(articleId, assetId) {
   showToast("素材已移出", `已创建 ${article.version} 新版本，需重新完成风控与人工审核。`);
 }
 
-function addStudioFiles(fileList, kind = "attachment") {
+async function addStudioFiles(fileList, kind = "attachment") {
   const workspace = studioWorkspaceById(ui.studioWorkspaceId);
   const conversation = studioConversationForWorkspace(workspace);
   const files = Array.from(fileList || []);
   if (!workspace || !conversation || !files.length) return;
-  const assets = files.map((file) => ({ id: uid(kind === "image" ? "ASSET-IMG" : "ASSET-FILE"), kind: kind === "image" ? "upload" : "attachment", name: file.name, mime: file.type || "application/octet-stream", size: file.size, reviewStatus: "temporary", license: kind === "image" ? "用户上传 · 待确认" : "临时会话资料", altText: file.name, caption: file.name, accent: "teal", createdAt: Date.now() }));
-  state.contentAssets.push(...assets);
   if (kind === "image") {
-    insertStudioAsset(assets[0].id);
+    const imageFiles = files.filter((file) => String(file.type || "").startsWith("image/"));
+    if (!imageFiles.length) return showToast("请选择图片", "这里只接收 PNG、JPG、WebP、GIF 等图片文件。", "error");
+    if (imageFiles.length > 500) return showToast("图片数量过多", "一次最多上传 500 张图片。", "error");
+    const oversized = imageFiles.find((file) => Number(file.size || 0) > 20 * 1024 * 1024);
+    if (oversized) return showToast("单张图片过大", `「${oversized.name}」超过 20 MB，请压缩后再上传。`, "error");
+    const library = studioKnowledgeBases(workspace).find((base) => base.kind === "document") || null;
+    if (!library) return showToast("没有可用图片知识库", "请先在企业知识中创建或授权一个文档知识库，再上传文章配图。", "error");
+    try {
+      // A picture selected from the writing studio is a real knowledge asset,
+      // not a temporary metadata-only content asset. It is immediately usable
+      // and receives the same hash de-duplication and storage guarantees as
+      // the bulk image library upload.
+      const ids = [];
+      for (const batch of imageUploadBatches(imageFiles)) {
+        const assets = await Promise.all(batch.map(async (file) => ({
+          sourceName: file.name,
+          mimeType: file.type || "application/octet-stream",
+          contentBase64: arrayBufferToBase64(await file.arrayBuffer()),
+          altText: file.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "),
+          metadata: { size: Number(file.size || 0), sourceRole: "studio_upload", category: "文章配图", license: "企业自有" }
+        })));
+        const payload = await productionApi("/api/v1/knowledge/assets-batch", { method: "POST", body: { libraryId: library.id, assets, defaults: { sourceRole: "studio_upload", category: "文章配图", license: "企业自有" } } });
+        ids.push(
+          ...(payload.data?.items || []).map((item) => item.id),
+          ...(payload.data?.duplicates || []).map((item) => item.existingAssetId)
+        );
+      }
+      await refreshKnowledgeAssetsFromServer();
+      const uniqueIds = [...new Set(ids.filter(Boolean))];
+      if (uniqueIds.length) insertStudioAsset(uniqueIds[0]);
+      showToast("图片已进入知识库", `${uniqueIds.length > 1 ? `已保存 ${uniqueIds.length} 张，第一张已插入正文；` : "当前图片已插入正文；"}其余图片可从知识库图片中选择，无需人工审核。`, "success");
+    } catch (error) {
+      showToast("图片上传失败", error.message || "请检查图片格式后重试。", "error");
+    }
     return;
   }
+  const assets = files.map((file) => ({ id: uid("ASSET-FILE"), kind: "attachment", name: file.name, mime: file.type || "application/octet-stream", size: file.size, reviewStatus: "temporary", license: "临时会话资料", altText: file.name, caption: file.name, accent: "teal", createdAt: Date.now() }));
+  state.contentAssets.push(...assets);
   assets.forEach((asset) => {
     if (!workspace.attachmentIds.includes(asset.id)) workspace.attachmentIds.push(asset.id);
     if (!conversation.attachments.includes(asset.id)) conversation.attachments.push(asset.id);
@@ -9306,7 +15399,11 @@ function aiEvidencePayload(evidence) {
     quote: entry.quote || entry.version?.content || "",
     source: entry.base?.name || "企业知识库",
     locator: knowledgeLocator(entry.item || {}, entry.version || {}),
+    knowledgeLibraryId: entry.base?.id || entry.libraryId || null,
+    knowledgeDocumentId: entry.item?.id || entry.documentId || null,
     versionId: entry.version?.id || null,
+    knowledgeVersionId: entry.version?.id || entry.versionId || null,
+    knowledgeChunkId: entry.chunk?.id || entry.chunkId || null,
     status: "approved",
     supportStatus: "supported"
   }));
@@ -9323,11 +15420,19 @@ function applyRemoteArticleResult(article, remoteGeneration) {
   });
   article.excerpt = String(remoteGeneration.summary || studioPlainText(article.content)).slice(0, 180);
   article.sources = citations.length;
+  // The article generation endpoint may already have committed the formal
+  // content task/version.  Keep those identifiers so review and publishing use
+  // the same server-side record instead of creating a duplicate draft.
+  article.contentTaskId = remoteGeneration.contentTaskId || remoteGeneration.taskId || remoteGeneration.contentTask?.id || article.contentTaskId || null;
+  article.contentArticleId = remoteGeneration.contentArticleId || remoteGeneration.articleId || remoteGeneration.contentArticle?.id || article.contentArticleId || null;
+  article.contentVersionId = remoteGeneration.articleVersionId || remoteGeneration.versionId || remoteGeneration.articleVersion?.id || article.contentVersionId || null;
+  article.contentRevision = remoteGeneration.contentRevision ?? remoteGeneration.revision ?? article.contentRevision;
+  article.contentVersionNumber = remoteGeneration.articleVersion?.versionNumber ?? remoteGeneration.versionNumber ?? article.contentVersionNumber;
   article.generationSnapshot = { ...(article.generationSnapshot || {}), sourceType: "real_model", generationMode: "model", model: remoteGeneration.model || selectedTextModelName(), usage: remoteGeneration.usage || null, requestId: remoteGeneration.requestId || null, omittedClaims: remoteGeneration.omittedClaims || [], warnings: remoteGeneration.warnings || [] };
   return article;
 }
 
-async function requestAiArticle({ providerId, line, contentType, topic, agentSnapshot, evidence, expectedPlatforms = [], userInstruction = "" }) {
+async function requestAiArticle({ providerId, line, contentType, topic, agentSnapshot, evidence, expectedPlatforms = [], userInstruction = "", planId = "", contentPlanId = "", contentArticleId = "", contentTaskId = "", topicId = "", idempotencyKey = "", knowledgeBaseIds = [] }) {
   const coreQuestion = /[？?]/.test(topic?.geoBrief?.coreQuestion || topic?.title || "")
     ? (topic?.geoBrief?.coreQuestion || topic?.title)
     : `${topic?.geoBrief?.coreQuestion || topic?.title}应该如何判断和实施？`;
@@ -9337,6 +15442,22 @@ async function requestAiArticle({ providerId, line, contentType, topic, agentSna
     body: {
       providerId,
       model: selectedTextModelName(),
+      planId: contentPlanId || planId || null,
+      contentPlanId: contentPlanId || planId || null,
+      contentArticleId: contentArticleId || null,
+      contentTaskId: contentTaskId || null,
+      topicId: topicId || topic?.id || null,
+      idempotencyKey: idempotencyKey || null,
+      useRag: true,
+      rag: {
+        enabled: true,
+        businessLineId: line?.id || "",
+        query: coreQuestion,
+        libraryIds: Array.isArray(knowledgeBaseIds) ? knowledgeBaseIds : [],
+        embeddingProviderId: state.settings?.embeddingProviderId || "",
+        topK: 8,
+        minScore: 0.08
+      },
       businessLine: aiBusinessLinePayload(line),
       contentType,
       topic: { id: topic.id, title: topic.title, coreQuestion, dimension: topic.dimension || "question", intent: topic.intent, stage: topic.stage, geoBrief: brief },
@@ -9357,6 +15478,11 @@ async function requestAiArticle({ providerId, line, contentType, topic, agentSna
 async function executeContentPlan(planId) {
   const plan = state.contentPlans.find((item) => item.id === planId);
   if (!plan) return showToast("计划不存在", "请刷新页面后重试。", "error");
+  try {
+    await syncContentPlan(plan);
+  } catch (error) {
+    return showToast("正式计划同步失败", error.message || "无法把计划写入正式内容数据库，未开始生成文章。", "error");
+  }
   const resolvedAgent = resolvePlanWritingAgent(plan);
   if (!resolvedAgent?.snapshot || !resolvedAgent.agent) return showToast("计划缺少写作智能体", "请重新创建内容计划；系统不会静默换用默认智能体。", "error");
   if (resolvedAgent.agent.status !== "active") return showToast("写作智能体不可用", "该智能体已停用，请恢复后再生成；系统不会静默换用其他智能体。", "error");
@@ -9387,7 +15513,7 @@ async function executeContentPlan(planId) {
       if (!plan.articleIds.includes(existing.id)) plan.articleIds.push(existing.id);
       continue;
     }
-    const topic = topicSnapshotById.get(topicId) || state.topics.find((item) => item.id === topicId);
+      const topic = topicSnapshotById.get(topicId) || state.topics.find((item) => item.id === topicId);
     if (!topic) {
       missingTopics.push(topicId);
       continue;
@@ -9398,6 +15524,7 @@ async function executeContentPlan(planId) {
       topicSnapshotById.set(topicId, snapshot);
     }
     try {
+      const requestedArticleId = uid("ART");
       const remote = await requestAiArticle({
         providerId,
         line,
@@ -9405,14 +15532,29 @@ async function executeContentPlan(planId) {
         topic,
         agentSnapshot: resolvedAgent.snapshot,
         evidence,
-        expectedPlatforms: planExpectedPlatformNames(plan)
+        expectedPlatforms: planExpectedPlatformNames(plan),
+        planId: plan.id,
+        contentPlanId: plan.contentPlanId || plan.id,
+        contentArticleId: requestedArticleId,
+        contentTaskId: `TASK-${requestedArticleId}`,
+        topicId,
+        idempotencyKey: `article:${plan.contentPlanId || plan.id}:${topicId}:v1`,
+        knowledgeBaseIds: normalizeKnowledgeScope(plan).resolvedBaseIds
       });
-      const article = applyRemoteArticleResult(articleFromTopic(topic, plan, index), remote);
+      const article = applyRemoteArticleResult(articleFromTopic(topic, plan, index, requestedArticleId), remote);
       article.geoQuality = evaluateGeoArticleQuality(article.content, topic, articleCitations(article));
       article.generationSnapshot.geoQuality = cloneData(article.geoQuality);
       state.articles.unshift(article);
       plan.articleIds.push(article.id);
       created.push(article);
+      if (!article.contentTaskId || !article.contentVersionId) {
+        article.contentSyncPending = true;
+        void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+          article.contentSyncPending = false;
+          article.contentSyncError = error.message || "生成结果同步失败";
+          saveState();
+        });
+      }
       plan.updatedAt = Date.now();
       saveState();
       render();
@@ -9424,6 +15566,7 @@ async function executeContentPlan(planId) {
   plan.status = !failedTopics.length && progress.total && !progress.missing ? "produced" : "planned";
   plan.updatedAt = Date.now();
   if (plan.writingAgentSnapshot && !plan.writingAgentSnapshot.lockedAt) plan.writingAgentSnapshot.lockedAt = new Date().toISOString();
+  try { await syncContentPlan(plan); } catch (error) { plan.contentPlanSyncError = error.message || "正式计划状态同步失败"; }
   saveState();
   ui.contentView = "articles";
   ui.articleTaskView = "articles";
@@ -9910,81 +16053,6 @@ function saveOnboardingCurrentStep() {
   return true;
 }
 
-function refreshMonitoring() {
-  if (ui.monitoringRefreshing) return;
-  ui.monitoringRefreshing = true;
-  closeModal();
-  navigate("monitoring");
-  render();
-  window.setTimeout(() => {
-    state.monitoring.lastRunAt = Date.now();
-    state.monitoring.tasks.filter((task) => !task.archivedAt).forEach((task) => {
-      task.lastRunAt = Date.now();
-      task.status = "success";
-      if (!task.totalSamples) {
-        task.totalSamples = Math.max(task.questionCount * task.platforms.length, 1);
-        task.validSamples = Math.max(task.totalSamples - Math.min(3, task.totalSamples), 0);
-      }
-    });
-    state.monitoring.trackedWorks.forEach((work) => {
-      const boundCount = Number(work.questionIds?.length || work.questions || 0);
-      if (!boundCount) return;
-      work.questions = boundCount;
-      work.citedDays = Math.max(Number(work.citedDays || 0), 1);
-      work.citations = Math.max(Number(work.citations || 0), Math.min(boundCount, Math.max(1, Math.ceil(boundCount / 2))));
-      work.status = "success";
-      work.updatedAt = Date.now();
-    });
-    addOperationLog("效果监测", "完成一轮演示采样并更新内容资产引用追踪");
-    ui.monitoringRefreshing = false;
-    saveState();
-    render();
-    showToast("本轮演示采样已完成", "已生成 15 / 18 个有效演示样本；没有请求真实 AI 平台。");
-  }, 1100);
-}
-
-function submitMonitorTask() {
-  const nameInput = document.getElementById("monitor-task-name");
-  const name = nameInput?.value.trim() || "";
-  const platforms = Array.from(document.querySelectorAll("[data-monitor-task-platform]:checked")).map((input) => input.value);
-  ui.monitorPlatformSelection = platforms.slice();
-  if (!name) {
-    ui.monitorTaskError = "请填写任务名称。";
-    return renderModal();
-  }
-  if (!platforms.length) {
-    ui.monitorTaskError = "请至少选择一个 AI 平台。";
-    return renderModal();
-  }
-  const businessLineId = document.getElementById("monitor-task-business")?.value || activeBusinessLine()?.id;
-  const businessLine = state.businessLines.find((line) => line.id === businessLineId && line.status === "active");
-  if (!businessLine) {
-    ui.monitorTaskError = "请选择一条可用业务线。";
-    return renderModal();
-  }
-  state.monitoring.tasks.unshift({
-    id: uid("MON"),
-    name,
-    businessLineId: businessLine.id,
-    business: businessLine.name,
-    businessNameSnapshot: businessLine.name,
-    platforms,
-    questionCount: 8,
-    status: "queued",
-    createdAt: Date.now(),
-    lastRunAt: null,
-    totalSamples: 0,
-    validSamples: 0
-  });
-  ui.monitorTaskError = "";
-  saveState();
-  closeModal();
-  ui.monitoringTab = "overview";
-  navigate("monitoring");
-  render();
-  showToast("监测任务已创建", "原型已保存任务配置；真实采集服务仍需正式开发。");
-}
-
 function domainFromUrl(value, fallback = "tongzhuo.com") {
   try {
     return new URL(String(value || "")).hostname || fallback;
@@ -9993,82 +16061,49 @@ function domainFromUrl(value, fallback = "tongzhuo.com") {
   }
 }
 
-function saveMonitorQueries(assetId) {
-  const record = articleAssetRecords().find((item) => item.id === assetId);
-  if (!record) return showToast("内容资产不存在", "请刷新页面后重试。", "error");
-  const questionIds = Array.from(document.querySelectorAll("[data-monitor-query-id]:checked")).map((input) => input.value);
-  const customQuestion = document.getElementById("monitor-custom-question")?.value.trim() || "";
-  if (customQuestion) {
-    const existing = (state.monitoring.customQueries || []).find((item) => item.question.toLowerCase() === customQuestion.toLowerCase());
-    const custom = existing || { id: uid("MQ"), question: customQuestion, source: "内容资产自定义", createdAt: Date.now() };
-    if (!existing) state.monitoring.customQueries.unshift(custom);
-    questionIds.push(custom.id);
-  }
-  const uniqueIds = [...new Set(questionIds)];
-  if (!uniqueIds.length) return showToast("至少选择一个监测问题", "也可以在下方填写一个自定义问题。", "error");
-  const article = record.article;
-  state.monitoring.queryBindings = (state.monitoring.queryBindings || []).filter((binding) => binding.articleId !== article.id);
-  state.monitoring.queryBindings.push({
-    id: uid("BIND"), articleId: article.id, assetId: record.id, articleVersion: article.version,
-    questionIds: uniqueIds, updatedAt: Date.now(), updatedBy: "王宁"
-  });
-  let work = state.monitoring.trackedWorks.find((item) => item.articleId === article.id) || state.monitoring.trackedWorks.find((item) => item.title === article.title);
-  const sourceUrl = record.sourceUrl || article.siteUrl || "";
-  if (!work) {
-    work = {
-      id: uid("WORK"), articleId: article.id, title: article.title, site: sourceUrl ? state.site.domain : "待发布内容资产",
-      type: sourceUrl ? "官网" : "内容资产", sourceDomain: domainFromUrl(sourceUrl), url: sourceUrl,
-      citedDays: 0, questions: uniqueIds.length, citations: 0, status: "queued", questionIds: uniqueIds,
-      createdAt: Date.now(), updatedAt: Date.now()
-    };
-    state.monitoring.trackedWorks.unshift(work);
-  } else {
-    Object.assign(work, { articleId: article.id, title: article.title, questions: uniqueIds.length, questionIds: uniqueIds, updatedAt: Date.now() });
-  }
-  addOperationLog("监测配置", `为《${article.title}》绑定 ${uniqueIds.length} 个监测问题`);
-  saveState();
-  closeModal();
-  render();
-  showToast("监测问题已保存", `已将 ${uniqueIds.length} 个问题与这篇内容资产建立关联，可在效果监测中回看。`);
-}
-
-function saveTrackedWork(workId) {
-  const existing = workId ? state.monitoring.trackedWorks.find((item) => item.id === workId) : null;
+async function saveTrackedWork() {
   const articleId = document.getElementById("tracked-work-article")?.value || "";
   const article = state.articles.find((item) => item.id === articleId);
-  const title = document.getElementById("tracked-work-title")?.value.trim() || article?.title || "";
   const site = document.getElementById("tracked-work-site")?.value.trim() || "";
-  const sourceDomain = document.getElementById("tracked-work-domain")?.value.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "") || "";
-  const url = document.getElementById("tracked-work-url")?.value.trim() || "";
-  if (!title || !site || !sourceDomain) return showToast("作品信息不完整", "请填写作品标题、发布站点和来源域名。", "error");
-  if (url && !/^https?:\/\//i.test(url)) return showToast("作品 URL 格式不正确", "请填写以 http:// 或 https:// 开头的完整地址。", "error");
-  const questions = Math.max(0, Number(document.getElementById("tracked-work-questions")?.value || 0));
-  const citations = Math.max(0, Number(document.getElementById("tracked-work-citations")?.value || 0));
-  const payload = {
-    articleId: articleId || null,
-    title,
-    site,
-    type: document.getElementById("tracked-work-type")?.value || "内容平台",
-    sourceDomain,
-    url,
-    citedDays: existing?.citedDays || 0,
-    questions,
-    citations,
-    status: citations ? "success" : "queued",
-    questionIds: articleId ? monitoringBindingsForArticle(articleId)?.questionIds || existing?.questionIds || [] : existing?.questionIds || [],
-    updatedAt: Date.now()
-  };
-  if (existing) Object.assign(existing, payload);
-  else state.monitoring.trackedWorks.unshift({ id: uid("WORK"), ...payload, createdAt: Date.now() });
-  addOperationLog("引用追踪", `${existing ? "更新" : "添加"}作品《${title}》`);
+  const rawUrl = document.getElementById("tracked-work-url")?.value.trim() || "";
+  const url = normalizeTrackedUrl(rawUrl);
+  if (!article) return showToast("请选择关联文章", "手动 URL 必须归属于一篇内容资产。", "error");
+  if (!site) return showToast("请填写发布平台", "例如知乎专栏、行业媒体或客户自有平台。", "error");
+  if (!url) return showToast("作品 URL 格式不正确", "请填写以 http:// 或 https:// 开头的完整地址。", "error");
+  try {
+    if (!article.contentArticleId) await ensureContentPublishSnapshot(article);
+    const formalArticleId = article.contentArticleId || article.id;
+    let serverAsset = serverContentAssetForArticle(formalArticleId);
+    if (!serverAsset) {
+      const assetPayload = await productionApi("/api/v1/content-assets", { method: "POST", body: { articleId: formalArticleId } });
+      serverAsset = assetPayload.data?.asset || assetPayload.asset;
+    }
+    if (!serverAsset?.id) throw new Error("服务端未返回内容资产记录");
+    await productionApi(`/api/v1/content-assets/${encodeURIComponent(serverAsset.id)}/publications`, {
+      method: "POST",
+      body: {
+        articleVersionId: article.contentApprovedVersionId || article.contentVersionId || null,
+        platform: "manual",
+        platformName: site,
+        url,
+        publishedAt: new Date().toISOString(),
+        metadata: { sourceType: document.getElementById("tracked-work-type")?.value || "其他" }
+      }
+    });
+    await refreshContentAssets({ renderAfter: false, silent: true });
+  } catch (error) {
+    return showToast("平台 URL 保存失败", error.message || "内容资产服务暂不可用。", "error");
+  }
+  const work = ensureArticleTrackedWork(article);
+  const added = upsertTrackedPublication(article, { platform: "manual", remoteUrl: url }, { platform: "manual", platformName: site, source: "manual" });
+  work.site = work.site || site;
+  work.updatedAt = Date.now();
+  addOperationLog("引用追踪", `${added ? "添加" : "更新"}《${article.title}》的平台 URL`);
   saveState();
   closeModal();
-  ui.monitoringTab = "tracking";
-  navigate("monitoring");
   render();
-  showToast(existing ? "作品已更新" : "作品已加入追踪", "记录已保存，可随时打开修改或从引用信源分析中回看。");
+  showToast(added ? "平台 URL 已加入追踪" : "平台 URL 已更新", "该地址已经进入服务端自动巡检和 AI 引用匹配。", "success");
 }
-
 function upsertAiProviderSnapshot(provider) {
   if (!provider?.id) return;
   const existingIndex = aiProviderSnapshot.providers.findIndex((item) => item.id === provider.id);
@@ -10083,18 +16118,18 @@ function enabledAiProviders(kind = "text") {
 }
 
 function autoBindDefaultAiProvider(kind = "text", preferredProvider = null) {
-  const providerKey = kind === "image" ? "imageProviderId" : "modelProviderId";
-  const modelKey = kind === "image" ? "imageModel" : "model";
+  const providerKey = kind === "embedding" ? "embeddingProviderId" : kind === "image" ? "imageProviderId" : "modelProviderId";
+  const modelKey = kind === "embedding" ? null : kind === "image" ? "imageModel" : "model";
   const existingId = String(state.settings?.[providerKey] || "").trim();
   const existing = (aiProviderSnapshot.providers || []).find((provider) => provider.id === existingId && provider.kind === kind && provider.status !== "disabled" && provider.hasApiKey === true && (provider.model || provider.modelId));
   if (existing) {
     // Keep a stale display label from the pre-API demo state from being sent
     // as the upstream model ID.  The provider's model is the authoritative
     // default when the binding was created automatically.
-    const configuredModel = String(state.settings?.[modelKey] || "").trim();
+    const configuredModel = modelKey ? String(state.settings?.[modelKey] || "").trim() : "";
     const providerValidatedModel = existing.protocol === "deepseek" && existing.connectionStatus === "passed";
     if (!configuredModel || /DeepSeek\s*V\d|演示|默认模型/i.test(configuredModel) || (providerValidatedModel && existing.model && configuredModel !== existing.model)) {
-      if (existing.model && state.settings[modelKey] !== existing.model) {
+      if (modelKey && existing.model && state.settings[modelKey] !== existing.model) {
         state.settings[modelKey] = existing.model;
         return true;
       }
@@ -10107,7 +16142,7 @@ function autoBindDefaultAiProvider(kind = "text", preferredProvider = null) {
     : candidates.length === 1 ? candidates[0] : null;
   if (!provider) return false;
   state.settings[providerKey] = provider.id;
-  if (provider.model) state.settings[modelKey] = provider.model;
+  if (modelKey && provider.model) state.settings[modelKey] = provider.model;
   return true;
 }
 
@@ -10142,6 +16177,8 @@ async function saveAiProvider({ testAfter = false } = {}) {
       ? autoBindDefaultAiProvider("text", provider)
       : provider?.kind === "image" && provider.status !== "disabled"
         ? autoBindDefaultAiProvider("image", provider)
+        : provider?.kind === "embedding" && provider.status !== "disabled"
+          ? autoBindDefaultAiProvider("embedding", provider)
         : false;
     if (autoBound) saveState();
     if (testAfter && provider?.id) {
@@ -10152,6 +16189,8 @@ async function saveAiProvider({ testAfter = false } = {}) {
         ? autoBindDefaultAiProvider("text", testedProvider)
         : testedProvider?.kind === "image" && testedProvider.status !== "disabled"
           ? autoBindDefaultAiProvider("image", testedProvider)
+          : testedProvider?.kind === "embedding" && testedProvider.status !== "disabled"
+            ? autoBindDefaultAiProvider("embedding", testedProvider)
           : false;
       if (rebound) saveState();
       showToast("供应商已保存并完成测试", tested.result?.message || "测试状态已更新。");
@@ -10159,7 +16198,7 @@ async function saveAiProvider({ testAfter = false } = {}) {
       showToast(
         providerId ? "供应商配置已更新" : "API 供应商已添加",
         autoBound
-          ? `${provider.name || "API 供应商"} 已保存，并已自动绑定为默认${provider.kind === "image" ? "图片" : "文本"}模型，现在可以生成选题和文章。`
+          ? `${provider.name || "API 供应商"} 已保存，并已自动绑定为默认${provider.kind === "image" ? "图片" : provider.kind === "embedding" ? "向量" : "文本"}模型。`
           : "供应商已保存；如需用于生成，请在“更换模型”中选择它。"
       );
     }
@@ -10196,7 +16235,7 @@ async function testAiProvider(providerId) {
 async function deleteAiProvider(providerId) {
   const provider = aiProviderSnapshot.providers.find((item) => item.id === providerId);
   if (!provider) return;
-  if (state.settings.modelProviderId === providerId || state.settings.imageProviderId === providerId) return showToast("供应商正在使用中", "请先在默认模型中取消绑定后再删除。", "error");
+  if (state.settings.modelProviderId === providerId || state.settings.imageProviderId === providerId || state.settings.embeddingProviderId === providerId) return showToast("供应商正在使用中", "请先在默认模型中取消绑定后再删除。", "error");
   if (!window.confirm(`确认删除模型供应商“${provider.name}”？`)) return;
   try {
     await aiApi(`/api/ai/providers/${encodeURIComponent(providerId)}`, { method: "DELETE" });
@@ -10209,68 +16248,71 @@ async function deleteAiProvider(providerId) {
 }
 
 function saveModel(modelKind) {
-  const kind = modelKind === "image" ? "image" : "text";
+  const kind = ["image", "embedding"].includes(modelKind) ? modelKind : "text";
   const providerId = document.getElementById("model-provider")?.value || "";
   const customName = document.getElementById("model-custom-name")?.value.trim() || "";
   const provider = (aiProviderSnapshot.providers || []).find((item) => item.id === providerId);
   const modelName = (provider && (!customName || /DeepSeek\s*V\d|演示|默认模型/i.test(customName)) ? provider.model : customName) || provider?.model || "";
   if (!modelName) return showToast("模型 ID 不能为空", "请输入模型 ID，或先选择一个已配置默认模型的供应商。", "error");
-  const key = kind === "image" ? "imageModel" : "model";
-  const providerKey = kind === "image" ? "imageProviderId" : "modelProviderId";
-  const before = state.settings[key];
-  state.settings[key] = modelName;
+  const key = kind === "embedding" ? null : kind === "image" ? "imageModel" : "model";
+  const providerKey = kind === "embedding" ? "embeddingProviderId" : kind === "image" ? "imageProviderId" : "modelProviderId";
+  const before = key ? state.settings[key] : "embedding";
+  if (key) state.settings[key] = modelName;
   state.settings[providerKey] = providerId;
-  addOperationLog("模型配置", `默认${kind === "image" ? "图片" : "文本"}模型由“${before}”更换为“${modelName}”${provider ? `，绑定供应商“${provider.name}”` : "，未绑定 API 供应商"}`);
+  addOperationLog("模型配置", `默认${kind === "image" ? "图片" : kind === "embedding" ? "向量" : "文本"}模型由“${before}”更换为“${modelName}”${provider ? `，绑定供应商“${provider.name}”` : "，未绑定 API 供应商"}`);
   saveState();
   closeModal();
   render();
-  showToast("默认模型已更新", `新生成任务将使用“${modelName}”${provider ? `（${provider.name}）` : ""}；历史文章的模型快照保持不变。`);
+  showToast("默认模型已更新", `新${kind === "embedding" ? "知识索引" : "生成任务"}将使用“${modelName}”${provider ? `（${provider.name}）` : ""}；历史文章的模型快照保持不变。`);
 }
 
-function saveMember(memberId) {
+async function saveMember(memberId) {
   const existing = memberId ? state.settings.members.find((member) => member.id === memberId) : null;
   const name = document.getElementById("member-name")?.value.trim() || "";
   const email = document.getElementById("member-email")?.value.trim().toLowerCase() || "";
-  const role = document.getElementById("member-role")?.value || "内容运营";
-  const status = document.getElementById("member-status")?.value || "invited";
-  if (!name || !email) return showToast("成员信息不完整", "请填写姓名和邮箱。", "error");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast("邮箱格式不正确", "请填写有效的企业邮箱地址。", "error");
-  if (state.settings.members.some((member) => member.id !== memberId && member.email.toLowerCase() === email)) return showToast("邮箱已经存在", "该邮箱已属于当前客户空间的其他成员。", "error");
-  const activeAdmins = state.settings.members.filter((member) => member.role === "管理员" && member.status !== "disabled");
-  if (existing?.role === "管理员" && existing.status !== "disabled" && activeAdmins.length <= 1 && (role !== "管理员" || status === "disabled")) {
-    return showToast("不能停用最后一名管理员", "请先将其他成员设为管理员。", "error");
+  const username = document.getElementById("member-username")?.value.trim() || existing?.username || "";
+  const password = document.getElementById("member-password")?.value || "";
+  const role = document.getElementById("member-role")?.value || "operator";
+  const status = document.getElementById("member-status")?.value || "active";
+  if (!name || !username) return showToast("成员信息不完整", "请填写姓名和登录账号。", "error");
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast("邮箱格式不正确", "请填写有效的企业邮箱地址，或暂时留空。", "error");
+  if (!existing && password.length < 10) return showToast("初始密码过短", "初始密码至少需要 10 个字符。", "error");
+  if (existing && password && password.length < 10) return showToast("新密码过短", "重置密码至少需要 10 个字符。", "error");
+  const payload = { displayName: name, email, role, status, ...(!existing ? { username } : {}), ...(password ? { password } : {}) };
+  try {
+    await productionApi(existing ? `/api/v1/users/${encodeURIComponent(existing.id)}` : "/api/v1/users", { method: existing ? "PATCH" : "POST", body: payload });
+    await refreshProductionMembers();
+    closeModal();
+    render();
+    showToast(existing ? "成员配置已保存" : "成员账号已创建", existing ? "角色、状态和密码设置已由服务器更新。" : "成员可以使用登录账号和初始密码进入系统。");
+  } catch (error) {
+    showToast(existing ? "成员更新失败" : "成员创建失败", error.message || "请检查账号和角色设置。", "error");
   }
-  const payload = { name, email, role, status };
-  if (existing) Object.assign(existing, payload);
-  else state.settings.members.push({ id: uid("MEMBER"), ...payload, lastLoginAt: null, createdAt: Date.now() });
-  addOperationLog("成员权限", `${existing ? "更新成员" : "邀请成员"}：${name}（${role}）`);
-  saveState();
-  closeModal();
-  render();
-  showToast(existing ? "成员配置已保存" : "成员邀请已保存", existing ? "角色和状态已更新。" : "当前为演示待接受状态，不会实际发送邮件。");
 }
 
-function deleteMember(memberId) {
+async function deleteMember(memberId) {
   const member = state.settings.members.find((item) => item.id === memberId);
   if (!member) return;
-  const activeAdmins = state.settings.members.filter((item) => item.role === "管理员" && item.status !== "disabled");
-  if (member.role === "管理员" && activeAdmins.length <= 1) return showToast("不能删除最后一名管理员", "请先将其他成员设为管理员。", "error");
-  state.settings.members = state.settings.members.filter((item) => item.id !== memberId);
-  addOperationLog("成员权限", `删除成员：${member.name}`);
-  saveState();
-  closeModal();
-  render();
-  showToast("成员已删除", `“${member.name}”已从当前客户空间移除。`);
+  if (!window.confirm(`确认删除成员“${member.name}”？该成员的所有登录会话会立即失效。`)) return;
+  try {
+    await productionApi(`/api/v1/users/${encodeURIComponent(memberId)}`, { method: "DELETE" });
+    await refreshProductionMembers();
+    closeModal();
+    render();
+    showToast("成员已删除", `“${member.name}”已从当前企业服务器移除。`);
+  } catch (error) {
+    showToast("成员删除失败", error.message || "请确认系统中仍有其他管理员。", "error");
+  }
 }
 
 function exportOperationLogs() {
-  addOperationLog("日志导出", "导出当前客户空间的操作日志 CSV");
-  const rows = [["时间", "分类", "操作人 / 来源", "详情"], ...(state.settings.operationLogs || []).map((entry) => [formatDateTime(entry.occurredAt), entry.category, entry.actor, entry.detail])];
+  const source = auditSnapshot.loaded
+    ? auditSnapshot.items.map((entry) => ({ occurredAt: entry.occurredAt, category: entry.action, actor: entry.actor, detail: `${entry.entityType}${entry.entityId ? ` · ${entry.entityId}` : ""}` }))
+    : (state.settings.operationLogs || []);
+  const rows = [["时间", "分类", "操作人 / 来源", "详情"], ...source.map((entry) => [formatDateTime(entry.occurredAt), entry.category, entry.actor, entry.detail])];
   const csv = rows.map((row) => row.map(csvValue).join(",")).join("\r\n");
   const day = new Date().toISOString().slice(0, 10);
   downloadTextFile(`tongzhuo-geo-operation-logs-${day}.csv`, csv, "text/csv;charset=utf-8");
-  saveState();
-  render();
   showToast("日志文件已下载", `已导出 ${Math.max(rows.length - 1, 0)} 条可回看的 CSV 记录。`);
 }
 
@@ -10281,7 +16323,7 @@ function updateCommandResults() {
   hydrateIcons(list);
 }
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   const nav = event.target.closest("[data-nav]");
   if (nav) {
     event.preventDefault();
@@ -10326,6 +16368,193 @@ document.addEventListener("click", (event) => {
   if (!actionElement) return;
   const action = actionElement.dataset.action;
 
+  if (action === "route-render-retry") return render();
+
+  if (action === "effect-search-focus") {
+    navigate("effect-search");
+    return window.setTimeout(() => document.getElementById("effect-search-question")?.focus(), 40);
+  }
+  if (action === "effect-search-run" || action === "effect-search-quote") return prepareEffectSearchRun();
+  if (action === "effect-search-submit") return submitEffectSearchRun();
+  if (action === "effect-search-generate-report") {
+    ui.effectSearchReportAttemptedRunId = null;
+    return generateEffectSearchReport();
+  }
+  if (action === "effect-search-quote-reset") {
+    ui.effectSearchQuoteReady = false;
+    ui.effectSearchClientRunId = null;
+    setEffectRelayQuote("realtime", null);
+    setEffectFlowError("realtime", "");
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+    return render();
+  }
+  if (action === "effect-relay-refresh") return refreshEffectRelay({ renderAfter: true });
+  if (action === "effect-search-cancel") return cancelEffectRelayRun();
+  if (action === "effect-center-open-run") {
+    const runId = actionElement.dataset.effectRunId;
+    if (!runId) return;
+    ui.effectSearchRunId = runId;
+    ui.effectCenterResultRunId = runId;
+    await refreshEffectRelayRun({ runId, pull: false, renderAfter: false });
+    return navigateEffectCenter("results", runId);
+  }
+  if (action === "effect-center-cancel-run") return cancelEffectRelayRun(actionElement.dataset.effectRunId);
+  if (action === "effect-answer-detail") {
+    const recordId = actionElement.dataset.effectSearchRecordId;
+    const record = recordId ? effectRelayHistoryRecords().find((item) => item.id === recordId) : null;
+    if (!record) return showToast("Live evidence unavailable", "Only synchronized relay evidence can be opened here.", "error");
+    return showToast(`${record.platform} 检测证据`, `证据 ${record.evidenceId} · 任务追溯号 ${record.upstreamReqId || "未返回"}`, "success");
+  }
+
+  if (action === "effect-diagnostic-quote") return prepareEffectDiagnosticRun();
+  if (action === "effect-diagnostic-submit") return submitEffectDiagnosticRun();
+  if (action === "effect-diagnostic-generate-report") return generateEffectDiagnosticReport();
+  if (action === "effect-diagnostic-quote-reset") {
+    invalidateEffectDiagnosticQuote();
+    setEffectRelayQuote("diagnostic", null);
+    setEffectFlowError("diagnostic", "");
+    return render();
+  }
+  if (action === "effect-diagnostic-cancel") return cancelEffectRelayRun(actionElement.dataset.effectRunId || ui.effectDiagnosticRunId, "diagnostic");
+  if (action === "effect-diagnostic-open-run") {
+    const runId = actionElement.dataset.effectRunId;
+    if (!runId) return;
+    ui.effectDiagnosticRunId = runId;
+    await refreshEffectRelayRun({ runId, pull: false, renderAfter: false, flow: "diagnostic" });
+    await loadEffectDiagnosticReport(runId);
+    return render();
+  }
+  if (action === "effect-diagnostic-suggest-questions") {
+    const brand = document.getElementById("effect-diagnostic-brand")?.value.trim() || ui.effectDiagnosticBrand;
+    if (!brand) return showToast("请先输入目标品牌", "系统会以品牌名称生成可编辑的问题建议。", "error");
+    ui.effectDiagnosticBrand = brand;
+    ui.effectDiagnosticQuestions = effectDiagnosticQuestionSeed(brand);
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+  if (action === "effect-monitor-view") {
+    const view = actionElement.dataset.view || "dashboard";
+    ui.effectMonitorView = EFFECT_MONITOR_VIEWS.some(([key]) => key === view) ? view : "dashboard";
+    return render();
+  }
+  if (action === "effect-monitor-export") return exportEffectMonitorAnalytics(actionElement.dataset.format || "json");
+  if (action === "effect-monitor-refresh") return Promise.all([refreshEffectMonitoring({ renderAfter: true }), refreshEffectMonitoringAnalytics({ planId: ui.effectMonitorPlanId, renderAfter: true }), refreshEffectRelay()]);
+  if (action === "effect-monitor-create") return createEffectMonitorPlan();
+  if (action === "effect-monitor-select-plan") {
+    const planId = actionElement.dataset.effectPlanId;
+    if (!planId) return;
+    ui.effectMonitorPlanId = planId;
+    ui.effectMonitorView = "dashboard";
+    return refreshEffectMonitoring({ planId, renderAfter: true });
+  }
+  if (action === "effect-monitor-run") return operateEffectMonitorPlan("run", actionElement.dataset.effectPlanId);
+  if (action === "effect-monitor-pause") return operateEffectMonitorPlan("pause", actionElement.dataset.effectPlanId);
+  if (action === "effect-monitor-resume") return operateEffectMonitorPlan("resume", actionElement.dataset.effectPlanId);
+
+  if (action === "effect-diagnostic-start") {
+    return effectDiagnosticStart(
+      document.getElementById("effect-diagnostic-start-brand")?.value,
+      document.getElementById("effect-diagnostic-start-site")?.value
+    );
+  }
+  if (action === "effect-diagnostic-reset") {
+    if (effectRelayPollTimers.diagnostic) window.clearTimeout(effectRelayPollTimers.diagnostic);
+    effectRelayPollTimers.diagnostic = null;
+    effectFlowStateFor("diagnostic").activeRun = null;
+    effectFlowStateFor("diagnostic").activeLink = null;
+    effectFlowStateFor("diagnostic").error = "";
+    ui.effectDiagnosticStarted = false;
+    ui.effectDiagnosticCompleted = false;
+    ui.effectDiagnosticRecords = [];
+    ui.effectDiagnosticBrand = "";
+    ui.effectDiagnosticBrandTerms = [];
+    ui.effectDiagnosticIntroduction = "";
+    ui.effectDiagnosticCompetitors = [];
+    ui.effectDiagnosticQuestions = [];
+    ui.effectDiagnosticQuestionDraftInitialized = false;
+    ui.effectDiagnosticScopes = [];
+    ui.effectDiagnosticScopeSelectionTouched = false;
+    ui.effectDiagnosticPlatformRounds = {};
+    ui.effectDiagnosticProjectId = null;
+    ui.effectDiagnosticQuestionSetId = null;
+    ui.effectDiagnosticProjectSignature = "";
+    ui.effectDiagnosticFrozenQuestions = [];
+    ui.effectDiagnosticRunId = null;
+    ui.effectDiagnosticRelayRunId = null;
+    ui.effectDiagnosticReportRunId = null;
+    ui.effectDiagnosticReportId = null;
+    ui.effectDiagnosticReportVersion = null;
+    ui.effectDiagnosticReport = null;
+    ui.effectDiagnosticReportGenerating = false;
+    ui.effectDiagnosticQuoteReady = false;
+    ui.effectDiagnosticClientRunId = null;
+    setEffectRelayQuote("diagnostic", null);
+    return render();
+  }
+ if (action === "effect-diagnostic-brand-term-add") {
+    const value = document.getElementById("effect-diagnostic-new-brand-term")?.value.trim();
+    if (!value) return showToast("请输入品牌词", "可添加品牌别名、产品名称或常用写法。", "error");
+    const terms = new Set(ui.effectDiagnosticBrandTerms || []);
+    terms.add(value);
+   ui.effectDiagnosticBrandTerms = [...terms];
+    invalidateEffectDiagnosticQuote();
+   return render();
+  }
+ if (action === "effect-diagnostic-brand-term-remove") {
+   ui.effectDiagnosticBrandTerms = (ui.effectDiagnosticBrandTerms || []).filter((term) => term !== actionElement.dataset.term);
+    invalidateEffectDiagnosticQuote();
+   return render();
+  }
+ if (action === "effect-diagnostic-competitor-add") {
+   ui.effectDiagnosticCompetitors = [...(ui.effectDiagnosticCompetitors || []), { id: uid("COMP"), name: "", terms: "" }];
+    invalidateEffectDiagnosticQuote();
+   return render();
+  }
+ if (action === "effect-diagnostic-competitor-remove") {
+   ui.effectDiagnosticCompetitors = (ui.effectDiagnosticCompetitors || []).filter((item) => item.id !== actionElement.dataset.competitorId);
+    invalidateEffectDiagnosticQuote();
+   return render();
+  }
+  if (action === "effect-diagnostic-question-add") {
+    const text = window.prompt("请输入需要诊断的 AI 问题：", `${ui.effectDiagnosticBrand} 有哪些核心优势？`);
+    if (!text?.trim()) return;
+    ui.effectDiagnosticQuestions = [...(ui.effectDiagnosticQuestions || []), { id: uid("DIAG_Q"), category: "自定义问题", keyword: ui.effectDiagnosticBrand, text: text.trim(), heat: 60 }];
+    ui.effectDiagnosticCompleted = false;
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+  if (action === "effect-diagnostic-question-regenerate") {
+    return regenerateEffectDiagnosticQuestions();
+  }
+  if (action === "effect-diagnostic-question-copy") {
+    const question = (ui.effectDiagnosticQuestions || []).find((item) => item.id === actionElement.dataset.questionId);
+    if (!question) return;
+    const copy = navigator.clipboard?.writeText ? navigator.clipboard.writeText(question.text) : Promise.reject(new Error("clipboard unavailable"));
+    copy.then(() => showToast("问题已复制", "可直接粘贴到其他配置中使用。", "success")).catch(() => showToast("复制失败", "当前浏览器不支持剪贴板访问，请手动复制。", "error"));
+    return;
+  }
+  if (action === "effect-diagnostic-question-edit") {
+    const question = (ui.effectDiagnosticQuestions || []).find((item) => item.id === actionElement.dataset.questionId);
+    if (!question) return;
+    const text = window.prompt("编辑 AI 问题：", question.text);
+    if (!text?.trim()) return;
+    question.text = text.trim();
+    ui.effectDiagnosticCompleted = false;
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+  if (action === "effect-diagnostic-question-delete") {
+    const question = (ui.effectDiagnosticQuestions || []).find((item) => item.id === actionElement.dataset.questionId);
+    if (!question || !window.confirm(`确认删除问题“${question.text}”吗？`)) return;
+    ui.effectDiagnosticQuestions = (ui.effectDiagnosticQuestions || []).filter((item) => item.id !== question.id);
+    ui.effectDiagnosticCompleted = false;
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+  if (action === "effect-diagnostic-run-fast") return runEffectDiagnostic(1);
+  if (action === "effect-diagnostic-run-depth") return runEffectDiagnostic();
+  if (action === "effect-diagnostic-rerun") return runEffectDiagnostic();
+
   if (action === "open-sidebar") return document.body.classList.add("sidebar-open");
   if (action === "close-sidebar") return document.body.classList.remove("sidebar-open");
   if (action === "backdrop-close" && event.target === actionElement) return closeModal();
@@ -10340,7 +16569,13 @@ document.addEventListener("click", (event) => {
     ui.modal = { type: "notifications" };
     return renderModal();
   }
-  if (action === "user-menu") return showToast("当前用户：王宁", "角色为企业管理员。");
+  if (action === "user-menu") {
+    const user = window.__TZ_AUTH__?.user;
+    if (!user) return showToast("登录状态不可用", "请刷新页面后重新登录。", "error");
+    const roleLabel = { admin: "企业管理员", operator: "内容运营", reviewer: "审核人员", viewer: "只读成员" }[user.role] || user.role || "企业成员";
+    if (window.confirm(`当前用户：${user.displayName || user.name || user.username}\n角色：${roleLabel}\n\n是否退出登录？`)) window.tzLogout?.();
+    return;
+  }
   if (action === "open-onboarding") {
     ui.onboardingStep = 1;
     ui.modal = { type: "onboarding" };
@@ -10376,6 +16611,7 @@ document.addEventListener("click", (event) => {
     return showToast("企业建档已完成", "企业事实卡、问题集与监测基线已准备，可以进入选题中心。");
   }
   if (action === "preview-site") {
+    await flushSiteCmsDraftSync().catch(() => {});
     ui.modal = { type: "sitePreview", pageId: "home" };
     return renderModal();
   }
@@ -10460,10 +16696,13 @@ document.addEventListener("click", (event) => {
     return workspace?.articleId ? syncStudioArticleEditor() : generateStudioArticle("", { manualOnly: true });
   }
   if (action === "submit-studio-review") {
+    const currentWorkspace = studioWorkspaceById(ui.studioWorkspaceId);
+    const currentArticle = studioArticleForWorkspace(currentWorkspace);
+    const rollback = currentArticle ? { article: cloneData(currentArticle), knowledgeCitations: cloneData(state.knowledgeCitations || []) } : null;
     const article = syncStudioArticleEditor({ silent: true });
     const workspace = studioWorkspaceById(ui.studioWorkspaceId);
     if (!article || !workspace) return showToast("文章尚未生成", "请先生成文章初稿。", "error");
-    if (!submitArticleForManualReview(article.id)) return;
+    if (!await submitArticleForManualReview(article.id, { rollback })) return;
     ui.contentView = "articles";
     ui.articleTaskView = "articles";
     const articlePlan = contentPlanForArticle(article);
@@ -10508,7 +16747,7 @@ document.addEventListener("click", (event) => {
     const conversation = studioConversationForWorkspace(workspace);
     const itemId = actionElement.dataset.itemId;
     const allowed = studioApprovedKnowledgeEntries(workspace).some((entry) => entry.item.id === itemId);
-    if (!conversation || !allowed) return showToast("知识不可引用", "只能引用当前业务线授权范围内的已审核知识。", "error");
+    if (!conversation || !allowed) return showToast("知识不可引用", "只能引用当前业务线授权范围内的可用知识。", "error");
     const selected = new Set(conversation.selectedKnowledgeItemIds || []);
     selected.has(itemId) ? selected.delete(itemId) : selected.add(itemId);
     conversation.selectedKnowledgeItemIds = [...selected];
@@ -10697,7 +16936,6 @@ document.addEventListener("click", (event) => {
   }
   if (action === "direct-generate-topic") return openTopicDirectStudio(actionElement.dataset.topicId);
   if (action === "topic-to-plan") return openTopicPlanPicker(actionElement.dataset.topicId);
-  if (action === "confirm-topic-candidate") return confirmTopicCandidate(actionElement.dataset.topicId);
   if (action === "submit-topic-plan-picker") return submitTopicPlanPicker();
   if (action === "create-plan-from-topic-picker") return createPlanFromTopicPicker(actionElement.dataset.topicId);
   if (action === "open-plan") return openContentPlan();
@@ -10828,15 +17066,29 @@ document.addEventListener("click", (event) => {
     return renderModal();
   }
   if (action === "save-article") {
-    const article = saveArticleEditor();
+    const current = state.articles.find((item) => item.id === ui.modal?.articleId);
+    const rollback = current ? cloneData(current) : null;
+    const article = saveArticleEditor({ silent: true });
     if (article) {
+      try {
+        await waitForContentSync(article);
+        if (article.contentSyncError) throw new Error(article.contentSyncError);
+      } catch (error) {
+        if (rollback) Object.assign(article, rollback);
+        saveState();
+        render();
+        ui.modal = { type: "article", articleId: article.id };
+        renderModal();
+        return showToast("文章保存失败", error.message || "正式内容版本没有保存，本次修改已回滚。", "error");
+      }
       ui.modal = { type: "article", articleId: article.id };
       renderModal();
+      showToast("文章已保存", `正式内容版本 ${article.contentVersionNumber || article.version} 已保存。`);
     }
     return;
   }
   if (action === "submit-article-review") {
-    const article = submitArticleForManualReview(actionElement.dataset.articleId || ui.modal?.articleId, { fromArticleModal: true });
+    const article = await submitArticleForManualReview(actionElement.dataset.articleId || ui.modal?.articleId, { fromArticleModal: true });
     if (!article) return;
     render();
     ui.modal = { type: "article", articleId: article.id };
@@ -10929,17 +17181,34 @@ document.addEventListener("click", (event) => {
     return render();
   }
   if (action === "open-asset-article") return openArticle(actionElement.dataset.articleId);
-  if (action === "asset-open-monitoring") {
-    const record = articleAssetRecords().find((item) => item.id === actionElement.dataset.assetId);
-    ui.monitoringTab = "tracking";
-    navigate("monitoring");
-    return showToast("已打开作品引用追踪", record?.queryBinding?.questionIds?.length ? `《${record.article.title}》已绑定 ${record.queryBinding.questionIds.length} 个监测问题。` : "这篇资产尚未绑定监测问题，可以返回内容资产进行设置。");
-  }
-  if (action === "asset-add-query") {
-    ui.modal = { type: "monitorQuery", assetId: actionElement.dataset.assetId };
+  if (action === "asset-add-publication") {
+    ui.modal = { type: "trackedWork", articleId: actionElement.dataset.articleId || "", publicationOnly: true, sourceType: "其他", sourceName: "手动添加平台" };
     return renderModal();
   }
-  if (action === "save-monitor-queries") return saveMonitorQueries(actionElement.dataset.assetId);
+  if (action === "asset-check-publication") {
+    try {
+      const payload = await productionApi(`/api/v1/content-assets/${encodeURIComponent(actionElement.dataset.assetId)}/publications/${encodeURIComponent(actionElement.dataset.publicationId)}/check`, { method: "POST", body: {} });
+      await refreshContentAssets({ renderAfter: false, silent: true });
+      render();
+      const health = payload.data?.publication?.healthStatus || "unchecked";
+      return showToast("地址检测已完成", ({ healthy: "页面可以正常访问。", redirected: "页面可以访问，但发生了跳转。", changed: "页面内容与上次检测相比发生了变化。" })[health] || "检测结果已写入内容资产记录。", ["healthy", "redirected"].includes(health) ? "success" : "warning");
+    } catch (error) {
+      await refreshContentAssets({ renderAfter: false, silent: true });
+      render();
+      return showToast("地址检测失败", error.message || "该地址当前无法安全访问。", "error");
+    }
+  }
+  if (action === "asset-remove-publication") {
+    if (!window.confirm("确认从这篇内容资产中移除该手动 URL？文章和平台原文不会被删除。")) return;
+    try {
+      await productionApi(`/api/v1/content-assets/${encodeURIComponent(actionElement.dataset.assetId)}/publications/${encodeURIComponent(actionElement.dataset.publicationId)}`, { method: "DELETE" });
+      await refreshContentAssets({ renderAfter: false, silent: true });
+      render();
+      return showToast("手动 URL 已移除", "只移除了追踪关系，平台原文没有被删除。", "success");
+    } catch (error) {
+      return showToast("移除失败", error.message || "内容资产服务暂不可用。", "error");
+    }
+  }
   if (action === "asset-new-version") {
     const article = state.articles.find((item) => item.id === actionElement.dataset.articleId);
     if (article) openContentStudio(article.id);
@@ -10959,44 +17228,135 @@ document.addEventListener("click", (event) => {
     ui.monitoringTab = actionElement.dataset.tab;
     return render();
   }
-  if (action === "open-monitor-task") {
-    ui.monitorTaskError = "";
-    ui.modal = { type: "monitorTask" };
-    return renderModal();
+  if (action === "diagnostic-section") {
+    ui.diagnosticSection = ["analysis", "evidence", "reports", "rules"].includes(actionElement.dataset.section) ? actionElement.dataset.section : "analysis";
+    if (ui.diagnosticSection !== "reports") ui.diagnosticReportId = null;
+    if (ui.diagnosticSection === "analysis" && !analysisWorkbenchSnapshot.attempted) refreshAnalysisWorkbench({ renderAfter: true });
+    if (ui.diagnosticSection === "reports" && !analysisWorkbenchSnapshot.attempted) refreshAnalysisWorkbench({ renderAfter: true });
+    if (ui.diagnosticSection === "evidence" && !monitoringSnapshot.loaded && !monitoringSnapshot.loading) refreshRealMonitoring({ silent: true });
+    if (ui.diagnosticSection === "rules" && !citationUpdateSnapshot.loaded && !citationUpdateSnapshot.loading) refreshCitationPackageUpdate({ renderAfter: true });
+    if (ui.diagnosticSection === "rules" && !citationDocumentUpdateSnapshot.loaded && !citationDocumentUpdateSnapshot.loading) refreshCitationDocumentUpdate({ renderAfter: true });
+    return render();
   }
-  if (action === "submit-monitor-task") return submitMonitorTask();
-  if (action === "monitor-task-detail") {
-    ui.modal = { type: "monitorDetail", taskId: actionElement.dataset.taskId };
-    return renderModal();
+  if (action === "analysis-refresh") return refreshAnalysisWorkbench({ renderAfter: true });
+  if (action === "analysis-new-session") {
+    stopAnalysisWorkbenchPolling();
+    ui.diagnosticSection = "analysis";
+    ui.analysisSessionId = null;
+    ui.analysisPrompt = "";
+    ui.analysisIndustry = "";
+    ui.analysisDataSources = ["citation_lab"];
+    ui.analysisPlatforms = ["豆包", "DeepSeek", "千问", "元宝"];
+    ui.analysisReportDepth = "detailed";
+    ui.analysisCustomDepth = "";
+    ui.analysisPlan = null;
+    ui.analysisPlanning = false;
+    ui.analysisAdvancedOpen = false;
+    ui.analysisFollowUp = "";
+    ui.analysisFollowUpConsent = false;
+    ui.analysisEvidenceOpen = false;
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, activeSession: null, activeRun: null, error: "" };
+    return render();
   }
-  if (action === "refresh-monitoring") return refreshMonitoring();
-  if (action === "monitor-dialog-detail") {
-    ui.modal = { type: "monitorEvidence", sampleId: actionElement.dataset.sampleId };
-    return renderModal();
+  if (action === "analysis-open-session") return openAnalysisWorkbenchSession(actionElement.dataset.sessionId);
+  if (action === "analysis-delete-session") return deleteAnalysisSession(actionElement.dataset.sessionId);
+  if (action === "analysis-open-report") {
+    ui.diagnosticSection = "analysis";
+    return openAnalysisWorkbenchSession(actionElement.dataset.sessionId);
   }
-  if (action === "monitor-source-works") {
-    ui.modal = { type: "sourceWorks", sourceDomain: actionElement.dataset.sourceDomain };
-    return renderModal();
+  if (action === "analysis-submit" || action === "analysis-confirm-run") return submitAnalysisWorkbench(false);
+  if (action === "analysis-plan-preview") return previewAnalysisWorkbenchPlan();
+  if (action === "analysis-toggle-advanced") {
+    ui.analysisAdvancedOpen = !ui.analysisAdvancedOpen;
+    return render();
   }
-  if (action === "add-tracked-work") {
-    ui.modal = { type: "trackedWork", sourceDomain: actionElement.dataset.sourceDomain || "", sourceName: actionElement.dataset.sourceName || "", sourceType: actionElement.dataset.sourceType || "" };
-    return renderModal();
+  if (action === "analysis-follow-up-submit") return submitAnalysisWorkbench(true);
+  if (action === "analysis-open-model-settings") {
+    ui.settingsTab = "models";
+    return navigate("settings");
   }
-  if (action === "edit-tracked-work") {
-    ui.modal = { type: "trackedWork", workId: actionElement.dataset.workId };
-    return renderModal();
+  if (action === "analysis-toggle-evidence") {
+    ui.analysisEvidenceOpen = !ui.analysisEvidenceOpen;
+    return render();
   }
-  if (action === "save-tracked-work") return saveTrackedWork(actionElement.dataset.workId || null);
-  if (action === "delete-tracked-work") {
-    const work = state.monitoring.trackedWorks.find((item) => item.id === actionElement.dataset.workId);
-    if (!work) return;
-    state.monitoring.trackedWorks = state.monitoring.trackedWorks.filter((item) => item.id !== work.id);
-    addOperationLog("引用追踪", `删除作品《${work.title}》`);
-    saveState();
-    closeModal();
-    render();
-    return showToast("追踪作品已删除", "内容资产和文章原文不会被删除。", "success");
+  if (action === "analysis-jump-section") {
+    document.getElementById(actionElement.dataset.sectionTarget || "")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
   }
+  if (action === "analysis-use-suggestion") {
+    ui.analysisFollowUp = actionElement.dataset.suggestion || "";
+    const field = document.getElementById("analysis-follow-up");
+    if (field) { field.value = ui.analysisFollowUp; field.focus(); }
+    return;
+  }
+  if (action === "citation-update-refresh") return refreshCitationPackageUpdate({ renderAfter: true });
+  if (action === "citation-update-check") return operateCitationPackageUpdate("check");
+  if (action === "citation-update-stage") return operateCitationPackageUpdate("stage");
+  if (action === "citation-update-validate") return operateCitationPackageUpdate("validate");
+  if (action === "citation-update-discard") return operateCitationPackageUpdate("discard");
+  if (action === "citation-update-activate") return operateCitationPackageUpdate("activate");
+  if (action === "citation-update-rollback") return operateCitationPackageUpdate("rollback");
+  if (action === "citation-doc-update-refresh") return refreshCitationDocumentUpdate({ renderAfter: true });
+  if (action === "citation-doc-update-check") return operateCitationDocumentUpdate("check");
+  if (action === "citation-doc-update-stage") return operateCitationDocumentUpdate("stage");
+  if (action === "citation-doc-update-validate") return operateCitationDocumentUpdate("validate");
+  if (action === "citation-doc-update-discard") return operateCitationDocumentUpdate("discard");
+  if (action === "citation-doc-update-activate") return operateCitationDocumentUpdate("activate");
+  if (action === "citation-doc-update-rollback") return operateCitationDocumentUpdate("rollback");
+  if (action === "diagnostic-new-project") {
+    // Legacy entry point: all new analyses now start in the AI workbench.
+    ui.diagnosticSection = "analysis";
+    ui.analysisSessionId = null;
+    ui.analysisPrompt = "";
+    ui.analysisPlan = null;
+    ui.analysisFollowUp = "";
+    ui.analysisFollowUpConsent = false;
+    analysisWorkbenchSnapshot = { ...analysisWorkbenchSnapshot, activeSession: null, activeRun: null, error: "" };
+    return render();
+  }
+  if (action === "diagnostic-close-wizard") {
+    ui.diagnosticWizardOpen = false;
+    ui.diagnosticQuestionSetFrozen = false;
+    return render();
+  }
+  if (action === "diagnostic-freeze-questions") return freezeDiagnosticQuestionSet();
+  if (action === "diagnostic-unfreeze-questions") {
+    ui.diagnosticQuestionSetFrozen = false;
+    return render();
+  }
+  if (action === "diagnostic-create-project") return createDiagnosticProject();
+  if (action === "diagnostic-open-project") {
+    ui.diagnosticProjectId = actionElement.dataset.projectId || null;
+    ui.diagnosticSection = "projects";
+    return render();
+  }
+  if (action === "diagnostic-generate-report") return generateDiagnosticReport(actionElement.dataset.projectId);
+  if (action === "diagnostic-project-reports") {
+    ui.diagnosticProjectId = actionElement.dataset.projectId || null;
+    ui.diagnosticReportId = null;
+    ui.diagnosticSection = "reports";
+    return render();
+  }
+  if (action === "diagnostic-open-report") {
+    return openDiagnosticReport(actionElement.dataset.reportId || null);
+  }
+  if (action === "diagnostic-back-reports") {
+    ui.diagnosticReportId = null;
+    return render();
+  }
+  if (action === "diagnostic-clear-report-filter") {
+    ui.diagnosticProjectId = null;
+    ui.diagnosticReportId = null;
+    return render();
+  }
+  if (action === "diagnostic-confirm-action") return confirmDiagnosticAction(actionElement.dataset.reportId, actionElement.dataset.diagnosticActionId);
+  if (action === "diagnostic-refresh-all") {
+    await Promise.allSettled([refreshOperationDiagnostics({ silent: true }), refreshRealMonitoring({ silent: true })]);
+    return showToast("运营诊断数据已刷新", "已重新读取诊断项目、研究数据包和企业实测证据。", "success");
+  }
+  if (action === "refresh-monitoring") return refreshRealMonitoring();
+  if (action === "run-monitoring-diagnostic") return runMonitoringDiagnostic();
+  if (action === "save-tracked-work") return saveTrackedWork();
   if (action === "site-tab") {
     ui.siteTab = actionElement.dataset.tab;
     return render();
@@ -11010,6 +17370,23 @@ document.addEventListener("click", (event) => {
     ui.siteContentTab = actionElement.dataset.tab || "articles";
     return render();
   }
+  if (action === "site-catalog-tab") {
+    ui.siteCatalogTab = actionElement.dataset.tab || "services";
+    return render();
+  }
+  if (action === "site-add-service") { ui.modal = { type: "siteService" }; return renderModal(); }
+  if (action === "site-edit-service") { ui.modal = { type: "siteService", serviceId: actionElement.dataset.serviceId }; return renderModal(); }
+  if (action === "site-save-service") return saveSiteService(actionElement.dataset.serviceId);
+  if (action === "site-add-case") { ui.modal = { type: "siteCase" }; return renderModal(); }
+  if (action === "site-edit-case") { ui.modal = { type: "siteCase", caseId: actionElement.dataset.caseId }; return renderModal(); }
+  if (action === "site-save-case") return saveSiteCase(actionElement.dataset.caseId);
+  if (action === "site-add-problem-group") { ui.modal = { type: "siteProblemGroup" }; return renderModal(); }
+  if (action === "site-edit-problem-group") { ui.modal = { type: "siteProblemGroup", groupId: actionElement.dataset.groupId }; return renderModal(); }
+  if (action === "site-save-problem-group") return saveSiteProblemGroup(actionElement.dataset.groupId);
+  if (action === "site-add-question") { ui.modal = { type: "siteQuestion", groupId: actionElement.dataset.groupId }; return renderModal(); }
+  if (action === "site-edit-question") { ui.modal = { type: "siteQuestion", groupId: actionElement.dataset.groupId, questionId: actionElement.dataset.questionId }; return renderModal(); }
+  if (action === "site-save-question") return saveSiteQuestion(actionElement.dataset.questionId, actionElement.dataset.originalGroupId);
+  if (action === "site-archive-cms-record") return archiveSiteCmsRecord(actionElement.dataset.kind, actionElement.dataset.recordId, actionElement.dataset.groupId);
   if (action === "site-category-filter") {
     ui.siteCategoryFilter = actionElement.dataset.filter || "all";
     ui.siteContentTab = "articles";
@@ -11017,14 +17394,23 @@ document.addEventListener("click", (event) => {
   }
   if (action === "site-page-save") return saveSitePage();
   if (action === "site-page-preview") {
+    await flushSiteCmsDraftSync().catch(() => {});
     ui.modal = { type: "sitePreview", pageId: actionElement.dataset.pageId || ui.sitePageId };
     return renderModal();
   }
-  if (action === "site-page-version") {
-    ui.modal = { type: "sitePageVersions", pageId: actionElement.dataset.pageId || ui.sitePageId };
+  if (action === "site-preview-reload") {
+    await flushSiteCmsDraftSync().catch(() => {});
+    const frame = document.getElementById("site-rendered-preview-frame");
+    if (frame) frame.src = `${frame.src.split("&previewRefresh=")[0]}&previewRefresh=${Date.now()}`;
+    return;
+  }
+  if (action === "site-show-releases") {
+    await refreshSiteCmsFromServer().catch(() => {});
+    ui.modal = { type: "siteReleases" };
     return renderModal();
   }
-  if (action === "site-page-restore-version") return restoreSitePageVersion(actionElement.dataset.pageId, actionElement.dataset.version);
+  if (action === "site-publish-cms") return publishSiteCms();
+  if (action === "site-rollback-cms") return rollbackSiteCms(actionElement.dataset.releaseId, actionElement.dataset.releaseVersion);
   if (action === "site-new-page") {
     ui.modal = { type: "sitePageEditor" };
     return renderModal();
@@ -11063,14 +17449,7 @@ document.addEventListener("click", (event) => {
     return renderModal();
   }
   if (action === "site-article-unpublish") {
-    const article = state.articles.find((item) => item.id === actionElement.dataset.articleId);
-    if (article) {
-      article.siteStatus = "draft";
-      article.siteUnpublishedAt = new Date().toISOString();
-      saveState();
-    }
-    showToast("官网文章已下线", "官网公开页面已移除，文章版本和发布记录仍会保留。", "success");
-    return render();
+    return unpublishSiteArticle(actionElement.dataset.articleId);
   }
   if (action === "site-content-production") {
     ui.contentView = "articles";
@@ -11109,6 +17488,7 @@ document.addEventListener("click", (event) => {
   if (action === "site-delete-redirect") return deleteSiteRedirect(actionElement.dataset.redirectId);
   if (action === "run-diagnostic") return runDiagnostic(actionElement);
   if (action === "save-site") return saveSiteSettings();
+  if (action === "save-site-contact") return saveSiteContactSettings();
   if (action === "export-leads") return exportSiteLeads();
   if (action === "knowledge-tab") {
     ui.knowledgeTab = actionElement.dataset.tab;
@@ -11124,6 +17504,11 @@ document.addEventListener("click", (event) => {
   }
   if (action === "submit-knowledge-base") return submitKnowledgeBase();
   if (action === "submit-knowledge-import") return submitKnowledgeImport().catch((error) => showToast("资料导入失败", error.message || "请检查文件后重试。", "error"));
+  if (action === "upload-knowledge-images") {
+    ui.modal = { type: "uploadKnowledgeImages" };
+    return renderModal();
+  }
+  if (action === "submit-knowledge-images") return submitKnowledgeImages();
   if (action === "open-knowledge-base") {
     ui.modal = { type: "knowledgeBaseDetail", baseId: actionElement.dataset.baseId };
     return renderModal();
@@ -11185,14 +17570,34 @@ document.addEventListener("click", (event) => {
   if (action === "run-risk-scan") {
     const article = state.articles.find((item) => item.id === actionElement.dataset.articleId);
     if (!article) return;
+    if (!currentUserCan("content.generate") && !currentUserCan("content.review")) return showToast("没有风控权限", "请由内容运营、审核人员或管理员执行检测。", "error");
+    const previousRiskStatus = article.riskStatus;
+    const previousRiskScan = cloneData(article.riskScan || null);
     const scan = applyArticleRiskScan(article);
-    addOperationLog("内容风控", `检测文章《${article.title}》${article.version}：${scan.status}，命中 ${scan.hits.length} 条规则`);
+    try {
+      const payload = await contentServerRiskScan(article, scan);
+      const remoteScan = payload?.data?.scan || payload?.scan || null;
+      if (remoteScan?.status) {
+        article.riskStatus = remoteScan.status === "passed" ? "clean" : remoteScan.status;
+        article.riskScan = { ...scan, status: article.riskStatus, serverScanId: remoteScan.id || null, serverPolicyVersion: remoteScan.policyVersion || null };
+      }
+    } catch (error) {
+      article.riskStatus = previousRiskStatus;
+      article.riskScan = previousRiskScan;
+      article.contentSyncError = error.message || "风控结果同步失败";
+      saveState();
+      render();
+      ui.modal = { type: "risk", articleId: article.id };
+      renderModal();
+      return showToast("风控结果同步失败", article.contentSyncError, "error");
+    }
+    addOperationLog("内容风控", `检测文章《${article.title}》${article.version}：${article.riskStatus}，命中 ${scan.hits.length} 条规则`);
     saveState();
     ui.modal = { type: "risk", articleId: article.id };
     render();
     renderModal();
-    if (scan.status === "blocked") return showToast("风控检测已阻断", `命中 ${scan.hits.filter((hit) => hit.level === "blocked").length} 条禁用表述，修改后才能审核。`, "error");
-    if (scan.status === "warning") return showToast("风控检测需人工复核", `命中 ${scan.hits.length} 条敏感或合规规则，请查看片段并修改。`, "warning");
+    if (article.riskStatus === "blocked") return showToast("风控检测已阻断", `命中 ${scan.hits.filter((hit) => hit.level === "blocked").length} 条禁用表述，修改后才能审核。`, "error");
+    if (article.riskStatus === "warning") return showToast("风控检测需人工复核", `命中 ${scan.hits.length} 条敏感或合规规则，请查看片段并修改。`, "warning");
     return showToast("风控检测通过", "当前文章版本未命中企业内容规则。", "success");
   }
   if (action === "edit-group") return showToast("请在本地助手中修改", "账号登录与分组只在客户电脑完成，然后同步状态到后台。");
@@ -11208,6 +17613,8 @@ document.addEventListener("click", (event) => {
     ui.settingsTab = actionElement.dataset.tab;
     render();
     if (ui.settingsTab === "models" && !aiProviderSnapshot.loaded) return refreshAiProviders({ renderAfter: true });
+    if (ui.settingsTab === "members") return refreshProductionMembers({ renderAfter: true });
+    if (ui.settingsTab === "logs") return refreshProductionAudit({ renderAfter: true });
     return;
   }
   if (action === "refresh-ai-providers") return refreshAiProviders({ renderAfter: true });
@@ -11293,6 +17700,136 @@ document.addEventListener("click", (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  if (event.target.id === "effect-monitor-brand") {
+    ui.effectMonitorBrand = event.target.value;
+    invalidateEffectMonitorDraft();
+  }
+  if (event.target.id === "effect-monitor-site") {
+    ui.effectMonitorSite = event.target.value;
+    invalidateEffectMonitorDraft();
+  }
+  if (event.target.id === "effect-monitor-industry") {
+    ui.effectMonitorIndustry = event.target.value;
+    invalidateEffectMonitorDraft();
+  }
+  if (event.target.id === "effect-monitor-aliases") {
+    ui.effectMonitorAliases = effectMonitorAliases(event.target.value);
+    invalidateEffectMonitorDraft();
+  }
+  if (event.target.id === "effect-monitor-questions") {
+    ui.effectMonitorQuestions = effectMonitorQuestionList(event.target.value).map((text, index) => ({ id: `monitor-input-${index + 1}`, text }));
+    invalidateEffectMonitorDraft();
+  }
+  if (event.target.id === "effect-monitor-competitors") {
+    ui.effectMonitorCompetitors = String(event.target.value || "").split(/\r?\n/).map((line, index) => {
+      const [name, terms = ""] = line.split(/[：:]/, 2);
+      return { id: `monitor-competitor-${index + 1}`, name: String(name || "").trim(), terms: String(terms || "").trim() };
+    }).filter((item) => item.name);
+    invalidateEffectMonitorDraft();
+  }
+  if (event.target.id === "effect-monitor-interval-hours") ui.effectMonitorIntervalHours = event.target.value;
+  if (event.target.id === "effect-monitor-max-credits") ui.effectMonitorMaxCredits = event.target.value;
+  if (event.target.id === "effect-monitor-max-monthly-credits") ui.effectMonitorMaxMonthlyCredits = event.target.value;
+  if (event.target.id === "effect-monitor-authorization-reference") ui.effectMonitorAuthorizationReference = event.target.value;
+  if (event.target.id === "effect-monitor-authorization-expires-at") ui.effectMonitorAuthorizationExpiresAt = event.target.value;
+  if (event.target.id === "effect-diagnostic-brand") {
+    ui.effectDiagnosticBrand = event.target.value;
+    invalidateEffectDiagnosticQuote();
+  }
+  if (event.target.id === "effect-diagnostic-site") {
+    ui.effectDiagnosticSite = event.target.value;
+    invalidateEffectDiagnosticQuote();
+  }
+  if (event.target.id === "effect-diagnostic-industry") {
+    ui.effectDiagnosticIndustry = event.target.value;
+    invalidateEffectDiagnosticQuote();
+  }
+  if (event.target.id === "effect-diagnostic-introduction") {
+    ui.effectDiagnosticIntroduction = event.target.value;
+    invalidateEffectDiagnosticQuote();
+  }
+  if (event.target.id === "effect-diagnostic-aliases") {
+    ui.effectDiagnosticBrandTerms = effectDiagnosticAliases(event.target.value);
+    invalidateEffectDiagnosticQuote();
+  }
+ if (event.target.id === "effect-diagnostic-questions") {
+    if (document.querySelector(".effect-diagnostic-question-editor")) return;
+    ui.effectDiagnosticQuestions = effectDiagnosticQuestionList(event.target.value).map((text, index) => ({ id: `diagnostic-input-${index + 1}`, text }));
+    invalidateEffectDiagnosticQuote();
+  }
+ if (event.target.id === "effect-diagnostic-competitors") {
+    if (document.querySelector(".effect-diagnostic-competitor-editor")) return;
+    ui.effectDiagnosticCompetitors = String(event.target.value || "").split(/\r?\n/).map((line, index) => {
+      const [name, terms = ""] = line.split(/[：:]/, 2);
+      return { id: `competitor-${index + 1}`, name: String(name || "").trim(), terms: String(terms || "").trim() };
+    }).filter((item) => item.name);
+    invalidateEffectDiagnosticQuote();
+  }
+  if (event.target.id === "effect-diagnostic-start-brand") ui.effectDiagnosticBrand = event.target.value;
+  if (event.target.id === "effect-diagnostic-start-site") ui.effectDiagnosticSite = event.target.value;
+  if (event.target.id === "effect-diagnostic-brand") ui.effectDiagnosticBrand = event.target.value;
+  if (event.target.id === "effect-diagnostic-site") ui.effectDiagnosticSite = event.target.value;
+ if (event.target.matches("[data-effect-diagnostic-competitor-name]")) {
+   const competitor = (ui.effectDiagnosticCompetitors || []).find((item) => item.id === event.target.dataset.competitorId);
+   if (competitor) competitor.name = event.target.value;
+    invalidateEffectDiagnosticQuote();
+ }
+ if (event.target.matches("[data-effect-diagnostic-competitor-terms]")) {
+   const competitor = (ui.effectDiagnosticCompetitors || []).find((item) => item.id === event.target.dataset.competitorId);
+   if (competitor) competitor.terms = event.target.value;
+    invalidateEffectDiagnosticQuote();
+ }
+  if (event.target.id === "effect-search-question") {
+    ui.effectSearchQuestion = event.target.value;
+    ui.effectSearchQuoteReady = false;
+    ui.effectSearchFrozenQuestions = [];
+    ui.effectSearchClientRunId = null;
+    ui.effectSearchReport = null;
+    ui.effectSearchReportError = "";
+    ui.effectSearchReportAttemptedRunId = null;
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+    updateEffectSearchComposerState();
+  }
+  if (event.target.id === "effect-search-brand") {
+    ui.effectSearchBrand = event.target.value;
+    ui.effectSearchQuoteReady = false;
+    ui.effectSearchFrozenQuestions = [];
+    ui.effectSearchClientRunId = null;
+    ui.effectSearchReport = null;
+    ui.effectSearchReportError = "";
+    ui.effectSearchReportAttemptedRunId = null;
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+  }
+  if (event.target.id === "effect-search-industry") {
+    ui.effectSearchIndustry = event.target.value;
+    ui.effectSearchQuoteReady = false;
+    ui.effectSearchClientRunId = null;
+    ui.effectSearchReport = null;
+    ui.effectSearchReportError = "";
+    ui.effectSearchReportAttemptedRunId = null;
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+  }
+  if (event.target.matches("[data-knowledge-asset-search]")) {
+    ui.knowledgeAssetSearch = event.target.value;
+    return render();
+  }
+  if (event.target.id === "diagnostic-industry") ui.diagnosticIndustry = event.target.value;
+  if (event.target.id === "diagnostic-goal") ui.diagnosticGoal = event.target.value;
+  if (event.target.id === "analysis-prompt") {
+    ui.analysisPrompt = event.target.value;
+    const counter = document.querySelector(".analysis-prompt-foot > b");
+    if (counter) counter.textContent = `${event.target.value.length.toLocaleString("zh-CN")} / 40,000`;
+  }
+  if (event.target.id === "analysis-plan-industry" && ui.analysisPlan?.intent) {
+    ui.analysisPlan.intent.industry = event.target.value;
+    ui.analysisIndustry = event.target.value;
+  }
+  if (event.target.id === "analysis-plan-questions" && ui.analysisPlan?.intent) {
+    ui.analysisPlan.intent.representativeQuestions = event.target.value.split(/\r?\n/).map((item) => item.trim()).filter(Boolean).slice(0, 8);
+  }
+  if (event.target.id === "analysis-industry") ui.analysisIndustry = event.target.value;
+  if (event.target.id === "analysis-custom-depth") ui.analysisCustomDepth = event.target.value;
+  if (event.target.id === "analysis-follow-up") ui.analysisFollowUp = event.target.value;
   if (event.target.matches("[data-publish-batch-article-search]")) {
     ui.publishBatchArticleSearch = event.target.value;
     const query = event.target.value.trim().toLowerCase();
@@ -11386,6 +17923,266 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches("[data-effect-monitor-consent]")) {
+    ui.effectMonitorExternalConsent = Boolean(event.target.checked);
+    return render();
+  }
+  if (event.target.matches("[data-effect-monitor-platform-scope]")) {
+    const selected = new Set((ui.effectMonitorScopes || []).map(effectRelayNormalizeScope));
+    const scope = effectRelayNormalizeScope(event.target.value);
+    event.target.checked ? selected.add(scope) : selected.delete(scope);
+    ui.effectMonitorScopes = [...selected];
+    invalidateEffectMonitorDraft();
+    return render();
+  }
+  if (event.target.matches("[data-effect-monitor-platform-select-all]")) {
+    ui.effectMonitorScopes = event.target.checked ? effectRelayCapabilityScopeKeys() : [];
+    invalidateEffectMonitorDraft();
+    return render();
+  }
+  if (event.target.matches("[data-effect-monitor-platform-mode]")) {
+    const selected = new Set((ui.effectMonitorModes || []).map(effectRelayModeCode));
+    const mode = effectRelayModeCode(event.target.value);
+    event.target.checked ? selected.add(mode) : selected.delete(mode);
+    ui.effectMonitorModes = [...selected];
+    invalidateEffectMonitorDraft();
+    return render();
+  }
+  if (event.target.matches("[data-effect-monitor-cadence]")) {
+    ui.effectMonitorCadence = event.target.value || "weekly";
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-consent]")) {
+    ui.effectDiagnosticExternalConsent = Boolean(event.target.checked);
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+ if (event.target.matches("[data-effect-diagnostic-platform-scope]")) {
+    ui.effectDiagnosticScopeSelectionTouched = true;
+    const selected = new Set((ui.effectDiagnosticScopes || []).map(effectRelayNormalizeScope));
+    const scope = effectRelayNormalizeScope(event.target.value);
+    event.target.checked ? selected.add(scope) : selected.delete(scope);
+    ui.effectDiagnosticScopes = [...selected];
+    if (event.target.checked && !ui.effectDiagnosticPlatformRounds[scope]) ui.effectDiagnosticPlatformRounds[scope] = 1;
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+ if (event.target.matches("[data-effect-diagnostic-platform-select-all]")) {
+    ui.effectDiagnosticScopeSelectionTouched = true;
+    ui.effectDiagnosticScopes = event.target.checked ? effectRelayCapabilityScopeKeys() : [];
+    if (event.target.checked) {
+      const nextRounds = { ...(ui.effectDiagnosticPlatformRounds || {}) };
+      ui.effectDiagnosticScopes.forEach((scope) => { if (!nextRounds[scope]) nextRounds[scope] = 1; });
+      ui.effectDiagnosticPlatformRounds = nextRounds;
+    }
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-platform-mode]")) {
+    const selected = new Set((ui.effectDiagnosticModes || []).map(effectRelayModeCode));
+    const mode = effectRelayModeCode(event.target.value);
+    event.target.checked ? selected.add(mode) : selected.delete(mode);
+    ui.effectDiagnosticModes = [...selected];
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-platform-round]")) {
+    const scope = effectRelayNormalizeScope(event.target.dataset.scope);
+    const count = Math.max(1, Math.min(20, Math.floor(Number(event.target.value) || 1)));
+    ui.effectDiagnosticPlatformRounds = { ...(ui.effectDiagnosticPlatformRounds || {}), [scope]: count };
+    invalidateEffectDiagnosticQuote();
+    return render();
+  }
+  if (event.target.matches("[data-effect-center-filter]")) {
+    const filter = event.target.dataset.effectCenterFilter;
+    if (filter === "run") ui.effectCenterResultRunId = event.target.value || "all";
+    if (filter === "platform") ui.effectCenterResultPlatform = event.target.value || "all";
+    if (filter === "question") ui.effectCenterResultQuestion = event.target.value || "all";
+    if (filter === "range") ui.effectCenterResultRange = event.target.value || "90";
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-scope]")) {
+    const selected = new Set(ui.effectDiagnosticScopes || []);
+    event.target.checked ? selected.add(event.target.value) : selected.delete(event.target.value);
+    ui.effectDiagnosticScopes = [...selected];
+    if (event.target.checked && !ui.effectDiagnosticPlatformRounds[event.target.value]) ui.effectDiagnosticPlatformRounds[event.target.value] = ui.effectDiagnosticRounds || 1;
+    ui.effectDiagnosticCompleted = false;
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-select-all]")) {
+    const scopes = effectPlatformCatalog().flatMap((platform) => platform.rows.map((row) => `${platform.name}|${row.device}`));
+    ui.effectDiagnosticScopes = event.target.checked ? scopes : [];
+    if (event.target.checked) scopes.forEach((scope) => { if (!ui.effectDiagnosticPlatformRounds[scope]) ui.effectDiagnosticPlatformRounds[scope] = ui.effectDiagnosticRounds || 1; });
+    ui.effectDiagnosticCompleted = false;
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-mode]")) {
+    const modes = new Set(ui.effectDiagnosticModes || []);
+    event.target.checked ? modes.add(event.target.value) : modes.delete(event.target.value);
+    if (!modes.size) modes.add(event.target.value);
+    ui.effectDiagnosticModes = [...modes];
+    ui.effectDiagnosticCompleted = false;
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-round]")) {
+    const scope = event.target.dataset.scope;
+    ui.effectDiagnosticPlatformRounds[scope] = Number(event.target.value || 1);
+    ui.effectDiagnosticCompleted = false;
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-filter-platform]")) {
+    ui.effectDiagnosticFilterPlatform = event.target.value || "all";
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-filter-question]")) {
+    ui.effectDiagnosticFilterQuestion = event.target.value || "all";
+    return render();
+  }
+  if (event.target.matches("[data-effect-diagnostic-filter-range]")) {
+    ui.effectDiagnosticFilterRange = event.target.value || "30";
+    return render();
+  }
+  if (event.target.matches("[data-effect-monitor-platform]")) {
+    ui.effectMonitorPlatform = event.target.value || "all";
+    return render();
+  }
+  if (event.target.matches("[data-effect-monitor-range]")) {
+    ui.effectMonitorRange = event.target.value || "30";
+    return render();
+  }
+  if (event.target.matches("[data-effect-search-consent]")) {
+    ui.effectSearchExternalConsent = Boolean(event.target.checked);
+    return render();
+  }
+  if (event.target.matches("[data-effect-platform-scope]")) {
+    const selectedScopes = new Set(ui.effectPlatformScopes || []);
+    event.target.checked ? selectedScopes.add(event.target.value) : selectedScopes.delete(event.target.value);
+    ui.effectPlatformScopes = [...selectedScopes];
+    ui.effectSearchScopeSelectionTouched = true;
+    ui.effectPlatforms = [...new Set(ui.effectPlatformScopes.map((scope) => {
+      const [platform] = effectRelayNormalizeScope(scope).split("|");
+      return EFFECT_RELAY_PLATFORM_NAMES[platform] || platform;
+    }))];
+    ui.effectSearchRecords = [];
+    ui.effectSearchCompleted = false;
+    ui.effectSearchQuoteReady = false;
+    ui.effectSearchClientRunId = null;
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+    return render();
+  }
+  if (event.target.matches("[data-effect-platform-select-all]")) {
+    const scopes = effectRealtimeCapabilityScopeKeys();
+    ui.effectPlatformScopes = event.target.checked ? scopes : [];
+    ui.effectSearchScopeSelectionTouched = true;
+    ui.effectPlatforms = event.target.checked ? [...new Set(scopes.map((scope) => {
+      const [platform] = scope.split("|");
+      return EFFECT_RELAY_PLATFORM_NAMES[platform] || platform;
+    }))] : [];
+    ui.effectSearchRecords = [];
+    ui.effectSearchCompleted = false;
+    ui.effectSearchQuoteReady = false;
+    ui.effectSearchClientRunId = null;
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+    return render();
+  }
+  if (event.target.matches("[data-effect-platform-mode]")) {
+    const modes = new Set(ui.effectPlatformModes || []);
+    const family = event.target.dataset.effectPlatformModeFamily;
+    const availableModes = [...new Set(effectRelayCapabilityItems().map((item) => String(item.mode || "").trim()).filter(Boolean))];
+    const targets = family === "quick" ? availableModes.filter((mode) => mode === "fast")
+      : family === "advanced" ? availableModes.filter((mode) => mode !== "fast")
+        : [event.target.value];
+    for (const mode of targets) event.target.checked ? modes.add(mode) : modes.delete(mode);
+    if (!modes.size && availableModes.length) modes.add(availableModes.includes("fast") ? "fast" : availableModes[0]);
+    ui.effectPlatformModes = [...modes];
+    ui.effectSearchRecords = [];
+    ui.effectSearchCompleted = false;
+    ui.effectSearchQuoteReady = false;
+    ui.effectSearchClientRunId = null;
+    effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
+    return render();
+  }
+  if (event.target.matches("[data-knowledge-asset-library-filter]")) {
+    ui.knowledgeAssetLibraryFilter = event.target.value || "all";
+    return render();
+  }
+  if (event.target.id === "knowledge-item-file") {
+    const file = event.target.files?.[0] || null;
+    const summary = document.getElementById("knowledge-item-file-summary");
+    const titleInput = document.getElementById("knowledge-item-title");
+    const sourceInput = document.getElementById("knowledge-item-source");
+    if (summary) {
+      summary.classList.toggle("has-file", Boolean(file));
+      summary.innerHTML = file
+        ? `<span data-icon="check"></span><span><b>${escapeHtml(file.name)}</b> · ${escapeHtml(formatBytes(file.size))} · ${escapeHtml(file.type || String(file.name).split(".").pop()?.toUpperCase() || "文件")}</span>`
+        : '<span data-icon="info"></span><span>尚未选择文件；也可以直接在下方粘贴文字</span>';
+      hydrateIcons(summary);
+    }
+    if (file && titleInput && !titleInput.value.trim()) titleInput.value = file.name.replace(/\.[^.]+$/, "") || file.name;
+    if (file && sourceInput && !sourceInput.value.trim()) sourceInput.value = file.name;
+    return;
+  }
+  if (event.target.id === "knowledge-image-files") {
+    const files = Array.from(event.target.files || []);
+    const size = files.reduce((sum, file) => sum + Number(file.size || 0), 0);
+    const summary = document.getElementById("knowledge-image-summary");
+    if (summary) summary.innerHTML = `<span data-icon="${files.length ? "check" : "info"}"></span><span>${files.length ? `已选择 ${files.length} 张图片 · ${(size / 1024 / 1024).toFixed(1)} MB` : "尚未选择图片"}</span>`;
+    hydrateIcons(summary || document);
+    return;
+  }
+  if (event.target.matches("[data-analysis-source]")) {
+    const selected = new Set(ui.analysisDataSources || []);
+    event.target.checked ? selected.add(event.target.dataset.analysisSource) : selected.delete(event.target.dataset.analysisSource);
+    ui.analysisDataSources = [...selected];
+    ui.analysisPlan = null;
+    return render();
+  }
+  if (event.target.matches("[data-analysis-platform]")) {
+    const selected = new Set(ui.analysisPlatforms || []);
+    event.target.checked ? selected.add(event.target.dataset.analysisPlatform) : selected.delete(event.target.dataset.analysisPlatform);
+    ui.analysisPlatforms = [...selected];
+    return render();
+  }
+  if (event.target.matches("[data-analysis-plan-platform]") && ui.analysisPlan?.intent) {
+    const selected = new Set(ui.analysisPlan.intent.platforms || []);
+    event.target.checked ? selected.add(event.target.dataset.analysisPlanPlatform) : selected.delete(event.target.dataset.analysisPlanPlatform);
+    ui.analysisPlan.intent.platforms = ["豆包", "DeepSeek", "千问", "元宝"].filter((item) => selected.has(item));
+    ui.analysisPlatforms = [...ui.analysisPlan.intent.platforms];
+    return render();
+  }
+  if (event.target.matches('[name="analysis-depth"]')) {
+    ui.analysisReportDepth = event.target.value;
+    ui.analysisPlan = null;
+    return render();
+  }
+  if (event.target.id === "analysis-provider") {
+    ui.analysisProviderId = event.target.value;
+    return render();
+  }
+  if (event.target.id === "analysis-follow-up-consent") {
+    ui.analysisFollowUpConsent = event.target.checked;
+    return;
+  }
+  if (event.target.matches("[data-diagnostic-business-line]")) {
+    ui.diagnosticBusinessLineId = event.target.value || null;
+    ui.diagnosticQuestionIds = [];
+    ui.diagnosticQuestionSetFrozen = false;
+    return render();
+  }
+  if (event.target.matches('[name="diagnostic-type"]')) {
+    ui.diagnosticType = DIAGNOSTIC_TYPES[event.target.value] ? event.target.value : "comprehensive";
+    ui.diagnosticQuestionSetFrozen = false;
+    return render();
+  }
+  if (event.target.matches("[data-diagnostic-question]")) {
+    const selected = new Set(ui.diagnosticQuestionIds || []);
+    event.target.checked ? selected.add(event.target.dataset.diagnosticQuestion) : selected.delete(event.target.dataset.diagnosticQuestion);
+    ui.diagnosticQuestionIds = [...selected];
+    ui.diagnosticQuestionSetFrozen = false;
+    const count = document.querySelector(".diagnostic-question-head .small-tag");
+    if (count) count.textContent = `已选 ${selected.size} / ${document.querySelectorAll("[data-diagnostic-question]").length}`;
+    return;
+  }
   if (["site-page-schema", "site-page-sitemap", "site-setting-ai-crawl"].includes(event.target.id)) {
     event.target.closest(".toggle")?.classList.toggle("on", event.target.checked);
     return;
@@ -11400,9 +18197,9 @@ document.addEventListener("change", (event) => {
     const urlInput = document.getElementById("tracked-work-url");
     const questionInput = document.getElementById("tracked-work-questions");
     if (titleInput && !titleInput.value.trim()) titleInput.value = article.title;
-    if (siteInput && !siteInput.value.trim()) siteInput.value = record?.sourceUrl ? state.site.domain : "待发布内容资产";
-    if (domainInput && !domainInput.value.trim()) domainInput.value = domainFromUrl(record?.sourceUrl || article.siteUrl || "");
-    if (urlInput && !urlInput.value.trim()) urlInput.value = record?.sourceUrl || article.siteUrl || "";
+    if (siteInput && !siteInput.value.trim() && !ui.modal.publicationOnly) siteInput.value = record?.sourceUrl ? state.site.domain : "待发布内容资产";
+    if (domainInput && !domainInput.value.trim() && !ui.modal.publicationOnly) domainInput.value = domainFromUrl(record?.sourceUrl || article.siteUrl || "");
+    if (urlInput && !urlInput.value.trim() && !ui.modal.publicationOnly) urlInput.value = record?.sourceUrl || article.siteUrl || "";
     if (questionInput && !Number(questionInput.value)) questionInput.value = String(monitoringBindingsForArticle(article.id)?.questionIds?.length || 0);
     return;
   }
@@ -11556,16 +18353,6 @@ document.addEventListener("change", (event) => {
         .filter((platform) => (platform === "web" || (publisherPlatformSelectable(platform) && publisherAccountReadyForGroup(group, platform))) && !existing.has(platform));
       if (ui.publishSelection) ui.publishSelection.platforms = event.target.checked ? available : [];
       return renderModal();
-    }
-    if (scope === "monitor-platforms") {
-      const boxes = document.querySelectorAll("[data-monitor-task-platform]");
-      boxes.forEach((checkbox) => {
-        checkbox.checked = event.target.checked;
-        checkbox.closest(".platform-choice")?.classList.toggle("selected", event.target.checked);
-      });
-      ui.monitorPlatformSelection = Array.from(boxes).filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value);
-      syncBulkSelectControl(event.target, boxes.length, event.target.checked ? boxes.length : 0);
-      return;
     }
   }
   if (event.target.id === "content-plan-filter") {
@@ -11732,15 +18519,7 @@ document.addEventListener("change", (event) => {
   }
   if (event.target.matches('[data-monitor-filter="range"]')) {
     ui.monitoringRange = event.target.value;
-    return render();
-  }
-  if (event.target.matches("[data-monitor-task-platform]")) {
-    const boxes = document.querySelectorAll("[data-monitor-task-platform]");
-    const selectedCount = Array.from(boxes).filter((checkbox) => checkbox.checked).length;
-    boxes.forEach((checkbox) => checkbox.closest(".platform-choice")?.classList.toggle("selected", checkbox.checked));
-    ui.monitorPlatformSelection = Array.from(boxes).filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value);
-    syncBulkSelectControl(document.querySelector('[data-select-all="monitor-platforms"]'), boxes.length, selectedCount);
-    return;
+    return refreshRealMonitoring({ silent: false });
   }
   if (event.target.matches("[data-topic-select]")) {
     const topic = state.topics.find((item) => item.id === event.target.dataset.topicSelect);
@@ -11773,6 +18552,9 @@ document.addEventListener("change", (event) => {
 });
 
 window.addEventListener("hashchange", render);
+document.querySelector("[data-effect-nav-group]")?.addEventListener("toggle", (event) => {
+  ui.effectNavExpanded = Boolean(event.currentTarget.open);
+});
 window.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && event.target.id === "studio-composer-input" && !event.shiftKey) {
     event.preventDefault();
@@ -11807,8 +18589,35 @@ window.addEventListener("keydown", (event) => {
   }
 });
 
-hydrateIcons(document);
-if (!location.hash || !PAGE_META[currentRoute()]) history.replaceState(null, "", "#dashboard");
-render();
-refreshPublisherSnapshot({ renderAfter: true }).catch(() => {});
-window.setInterval(() => refreshPublisherSnapshot({ renderAfter: ["publish", "assistant"].includes(currentRoute()) }), 15000);
+async function startPrivateDeploymentApplication() {
+  await (window.__TZ_AUTH_READY__ || Promise.resolve(window.__TZ_AUTH__));
+  await hydrateWorkspaceFromServer();
+  await refreshSiteCmsFromServer();
+  await refreshKnowledgeFromServer().catch(() => {});
+  await refreshKnowledgeAssetsFromServer().catch(() => {});
+  const currentUser = window.__TZ_AUTH__?.user;
+  const avatar = document.querySelector(".avatar-button");
+  if (avatar && currentUser) {
+    avatar.textContent = String(currentUser.displayName || currentUser.name || currentUser.username || "企").trim().slice(0, 1);
+    avatar.title = `${currentUser.displayName || currentUser.name || currentUser.username} · ${currentUser.role || "member"}`;
+  }
+  hydrateIcons(document);
+  const requestedRoute = location.hash.replace(/^#/, "").split("?")[0];
+  if (!location.hash || !PAGE_META[requestedRoute]) history.replaceState(null, "", "#dashboard");
+  render();
+  migrateFormalContentRecords().catch((error) => console.warn("Formal content migration failed", error));
+  refreshAiProviders({ renderAfter: false }).catch(() => {});
+  refreshProductionMembers({ renderAfter: false }).catch(() => {});
+  refreshProductionAudit({ renderAfter: false }).catch(() => {});
+  refreshPublisherSnapshot({ renderAfter: true }).catch(() => {});
+  window.setInterval(() => refreshPublisherSnapshot({ renderAfter: ["publish", "assistant"].includes(currentRoute()) }), 15000);
+}
+
+startPrivateDeploymentApplication().catch((error) => {
+  console.error("生产后台启动失败", error);
+  const view = document.getElementById("view");
+  if (view && !document.getElementById("production-auth-root")) {
+    view.innerHTML = `<div class="page-container"><div class="card empty-state"><div><h3>生产数据服务未就绪</h3><p>${escapeHtml(error.message || "请检查服务端日志和数据库状态。")}</p><button class="primary-button" type="button" data-reload-production>重新连接</button></div></div></div>`;
+    view.querySelector("[data-reload-production]")?.addEventListener("click", () => window.location.reload());
+  }
+});

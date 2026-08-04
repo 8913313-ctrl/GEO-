@@ -1,0 +1,30 @@
+FROM node:24-alpine
+
+ENV NODE_ENV=production \
+    TZ_SITE_BIND_HOST=0.0.0.0 \
+    TZ_SITE_PORT=18080 \
+    TZ_DATA_DIR=/app/data \
+    TZ_DATABASE_PATH=/app/data/tongzhuo-production.sqlite \
+    TZ_SITE_STATIC_ROOT=/site
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev --ignore-scripts; else npm install --omit=dev --ignore-scripts; fi
+
+# The public site does not load the admin console, operational scripts, or the
+# Citation Lab research database.  Keep its image intentionally small so a
+# website-only release can be rebuilt on production hosts with limited disk.
+COPY *.mjs ./
+COPY public-site ./public-site
+RUN mkdir -p /app/data/logs /app/data/backups /app/data/secrets \
+    && chown -R node:node /app
+
+USER node
+EXPOSE 18080
+VOLUME ["/app/data"]
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:18080/health/ready >/dev/null || exit 1
+
+CMD ["node", "site-server.mjs"]

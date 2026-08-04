@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="/rss.xsl"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>桐灼科技资讯与行业观点</title>
+    <link>https://www.example.com/insights.html</link>
+    <description>GEO优化、工业品短视频获客与企业AI落地的行业观点和实践内容。</description>
+    <language>zh-CN</language>
+    <lastBuildDate>Mon, 20 Jul 2026 00:00:00 +0800</lastBuildDate>
+    <atom:link href="https://www.example.com/feed.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>企业官网如何成为AI搜索中的可信答案来源</title>
+      <link>https://www.example.com/article-geo-source.html</link>
+      <guid isPermaLink="true">https://www.example.com/article-geo-source.html</guid>
+      <pubDate>Sat, 11 Jul 2026 09:00:00 +0800</pubDate>
+      <author>桐灼研究</author>
+      <category>GEO优化</category>
+      <description>解释企业官网为什么需要建设清晰、结构化、可引用的公开信源，帮助AI搜索准确理解企业服务。</description>
+    </item>
+  </channel>
+</rss>

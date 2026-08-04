@@ -1,0 +1,34 @@
+[Unit]
+Description=Tongzhuo GEO central relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tongzhuo-relay
+Group=tongzhuo-relay
+WorkingDirectory=/srv/tongzhuo-relay/app
+EnvironmentFile=/srv/tongzhuo-relay/.env
+ExecStart=/usr/bin/node /srv/tongzhuo-relay/app/server.mjs
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/tongzhuo-relay/data /srv/tongzhuo-relay/backups
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+SystemCallArchitectures=native
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
