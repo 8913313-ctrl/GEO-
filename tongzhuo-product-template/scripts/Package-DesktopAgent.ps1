@@ -46,6 +46,7 @@ New-Item -ItemType Directory -Force -Path $stagingAgent | Out-Null
 
 $excludedDirectories = @(
     'node_modules',
+    'browser-runtime',
     'release',
     '.data\profiles',
     '.data\browser-profile',

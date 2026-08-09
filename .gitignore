@@ -54,6 +54,7 @@ tongzhuo-product-template/**/node_modules/
 tongzhuo-product-template/**/.data/
 tongzhuo-product-template/**/vendor/
 tongzhuo-product-template/**/release/
+tongzhuo-product-template/desktop-agent/browser-runtime/
 tongzhuo-product-template/**/*.log
 tongzhuo-product-template/**/*.pid
 

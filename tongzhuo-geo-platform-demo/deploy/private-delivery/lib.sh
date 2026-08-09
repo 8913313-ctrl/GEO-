@@ -235,11 +235,29 @@ pd_assert_release_fingerprint() {
     || pd_die "Release directory does not match the verified delivery fingerprint: $release"
 }
 
+pd_normalize_disabled_compose_secret_placeholders() {
+  local release="$1" placeholder
+  for placeholder in \
+    "$release/deploy/private-delivery/compose-placeholders/relay-client-secret.disabled" \
+    "$release/deploy/private-delivery/compose-placeholders/ad-hoc-diagnostic-api-token.disabled"; do
+    [[ -f "$placeholder" && ! -L "$placeholder" ]] \
+      || pd_die "Disabled Compose secret placeholder is missing or unsafe: $placeholder"
+    if grep -q '[^[:space:]]' "$placeholder"; then
+      pd_die "Disabled Compose secret placeholder must remain empty: $placeholder"
+    fi
+    # The root bootstrap entrypoint reads these deliberately empty sources,
+    # then drops to node. Keep source files private on the host even though
+    # the application will receive no runtime secret for blank placeholders.
+    chmod 600 "$placeholder"
+  done
+}
+
 pd_copy_release() {
   local source_root="$1" destination="$2" expected_fingerprint="${3:-}" temporary
   pd_validate_app_source "$source_root"
   if [[ -d "$destination" ]]; then
     pd_validate_app_source "$destination"
+    pd_normalize_disabled_compose_secret_placeholders "$destination"
     if [[ -n "$expected_fingerprint" ]]; then
       pd_assert_release_fingerprint "$destination" "$expected_fingerprint"
     fi
@@ -261,6 +279,7 @@ pd_copy_release() {
     pd_die "Could not stage release files."
   fi
   pd_validate_app_source "$temporary"
+  pd_normalize_disabled_compose_secret_placeholders "$temporary"
   if [[ -n "$expected_fingerprint" ]]; then
     printf '%s\n' "$expected_fingerprint" > "$temporary/.tongzhuo-release-fingerprint"
     chmod 600 "$temporary/.tongzhuo-release-fingerprint"
@@ -488,6 +507,7 @@ pd_backup_release() {
     -v "$SITE_DIR:/site:ro" \
     -v "$release/deploy:/deployment-config/release:ro" \
     -v "$CUTOVER_ENV:/deployment-config/cutover.env:ro" \
+    -e TZ_GEO_ADMIN_MAINTENANCE_ROOT=1 \
     -e TZ_SITE_STATIC_ROOT=/site \
     -e TZ_DEPLOY_CONFIG_DIR=/deployment-config \
     geo-admin node scripts/backup-production.mjs "$container_path" >&2
@@ -526,6 +546,7 @@ pd_restore_release() {
   # same-filesystem swap of the staged website directory.
   pd_compose "$release" run --rm --no-deps --user 0 \
     -v "$source:/restore:ro" \
+    -e TZ_GEO_ADMIN_MAINTENANCE_ROOT=1 \
     -e "TZ_SITE_STATIC_ROOT=$container_site_stage" \
     -e "TZ_DEPLOY_CONFIG_DIR=$container_config_stage" \
     geo-admin sh -ceu 'node scripts/restore-production.mjs /restore --force; chown -R node:node /app/data' >&2 \

@@ -292,6 +292,11 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
     companyName: cleanText(settingsSource.companyName, profile.companyName || profile.brandName || "企业", 300),
     description: cleanText(settingsSource.description, profile.introduction || profile.serviceDescription || "企业公开信息、产品服务与行业内容。", 800),
     officialDomain: cleanText(settingsSource.officialDomain, legacySite.domain || profile.officialDomain || "", 300).replace(/^https?:\/\//i, "").replace(/\/+$/, ""),
+    // The public canonical domain and the backend's crawl target may differ
+    // during a migration (for example an HTTP staging origin on port 18080).
+    // Keep the target explicit so an operator does not have to guess the
+    // protocol from the canonical domain on every diagnostic run.
+    diagnosticUrl: cleanPublicUrl(settingsSource.diagnosticUrl),
     industryRegion: cleanText(settingsSource.industryRegion, profile.industryRegion || "", 200),
     serviceArea: cleanText(settingsSource.serviceArea, profile.serviceArea || "", 200),
     phone: cleanText(settingsSource.phone, profile.phone || profile.contactPhone || "", 80),
@@ -335,8 +340,8 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const rawNav = Array.isArray(cms.navItems) ? cms.navItems : [];
   const fallbackNav = [
     { id: "nav-home", label: "首页", path: "/" }, { id: "nav-services", label: "产品与服务", path: "/services/" },
-    { id: "nav-cases", label: "服务案例", path: "/cases/" }, { id: "nav-insights", label: "行业资讯", path: "/insights/" },
-    { id: "nav-problem-map", label: "问题地图", path: "/problem-map/" }, { id: "nav-about", label: "关于我们", path: "/about/" },
+    { id: "nav-about", label: "关于我们", path: "/about/" }, { id: "nav-cases", label: "服务案例", path: "/cases/" },
+    { id: "nav-insights", label: "行业资讯", path: "/insights/" }, { id: "nav-problem-map", label: "问题地图", path: "/problem-map/" },
     { id: "nav-contact", label: "联系我们", path: "/contact/" }
   ];
   const navItems = (rawNav.length ? rawNav : fallbackNav).filter((item) => item && typeof item === "object").slice(0, 12).map((item, index) => {

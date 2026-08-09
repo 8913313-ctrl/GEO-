@@ -18,6 +18,9 @@ x-common-env: &common-env
 services:
   geo-admin:
     <<: *app-build
+    # Root is used only by the entrypoint to transfer file-backed Compose
+    # secrets into a tmpfs; it immediately execs the application as node.
+    user: "0:0"
     build:
       context: ..
       dockerfile: Dockerfile
@@ -29,24 +32,20 @@ services:
       # These paths are set only inside the backend container.  The actual
       # values arrive as Compose secrets and never enter app.env, the image,
       # browser code, or `docker inspect` environment output.
-      TZ_RELAY_CLIENT_SECRET_FILE: /run/secrets/tz_relay_client_secret
-      TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE: /run/secrets/tz_ad_hoc_diagnostic_api_token
+      TZ_RELAY_CLIENT_SECRET_FILE: /run/tongzhuo-runtime-secrets/tz_relay_client_secret
+      TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE: /run/tongzhuo-runtime-secrets/tz_ad_hoc_diagnostic_api_token
     volumes:
       - geo-production-data:/app/data
+    tmpfs:
+      - /run/tongzhuo-runtime-secrets:rw,noexec,nosuid,nodev,size=1m
     # Keep both credentials off the public site and TLS proxy.  An empty,
     # package-owned placeholder is used until the customer instance is
     # provisioned, so a blank private delivery remains runnable.
     secrets:
       - source: tz_relay_client_secret
         target: tz_relay_client_secret
-        uid: "1000"
-        gid: "1000"
-        mode: 0400
       - source: tz_ad_hoc_diagnostic_api_token
         target: tz_ad_hoc_diagnostic_api_token
-        uid: "1000"
-        gid: "1000"
-        mode: 0400
     # The management UI is reachable only through the loopback HTTPS proxy
     # below. It never binds an application port to the public network.
     expose:

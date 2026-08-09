@@ -345,8 +345,9 @@ if (( FRESH_INSTALL )); then
     pd_restore_release "$RELEASE_PATH" "$RESTORE_BACKUP"
   elif [[ -n "$LEGACY_EXPORT" ]]; then
     pd_log "Importing validated legacy GEOFlow data into the new data volume."
-    pd_compose "$RELEASE_PATH" run --rm --no-deps \
+    pd_compose "$RELEASE_PATH" run --rm --no-deps --user 0 \
       -v "$LEGACY_EXPORT:/migration/legacy-geoflow-export.json:ro" \
+      -e TZ_GEO_ADMIN_MAINTENANCE_ROOT=1 \
       geo-admin node scripts/import-legacy-geoflow.mjs \
       --input /migration/legacy-geoflow-export.json --workspace default --initialize-workspace
   fi

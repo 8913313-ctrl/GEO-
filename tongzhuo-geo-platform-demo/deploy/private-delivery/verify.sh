@@ -55,6 +55,14 @@ assert_private_file() {
   fi
 }
 
+assert_root_owned_secret_source() {
+  local file="$1" label="$2" owner
+  assert_private_file "$file" "$label"
+  owner="$(stat -c '%u:%g' "$file")"
+  [[ "$owner" == "0:0" ]] \
+    || pd_die "$label must be owned by root:root because the bootstrap entrypoint reads the host-side source (current owner: $owner)."
+}
+
 assert_blank_app_env_value() {
   local key="$1" value
   value="$(pd_read_env_value "$APP_ENV" "$key")"
@@ -91,10 +99,10 @@ done
 relay_secret_source="$(pd_compose_secret_source_path TZ_RELAY_CLIENT_SECRET_HOST_PATH)"
 ad_hoc_secret_source="$(pd_compose_secret_source_path TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_HOST_PATH)"
 if [[ -n "$relay_secret_source" ]]; then
-  assert_private_file "$relay_secret_source" "Relay HMAC Compose secret source"
+  assert_root_owned_secret_source "$relay_secret_source" "Relay HMAC Compose secret source"
 fi
 if [[ -n "$ad_hoc_secret_source" ]]; then
-  assert_private_file "$ad_hoc_secret_source" "Ad-hoc diagnostic Compose secret source"
+  assert_root_owned_secret_source "$ad_hoc_secret_source" "Ad-hoc diagnostic Compose secret source"
 fi
 if [[ "$relay_identity_count" == "3" ]]; then
   [[ -n "$relay_secret_source" ]] \
@@ -130,10 +138,29 @@ for secret_target in /run/secrets/tz_relay_client_secret /run/secrets/tz_ad_hoc_
   printf '%s\n' "$admin_secret_targets" | grep -Fxq "$secret_target" \
     || pd_die "geo-admin is missing the required Compose secret mount: $secret_target"
 done
+docker exec "$admin_container" sh -ceu \
+  'test "$(stat -c "%u:%g:%a" /run/tongzhuo-runtime-secrets)" = "0:1000:710"; test "$(ps -o user= -p 1 | tr -d " ")" = "node"' >/dev/null 2>&1 \
+  || pd_die "geo-admin bootstrap did not create the expected root:node tmpfs or did not drop PID 1 to node."
+for raw_secret_target in /run/secrets/tz_relay_client_secret /run/secrets/tz_ad_hoc_diagnostic_api_token; do
+  runtime_secret_target="/run/tongzhuo-runtime-secrets/$(basename "$raw_secret_target")"
+  case "$raw_secret_target" in
+    /run/secrets/tz_relay_client_secret) secret_source="$relay_secret_source" ;;
+    /run/secrets/tz_ad_hoc_diagnostic_api_token) secret_source="$ad_hoc_secret_source" ;;
+  esac
+  if [[ -n "$secret_source" ]] && secret_file_has_value "$secret_source"; then
+    docker exec --user node "$admin_container" sh -ceu \
+      "test ! -r '$raw_secret_target'; test -r '$runtime_secret_target'; test \"\$(stat -c '%u:%g:%a' '$runtime_secret_target')\" = '1000:1000:400'" >/dev/null 2>&1 \
+      || pd_die "geo-admin runtime secret transfer is unsafe or unreadable: $runtime_secret_target"
+  else
+    docker exec --user node "$admin_container" sh -ceu \
+      "test ! -r '$raw_secret_target'; test ! -e '$runtime_secret_target'" >/dev/null 2>&1 \
+      || pd_die "geo-admin left an unexpected runtime secret file: $runtime_secret_target"
+  fi
+done
 admin_environment="$(docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' "$admin_container")"
-printf '%s\n' "$admin_environment" | grep -Fxq 'TZ_RELAY_CLIENT_SECRET_FILE=/run/secrets/tz_relay_client_secret' \
+printf '%s\n' "$admin_environment" | grep -Fxq 'TZ_RELAY_CLIENT_SECRET_FILE=/run/tongzhuo-runtime-secrets/tz_relay_client_secret' \
   || pd_die "geo-admin does not use the relay Compose secret file path."
-printf '%s\n' "$admin_environment" | grep -Fxq 'TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE=/run/secrets/tz_ad_hoc_diagnostic_api_token' \
+printf '%s\n' "$admin_environment" | grep -Fxq 'TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE=/run/tongzhuo-runtime-secrets/tz_ad_hoc_diagnostic_api_token' \
   || pd_die "geo-admin does not use the ad-hoc Compose secret file path."
 if printf '%s\n' "$admin_environment" | grep -Eq '^TZ_RELAY_CLIENT_SECRET=.+$|^TZ_AD_HOC_DIAGNOSTIC_API_TOKEN=.+$'; then
   pd_die "geo-admin received a plaintext relay or ad-hoc secret environment variable."

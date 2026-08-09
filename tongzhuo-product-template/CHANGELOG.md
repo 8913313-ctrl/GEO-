@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.8.14] - 2026-08-06
+
+- Bundle Chromium for Edge-free customer publishing and apply the native Tongzhuo icon across the desktop application.
+
 ## [1.8.10] - 2026-07-24
 
 - Synchronize each platform's backend login label from the local desktop browser session, including automatic detection after login and periodic rechecks for expiry, verification, or risk controls.

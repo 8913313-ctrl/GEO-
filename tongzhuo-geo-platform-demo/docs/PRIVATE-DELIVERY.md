@@ -108,7 +108,7 @@ sha256sum -c SHA256SUMS
 /opt/tongzhuo-geo/shared/relay-inputs/relay-client-secret
 ```
 
-该路径必须是绝对路径、普通文件，目录应为 `0700`，文件不能被 group/other 读取或写入。Docker Compose 的本地 `file:` Secret 实现通常以只读 bind mount 提供源文件，不能依赖 YAML 的 `uid/gid/mode` 改写原文件权限；因此文件应由容器内的 `node` UID `1000` 独占读取（推荐 `0400`、owner `1000`），或按客户的 rootless Docker UID 映射由 Secret Manager 交付。不要在 shell 历史、脚本、工单或 `app.env` 中粘贴密钥。
+该路径必须是绝对路径、普通文件，目录应为 `0700`，文件必须为 `root:root`、`0600`，且不能被 group/other 读取或写入。Docker Compose 的本地 `file:` Secret 会以只读 bind mount 提供源文件，不能依赖 YAML 的 `uid/gid/mode` 改写权限；`geo-admin` 的 root 启动阶段会将其复制到容器内 tmpfs，再立即降权为 `node` 运行应用。不要在 shell 历史、脚本、工单或 `app.env` 中粘贴密钥。
 
 在 `/opt/tongzhuo-geo/shared/cutover.env` 只登记源文件路径：
 
@@ -117,7 +117,7 @@ TZ_RELAY_CLIENT_SECRET_HOST_PATH=/opt/tongzhuo-geo/shared/relay-inputs/relay-cli
 TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_HOST_PATH=
 ```
 
-Compose 只会把它挂载给 `geo-admin` 的 `/run/secrets/tz_relay_client_secret`，并在容器内设置 `TZ_RELAY_CLIENT_SECRET_FILE`；官网容器、TLS 代理、浏览器和镜像层均不接触它。修改后执行：
+Compose 只会把它挂载给 `geo-admin` 的原始 `/run/secrets/tz_relay_client_secret`；启动阶段将值转存到 `/run/tongzhuo-runtime-secrets/` tmpfs 并设置 `TZ_RELAY_CLIENT_SECRET_FILE`，官网容器、TLS 代理、浏览器和镜像层均不接触它。修改后执行：
 
 ```bash
 sudo bash /opt/tongzhuo-geo/current/deploy/private-delivery/manage.sh restart

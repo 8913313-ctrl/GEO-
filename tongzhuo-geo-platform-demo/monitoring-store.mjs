@@ -10,9 +10,15 @@ import { appendAuditLog } from "./production-audit.mjs";
 const DEFAULT_WORKSPACE_ID = "default";
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
 const MAX_LOG_BATCH = 1_000;
-const RULE_VERSION = "yaojingang-georank-v1";
+// Keep the externally recorded GEORank rule family stable for existing
+// reports. `analysisRevision` below distinguishes the richer evidence
+// contract without making old reports appear to have been re-scored.
+export const DIAGNOSTIC_RULE_VERSION = "yaojingang-georank-v1";
+export const DIAGNOSTIC_ANALYSIS_REVISION = "website-page-analysis-v2";
+const RULE_VERSION = DIAGNOSTIC_RULE_VERSION;
 export const DEFAULT_DIAGNOSTIC_WEIGHTS = Object.freeze({ schema: 0.3, content: 0.3, meta: 0.2, citation: 0.2 });
 export const TRAFFIC_TYPES = Object.freeze(["human", "search_bot", "ai_bot", "other_bot", "unknown"]);
+export const DEFAULT_MONITORING_TIME_ZONE_OFFSET_MINUTES = 8 * 60;
 
 export const AI_BOT_PATTERNS = Object.freeze([
   "gptbot", "chatgpt-user", "chatgpt", "oai-searchbot", "openai", "claudebot", "claude-searchbot", "claude-user", "anthropic",
@@ -39,6 +45,29 @@ function now() { return new Date().toISOString(); }
 function id(prefix) { return `${prefix}-${crypto.randomUUID()}`; }
 function actorId(actor) { return actor?.userId || actor?.id || actor?.user?.id || null; }
 function json(value, fallback = {}) { try { const parsed = typeof value === "string" ? JSON.parse(value) : value; return parsed && typeof parsed === "object" ? parsed : fallback; } catch { return fallback; } }
+
+export function monitoringTimeZoneOffsetMinutes(value = process.env.TZ_MONITORING_TIME_ZONE_OFFSET_MINUTES) {
+  const offset = Number(value);
+  return Number.isInteger(offset) && offset >= -720 && offset <= 840 ? offset : DEFAULT_MONITORING_TIME_ZONE_OFFSET_MINUTES;
+}
+
+function dateTextFromUtc(date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+export function monitoringReportingDate(value = new Date(), offsetMinutes = monitoringTimeZoneOffsetMinutes()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new TypeError("monitoringReportingDate requires a valid date.");
+  return dateTextFromUtc(new Date(date.getTime() + offsetMinutes * 60_000));
+}
+
+export function monitoringDateDaysBefore(dateText, days) {
+  const date = new Date(`${String(dateText)}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime())) throw new TypeError("monitoringDateDaysBefore requires YYYY-MM-DD.");
+  date.setUTCDate(date.getUTCDate() - Math.max(0, Math.floor(Number(days) || 0)));
+  return dateTextFromUtc(date);
+}
+
 function text(value, field, max = 500, required = false) {
   const result = String(value ?? "").replace(/\u0000/g, "").trim();
   if (required && !result) throw new MonitoringError(`${field} is required.`, 422, "MONITORING_INVALID_INPUT", { field });
@@ -109,38 +138,82 @@ function jsonLdNodes(value, output = []) {
   if (Array.isArray(value)) { value.forEach((item) => jsonLdNodes(item, output)); return output; }
   if (!value || typeof value !== "object") return output;
   output.push(value);
-  if (value["@graph"] && (Array.isArray(value["@graph"]) || typeof value["@graph"] === "object")) jsonLdNodes(value["@graph"], output);
+  // JSON-LD commonly puts entities in @graph, but nested entities are also
+  // valid (for example FAQ mainEntity or itemListElement). Traverse all
+  // object-valued fields so the evidence reports every discoverable @type.
+  for (const [key, nested] of Object.entries(value)) {
+    if (key === "@context" || !nested || typeof nested !== "object") continue;
+    jsonLdNodes(nested, output);
+  }
   return output;
 }
 
 function schemaAnalysis(html) {
   const scripts = pairedTags(html, "script").filter((item) => String(item.attrs.type || "").toLowerCase() === "application/ld+json");
   const types = [];
-  for (const script of scripts) {
+  const scriptEvidence = [];
+  let invalidJsonLdCount = 0;
+  for (const [index, script] of scripts.entries()) {
     try {
       const parsed = JSON.parse(script.inner.trim());
-      for (const node of jsonLdNodes(parsed)) {
+      const nodes = jsonLdNodes(parsed);
+      const scriptTypes = [];
+      for (const node of nodes) {
         const values = Array.isArray(node["@type"]) ? node["@type"] : [node["@type"]];
-        values.filter((item) => typeof item === "string" && item.trim()).forEach((item) => types.push(item.trim()));
+        values.filter((item) => typeof item === "string" && item.trim()).forEach((item) => {
+          const type = item.trim(); types.push(type); scriptTypes.push(type);
+        });
       }
-    } catch { /* Invalid JSON-LD is intentionally ignored, matching GEORank. */ }
+      scriptEvidence.push({ index, valid: true, nodeCount: nodes.length, foundTypes: [...new Set(scriptTypes)] });
+    } catch {
+      invalidJsonLdCount += 1;
+      scriptEvidence.push({ index, valid: false, nodeCount: 0, foundTypes: [] });
+    }
   }
   const foundTypes = [...new Set(types)];
   const recommended = ["WebSite", "Organization", "FAQPage", "Article", "BreadcrumbList"];
   const coverageRatio = Math.round(foundTypes.filter((item) => recommended.includes(item)).length / recommended.length * 100);
   const score = Math.min(100, Math.max(foundTypes.length * 16, coverageRatio));
+  const missingRecommended = recommended.filter((item) => !foundTypes.includes(item));
+  const hasFaq = foundTypes.includes("FAQPage");
+  const hasOrganization = foundTypes.includes("Organization");
+  const hasWebsite = foundTypes.includes("WebSite");
+  const hasArticle = foundTypes.includes("Article");
+  const hasBreadcrumb = foundTypes.includes("BreadcrumbList");
+  const evidence = {
+    jsonld_count: scripts.length,
+    parseable_jsonld_count: scripts.length - invalidJsonLdCount,
+    invalid_jsonld_count: invalidJsonLdCount,
+    found_types: foundTypes,
+    missing_recommended: missingRecommended,
+    has_website: hasWebsite,
+    has_organization: hasOrganization,
+    has_faq: hasFaq,
+    has_article: hasArticle,
+    has_breadcrumb: hasBreadcrumb,
+    scripts: scriptEvidence
+  };
   return {
     foundTypes,
-    missingRecommended: recommended.filter((item) => !foundTypes.includes(item)),
+    found_types: foundTypes,
+    missingRecommended,
+    missing_recommended: missingRecommended,
     schemaCount: scripts.length,
+    jsonldCount: scripts.length,
+    jsonld_count: scripts.length,
+    invalidJsonLdCount,
     score,
+    schemaScore: score,
+    schema_score: score,
     coverageRatio,
-    hasFaq: foundTypes.includes("FAQPage"),
-    hasOrg: foundTypes.includes("Organization") || foundTypes.includes("WebSite"),
-    hasArticle: foundTypes.includes("Article"),
-    hasBreadcrumb: foundTypes.includes("BreadcrumbList"),
+    hasFaq,
+    hasOrg: hasOrganization || hasWebsite,
+    hasOrganization,
+    hasArticle,
+    hasBreadcrumb,
     hasProduct: foundTypes.includes("Product"),
-    hasWebsite: foundTypes.includes("WebSite")
+    hasWebsite,
+    evidence
   };
 }
 
@@ -154,11 +227,14 @@ function metaAnalysis(html) {
   const property = (name) => firstByAttribute(metas, "property", name);
   const titleValue = titleTag?.text?.trim() || "";
   const description = named("description")?.attrs.content?.trim() || "";
+  const canonicalHref = links.find((item) => relHas(item.attrs, "canonical") && item.attrs.href)?.attrs.href || "";
+  const robotsValue = named("robots")?.attrs.content?.trim() || "";
+  const htmlLang = htmlTag?.attrs.lang?.trim() || "";
   const checks = {
     title: Boolean(titleValue), titleLength: titleValue.length, htmlLang: Boolean(htmlTag?.attrs.lang?.trim()),
     metaDescription: Boolean(description), metaDescriptionLength: description.length,
-    canonical: links.some((item) => relHas(item.attrs, "canonical") && item.attrs.href),
-    viewport: Boolean(named("viewport")?.attrs.content), robots: Boolean(named("robots")?.attrs.content),
+    canonical: Boolean(canonicalHref),
+    viewport: Boolean(named("viewport")?.attrs.content), robots: Boolean(robotsValue),
     favicon: links.some((item) => String(item.attrs.rel || "").toLowerCase().includes("icon") && item.attrs.href),
     ogTitle: Boolean(property("og:title")?.attrs.content), ogDescription: Boolean(property("og:description")?.attrs.content),
     ogImage: Boolean(property("og:image")?.attrs.content), ogType: Boolean(property("og:type")?.attrs.content), ogLocale: Boolean(property("og:locale")?.attrs.content),
@@ -167,7 +243,33 @@ function metaAnalysis(html) {
   const booleanEntries = Object.entries(checks).filter(([, value]) => typeof value === "boolean");
   const score = Math.round(booleanEntries.filter(([, value]) => value).length / booleanEntries.length * 100);
   const previewKeys = ["title", "metaDescription", "ogTitle", "ogDescription", "ogImage", "twitterCard"];
-  return { checks, missing: booleanEntries.filter(([, value]) => !value).map(([key]) => key), score, previewScore: Math.round(previewKeys.filter((key) => checks[key]).length / previewKeys.length * 100) };
+  const missing = booleanEntries.filter(([, value]) => !value).map(([key]) => key);
+  const previewScore = Math.round(previewKeys.filter((key) => checks[key]).length / previewKeys.length * 100);
+  const evidence = {
+    checks,
+    missing,
+    preview_checks: Object.fromEntries(previewKeys.map((key) => [key, Boolean(checks[key])])),
+    title_length: titleValue.length,
+    meta_description_length: description.length,
+    html_lang: htmlLang,
+    canonical_href: canonicalHref,
+    robots_value: robotsValue,
+    check_count: booleanEntries.length,
+    passed_check_count: booleanEntries.filter(([, value]) => value).length
+  };
+  return { checks, missing, score, metaScore: score, meta_score: score, previewScore, preview_score: previewScore, evidence };
+}
+
+function firstParagraphDirectAnswerSignals(value) {
+  const paragraph = String(value || "").trim();
+  const normalized = paragraph.toLowerCase();
+  const hasChineseAnswerCue = /\u662f|\u4e3a|\u6307|\u53ef\u4ee5|\u5e94\u5f53|\u5e94|\u5efa\u8bae|\u901a\u5e38|\u9700\u8981|\u9002\u5408|\u4e0d\u9002\u5408/.test(paragraph);
+  const hasEnglishAnswerCue = /\b(is|are|means|can|should|recommend|typically|need|suitable)\b/.test(normalized);
+  return {
+    length: paragraph.length,
+    hasDirectAnswerCue: hasChineseAnswerCue || hasEnglishAnswerCue,
+    hasDirectAnswer: paragraph.length >= 40 && (hasChineseAnswerCue || hasEnglishAnswerCue)
+  };
 }
 
 function contentAnalysis(html) {
@@ -175,53 +277,123 @@ function contentAnalysis(html) {
   const paragraphs = pairedTags(html, "p"); const lists = [...pairedTags(html, "ul"), ...pairedTags(html, "ol")];
   const tables = pairedTags(html, "table"); const images = openTags(html, "img"); const anchors = pairedTags(html, "a"); const buttons = pairedTags(html, "button");
   const firstParagraph = paragraphs[0]?.text?.trim() || "";
+  const firstParagraphSignals = firstParagraphDirectAnswerSignals(firstParagraph);
   const hasSingleH1 = h1s.length === 1; const hasH2Structure = h2s.length >= 2;
   const bodyText = stripTags(html); const characterCount = bodyText.replace(/\s+/g, "").length;
   const headings = ["h1", "h2", "h3", "h4"].flatMap((tag) => pairedTags(html, tag).map((item) => item.text));
   const faqLikeSections = headings.filter((value) => /(faq|常见问题|问题|q&a)/i.test(value)).length;
+  const normalizedFaqLikeSections = headings.filter((value) => /(?:faq|q&a|\u5e38\u89c1\u95ee\u9898|\u95ee\u9898)/i.test(String(value || ""))).length;
   const imageWithAltCount = images.filter((item) => item.attrs.alt?.trim()).length;
   const imageAltRatio = images.length ? Math.round(imageWithAltCount / images.length * 100) : 100;
   const ctaWords = ["联系", "咨询", "预约", "试用", "联系销售", "立即开始", "demo", "contact", "pricing"];
   const ctaCount = [...buttons, ...anchors].filter((item) => ctaWords.some((word) => item.text.toLowerCase().includes(word))).length;
+  const ctaPatterns = [/\u8054\u7cfb/, /\u54a8\u8be2/, /\u9884\u7ea6/, /\u8bd5\u7528/, /\u7acb\u5373\u5f00\u59cb/, /\u83b7\u53d6\u65b9\u6848/, /\u7d22\u53d6/, /\bdemo\b/i, /\bcontact\b/i, /\bpricing\b/i];
+  const normalizedCtaCount = [...buttons, ...anchors].filter((item) => ctaPatterns.some((pattern) => pattern.test(String(item.text || "")))).length;
   let score = 0;
   if (hasSingleH1) score += 20;
   if (hasH2Structure) score += 20;
   if (firstParagraph.length > 80) score += 20;
   if (characterCount > 800) score += 20;
   if (imageAltRatio >= 60) score += 10;
-  if (faqLikeSections >= 1 || lists.length >= 2) score += 10;
+  if (normalizedFaqLikeSections >= 1 || lists.length >= 2) score += 10;
+  const scoreBreakdown = {
+    single_h1: hasSingleH1 ? 20 : 0,
+    h2_structure: hasH2Structure ? 20 : 0,
+    first_paragraph: firstParagraph.length > 80 ? 20 : 0,
+    body_length: characterCount > 800 ? 20 : 0,
+    image_alt_coverage: imageAltRatio >= 60 ? 10 : 0,
+    faq_or_lists: normalizedFaqLikeSections >= 1 || lists.length >= 2 ? 10 : 0
+  };
+  const evidence = {
+    h1_count: h1s.length,
+    h2_count: h2s.length,
+    h3_count: h3s.length,
+    paragraph_count: paragraphs.length,
+    character_count: characterCount,
+    image_count: images.length,
+    image_with_alt_count: imageWithAltCount,
+    image_alt_ratio: imageAltRatio,
+    faq_section_count: normalizedFaqLikeSections,
+    list_count: lists.length,
+    table_count: tables.length,
+    cta_count: normalizedCtaCount,
+    has_single_h1: hasSingleH1,
+    has_h2_structure: hasH2Structure,
+    first_paragraph_length: firstParagraphSignals.length,
+    first_paragraph_has_direct_answer: firstParagraphSignals.hasDirectAnswer,
+    score_breakdown: scoreBreakdown
+  };
   return {
     h1Count: h1s.length, h2Count: h2s.length, h3Count: h3s.length, paragraphCount: paragraphs.length,
     wordCount: bodyText ? bodyText.split(/\s+/).length : 0, characterCount, readingTimeMinutes: Math.max(1, Math.round(Math.max(characterCount, 1) / 450)),
     hasSingleH1, hasH2Structure, firstParagraphQuality: firstParagraph.length > 80, headingHierarchyOk: hasSingleH1 && hasH2Structure,
-    listCount: lists.length, tableCount: tables.length, imageCount: images.length, imageWithAltCount, imageAltRatio, faqLikeSections, ctaCount, score: Math.min(100, score)
+    firstParagraphHasDirectAnswer: firstParagraphSignals.hasDirectAnswer,
+    firstParagraphDirectAnswerCue: firstParagraphSignals.hasDirectAnswerCue,
+    listCount: lists.length, tableCount: tables.length, imageCount: images.length, imageWithAltCount, imageAltRatio, faqLikeSections: normalizedFaqLikeSections, faqSectionCount: normalizedFaqLikeSections, ctaCount: normalizedCtaCount,
+    score: Math.min(100, score), contentScore: Math.min(100, score), content_score: Math.min(100, score), scoreBreakdown, evidence
   };
 }
 
 function domainMatches(hostname, domain) { return hostname === domain || hostname.endsWith(`.${domain}`); }
 function citationAnalysis(html, baseUrl) {
   let baseDomain = "";
-  try { baseDomain = new URL(baseUrl).hostname.toLowerCase(); } catch { /* uploaded fragments can omit a public URL */ }
+  let base = null;
+  try { base = new URL(baseUrl); baseDomain = base.hostname.toLowerCase(); } catch { /* uploaded fragments can omit a public URL */ }
   const authorityDomains = ["arxiv.org", "scholar.google.com", "pubmed.ncbi.nlm.nih.gov", "doi.org", "ieee.org", "acm.org", "nature.com", "science.org", "wikipedia.org"];
   const socialDomains = ["linkedin.com", "x.com", "twitter.com", "github.com", "youtube.com", "wechat.com", "weixin.qq.com", "zhihu.com", "bilibili.com"];
-  const external = []; const authority = []; const internal = []; const social = [];
+  const external = []; const authority = []; const internal = []; const social = []; const sourceLinks = [];
+  const externalEvidence = []; const authorityEvidence = []; const internalEvidence = []; const socialEvidence = []; const sourceEvidence = [];
   for (const anchor of pairedTags(html, "a")) {
     const href = String(anchor.attrs.href || "").trim();
-    let parsed; try { parsed = new URL(href); } catch { continue; }
+    let parsed; try { parsed = new URL(href, base || undefined); } catch { continue; }
     if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname) continue;
     const domain = parsed.hostname.toLowerCase();
-    if (baseDomain && domainMatches(domain, baseDomain)) internal.push(href);
+    const record = { href: parsed.href, domain, text: String(anchor.text || "").replace(/\s+/g, " ").trim().slice(0, 180) };
+    const sourceLike = /(?:source|reference|citation|evidence|\u6765\u6e90|\u5f15\u7528|\u53c2\u8003|\u8bc1\u636e)/i.test(`${record.text} ${anchor.attrs.rel || ""}`);
+    if (baseDomain && domainMatches(domain, baseDomain)) {
+      internal.push(parsed.href);
+      internalEvidence.push(record);
+    }
     else {
-      external.push(href);
+      external.push(parsed.href);
+      externalEvidence.push(record);
       const labels = domain.split(".");
-      if (authorityDomains.some((item) => domainMatches(domain, item)) || labels.includes("gov") || labels.includes("edu")) authority.push(href);
-      if (socialDomains.some((item) => domainMatches(domain, item))) social.push(href);
+      const isAuthority = authorityDomains.some((item) => domainMatches(domain, item)) || labels.includes("gov") || labels.includes("edu") || /\.(?:gov|edu)(?:\.|$)/.test(domain);
+      const isSocial = socialDomains.some((item) => domainMatches(domain, item));
+      if (isAuthority) { authority.push(parsed.href); authorityEvidence.push(record); }
+      if (isSocial) { social.push(parsed.href); socialEvidence.push(record); }
+      if (isAuthority || sourceLike) { sourceLinks.push(parsed.href); sourceEvidence.push(record); }
     }
   }
   let score = external.length >= 3 ? 40 : external.length >= 1 ? 20 : 0;
   score += authority.length >= 2 ? 40 : authority.length >= 1 ? 20 : 0;
   if (external.length >= 10 || internal.length >= 12) score += 20;
-  return { externalLinkCount: external.length, authorityLinkCount: authority.length, internalLinkCount: internal.length, socialLinkCount: social.length, authorityLinks: authority.slice(0, 5), socialLinks: social.slice(0, 5), score: Math.min(100, score) };
+  const normalizedScore = Math.min(100, score);
+  const evidence = {
+    external_link_count: external.length,
+    authority_link_count: authority.length,
+    internal_link_count: internal.length,
+    social_link_count: social.length,
+    source_link_count: sourceLinks.length,
+    has_recognized_source_link: sourceLinks.length > 0,
+    external_links: externalEvidence.slice(0, 12),
+    authority_links: authorityEvidence.slice(0, 8),
+    source_links: sourceEvidence.slice(0, 8),
+    internal_links: internalEvidence.slice(0, 12),
+    social_links: socialEvidence.slice(0, 8),
+    score_breakdown: {
+      external_links: external.length >= 3 ? 40 : external.length >= 1 ? 20 : 0,
+      authority_links: authority.length >= 2 ? 40 : authority.length >= 1 ? 20 : 0,
+      link_coverage: external.length >= 10 || internal.length >= 12 ? 20 : 0
+    }
+  };
+  return {
+    externalLinkCount: external.length, authorityLinkCount: authority.length, internalLinkCount: internal.length, socialLinkCount: social.length,
+    sourceLinkCount: sourceLinks.length, hasRecognizedSourceLink: sourceLinks.length > 0,
+    external_link_count: external.length, authority_link_count: authority.length, internal_link_count: internal.length, social_link_count: social.length,
+    authorityLinks: authority.slice(0, 5), socialLinks: social.slice(0, 5), sourceLinks: sourceLinks.slice(0, 8), internalLinks: internal.slice(0, 8), externalLinks: external.slice(0, 8),
+    score: normalizedScore, citationScore: normalizedScore, citation_score: normalizedScore, evidence
+  };
 }
 
 function normalizeWeights(weights = {}) {
@@ -262,6 +434,141 @@ function recommendationsFor(schema, meta, content, citation, overall) {
   return { summary: { headline, overview: `当前页面综合 GEO 评分为 ${overall} 分。优先处理结构化数据、首段答案表达与权威引用，再逐步优化开放图谱和内容层级。`, priorityAction: priority }, strengths: strengths.slice(0, 3), gaps: gaps.slice(0, 3), urgent: urgent.slice(0, 3), recommended: recommended.slice(0, 3), optional: [], phasePlan: phasePlan.slice(0, 3) };
 }
 
+function compactSuggestionText(value, max = 600) {
+  return String(value ?? "").replace(/[\r\n\t]+/g, " ").replace(/\s{2,}/g, " ").trim().slice(0, max);
+}
+
+function recommendationEvidenceKeys(value) {
+  const allowed = new Set(["schema", "content", "meta", "citation"]);
+  return [...new Set((Array.isArray(value) ? value : []).map((item) => String(item || "").trim().toLowerCase()).filter((item) => allowed.has(item)))];
+}
+
+function ruleRecommendationsWithEvidence(recommendations, analysis) {
+  const annotate = (items, priority, evidenceKeys) => (Array.isArray(items) ? items : []).map((item, index) => ({
+    ...item,
+    id: item.id || `RULE-${priority}-${index + 1}`,
+    source: "rules",
+    priority,
+    evidenceKeys
+  }));
+  const urgent = annotate(recommendations.urgent, "P0", ["schema", "meta", "content"]);
+  const recommended = annotate(recommendations.recommended, "P1", ["schema", "meta", "content"]);
+  const optional = annotate(recommendations.optional, "P2", ["citation", "content"]);
+  const ruleFindings = {
+    urgent,
+    recommended,
+    optional,
+    strengths: Array.isArray(recommendations.strengths) ? recommendations.strengths : [],
+    gaps: Array.isArray(recommendations.gaps) ? recommendations.gaps : [],
+    evidence: {
+      schema_score: analysis.schema.score,
+      content_score: analysis.content.score,
+      meta_score: analysis.meta.score,
+      citation_score: analysis.citation.score
+    }
+  };
+  return {
+    ...recommendations,
+    urgent,
+    recommended,
+    optional,
+    source: "rules",
+    recommendationSource: "rules",
+    generation: {
+      strategy: "rules_then_optional_llm",
+      requested: false,
+      status: "rule_ready",
+      source: "rules",
+      fallback: false
+    },
+    ruleFindings,
+    llm: null
+  };
+}
+
+function normalizeSuggestionGeneration(value = {}) {
+  const input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const requestedMode = String(input.mode || input.type || "rules").trim().toLowerCase();
+  return {
+    mode: requestedMode === "llm" || requestedMode === "model" ? "llm" : "rules",
+    providerId: compactSuggestionText(input.providerId, 180),
+    model: compactSuggestionText(input.model, 180)
+  };
+}
+
+function normalizeModelSuggestions(value) {
+  const input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const rawItems = Array.isArray(input.recommendations) ? input.recommendations : Array.isArray(input.actions) ? input.actions : [];
+  const recommendations = rawItems.slice(0, 6).map((item, index) => {
+    if (!item || typeof item !== "object") return null;
+    const title = compactSuggestionText(item.title || item.item, 180);
+    const action = compactSuggestionText(item.action || item.recommendation || item.rationale, 700);
+    if (!title || !action) return null;
+    const priority = ["P0", "P1", "P2"].includes(String(item.priority || "").toUpperCase()) ? String(item.priority).toUpperCase() : index === 0 ? "P0" : "P1";
+    const evidenceKeys = recommendationEvidenceKeys(item.evidenceKeys || item.evidence_keys);
+    if (!evidenceKeys.length) return null;
+    return {
+      id: `LLM-${index + 1}`,
+      source: "llm",
+      priority,
+      title,
+      action,
+      rationale: compactSuggestionText(item.rationale || "", 700),
+      evidenceKeys
+    };
+  }).filter(Boolean);
+  if (!recommendations.length) throw new MonitoringError("The model did not return usable diagnostic recommendations.", 502, "MONITORING_LLM_EMPTY");
+  return {
+    summary: compactSuggestionText(input.summary || input.overview, 1_200),
+    priorityAction: compactSuggestionText(input.priorityAction || input.priority_action, 700),
+    recommendations
+  };
+}
+
+function ruleFallbackRecommendations(ruleRecommendations, generation, error = null) {
+  const safeMessage = compactSuggestionText(error?.message || generation?.message || "", 500);
+  return {
+    ...ruleRecommendations,
+    source: "rule_fallback",
+    recommendationSource: "rule_fallback",
+    generation: {
+      strategy: "rules_then_optional_llm",
+      requested: true,
+      status: "fallback",
+      source: "rule_fallback",
+      fallback: true,
+      providerId: compactSuggestionText(generation?.providerId, 180) || null,
+      model: compactSuggestionText(generation?.model, 180) || null,
+      failureCode: compactSuggestionText(error?.code || generation?.failureCode || "MONITORING_LLM_UNAVAILABLE", 120),
+      failureMessage: safeMessage || "模型建议不可用，已保留规则建议。"
+    },
+    llm: null
+  };
+}
+
+function mergeModelRecommendations(ruleRecommendations, generated, request) {
+  const llm = normalizeModelSuggestions(generated);
+  const generation = generated?.generation && typeof generated.generation === "object" ? generated.generation : {};
+  return {
+    ...ruleRecommendations,
+    source: "llm",
+    recommendationSource: "llm",
+    generation: {
+      strategy: "rules_then_optional_llm",
+      requested: true,
+      status: "succeeded",
+      source: "llm",
+      fallback: false,
+      providerId: compactSuggestionText(generation.providerId || request.providerId, 180) || null,
+      providerName: compactSuggestionText(generation.providerName, 180) || null,
+      model: compactSuggestionText(generation.model || request.model, 180) || null,
+      generationRunId: compactSuggestionText(generation.generationRunId || generation.runId, 180) || null,
+      generatedAt: compactSuggestionText(generation.generatedAt, 80) || now()
+    },
+    llm
+  };
+}
+
 export function analyzeGeoHtml(html, { baseUrl = "", weights = DEFAULT_DIAGNOSTIC_WEIGHTS } = {}) {
   const source = String(html ?? "").replace(/\u0000/g, "");
   const size = Buffer.byteLength(source, "utf8");
@@ -270,7 +577,16 @@ export function analyzeGeoHtml(html, { baseUrl = "", weights = DEFAULT_DIAGNOSTI
   const schema = schemaAnalysis(source); const meta = metaAnalysis(source); const content = contentAnalysis(source); const citation = citationAnalysis(source, baseUrl);
   const normalizedWeights = normalizeWeights(weights);
   const overallScore = calculateOverallScore(schema.score, content.score, meta.score, citation.score, normalizedWeights);
-  return { ruleVersion: RULE_VERSION, weights: normalizedWeights, overallScore, schema, content, meta, citation, recommendations: recommendationsFor(schema, meta, content, citation, overallScore), contentHash: crypto.createHash("sha256").update(source, "utf8").digest("hex"), contentBytes: size };
+  const ruleRecommendations = ruleRecommendationsWithEvidence(recommendationsFor(schema, meta, content, citation, overallScore), { schema, content, meta, citation });
+  const evidence = {
+    analysis_revision: DIAGNOSTIC_ANALYSIS_REVISION,
+    score_formula: "schema*0.30 + content*0.30 + meta*0.20 + citation*0.20",
+    schema: schema.evidence,
+    content: content.evidence,
+    meta: meta.evidence,
+    citation: citation.evidence
+  };
+  return { ruleVersion: RULE_VERSION, analysisRevision: DIAGNOSTIC_ANALYSIS_REVISION, weights: normalizedWeights, overallScore, schema, content, meta, citation, evidence, ruleRecommendations, recommendations: ruleRecommendations, contentHash: crypto.createHash("sha256").update(source, "utf8").digest("hex"), contentBytes: size };
 }
 
 function ipv4Public(address) {
@@ -287,13 +603,57 @@ function ipv4Public(address) {
   return true;
 }
 
+// Node's net.isIP() accepts both dotted and hexadecimal IPv4-mapped IPv6
+// spellings (for example, ::ffff:127.0.0.1 and ::ffff:7f00:1).  Parse the
+// complete IPv6 address before applying the IPv4 private/reserved ranges so
+// that the hexadecimal spelling cannot bypass the SSRF guard.
+function parseIpv6Hextets(address) {
+  const sections = String(address).split("::");
+  if (sections.length > 2) return null;
+  const parseSection = (section) => {
+    if (!section) return [];
+    const pieces = section.split(":");
+    const result = [];
+    for (let index = 0; index < pieces.length; index += 1) {
+      const piece = pieces[index];
+      if (piece.includes(".")) {
+        if (index !== pieces.length - 1 || !/^\d{1,3}(?:\.\d{1,3}){3}$/.test(piece)) return null;
+        const octets = piece.split(".").map(Number);
+        if (octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null;
+        result.push((octets[0] << 8) | octets[1], (octets[2] << 8) | octets[3]);
+      } else {
+        if (!/^[0-9a-f]{1,4}$/i.test(piece)) return null;
+        result.push(Number.parseInt(piece, 16));
+      }
+    }
+    return result;
+  };
+  const left = parseSection(sections[0]);
+  const right = parseSection(sections.length === 2 ? sections[1] : "");
+  if (!left || !right) return null;
+  if (sections.length === 1) return left.length === 8 ? left : null;
+  if (left.length + right.length >= 8) return null;
+  return [...left, ...Array.from({ length: 8 - left.length - right.length }, () => 0), ...right];
+}
+
+function ipv4FromMappedIpv6(address) {
+  const hextets = parseIpv6Hextets(address);
+  if (!hextets) return null;
+  const mapped = hextets.slice(0, 5).every((value) => value === 0) && hextets[5] === 0xffff;
+  // IPv4-compatible IPv6 is deprecated, but it can still be interpreted as
+  // an IPv4 destination by some stacks.  Apply the same guard to it too.
+  const compatible = hextets.slice(0, 6).every((value) => value === 0);
+  if (!mapped && !compatible) return null;
+  return [hextets[6] >> 8, hextets[6] & 0xff, hextets[7] >> 8, hextets[7] & 0xff].join(".");
+}
+
 export function isPublicAddress(address) {
   const normalized = String(address || "").toLowerCase().split("%", 1)[0];
   const family = net.isIP(normalized);
   if (family === 4) return ipv4Public(normalized);
   if (family !== 6) return false;
-  const mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return ipv4Public(mapped[1]);
+  const mappedIpv4 = ipv4FromMappedIpv6(normalized);
+  if (mappedIpv4) return ipv4Public(mappedIpv4);
   if (normalized === "::" || normalized === "::1" || normalized.startsWith("fc") || normalized.startsWith("fd") || /^fe[89ab]/.test(normalized) || normalized.startsWith("ff") || normalized.startsWith("2001:db8")) return false;
   return true;
 }
@@ -340,7 +700,18 @@ async function remoteHtml(value, options = {}) {
       }, resolve);
       request.on("timeout", () => request.destroy(new Error("remote request timed out")));
       request.on("error", reject); request.end();
-    }).catch((error) => { throw new MonitoringError("The remote page could not be fetched.", 502, "MONITORING_FETCH_FAILED", { cause: error.message }); });
+    }).catch((error) => {
+      const cause = String(error?.message || "");
+      const tlsFailure = target.protocol === "https:" && /(tls|ssl|handshake|wrong version|eproto|certificate)/i.test(cause);
+      throw new MonitoringError(
+        tlsFailure
+          ? "HTTPS 连接失败。请确认该地址的端口已配置有效证书；如果站点只提供 HTTP，请使用 http:// 开头的公开地址。"
+          : "未能读取官网页面。请确认地址、协议、端口和公网访问状态后重试。",
+        tlsFailure ? 422 : 502,
+        tlsFailure ? "MONITORING_FETCH_TLS" : "MONITORING_FETCH_FAILED",
+        { cause }
+      );
+    });
     if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location) {
       response.resume();
       if (redirect === redirects) throw new MonitoringError("The remote page redirected too many times.", 422, "MONITORING_REDIRECT_LIMIT");
@@ -381,17 +752,48 @@ async function localHtml(directory, relativePath, roots) {
   return { html: await fs.readFile(realFile, "utf8"), label: path.basename(realFile) };
 }
 
-function dateRange(input = {}) {
+function reportingDateValue(value, field) {
   const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-  const today = new Date(); const todayText = today.toISOString().slice(0, 10);
+  const textValue = text(value, field, 10, true);
+  if (!datePattern.test(textValue)) throw new MonitoringError("Dates must use YYYY-MM-DD.", 422, "MONITORING_DATE_INVALID");
+  const date = new Date(`${textValue}T00:00:00.000Z`);
+  if (!Number.isFinite(date.getTime()) || dateTextFromUtc(date) !== textValue) throw new MonitoringError("The date range is invalid.", 422, "MONITORING_DATE_INVALID");
+  return date;
+}
+
+function dateRange(input = {}, offsetMinutes = monitoringTimeZoneOffsetMinutes()) {
+  const todayText = monitoringReportingDate(new Date(), offsetMinutes);
   const endText = input.dateTo ? text(input.dateTo, "dateTo", 10, true) : todayText;
-  const defaultStart = new Date(`${endText}T00:00:00.000Z`); defaultStart.setUTCDate(defaultStart.getUTCDate() - 6);
-  const startText = input.dateFrom ? text(input.dateFrom, "dateFrom", 10, true) : defaultStart.toISOString().slice(0, 10);
-  if (!datePattern.test(startText) || !datePattern.test(endText)) throw new MonitoringError("Dates must use YYYY-MM-DD.", 422, "MONITORING_DATE_INVALID");
-  const start = new Date(`${startText}T00:00:00.000Z`); const end = new Date(`${endText}T23:59:59.999Z`);
-  if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start > end) throw new MonitoringError("The date range is invalid.", 422, "MONITORING_DATE_INVALID");
-  if ((end - start) / 86_400_000 > 366) throw new MonitoringError("The monitoring range cannot exceed 366 days.", 422, "MONITORING_DATE_RANGE_TOO_LARGE");
-  return { start: start.toISOString(), end: end.toISOString(), dateFrom: startText, dateTo: endText };
+  const endDay = reportingDateValue(endText, "dateTo");
+  const startText = input.dateFrom ? text(input.dateFrom, "dateFrom", 10, true) : monitoringDateDaysBefore(endText, 6);
+  const startDay = reportingDateValue(startText, "dateFrom");
+  if (startDay > endDay) throw new MonitoringError("The date range is invalid.", 422, "MONITORING_DATE_INVALID");
+  if ((endDay - startDay) / 86_400_000 > 366) throw new MonitoringError("The monitoring range cannot exceed 366 days.", 422, "MONITORING_DATE_RANGE_TOO_LARGE");
+  const start = new Date(startDay.getTime() - offsetMinutes * 60_000);
+  const end = new Date(endDay.getTime() + 86_400_000 - offsetMinutes * 60_000 - 1);
+  return { start: start.toISOString(), end: end.toISOString(), dateFrom: startText, dateTo: endText, timeZoneOffsetMinutes: offsetMinutes };
+}
+
+function reportingDaySql(column = "occurred_at", offsetMinutes = monitoringTimeZoneOffsetMinutes()) {
+  const modifier = `${offsetMinutes >= 0 ? "+" : ""}${offsetMinutes} minutes`;
+  return `date(${column}, '${modifier}')`;
+}
+
+function publicPagePathSql(column = "path") {
+  const normalized = `lower(${column})`;
+  const technicalExtensions = ["ico", "xml", "txt", "json", "css", "js", "mjs", "map", "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "woff", "woff2", "ttf", "eot", "pdf", "zip", "mp3", "mp4", "webm"];
+  return [
+    `trim(${column}) <> ''`,
+    `${normalized} NOT LIKE '/api/%'`,
+    `${normalized} NOT LIKE '/health%'`,
+    `${normalized} NOT LIKE '/site-assets/%'`,
+    `${normalized} NOT LIKE '/assets/%'`,
+    ...technicalExtensions.map((extension) => `${normalized} NOT GLOB '*.${extension}*'`)
+  ].join(" AND ");
+}
+
+function successfulPublicPageSql(pathColumn = "path", statusColumn = "status_code") {
+  return `${publicPagePathSql(pathColumn)} AND ${statusColumn} >= 200 AND ${statusColumn} < 300`;
 }
 
 export class MonitoringStore {
@@ -401,21 +803,38 @@ export class MonitoringStore {
     this.allowedLocalRoots = Array.isArray(options.allowedLocalRoots) ? options.allowedLocalRoots.map((item) => path.resolve(String(item))) : [];
     this.remotePorts = Array.isArray(options.remotePorts) ? options.remotePorts.map(Number).filter(Number.isInteger) : [80, 443];
     this.publisherStore = options.publisherStore || null;
+    this.recommendationGenerator = typeof options.recommendationGenerator === "function" ? options.recommendationGenerator : null;
+    this.diagnosticJobs = new Map();
+    this.reportingTimeZoneOffsetMinutes = monitoringTimeZoneOffsetMinutes(options.reportingTimeZoneOffsetMinutes);
     this.ipSalt = String(options.ipSalt || process.env.TZ_MONITORING_IP_SALT || process.env.TZ_MASTER_KEY || "tongzhuo-monitoring-private-deployment");
   }
 
   reportRow(row) {
     if (!row) return null;
     const schema = json(row.schema_analysis_json); const content = json(row.content_analysis_json); const meta = json(row.meta_analysis_json); const citation = json(row.citation_analysis_json);
+    const recommendations = json(row.recommendations_json);
     const overallScore = row.overall_score == null ? null : Number(row.overall_score);
+    const completed = ["completed", "complete", "success", "succeeded"].includes(String(row.status || "").toLowerCase());
+    const score = (value) => completed && value != null ? Number(value) : null;
     return {
       id: row.id, workspaceId: row.workspace_id, sourceKind: row.source_kind,
       sourceUrl: row.source_url, url: row.source_url, sourceLabel: row.source_label,
-      status: row.status, overallScore, totalScore: overallScore,
-      scores: { schema: Number(schema.score || 0), content: Number(content.score || 0), meta: Number(meta.score || 0), authority: Number(citation.score || 0) },
-      schemaScore: Number(schema.score || 0), contentScore: Number(content.score || 0), metaScore: Number(meta.score || 0), authorityScore: Number(citation.score || 0),
+      status: row.status, overallScore: completed ? overallScore : null, totalScore: completed ? overallScore : null,
+      scores: { schema: score(schema.score), content: score(content.score), meta: score(meta.score), authority: score(citation.score), citation: score(citation.score), preview: score(meta.previewScore ?? meta.preview_score) },
+      schemaScore: score(schema.score), contentScore: score(content.score), metaScore: score(meta.score), authorityScore: score(citation.score), citationScore: score(citation.score), previewScore: score(meta.previewScore ?? meta.preview_score),
       ruleVersion: row.rule_version, weights: json(row.weights_json), schema, content, meta, citation,
-      recommendations: json(row.recommendations_json), contentHash: row.content_hash || null, contentBytes: Number(row.content_bytes || 0),
+      // Keep legacy reports distinguishable from the current evidence
+      // contract. A missing revision means the report predates this schema;
+      // silently labeling it as v2 would make its score provenance ambiguous.
+      analysisRevision: schema?.evidence?.analysis_revision || schema?.analysisRevision || content?.analysisRevision || meta?.analysisRevision || citation?.analysisRevision || null,
+      evidence: {
+        schema: schema.evidence || {},
+        content: content.evidence || {},
+        meta: meta.evidence || {},
+        citation: citation.evidence || {}
+      },
+      recommendations, recommendationSource: recommendations.recommendationSource || recommendations.source || "rules", suggestionGeneration: recommendations.generation || null,
+      contentHash: row.content_hash || null, contentBytes: Number(row.content_bytes || 0),
       errorCode: row.error_code || null, errorMessage: row.error_message || null, createdAt: row.created_at, startedAt: row.started_at || null, completedAt: row.completed_at || null, createdBy: row.created_by || null
     };
   }
@@ -432,36 +851,144 @@ export class MonitoringStore {
     return (validStatus ? this.connection.prepare("SELECT * FROM monitoring_site_reports WHERE workspace_id = ? AND status = ? ORDER BY created_at DESC LIMIT ?").all(workspaceId, validStatus, normalizedLimit) : this.connection.prepare("SELECT * FROM monitoring_site_reports WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?").all(workspaceId, normalizedLimit)).map((row) => this.reportRow(row));
   }
 
-  async diagnose({ workspaceId = this.workspaceId, url = "", baseUrl = "", html = "", localDirectory = "", relativePath = "index.html", sourceLabel = "", weights = DEFAULT_DIAGNOSTIC_WEIGHTS, actor = null, request = null } = {}) {
+  recoverInterruptedDiagnostics({ workspaceId = this.workspaceId } = {}) {
+    const completedAt = now();
+    const result = this.connection.prepare("UPDATE monitoring_site_reports SET status = 'failed', error_code = 'MONITORING_INTERRUPTED', error_message = 'The diagnostic worker stopped before this report completed. Please run it again.', completed_at = ? WHERE workspace_id = ? AND status IN ('pending', 'running')").run(completedAt, workspaceId);
+    if (Number(result.changes || 0)) {
+      appendAuditLog(this.connection, {
+        actorUserId: null,
+        action: "monitoring.diagnostic.interrupted",
+        entityType: "monitoring_site_report",
+        entityId: null,
+        details: { workspaceId, recovered: Number(result.changes || 0) },
+        request: null,
+        createdAt: completedAt
+      });
+    }
+    return Number(result.changes || 0);
+  }
+
+  createDiagnosticContext({ workspaceId = this.workspaceId, url = "", baseUrl = "", html = "", localDirectory = "", relativePath = "index.html", sourceLabel = "", weights = DEFAULT_DIAGNOSTIC_WEIGHTS, suggestionGeneration = null, actor = null, request = null } = {}) {
     const hasHtml = Boolean(String(html || "").trim()); const hasLocal = Boolean(String(localDirectory || "").trim()); const hasUrl = Boolean(String(url || "").trim());
     if ([hasHtml, hasLocal, hasUrl].filter(Boolean).length !== 1) throw new MonitoringError("Provide exactly one source: html, localDirectory, or url.", 422, "MONITORING_SOURCE_INVALID");
     const sourceKind = hasHtml ? "uploaded_html" : hasLocal ? "local_directory" : "remote_url";
     const reportId = id("DIAG"); const timestamp = now(); const userId = actorId(actor);
     let sourceUrl = "";
-    if (hasUrl) sourceUrl = text(url, "url", 2_000, true);
+    let earlyValidationError = null;
+    if (hasUrl) {
+      sourceUrl = text(url, "url", 2_000, true);
+      // Fail obvious unsafe targets before returning a queued report. DNS/IP
+      // validation still happens again immediately before every network hop.
+      try {
+        const parsed = safeUrlSyntax(sourceUrl, { remote: true, allowedPorts: this.remotePorts });
+        const hostname = parsed.hostname.replace(/^\[|\]$/g, "");
+        if (net.isIP(hostname) && !isPublicAddress(hostname)) {
+          throw new MonitoringError("The remote URL resolves to a private, local, or reserved address.", 403, "MONITORING_SSRF_BLOCKED");
+        }
+      } catch (error) {
+        earlyValidationError = error instanceof MonitoringError
+          ? error
+          : new MonitoringError("Diagnostic input validation failed.", 422, "MONITORING_INVALID_INPUT", { cause: error?.message || "" });
+      }
+    }
     else if (baseUrl) sourceUrl = safeUrlSyntax(baseUrl).href;
+    const normalizedLabel = text(sourceLabel, "sourceLabel", 300);
+    const normalizedSuggestionGeneration = normalizeSuggestionGeneration(suggestionGeneration || {});
     this.database.transaction(() => {
       this.connection.prepare(`INSERT INTO monitoring_site_reports (id, workspace_id, source_kind, source_url, source_label, status, rule_version, weights_json, created_at, created_by)
-        VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`).run(reportId, workspaceId, sourceKind, sourceUrl, text(sourceLabel, "sourceLabel", 300), RULE_VERSION, JSON.stringify(normalizeWeights(weights)), timestamp, userId);
+        VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`).run(reportId, workspaceId, sourceKind, sourceUrl, normalizedLabel, RULE_VERSION, JSON.stringify(normalizeWeights(weights)), timestamp, userId);
       appendAuditLog(this.connection, { actorUserId: userId, action: "monitoring.diagnostic.create", entityType: "monitoring_site_report", entityId: reportId, details: { workspaceId, sourceKind, sourceUrl }, request, createdAt: timestamp });
     });
+    if (earlyValidationError) {
+      const completedAt = now();
+      this.database.transaction(() => {
+        this.connection.prepare("UPDATE monitoring_site_reports SET status = 'failed', error_code = ?, error_message = ?, completed_at = ? WHERE id = ?").run(earlyValidationError.code, earlyValidationError.message.slice(0, 2_000), completedAt, reportId);
+        appendAuditLog(this.connection, { actorUserId: userId, action: "monitoring.diagnostic.failed", entityType: "monitoring_site_report", entityId: reportId, details: { code: earlyValidationError.code, phase: "input_validation" }, request, createdAt: completedAt });
+      });
+      earlyValidationError.details = { ...(earlyValidationError.details || {}), reportId };
+      throw earlyValidationError;
+    }
+    return { reportId, workspaceId, sourceKind, sourceUrl, sourceLabel: normalizedLabel, html, localDirectory, relativePath, weights, suggestionGeneration: normalizedSuggestionGeneration, actor, request };
+  }
+
+  async recommendationsForResult(result, context, finalUrl) {
+    const ruleRecommendations = result.ruleRecommendations || result.recommendations;
+    const request = context.suggestionGeneration || normalizeSuggestionGeneration();
+    if (request.mode !== "llm") return ruleRecommendations;
+    if (!request.providerId || !this.recommendationGenerator) {
+      return ruleFallbackRecommendations(ruleRecommendations, request, new MonitoringError("No configured text-model provider was supplied for diagnostic suggestions.", 422, "MONITORING_LLM_UNAVAILABLE"));
+    }
+    try {
+      const generated = await this.recommendationGenerator({
+        workspaceId: context.workspaceId,
+        reportId: context.reportId,
+        sourceUrl: finalUrl || context.sourceUrl,
+        providerId: request.providerId,
+        model: request.model,
+        analysis: {
+          ruleVersion: result.ruleVersion,
+          analysisRevision: result.analysisRevision,
+          overallScore: result.overallScore,
+          weights: result.weights,
+          schema: result.schema,
+          content: result.content,
+          meta: result.meta,
+          citation: result.citation,
+          evidence: result.evidence
+        },
+        ruleRecommendations
+      });
+      return mergeModelRecommendations(ruleRecommendations, generated, request);
+    } catch (error) {
+      return ruleFallbackRecommendations(ruleRecommendations, request, error);
+    }
+  }
+
+  async executeDiagnostic(context) {
+    const { reportId, workspaceId, sourceKind, sourceUrl, sourceLabel, html, localDirectory, relativePath, weights, actor, request } = context;
     try {
       const startedAt = now(); this.connection.prepare("UPDATE monitoring_site_reports SET status = 'running', started_at = ? WHERE id = ?").run(startedAt, reportId);
       let loadedHtml = html; let finalUrl = sourceUrl; let finalLabel = sourceLabel;
-      if (hasUrl) { const remote = await remoteHtml(url, { allowedPorts: this.remotePorts }); loadedHtml = remote.html; finalUrl = remote.finalUrl; }
-      else if (hasLocal) { const local = await localHtml(localDirectory, relativePath, this.allowedLocalRoots); loadedHtml = local.html; finalLabel = finalLabel || local.label; }
-      const result = analyzeGeoHtml(loadedHtml, { baseUrl: finalUrl, weights }); const completedAt = now();
+      if (sourceKind === "remote_url") { const remote = await remoteHtml(sourceUrl, { allowedPorts: this.remotePorts }); loadedHtml = remote.html; finalUrl = remote.finalUrl; }
+      else if (sourceKind === "local_directory") { const local = await localHtml(localDirectory, relativePath, this.allowedLocalRoots); loadedHtml = local.html; finalLabel = finalLabel || local.label; }
+      const result = analyzeGeoHtml(loadedHtml, { baseUrl: finalUrl, weights });
+      const recommendations = await this.recommendationsForResult(result, context, finalUrl);
+      const persistedRecommendations = { ...recommendations, analysisRevision: result.analysisRevision, diagnosticEvidence: result.evidence };
+      const storedSchema = { ...result.schema, analysisRevision: result.analysisRevision };
+      const storedContent = { ...result.content, analysisRevision: result.analysisRevision };
+      const storedMeta = { ...result.meta, analysisRevision: result.analysisRevision };
+      const storedCitation = { ...result.citation, analysisRevision: result.analysisRevision };
+      const completedAt = now();
       this.database.transaction(() => {
-        this.connection.prepare(`UPDATE monitoring_site_reports SET source_url = ?, source_label = ?, status = 'completed', overall_score = ?, weights_json = ?, schema_analysis_json = ?, content_analysis_json = ?, meta_analysis_json = ?, citation_analysis_json = ?, recommendations_json = ?, content_hash = ?, content_bytes = ?, completed_at = ? WHERE id = ?`).run(finalUrl || "", finalLabel || "", result.overallScore, JSON.stringify(result.weights), JSON.stringify(result.schema), JSON.stringify(result.content), JSON.stringify(result.meta), JSON.stringify(result.citation), JSON.stringify(result.recommendations), result.contentHash, result.contentBytes, completedAt, reportId);
-        appendAuditLog(this.connection, { actorUserId: userId, action: "monitoring.diagnostic.complete", entityType: "monitoring_site_report", entityId: reportId, details: { overallScore: result.overallScore, contentHash: result.contentHash }, request, createdAt: completedAt });
+        this.connection.prepare(`UPDATE monitoring_site_reports SET source_url = ?, source_label = ?, status = 'completed', overall_score = ?, weights_json = ?, schema_analysis_json = ?, content_analysis_json = ?, meta_analysis_json = ?, citation_analysis_json = ?, recommendations_json = ?, content_hash = ?, content_bytes = ?, completed_at = ? WHERE id = ?`).run(finalUrl || "", finalLabel || "", result.overallScore, JSON.stringify(result.weights), JSON.stringify(storedSchema), JSON.stringify(storedContent), JSON.stringify(storedMeta), JSON.stringify(storedCitation), JSON.stringify(persistedRecommendations), result.contentHash, result.contentBytes, completedAt, reportId);
+        appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "monitoring.diagnostic.complete", entityType: "monitoring_site_report", entityId: reportId, details: { overallScore: result.overallScore, contentHash: result.contentHash, recommendationSource: recommendations.recommendationSource || recommendations.source || "rules" }, request, createdAt: completedAt });
       });
       return this.report(workspaceId, reportId);
     } catch (error) {
       const completedAt = now(); const normalized = error instanceof MonitoringError ? error : new MonitoringError("Diagnostic processing failed.", 500, "MONITORING_DIAGNOSTIC_FAILED", { cause: error.message });
-      this.connection.prepare("UPDATE monitoring_site_reports SET status = 'failed', error_code = ?, error_message = ?, completed_at = ? WHERE id = ?").run(normalized.code, normalized.message.slice(0, 2_000), completedAt, reportId);
+      this.database.transaction(() => {
+        this.connection.prepare("UPDATE monitoring_site_reports SET status = 'failed', error_code = ?, error_message = ?, completed_at = ? WHERE id = ?").run(normalized.code, normalized.message.slice(0, 2_000), completedAt, reportId);
+        appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "monitoring.diagnostic.failed", entityType: "monitoring_site_report", entityId: reportId, details: { code: normalized.code }, request, createdAt: completedAt });
+      });
       normalized.details = { ...(normalized.details || {}), reportId };
       throw normalized;
     }
+  }
+
+  async diagnose(input = {}) {
+    return this.executeDiagnostic(this.createDiagnosticContext(input));
+  }
+
+  enqueueDiagnosis(input = {}) {
+    const context = this.createDiagnosticContext(input);
+    const report = this.report(context.workspaceId, context.reportId);
+    const job = Promise.resolve().then(() => this.executeDiagnostic(context));
+    this.diagnosticJobs.set(context.reportId, job);
+    void job.then(
+      () => this.diagnosticJobs.delete(context.reportId),
+      () => this.diagnosticJobs.delete(context.reportId)
+    );
+    return report;
   }
 
   hashIp(value) { const normalized = String(value || "").trim(); return normalized ? crypto.createHmac("sha256", this.ipSalt).update(normalized).digest("hex") : ""; }
@@ -499,21 +1026,27 @@ export class MonitoringStore {
   }
 
   trafficSummary({ workspaceId = this.workspaceId, dateFrom, dateTo, source = "all", trafficType = "all", articleId = "" } = {}) {
-    const range = dateRange({ dateFrom, dateTo });
+    const range = dateRange({ dateFrom, dateTo }, this.reportingTimeZoneOffsetMinutes);
     if (!["all", "local", "server", "channel"].includes(source)) throw new MonitoringError("Invalid log source filter.", 422, "MONITORING_FILTER_INVALID");
     if (!["all", ...TRAFFIC_TYPES].includes(trafficType)) throw new MonitoringError("Invalid traffic type filter.", 422, "MONITORING_FILTER_INVALID");
     const params = [workspaceId, range.start, range.end]; let where = "workspace_id = ? AND occurred_at BETWEEN ? AND ? AND method = 'GET'";
     if (source !== "all") { where += " AND source = ?"; params.push(source); }
     if (trafficType !== "all") { where += " AND traffic_type = ?"; params.push(trafficType); }
     if (articleId) { where += " AND article_id = ?"; params.push(articleId); }
-    const kpis = this.connection.prepare(`SELECT COUNT(*) AS pv, COUNT(DISTINCT CASE WHEN ip_hash <> '' THEN ip_hash END) AS unique_ip, SUM(CASE WHEN traffic_type = 'human' THEN 1 ELSE 0 END) AS human_pv, SUM(CASE WHEN traffic_type = 'ai_bot' THEN 1 ELSE 0 END) AS ai_bot_pv, SUM(CASE WHEN traffic_type = 'search_bot' THEN 1 ELSE 0 END) AS search_bot_pv, SUM(CASE WHEN traffic_type = 'other_bot' THEN 1 ELSE 0 END) AS other_bot_pv, SUM(CASE WHEN traffic_type = 'unknown' THEN 1 ELSE 0 END) AS unknown_pv, SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) AS errors FROM monitoring_access_logs WHERE ${where}`).get(...params);
-    const trendRows = this.connection.prepare(`SELECT substr(occurred_at, 1, 10) AS day, COUNT(*) AS pv, SUM(CASE WHEN traffic_type = 'ai_bot' THEN 1 ELSE 0 END) AS ai_bot_pv FROM monitoring_access_logs WHERE ${where} GROUP BY day ORDER BY day`).all(...params);
+    const pagePathWhere = `${where} AND ${publicPagePathSql()}`;
+    const pageWhere = `${where} AND ${successfulPublicPageSql()}`;
+    const rawKpis = this.connection.prepare(`SELECT COUNT(*) AS pv FROM monitoring_access_logs WHERE ${where}`).get(...params);
+    const kpis = this.connection.prepare(`SELECT COUNT(*) AS pv, COUNT(DISTINCT CASE WHEN ip_hash <> '' THEN ip_hash END) AS unique_ip, SUM(CASE WHEN traffic_type = 'human' THEN 1 ELSE 0 END) AS human_pv, SUM(CASE WHEN traffic_type = 'ai_bot' THEN 1 ELSE 0 END) AS ai_bot_pv, SUM(CASE WHEN traffic_type = 'search_bot' THEN 1 ELSE 0 END) AS search_bot_pv, SUM(CASE WHEN traffic_type = 'other_bot' THEN 1 ELSE 0 END) AS other_bot_pv, SUM(CASE WHEN traffic_type = 'unknown' THEN 1 ELSE 0 END) AS unknown_pv FROM monitoring_access_logs WHERE ${pageWhere}`).get(...params);
+    const errorKpis = this.connection.prepare(`SELECT COUNT(*) AS errors FROM monitoring_access_logs WHERE ${pagePathWhere} AND status_code >= 400`).get(...params);
+    const reportingDay = reportingDaySql("occurred_at", this.reportingTimeZoneOffsetMinutes);
+    const trendRows = this.connection.prepare(`SELECT ${reportingDay} AS day, COUNT(*) AS pv, SUM(CASE WHEN traffic_type = 'ai_bot' THEN 1 ELSE 0 END) AS ai_bot_pv FROM monitoring_access_logs WHERE ${pageWhere} GROUP BY day ORDER BY day`).all(...params);
     const trendMap = new Map(trendRows.map((row) => [row.day, { pv: Number(row.pv), aiBotPv: Number(row.ai_bot_pv || 0) }]));
     const trafficTrend = []; const cursor = new Date(`${range.dateFrom}T00:00:00.000Z`); const end = new Date(`${range.dateTo}T00:00:00.000Z`);
     while (cursor <= end) { const day = cursor.toISOString().slice(0, 10); trafficTrend.push({ date: day, ...(trendMap.get(day) || { pv: 0, aiBotPv: 0 }) }); cursor.setUTCDate(cursor.getUTCDate() + 1); }
-    const botRows = this.connection.prepare(`SELECT traffic_type, COUNT(*) AS count FROM monitoring_access_logs WHERE ${where} GROUP BY traffic_type`).all(...params); const botMap = new Map(botRows.map((row) => [row.traffic_type, Number(row.count)]));
-    const topPaths = this.connection.prepare(`SELECT path, COUNT(*) AS views, COUNT(DISTINCT CASE WHEN ip_hash <> '' THEN ip_hash END) AS unique_ip FROM monitoring_access_logs WHERE ${where} AND trim(path) <> '' GROUP BY path ORDER BY views DESC LIMIT 8`).all(...params).map((row) => ({ path: row.path, views: Number(row.views), uniqueIp: Number(row.unique_ip || 0) }));
-    const topArticles = this.connection.prepare(`SELECT l.article_id, COALESCE(a.title, l.article_id) AS title, COUNT(*) AS views, COUNT(DISTINCT CASE WHEN l.ip_hash <> '' THEN l.ip_hash END) AS unique_ip FROM monitoring_access_logs l LEFT JOIN content_articles a ON a.id = l.article_id WHERE ${where.replaceAll("workspace_id", "l.workspace_id").replaceAll("occurred_at", "l.occurred_at").replaceAll("source", "l.source").replaceAll("traffic_type", "l.traffic_type").replaceAll("article_id", "l.article_id").replaceAll("method", "l.method")} AND l.article_id IS NOT NULL GROUP BY l.article_id, a.title ORDER BY views DESC LIMIT 8`).all(...params).map((row) => ({ articleId: row.article_id, title: row.title, views: Number(row.views), uniqueIp: Number(row.unique_ip || 0) }));
+    const botRows = this.connection.prepare(`SELECT traffic_type, COUNT(*) AS count FROM monitoring_access_logs WHERE ${pageWhere} GROUP BY traffic_type`).all(...params); const botMap = new Map(botRows.map((row) => [row.traffic_type, Number(row.count)]));
+    const topPaths = this.connection.prepare(`SELECT path, COUNT(*) AS views, COUNT(DISTINCT CASE WHEN ip_hash <> '' THEN ip_hash END) AS unique_ip FROM monitoring_access_logs WHERE ${pageWhere} GROUP BY path ORDER BY views DESC LIMIT 8`).all(...params).map((row) => ({ path: row.path, views: Number(row.views), uniqueIp: Number(row.unique_ip || 0) }));
+    const articleWhere = pageWhere.replaceAll("workspace_id", "l.workspace_id").replaceAll("occurred_at", "l.occurred_at").replaceAll("source", "l.source").replaceAll("traffic_type", "l.traffic_type").replaceAll("article_id", "l.article_id").replaceAll("method", "l.method").replaceAll("status_code", "l.status_code").replaceAll("path", "l.path");
+    const topArticles = this.connection.prepare(`SELECT l.article_id, COALESCE(a.title, l.article_id) AS title, COUNT(*) AS views, COUNT(DISTINCT CASE WHEN l.ip_hash <> '' THEN l.ip_hash END) AS unique_ip FROM monitoring_access_logs l LEFT JOIN content_articles a ON a.id = l.article_id WHERE ${articleWhere} AND l.article_id IS NOT NULL GROUP BY l.article_id, a.title ORDER BY views DESC LIMIT 8`).all(...params).map((row) => ({ articleId: row.article_id, title: row.title, views: Number(row.views), uniqueIp: Number(row.unique_ip || 0) }));
     const normalizedKpis = {
       pv: Number(kpis?.pv || 0),
       uniqueIp: Number(kpis?.unique_ip || 0),
@@ -522,13 +1055,15 @@ export class MonitoringStore {
       searchBotPv: Number(kpis?.search_bot_pv || 0),
       otherBotPv: Number(kpis?.other_bot_pv || 0),
       unknownPv: Number(kpis?.unknown_pv || 0),
-      errors: Number(kpis?.errors || 0)
+      errors: Number(errorKpis?.errors || 0),
+      rawRequests: Number(rawKpis?.pv || 0),
+      excludedRequests: Math.max(0, Number(rawKpis?.pv || 0) - Number(kpis?.pv || 0))
     };
     const botBreakdown = TRAFFIC_TYPES.map((key) => ({ key, count: botMap.get(key) || 0 }));
     return {
       filters: { ...range, source, trafficType, articleId: articleId || null }, hasData: normalizedKpis.pv > 0, kpis: normalizedKpis,
-      pv: normalizedKpis.aiBotPv,
-      trend: trafficTrend.map((item) => ({ date: item.date, pv: item.aiBotPv, totalPv: item.pv })),
+      pv: normalizedKpis.pv,
+      trend: trafficTrend.map((item) => ({ date: item.date, pv: item.pv, totalPv: item.pv, aiBotPv: item.aiBotPv })),
       trafficTrend, botBreakdown,
       bots: botBreakdown.filter((item) => item.key !== "human" && item.key !== "unknown").map((item) => ({ name: item.key, pv: item.count })),
       topPaths: topPaths.map((item) => ({ ...item, pv: item.views })), topArticles
@@ -536,7 +1071,7 @@ export class MonitoringStore {
   }
 
   async operationsSummary({ workspaceId = this.workspaceId, dateFrom, dateTo, businessLineId = "" } = {}) {
-    const range = dateRange({ dateFrom, dateTo }); const params = [workspaceId, range.start, range.end];
+    const range = dateRange({ dateFrom, dateTo }, this.reportingTimeZoneOffsetMinutes); const params = [workspaceId, range.start, range.end];
     let articleWhere = "workspace_id = ? AND created_at BETWEEN ? AND ?"; if (businessLineId) { articleWhere += " AND business_line_id = ?"; params.push(businessLineId); }
     let articleAliasWhere = "a.workspace_id = ? AND a.created_at BETWEEN ? AND ?"; if (businessLineId) articleAliasWhere += " AND a.business_line_id = ?";
     const articleRows = this.connection.prepare(`SELECT status, COUNT(*) AS count FROM content_articles WHERE ${articleWhere} GROUP BY status`).all(...params); const articleMap = new Map(articleRows.map((row) => [row.status, Number(row.count)]));

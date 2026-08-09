@@ -1,75 +1,89 @@
 {
-  "name": "tongzhuo-geo-desktop-agent",
-  "version": "1.8.13",
-  "private": true,
-  "description": "桐灼 GEO Windows 发布节点",
-  "author": "Tongzhuo GEO",
-  "main": "electron-main.mjs",
-  "type": "module",
-  "scripts": {
-    "start": "node src/main.js",
-    "start:desktop": "electron .",
-    "build:desktop": "electron-builder --win nsis portable",
-    "check": "node --check public/app.js && node --check src/main.js && node --check src/agent.js && node --check src/config-store.js && node --check src/geoflow-client.js && node --check src/log-buffer.js && node --check src/platform-browser.js && node --check src/platforms.js && node --check src/platform-result.js && node --check src/job-state-machine.js && node --check src/version.js && node --check src/diagnostics.js && node --check src/export-bundle.js && node --check src/article-payload.js && node --check src/adapters/index.js && node --check src/adapters/base-adapter.js && node --check src/adapters/generic-editor-adapter.js && node --check src/adapters/fill-tools.js && node --check src/adapters/final-publish.js && node --check src/adapters/short-post-adapter.js && node --check src/adapters/zhihu-adapter.js && node --check src/adapters/wechat-mp-adapter.js && node --check src/adapters/toutiao-adapter.js && node --check scripts/check-adapters.mjs && node --check scripts/check-pairing-invalidation.mjs && node scripts/check-article-payload.mjs && node scripts/check-config-store.mjs && node scripts/check-pairing-invalidation.mjs && node scripts/check-log-buffer.mjs && node scripts/check-platform-catalog.mjs && node scripts/check-adapters.mjs && node scripts/check-export-bundle.mjs && node scripts/check-agent-result.mjs && node scripts/check-job-state-machine.mjs && node scripts/check-diagnostics.mjs && node scripts/check-version.mjs",
-    "test:adapters": "node scripts/check-adapters.mjs"
-  },
-  "dependencies": {
-    "express": "^5.1.0",
-    "playwright": "1.61.1"
-  },
-  "devDependencies": {
-    "electron": "^36.3.2",
-    "electron-builder": "^26.0.12"
-  },
-  "build": {
-    "appId": "cn.tongzhuo.geo.publisher",
-    "productName": "桐灼 GEO 发布器",
-    "icon": "assets/tongzhuo-geo-publisher.ico",
-    "artifactName": "tongzhuo-geo-publisher-${version}-${arch}.${ext}",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "electron-main.mjs",
-      "src/**/*",
-      "public/**/*",
-      "package.json",
-      "!**/.data{,/**/*}",
-      "!**/tests{,/**/*}",
-      "!**/scripts{,/**/*}"
-    ],
-    "extraMetadata": {
-      "main": "electron-main.mjs"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "signAndEditExecutable": true
-    },
-    "nsis": {
-      "artifactName": "tongzhuo-geo-publisher-setup-${version}-${arch}.${ext}",
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "桐灼 GEO 发布器",
-      "runAfterFinish": true
-    },
-    "portable": {
-      "artifactName": "tongzhuo-geo-publisher-portable-${version}-${arch}.${ext}"
-    },
-    "asar": true
-  }
+    "name":  "tongzhuo-geo-desktop-agent",
+    "version":  "1.8.14",
+    "private":  true,
+    "description":  "桐灼 GEO Windows 发布节点",
+    "author":  "Tongzhuo GEO",
+    "main":  "electron-main.mjs",
+    "type":  "module",
+    "scripts":  {
+                    "start":  "node src/main.js",
+                    "start:desktop":  "electron .",
+                    "prepare:browser-runtime":  "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Prepare-BrowserRuntime.ps1",
+                    "build:desktop":  "npm run prepare:browser-runtime \u0026\u0026 electron-builder --win nsis portable",
+                    "check":  "node --check public/app.js \u0026\u0026 node --check src/main.js \u0026\u0026 node --check src/agent.js \u0026\u0026 node --check src/config-store.js \u0026\u0026 node --check src/geoflow-client.js \u0026\u0026 node --check src/log-buffer.js \u0026\u0026 node --check src/platform-browser.js \u0026\u0026 node --check src/platforms.js \u0026\u0026 node --check src/platform-result.js \u0026\u0026 node --check src/job-state-machine.js \u0026\u0026 node --check src/version.js \u0026\u0026 node --check src/diagnostics.js \u0026\u0026 node --check src/export-bundle.js \u0026\u0026 node --check src/article-payload.js \u0026\u0026 node --check src/adapters/index.js \u0026\u0026 node --check src/adapters/base-adapter.js \u0026\u0026 node --check src/adapters/generic-editor-adapter.js \u0026\u0026 node --check src/adapters/fill-tools.js \u0026\u0026 node --check src/adapters/final-publish.js \u0026\u0026 node --check src/adapters/short-post-adapter.js \u0026\u0026 node --check src/adapters/zhihu-adapter.js \u0026\u0026 node --check src/adapters/wechat-mp-adapter.js \u0026\u0026 node --check src/adapters/toutiao-adapter.js \u0026\u0026 node --check scripts/check-adapters.mjs \u0026\u0026 node --check scripts/check-pairing-invalidation.mjs \u0026\u0026 node scripts/check-article-payload.mjs \u0026\u0026 node scripts/check-config-store.mjs \u0026\u0026 node scripts/check-pairing-invalidation.mjs \u0026\u0026 node scripts/check-log-buffer.mjs \u0026\u0026 node scripts/check-platform-catalog.mjs \u0026\u0026 node scripts/check-adapters.mjs \u0026\u0026 node scripts/check-export-bundle.mjs \u0026\u0026 node scripts/check-agent-result.mjs \u0026\u0026 node scripts/check-job-state-machine.mjs \u0026\u0026 node scripts/check-diagnostics.mjs \u0026\u0026 node scripts/check-version.mjs",
+                    "test:adapters":  "node scripts/check-adapters.mjs"
+                },
+    "dependencies":  {
+                         "express":  "^5.1.0",
+                         "playwright":  "1.61.1"
+                     },
+    "devDependencies":  {
+                            "electron":  "^36.3.2",
+                            "electron-builder":  "^26.0.12"
+                        },
+    "build":  {
+                  "appId":  "cn.tongzhuo.geo.publisher",
+                  "productName":  "桐灼 GEO 发布器",
+                  "icon":  "assets/tongzhuo-geo-publisher.ico",
+                  "artifactName":  "tongzhuo-geo-publisher-${version}-${arch}.${ext}",
+                  "directories":  {
+                                      "output":  "release"
+                                  },
+                  "files":  [
+                                "electron-main.mjs",
+                                "src/**/*",
+                                "public/**/*",
+                                "package.json",
+                                "!**/.data{,/**/*}",
+                                "!**/tests{,/**/*}",
+                                "!**/scripts{,/**/*}"
+                            ],
+                  "extraResources":  [
+                                         {
+                                             "from":  "browser-runtime/chromium",
+                                             "to":  "browser-runtime/chromium",
+                                             "filter":  [
+                                                            "**/*"
+                                                        ]
+                                         },
+                                         {
+                                             "from":  "assets/tongzhuo-geo-publisher.ico",
+                                             "to":  "assets/tongzhuo-geo-publisher.ico"
+                                         }
+                                     ],
+                  "extraMetadata":  {
+                                        "main":  "electron-main.mjs"
+                                    },
+                  "win":  {
+                              "target":  [
+                                             {
+                                                 "target":  "nsis",
+                                                 "arch":  [
+                                                              "x64"
+                                                          ]
+                                             },
+                                             {
+                                                 "target":  "portable",
+                                                 "arch":  [
+                                                              "x64"
+                                                          ]
+                                             }
+                                         ],
+                              "signAndEditExecutable":  true
+                          },
+                  "nsis":  {
+                               "artifactName":  "tongzhuo-geo-publisher-setup-${version}-${arch}.${ext}",
+                               "oneClick":  false,
+                               "allowToChangeInstallationDirectory":  true,
+                               "createDesktopShortcut":  true,
+                               "createStartMenuShortcut":  true,
+                               "shortcutName":  "桐灼 GEO 发布器",
+                               "runAfterFinish":  true
+                           },
+                  "portable":  {
+                                   "artifactName":  "tongzhuo-geo-publisher-portable-${version}-${arch}.${ext}"
+                               },
+                  "asar":  true
+              }
 }

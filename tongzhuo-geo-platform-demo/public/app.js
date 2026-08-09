@@ -2,6 +2,14 @@
 
 const STORAGE_KEY = "tongzhuo-geo-platform-demo-v11";
 const LEGACY_STORAGE_KEYS = ["tongzhuo-geo-platform-demo-v10", "tongzhuo-geo-platform-demo-v9", "tongzhuo-geo-platform-demo-v8", "tongzhuo-geo-platform-demo-v7", "tongzhuo-geo-platform-demo-v6"];
+const LOCAL_PUBLISHER_DOWNLOAD_URL = "/downloads/tongzhuo-geo-publisher-setup.exe";
+
+function publisherDownloadHref() {
+  const meta = document.querySelector('meta[name="publisher-download-url"]');
+  const value = String(meta?.content || "").trim();
+  const url = value && !value.includes("__TZ_PUBLISHER_DOWNLOAD_URL__") ? value : LOCAL_PUBLISHER_DOWNLOAD_URL;
+  return typeof escapeHtml === "function" ? escapeHtml(url) : url;
+}
 
 const ICONS = {
   home: '<path d="M3 10.8 12 3l9 7.8"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9.5 21v-6h5v6"/>',
@@ -2532,6 +2540,10 @@ let aiProviderSnapshot = { loaded: false, loading: false, providers: [], error: 
 let memberSnapshot = { loaded: false, loading: false, users: [], error: "" };
 let auditSnapshot = { loaded: false, loading: false, items: [], error: "" };
 let monitoringSnapshot = { loaded: false, loading: false, overview: null, traffic: null, diagnostics: [], error: "", loadedAt: null };
+let monitoringDiagnosticPollTimer = null;
+let monitoringDiagnosticPollReportId = null;
+let monitoringDiagnosticRunInFlight = false;
+const monitoringDiagnosticPollFailures = new Map();
 // The effect-search page is a customer-facing client of the private relay API.
 // Keep relay state outside the workspace demo snapshot so browser refreshes can
 // rehydrate it from the customer's server instead of inventing local results.
@@ -3366,6 +3378,8 @@ const ui = {
   monitoringPlatform: "all",
   monitoringRange: "30",
   monitoringRefreshing: false,
+  monitoringSuggestionGeneration: false,
+  monitoringSuggestionProviderId: state.settings?.modelProviderId || "",
   // A private deployment starts with no customer content or platform scope.
   // Capabilities and quota are loaded from its signed relay instance; an
   // operator must explicitly choose the question, brand and target channels.
@@ -3456,7 +3470,9 @@ const ui = {
   effectMonitorRange: "30",
   effectNavExpanded: false,
   effectNavRoute: null,
-  diagnosticSection: "analysis",
+  // 官网实测是运营诊断的日常入口；行业分析仍保留为独立工作台，避免
+  // 将抓取/访问证据与 AI 分析报告混在同一首屏。
+  diagnosticSection: "evidence",
   diagnosticWizardOpen: false,
   diagnosticProjectId: null,
   diagnosticReportId: null,
@@ -5523,13 +5539,147 @@ function monitoringDiagnostics() {
   return Array.isArray(items) ? items : [];
 }
 
+function monitoringDiagnosticStatus(diagnostic) {
+  return String(diagnostic?.status || diagnostic?.state || diagnostic?.runStatus || "").trim().toLowerCase();
+}
+
+function monitoringDiagnosticIsCompleted(diagnostic) {
+  return ["completed", "complete", "success", "succeeded"].includes(monitoringDiagnosticStatus(diagnostic));
+}
+
+function monitoringDiagnosticIsTerminal(diagnostic) {
+  return monitoringDiagnosticIsCompleted(diagnostic) || ["failed", "error", "cancelled", "canceled"].includes(monitoringDiagnosticStatus(diagnostic));
+}
+
 function monitoringLatestDiagnostic() {
   const overview = monitoringSnapshot.overview || {};
   const inline = overview.latestDiagnostic || overview.diagnostic || overview.websiteDiagnostic;
-  return inline || monitoringDiagnostics()[0] || null;
+  return monitoringDiagnostics()[0] || inline || null;
+}
+
+function monitoringLatestCompletedDiagnostic() {
+  const overview = monitoringSnapshot.overview || {};
+  const candidates = [
+    ...monitoringDiagnostics(),
+    overview.latestDiagnostic,
+    overview.diagnostic,
+    overview.websiteDiagnostic
+  ].filter(Boolean);
+  return candidates.find(monitoringDiagnosticIsCompleted) || null;
+}
+
+function monitoringDiagnosticStateMeta(diagnostic) {
+  const status = monitoringDiagnosticStatus(diagnostic);
+  if (!diagnostic) return { key: "empty", label: "尚未实测", className: "pending", message: "填写可公开访问的官网地址后，开始一次网站 GEO 实测。" };
+  if (monitoringDiagnosticIsCompleted(diagnostic)) return { key: "completed", label: "检测已完成", className: "success", message: "分数仅来自本次已完成的官网 HTML 检测。" };
+  if (["running", "pending", "queued"].includes(status)) return { key: "running", label: status === "running" ? "检测中" : "等待检测", className: "pending", message: "正在读取官网页面，完成后才会计算分数。" };
+  const failure = String(diagnostic?.errorMessage || diagnostic?.message || diagnostic?.error || "未能读取官网页面，请检查协议、端口和公网可达性后重试。").trim();
+  return { key: "failed", label: "最近一次检测失败", className: "error", message: failure };
+}
+
+function monitoringRecommendationSourceMeta(diagnostic) {
+  const recommendations = diagnostic?.recommendations && typeof diagnostic.recommendations === "object" && !Array.isArray(diagnostic.recommendations)
+    ? diagnostic.recommendations
+    : {};
+  const rawGeneration = recommendations.generation;
+  const generation = rawGeneration && typeof rawGeneration === "object" ? rawGeneration : {};
+  const source = String(recommendations.source || (typeof rawGeneration === "string" ? rawGeneration : "") || generation.source || generation.mode || diagnostic?.suggestionGeneration?.source || diagnostic?.suggestionGeneration?.mode || "rules").trim().toLowerCase();
+  const mapping = {
+    rules: { key: "rules", label: "规则建议", description: "由本次页面检查规则直接生成。" },
+    llm: { key: "llm", label: "AI 整理建议", description: "模型只整理已发现的问题和证据，不参与评分。" },
+    rule_fallback: { key: "rule_fallback", label: "规则兜底", description: "模型建议未生成，已回退为页面规则建议。" }
+  };
+  const meta = mapping[source === "rule" ? "rules" : source === "fallback" ? "rule_fallback" : source] || mapping.rules;
+  const provider = generation.providerName || generation.provider || generation.providerId || "";
+  const model = generation.model || generation.modelName || "";
+  return { ...meta, generation, modelLabel: [provider, model].filter(Boolean).join(" · ") };
+}
+
+function monitoringPriorityRecommendation(diagnostic) {
+  const recommendations = diagnostic?.recommendations && typeof diagnostic.recommendations === "object" && !Array.isArray(diagnostic.recommendations)
+    ? diagnostic.recommendations
+    : {};
+  const firstAction = (items) => Array.isArray(items) ? items.find((item) => item?.action || item?.goal || item?.title || item?.item) : null;
+  const llm = recommendations.llm && typeof recommendations.llm === "object" ? recommendations.llm : {};
+  const candidate = firstAction(llm.recommendations) || firstAction(recommendations.urgent) || firstAction(recommendations.recommended) || firstAction(recommendations.phasePlan);
+  return String(llm.priorityAction || recommendations.summary?.priorityAction || recommendations.priorityAction || candidate?.action || candidate?.goal || candidate?.title || candidate?.item || "").trim();
+}
+
+function monitoringEvidenceText(value, fallback = "未发现") {
+  const values = Array.isArray(value) ? value : value == null || value === "" ? [] : [value];
+  return values.length ? values.map((item) => escapeHtml(String(item))).join("、") : escapeHtml(fallback);
+}
+
+function monitoringEvidenceFlag(label, value) {
+  return `<span class="monitoring-evidence-flag ${value ? "pass" : "missing"}">${escapeHtml(label)}：${value ? "已具备" : "缺失"}</span>`;
+}
+
+function monitoringDiagnosticEvidenceMarkup(diagnostic) {
+  if (!monitoringDiagnosticIsCompleted(diagnostic)) {
+    return '<details class="monitoring-diagnostic-details"><summary>查看检查证据与建议</summary><div class="monitoring-diagnostic-empty">诊断完成后会在这里保留四项检查证据、建议来源与优先建议。</div></details>';
+  }
+  const schema = diagnostic?.schema || diagnostic?.schemaAnalysis || {};
+  const content = diagnostic?.content || diagnostic?.contentAnalysis || {};
+  const meta = diagnostic?.meta || diagnostic?.metaAnalysis || {};
+  const citation = diagnostic?.citation || diagnostic?.citationAnalysis || {};
+  const source = monitoringRecommendationSourceMeta(diagnostic);
+  const priority = monitoringPriorityRecommendation(diagnostic);
+  const metaChecks = meta.checks && typeof meta.checks === "object" ? meta.checks : {};
+  const metaFlagLabels = {
+    title: "Title", metaDescription: "描述", canonical: "Canonical", viewport: "Viewport", robots: "Robots", favicon: "Favicon",
+    htmlLang: "Lang", ogTitle: "OG 标题", ogDescription: "OG 描述", ogImage: "OG 图片", ogType: "OG 类型", ogLocale: "OG 语言", twitterCard: "Twitter Card"
+  };
+  const metaFlags = Object.entries(metaFlagLabels).map(([key, label]) => monitoringEvidenceFlag(label, Boolean(metaChecks[key]))).join("");
+  const authorityLinks = Array.isArray(citation.authorityLinks || citation.authority_links) ? (citation.authorityLinks || citation.authority_links).slice(0, 3) : [];
+  const citationEvidence = citation.evidence && typeof citation.evidence === "object" ? citation.evidence : {};
+  const sourceLinkCount = monitoringNumber(citation.sourceLinkCount ?? citation.source_link_count ?? citationEvidence.source_link_count) ?? 0;
+  const sourceLinks = (Array.isArray(citation.sourceLinks || citation.source_links)
+    ? (citation.sourceLinks || citation.source_links)
+    : Array.isArray(citationEvidence.source_links) ? citationEvidence.source_links : [])
+    .map((item) => typeof item === "string" ? item : item?.href)
+    .filter(Boolean)
+    .slice(0, 5);
+  const recognizedLinks = sourceLinks.length ? sourceLinks : authorityLinks;
+  const recognizedLinkLabel = sourceLinks.length || sourceLinkCount > 0 ? "可识别来源链接" : "权威来源链接";
+  const recognizedLinkMarkup = recognizedLinks.length
+    ? recognizedLinks.map((item) => `<a href="${escapeHtml(String(item))}" target="_blank" rel="noopener noreferrer">${escapeHtml(String(item))}</a>`).join("<br />")
+    : sourceLinkCount > 0 ? `已识别 ${monitoringDisplayNumber(sourceLinkCount)} 条来源链接` : "未发现权威来源链接";
+  return `
+    <details class="monitoring-diagnostic-details">
+      <summary>查看检查证据与建议</summary>
+      <div class="monitoring-evidence-grid">
+        <article class="monitoring-evidence-group"><header><b>Schema</b><em>${monitoringDisplayNumber(schema.score ?? schema.schemaScore ?? schema.schema_score)} 分</em></header><dl><div><dt>已发现类型</dt><dd>${monitoringEvidenceText(schema.foundTypes || schema.found_types)}</dd></div><div><dt>建议补充</dt><dd>${monitoringEvidenceText(schema.missingRecommended || schema.missing_recommended, "暂无")}</dd></div><div><dt>JSON-LD</dt><dd>${monitoringDisplayNumber(schema.schemaCount ?? schema.jsonldCount ?? schema.jsonld_count)} 段 · 覆盖 ${monitoringDisplayNumber(schema.coverageRatio ?? schema.coverage_ratio, "%")}</dd></div></dl></article>
+        <article class="monitoring-evidence-group"><header><b>内容结构</b><em>${monitoringDisplayNumber(content.score ?? content.contentScore ?? content.content_score)} 分</em></header><dl><div><dt>标题层级</dt><dd>H1 ${monitoringDisplayNumber(content.h1Count ?? content.h1_count)} · H2 ${monitoringDisplayNumber(content.h2Count ?? content.h2_count)} · H3 ${monitoringDisplayNumber(content.h3Count ?? content.h3_count)}</dd></div><div><dt>正文与首段</dt><dd>${monitoringDisplayNumber(content.characterCount ?? content.character_count)} 字符 · ${(content.firstParagraphHasDirectAnswer ?? content.first_paragraph_has_direct_answer ?? content.firstParagraphQuality ?? content.first_paragraph_quality) ? "首段可直接回答" : "首段需补充直答"}</dd></div><div><dt>结构信号</dt><dd>FAQ ${monitoringDisplayNumber(content.faqLikeSections ?? content.faq_like_sections)} · 列表 ${monitoringDisplayNumber(content.listCount ?? content.list_count)} · CTA ${monitoringDisplayNumber(content.ctaCount ?? content.cta_count)}</dd></div><div><dt>图片 Alt</dt><dd>${monitoringDisplayNumber(content.imageWithAltCount ?? content.image_with_alt_count)} / ${monitoringDisplayNumber(content.imageCount ?? content.image_count)} · ${monitoringDisplayNumber(content.imageAltRatio ?? content.image_alt_ratio, "%")}</dd></div></dl></article>
+        <article class="monitoring-evidence-group"><header><b>Meta 与预览</b><em>${monitoringDisplayNumber(meta.score ?? meta.metaScore ?? meta.meta_score)} 分 · 预览 ${monitoringDisplayNumber(meta.previewScore ?? meta.preview_score)} 分</em></header><div class="monitoring-evidence-flags">${metaFlags || '<span class="monitoring-evidence-empty">暂无 Meta 检查值</span>'}</div><dl><div><dt>缺失项</dt><dd>${monitoringEvidenceText(meta.missing, "暂无")}</dd></div></dl></article>
+         <article class="monitoring-evidence-group"><header><b>引用与链接</b><em>${monitoringDisplayNumber(citation.score ?? citation.citationScore ?? citation.citation_score)} 分</em></header><dl><div><dt>链接结构</dt><dd>外部 ${monitoringDisplayNumber(citation.externalLinkCount ?? citation.external_link_count)} · 权威 ${monitoringDisplayNumber(citation.authorityLinkCount ?? citation.authority_link_count)} · 内链 ${monitoringDisplayNumber(citation.internalLinkCount ?? citation.internal_link_count)} · 社交 ${monitoringDisplayNumber(citation.socialLinkCount ?? citation.social_link_count)}</dd></div><div><dt>${recognizedLinkLabel}</dt><dd>${recognizedLinkMarkup}</dd></div></dl></article>
+      </div>
+      <section class="monitoring-suggestion-summary"><div><span>建议来源</span><b>${escapeHtml(source.label)}</b><small>${escapeHtml(source.description)}${source.modelLabel ? ` ${escapeHtml(source.modelLabel)}` : ""}</small></div><div><span>优先建议</span><p>${escapeHtml(priority || "当前未返回优先建议；可先根据四项检查证据补齐缺失项。")}</p></div></section>
+    </details>`;
+}
+
+function monitoringTrafficLabel(value) {
+  const key = String(value || "").trim().toLowerCase();
+  const labels = {
+    human: "浏览器 UA 请求",
+    ai_bot: "AI 爬虫页面请求",
+    search_bot: "搜索爬虫页面请求",
+    other_bot: "其他自动化请求",
+    unknown: "无 / 未识别 UA"
+  };
+  return labels[key] || String(value || "未知请求");
+}
+
+function monitoringTrendLabel(value) {
+  const source = String(value || "").trim();
+  const match = source.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${Number(match[2])}/${Number(match[3])}` : source;
 }
 
 function monitoringDiagnosticScores(diagnostic) {
+  // A failed report is still auditable, but it does not carry a score.  Do
+  // not turn missing fields into 0, otherwise an unreachable site looks like
+  // a completed zero-score diagnosis.
+  if (!monitoringDiagnosticIsCompleted(diagnostic)) return { total: null, schema: null, content: null, meta: null, authority: null };
   const scores = diagnostic?.scores || diagnostic?.scoreBreakdown || diagnostic?.breakdown || diagnostic?.checks || diagnostic?.components || {};
   return {
     total: monitoringMetric(diagnostic, ["totalScore", "score", "geoScore", "overallScore"]) ?? monitoringMetric(scores, ["total", "overall"]),
@@ -5555,9 +5705,18 @@ function monitoringTrafficPoints(traffic) {
 }
 
 function monitoringTrendBars(points) {
-  if (!points.length) return '<div class="monitor-real-empty">等待服务器回传 AI 爬虫访问趋势</div>';
-  const max = Math.max(...points.map((item) => item.value), 1);
-  return `<div class="monitor-real-bars">${points.map((item) => `<div class="monitor-real-bar"><i style="height:${Math.max(5, Math.round(item.value / max * 100))}%" title="${escapeHtml(item.label)}：${item.value}"></i><small>${escapeHtml(item.label)}</small></div>`).join("")}</div>`;
+  const values = points.map((item) => Math.max(0, Number(item.value) || 0));
+  if (!points.length || !values.some((value) => value > 0)) return '<div class="monitor-real-empty">所选周期暂无成功页面请求</div>';
+  const width = 720; const height = 150; const left = 14; const right = 14; const top = 12; const bottom = 28;
+  const plotWidth = width - left - right; const plotHeight = height - top - bottom; const max = Math.max(...values, 1);
+  const x = (index) => left + (points.length === 1 ? plotWidth / 2 : index / (points.length - 1) * plotWidth);
+  const y = (value) => top + plotHeight - value / max * plotHeight;
+  const line = points.map((item, index) => `${index ? "L" : "M"}${x(index).toFixed(2)} ${y(values[index]).toFixed(2)}`).join(" ");
+  const area = `${line} L ${x(points.length - 1).toFixed(2)} ${top + plotHeight} L ${x(0).toFixed(2)} ${top + plotHeight} Z`;
+  const tickCount = Math.min(6, points.length); const tickIndexes = [...new Set(Array.from({ length: tickCount }, (_, index) => Math.round(index * (points.length - 1) / Math.max(1, tickCount - 1))))];
+  const ticks = tickIndexes.map((index) => `<span>${escapeHtml(monitoringTrendLabel(points[index].label))}</span>`).join("");
+  const dots = points.map((item, index) => `<circle cx="${x(index).toFixed(2)}" cy="${y(values[index]).toFixed(2)}" r="${index === points.length - 1 ? 3.5 : 2.6}"><title>${escapeHtml(monitoringTrendLabel(item.label))}：${monitoringDisplayNumber(values[index])} 次成功页面请求</title></circle>`).join("");
+  return `<div class="monitor-real-trend-chart" role="img" aria-label="${escapeHtml(points.length)} 天成功页面请求趋势"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><line class="monitor-real-chart-grid" x1="${left}" y1="${top}" x2="${width - right}" y2="${top}" /><line class="monitor-real-chart-grid" x1="${left}" y1="${top + plotHeight / 2}" x2="${width - right}" y2="${top + plotHeight / 2}" /><line class="monitor-real-chart-grid" x1="${left}" y1="${top + plotHeight}" x2="${width - right}" y2="${top + plotHeight}" /><path class="monitor-real-chart-area" d="${area}" /><path class="monitor-real-chart-line" d="${line}" />${dots}</svg><div class="monitor-real-trend-labels">${ticks}</div></div>`;
 }
 
 function monitoringProductionStats() {
@@ -5615,29 +5774,171 @@ async function refreshRealMonitoring(options = {}) {
   return monitoringSnapshot;
 }
 
+async function monitoringDiagnosticRequest(path, options = {}) {
+  const request = window.tzFetch || window.fetch.bind(window);
+  const response = await request(path, {
+    ...options,
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+    body: options.body && typeof options.body !== "string" ? JSON.stringify(options.body) : options.body
+  });
+  const responseText = await response.text();
+  let payload = {};
+  try { payload = responseText ? JSON.parse(responseText) : {}; } catch { payload = { message: responseText }; }
+  if (!response.ok || payload.ok === false) {
+    const error = new Error(payload.message || `网站诊断请求失败（${response.status}）`);
+    error.status = response.status;
+    error.code = payload.code || `HTTP_${response.status}`;
+    error.body = payload;
+    throw error;
+  }
+  return { responseStatus: response.status, payload };
+}
+
+function monitoringUpsertDiagnostic(diagnostic) {
+  if (!diagnostic?.id) return diagnostic || null;
+  const existing = monitoringDiagnostics().filter((item) => String(item?.id || "") !== String(diagnostic.id));
+  monitoringSnapshot = { ...monitoringSnapshot, loaded: true, loading: false, diagnostics: [diagnostic, ...existing] };
+  return diagnostic;
+}
+
+function stopMonitoringDiagnosticPolling() {
+  if (monitoringDiagnosticPollTimer) window.clearTimeout(monitoringDiagnosticPollTimer);
+  if (monitoringDiagnosticPollReportId) monitoringDiagnosticPollFailures.delete(monitoringDiagnosticPollReportId);
+  monitoringDiagnosticPollTimer = null;
+  monitoringDiagnosticPollReportId = null;
+}
+
+function scheduleMonitoringDiagnosticPoll(reportId, delay = 1_200) {
+  if (!reportId) return;
+  if (monitoringDiagnosticPollTimer) window.clearTimeout(monitoringDiagnosticPollTimer);
+  monitoringDiagnosticPollReportId = String(reportId);
+  monitoringDiagnosticPollTimer = window.setTimeout(() => pollMonitoringDiagnostic(reportId), delay);
+}
+
+async function pollMonitoringDiagnostic(reportId) {
+  if (!reportId || monitoringDiagnosticPollReportId !== String(reportId)) return;
+  try {
+    const payload = await productionApi(`/api/v1/monitoring/diagnostics/${encodeURIComponent(reportId)}`);
+    // A newer run can supersede this one while the request is in flight.
+    // Never let a late response move the older report back to the top.
+    if (monitoringDiagnosticPollReportId !== String(reportId)) return;
+    const diagnostic = monitoringApiRecord(payload, ["diagnostic", "report", "item"]);
+    if (!diagnostic?.id) throw new Error("诊断报告暂未返回可读取的状态。");
+    monitoringDiagnosticPollFailures.delete(String(reportId));
+    monitoringUpsertDiagnostic(diagnostic);
+    if (currentRoute() === "monitoring") render();
+    if (!monitoringDiagnosticIsTerminal(diagnostic)) return scheduleMonitoringDiagnosticPoll(reportId);
+    stopMonitoringDiagnosticPolling();
+    await refreshRealMonitoring({ silent: true });
+    const state = monitoringDiagnosticStateMeta(diagnostic);
+    const scores = monitoringDiagnosticScores(diagnostic);
+    showToast(
+      monitoringDiagnosticIsCompleted(diagnostic) ? "网站 GEO 诊断已完成" : "网站 GEO 诊断失败",
+      monitoringDiagnosticIsCompleted(diagnostic)
+        ? `本次总分 ${monitoringDisplayNumber(scores.total)} / 100；分数只反映当前页面的结构、内容、预览与链接基础。`
+        : state.message,
+      monitoringDiagnosticIsCompleted(diagnostic) ? "success" : "error"
+    );
+  } catch (error) {
+    if (monitoringDiagnosticPollReportId !== String(reportId)) return;
+    const failureCount = (monitoringDiagnosticPollFailures.get(String(reportId)) || 0) + 1;
+    monitoringDiagnosticPollFailures.set(String(reportId), failureCount);
+    const permanent = [401, 403, 404].includes(Number(error?.status)) || failureCount >= 5;
+    const fallback = permanent ? "诊断状态无法继续读取，请刷新页面后重试。" : "诊断状态暂时无法读取，正在重试。";
+    monitoringSnapshot = { ...monitoringSnapshot, loading: false, error: error.message || fallback };
+    if (currentRoute() === "monitoring") render();
+    if (permanent) {
+      stopMonitoringDiagnosticPolling();
+      showToast("网站 GEO 诊断状态读取失败", monitoringSnapshot.error, "error");
+      return;
+    }
+    scheduleMonitoringDiagnosticPoll(reportId, Math.min(10_000, 1_200 * (2 ** Math.min(3, failureCount))));
+  }
+}
+
+async function monitoringSuggestionGenerationPayload() {
+  const enabled = document.getElementById("monitoring-suggestion-generation")?.checked ?? Boolean(ui.monitoringSuggestionGeneration);
+  if (!enabled) return { suggestionGeneration: { mode: "rules" }, fallbackMessage: "" };
+  if (!aiProviderSnapshot.loaded) await refreshAiProviders({ renderAfter: false }).catch(() => null);
+  const selectedProviderId = String(document.getElementById("monitoring-suggestion-provider")?.value || ui.monitoringSuggestionProviderId || selectedTextProviderId() || "").trim();
+  const providers = enabledAiProviders("text");
+  const provider = providers.find((item) => item.id === selectedProviderId)
+    || providers.find((item) => item.id === selectedTextProviderId())
+    || providers[0]
+    || null;
+  if (!provider) {
+    return {
+      suggestionGeneration: { mode: "rules" },
+      fallbackMessage: "未找到可用的已配置文本模型，本次已自动改用规则建议。"
+    };
+  }
+  return {
+    suggestionGeneration: {
+      mode: "llm",
+      providerId: provider.id,
+      model: provider.model || provider.modelId || selectedTextModelName() || ""
+    },
+    fallbackMessage: ""
+  };
+}
+
 async function runMonitoringDiagnostic() {
   const input = document.getElementById("monitoring-diagnostic-url");
   let url = input?.value.trim() || state.site?.remoteUrl || state.site?.domain || "";
   if (!url) return showToast("请填写官网地址", "需要提供已部署官网的完整地址后才能运行 GEO 诊断。", "error");
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
   try { url = new URL(url).toString(); } catch { return showToast("官网地址格式不正确", "请输入如 https://www.example.com/ 的地址。", "error"); }
+  if (monitoringDiagnosticRunInFlight || monitoringSnapshot.loading || monitoringDiagnosticPollReportId) {
+    return showToast("已有网站诊断正在进行", "请等待当前诊断完成或失败后再发起新的检测。", "warning");
+  }
+  monitoringDiagnosticRunInFlight = true;
   monitoringSnapshot = { ...monitoringSnapshot, loading: true, error: "" };
   if (currentRoute() === "monitoring") render();
+  let suggestion;
   try {
-    const payload = await productionApi("/api/v1/monitoring/diagnostics", { method: "POST", body: { url } });
-    const diagnostic = monitoringApiRecord(payload, ["diagnostic", "report", "item"]);
-    if (diagnostic?.id) {
-      const existing = monitoringDiagnostics().filter((item) => item.id !== diagnostic.id);
-      monitoringSnapshot = { ...monitoringSnapshot, loading: false, diagnostics: [diagnostic, ...existing] };
-    } else {
-      monitoringSnapshot = { ...monitoringSnapshot, loading: false };
-    }
-    await refreshRealMonitoring({ silent: true });
-    showToast("网站 GEO 诊断已提交", "服务端完成分析后会回传最新诊断报告；不将访问数据等同于 AI 引用。", "success");
+    suggestion = await monitoringSuggestionGenerationPayload();
   } catch (error) {
-    monitoringSnapshot = { ...monitoringSnapshot, loading: false, error: error.message || "网站诊断服务暂不可用" };
+    monitoringDiagnosticRunInFlight = false;
+    monitoringSnapshot = { ...monitoringSnapshot, loading: false, error: error.message || "无法准备诊断建议配置。" };
     if (currentRoute() === "monitoring") render();
-    showToast("网站 GEO 诊断失败", monitoringSnapshot.error, "error");
+    showToast("网站 GEO 诊断未创建", monitoringSnapshot.error, "error");
+    return;
+  }
+  try {
+    const { responseStatus, payload } = await monitoringDiagnosticRequest("/api/v1/monitoring/diagnostics", { method: "POST", body: { url, suggestionGeneration: suggestion.suggestionGeneration } });
+    const diagnostic = monitoringApiRecord(payload, ["diagnostic", "report", "item"]);
+    monitoringUpsertDiagnostic(diagnostic);
+    if (!diagnostic?.id) monitoringSnapshot = { ...monitoringSnapshot, loading: false };
+    await refreshRealMonitoring({ silent: true });
+    const currentDiagnostic = diagnostic?.id
+      ? monitoringDiagnostics().find((item) => String(item?.id || "") === String(diagnostic.id)) || diagnostic
+      : monitoringLatestDiagnostic();
+    const scores = monitoringDiagnosticScores(currentDiagnostic);
+    const completed = monitoringDiagnosticIsCompleted(currentDiagnostic);
+    const terminalFailure = monitoringDiagnosticIsTerminal(currentDiagnostic) && !completed;
+    const pending = Boolean(currentDiagnostic?.id) && !monitoringDiagnosticIsTerminal(currentDiagnostic);
+    if ((responseStatus === 202 || pending) && currentDiagnostic?.id) scheduleMonitoringDiagnosticPoll(currentDiagnostic.id);
+    showToast(
+      completed ? "网站 GEO 诊断已完成" : terminalFailure ? "网站 GEO 诊断失败" : "网站 GEO 诊断已创建",
+      completed
+        ? `本次总分 ${monitoringDisplayNumber(scores.total)} / 100；仅代表网站结构与公开信源基础，不等同于 AI 引用或排名。${suggestion.fallbackMessage ? ` ${suggestion.fallbackMessage}` : ""}`
+        : terminalFailure
+          ? monitoringDiagnosticStateMeta(currentDiagnostic).message
+        : `检测完成前不会显示分数；页面会保留本次状态和可读错误信息。${suggestion.fallbackMessage ? ` ${suggestion.fallbackMessage}` : ""}`,
+      terminalFailure ? "error" : "success"
+    );
+  } catch (error) {
+    const failureMessage = error.message || "网站诊断服务暂不可用";
+    monitoringSnapshot = { ...monitoringSnapshot, loading: false, error: failureMessage };
+    // The server persists failed runs for auditability. Refresh immediately so
+    // the card can show that failure (instead of falling back to an apparent
+    // zero-score / "not run" state until the operator clicks refresh).
+    await refreshRealMonitoring({ silent: true });
+    if (currentRoute() === "monitoring") render();
+    showToast("网站 GEO 诊断失败", failureMessage, "error");
+  } finally {
+    monitoringDiagnosticRunInFlight = false;
   }
 }
 
@@ -6416,7 +6717,7 @@ function renderLegacyRealMonitoring() {
   const scoreItems = [["Schema", scores.schema], ["内容", scores.content], ["Meta", scores.meta], ["权威外链", scores.authority]];
   const diagnostics = monitoringDiagnostics().slice(0, 5);
   const pathRows = topPaths.slice(0, 5).map((item) => `<li><span>${escapeHtml(String(item.path || item.url || item.name || "—"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
-  const botRows = bots.slice(0, 5).map((item) => `<li><span>${escapeHtml(String(item.name || item.bot || item.userAgent || "未知机器人"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  const botRows = bots.slice(0, 5).map((item) => `<li><span>${escapeHtml(monitoringTrafficLabel(item.name || item.bot || item.userAgent))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
   const historyRows = diagnostics.map((item) => {
     const itemScores = monitoringDiagnosticScores(item);
     return `<tr><td>${escapeHtml(item.url || item.targetUrl || "—")}</td><td><b>${monitoringDisplayNumber(itemScores.total)}</b></td><td>${escapeHtml(item.status || item.state || "已完成")}</td><td>${item.completedAt || item.createdAt ? formatDateTime(item.completedAt || item.createdAt) : "—"}</td></tr>`;
@@ -6432,8 +6733,8 @@ function renderLegacyRealMonitoring() {
         <div class="monitor-real-history"><b>最近诊断报告</b>${historyRows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>站点</th><th>总分</th><th>状态</th><th>完成时间</th></tr></thead><tbody>${historyRows}</tbody></table></div>` : '<div class="monitor-real-empty">尚无真实诊断报告</div>'}</div>
       </section>
       <section class="card monitor-real-traffic">
-        <div class="monitor-real-section-head"><div><span class="monitor-real-eyebrow">02 · AI 爬虫访问</span><h3>AI/搜索机器人对官网的真实访问</h3><p>PV 代表服务器收到的机器人访问事件，访问不等于内容被 AI 回答引用或推荐。</p></div><div class="monitor-real-pv"><small>${ui.monitoringRange} 天 AI 爬虫 PV</small><b>${monitoringDisplayNumber(pv)}</b></div></div>
-        <div class="monitor-real-traffic-grid"><div class="monitor-real-trend"><h4>访问趋势</h4>${monitoringTrendBars(points)}</div><div class="monitor-real-list"><h4>Top 路径</h4><ul>${pathRows || '<li class="empty"><span>等待访问日志</span><b>—</b></li>'}</ul></div><div class="monitor-real-list"><h4>机器人分布</h4><ul>${botRows || '<li class="empty"><span>等待爬虫识别</span><b>—</b></li>'}</ul></div></div>
+        <div class="monitor-real-section-head"><div><span class="monitor-real-eyebrow">02 · 官网页面请求</span><h3>官网成功页面请求与自动化流量</h3><p>只统计成功返回的网页请求；UA 分类用于识别自动化流量，不代表真实访客、AI 引用或推荐。</p></div><div class="monitor-real-pv"><small>${ui.monitoringRange} 天页面请求</small><b>${monitoringDisplayNumber(pv)}</b></div></div>
+        <div class="monitor-real-traffic-grid"><div class="monitor-real-trend"><h4>页面请求趋势</h4>${monitoringTrendBars(points)}</div><div class="monitor-real-list"><h4>Top 页面</h4><ul>${pathRows || '<li class="empty"><span>等待成功页面请求</span><b>—</b></li>'}</ul></div><div class="monitor-real-list"><h4>请求类型</h4><ul>${botRows || '<li class="empty"><span>等待 UA 分类</span><b>—</b></li>'}</ul></div></div>
       </section>
       <section class="monitor-real-production">
         <div class="monitor-real-section-head"><div><span class="monitor-real-eyebrow">03 · 生产 / 发布运行概况</span><h3>内容从生产、审核到发布的当前状态</h3><p>优先读取服务端汇总；服务端尚未提供的字段仅使用本工作区已有文章与发布任务状态。</p></div></div>
@@ -6451,13 +6752,13 @@ function diagnosticDataState() {
 
 function renderDiagnosticTabs() {
   const tabs = [
-    ["analysis", "AI 分析工作台"],
     ["evidence", "官网实测"],
+    ["analysis", "AI 分析工作台"],
     ["reports", "报告中心"],
-    ["rules", "数据与规则"]
+    ["rules", "规则与口径"]
   ];
   const reportCount = (analysisWorkbenchSnapshot.sessions || []).filter((session) => Number(session.artifactCount || 0) > 0).length;
-  return `<div class="diagnostic-tabs" role="tablist">${tabs.map(([id, label]) => `<button class="diagnostic-tab ${id === "analysis" ? "diagnostic-tab-primary" : ""} ${ui.diagnosticSection === id ? "active" : ""}" type="button" data-action="diagnostic-section" data-section="${id}" role="tab" aria-selected="${ui.diagnosticSection === id}">${id === "analysis" ? '<span data-icon="sparkle"></span>' : id === "evidence" ? '<span data-icon="globe"></span>' : ""}${escapeHtml(label)}${id === "reports" ? `<em>${reportCount}</em>` : ""}</button>`).join("")}</div>`;
+  return `<div class="diagnostic-tabs" role="tablist">${tabs.map(([id, label]) => `<button class="diagnostic-tab ${id === "evidence" ? "diagnostic-tab-primary" : ""} ${ui.diagnosticSection === id ? "active" : ""}" type="button" data-action="diagnostic-section" data-section="${id}" role="tab" aria-selected="${ui.diagnosticSection === id}">${id === "analysis" ? '<span data-icon="sparkle"></span>' : id === "evidence" ? '<span data-icon="globe"></span>' : ""}${escapeHtml(label)}${id === "reports" ? `<em>${reportCount}</em>` : ""}</button>`).join("")}</div>`;
 }
 
 function analysisRunStatusMeta(status) {
@@ -6702,8 +7003,10 @@ function renderAnalysisWorkbench() {
   return `<div class="analysis-workbench-shell ${session && artifact ? "report-open" : ""}">${renderAnalysisSessionList()}<main class="analysis-workbench-main">${analysisWorkbenchSnapshot.loading && !session ? '<div class="analysis-loading"><span class="loading-spinner dark"></span><b>正在连接分析工作台</b></div>' : main}</main></div>`;
 }
 
-function renderDiagnosticOperationalEvidence() {
+function legacyRenderDiagnosticOperationalEvidence() {
   const diagnostic = monitoringLatestDiagnostic();
+  const lastCompletedDiagnostic = monitoringLatestCompletedDiagnostic();
+  const diagnosticState = monitoringDiagnosticStateMeta(diagnostic);
   const scores = monitoringDiagnosticScores(diagnostic);
   const traffic = monitoringTrafficRecord();
   const points = traffic?.hasData === false ? [] : monitoringTrafficPoints(traffic);
@@ -6711,22 +7014,35 @@ function renderDiagnosticOperationalEvidence() {
   const bots = Array.isArray(traffic?.bots || traffic?.botDistribution || traffic?.robots) ? (traffic.bots || traffic.botDistribution || traffic.robots) : [];
   const pv = monitoringMetric(traffic || {}, ["pv", "totalPv", "visits", "pageViews", "total"]);
   const production = monitoringProductionStats();
-  const diagnosticUrl = diagnostic?.url || state.site?.remoteUrl || (state.site?.domain ? `https://${state.site.domain}` : "");
+  const diagnosticUrl = diagnostic?.url || diagnostic?.sourceUrl || siteCms()?.settings?.diagnosticUrl || state.site?.remoteUrl || (state.site?.domain ? `https://${state.site.domain}` : "");
   const updatedAt = diagnostic?.completedAt || diagnostic?.createdAt || diagnostic?.updatedAt || null;
+  const lastCompletedAt = lastCompletedDiagnostic?.completedAt || lastCompletedDiagnostic?.createdAt || lastCompletedDiagnostic?.updatedAt || null;
+  const textProviders = enabledAiProviders("text");
+  const selectedSuggestionProviderId = String(ui.monitoringSuggestionProviderId || selectedTextProviderId() || textProviders[0]?.id || "");
+  const suggestionProviderOptions = textProviders.length
+    ? textProviders.map((provider) => `<option value="${escapeHtml(provider.id)}" ${provider.id === selectedSuggestionProviderId ? "selected" : ""}>${escapeHtml(provider.name || provider.id)} · ${escapeHtml(provider.model || provider.modelId || "默认模型")}</option>`).join("")
+    : '<option value="">暂无可用文本模型</option>';
   const pathRows = topPaths.slice(0, 4).map((item) => `<li><span>${escapeHtml(String(item.path || item.url || item.name || "—"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
-  const botRows = bots.slice(0, 4).map((item) => `<li><span>${escapeHtml(String(item.name || item.bot || item.userAgent || "未知机器人"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  const botRows = bots.slice(0, 4).map((item) => `<li><span>${escapeHtml(monitoringTrafficLabel(item.name || item.bot || item.userAgent))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  const diagnosticFoot = diagnosticState.key === "completed"
+    ? `最近完成：${escapeHtml(formatDateTime(updatedAt))}`
+    : diagnosticState.key === "failed"
+      ? `失败时间：${updatedAt ? escapeHtml(formatDateTime(updatedAt)) : "—"}${lastCompletedAt ? ` · 最近成功：${escapeHtml(formatDateTime(lastCompletedAt))}` : ""}`
+      : diagnosticState.key === "running"
+        ? "检测完成前不会计算或显示分数"
+        : "尚无服务端诊断报告";
   return `
     <section class="diagnostic-evidence-section">
-      <div class="diagnostic-section-title"><div><span>企业实测证据</span><h3>官网信源能力、抓取可达性与运营执行健康</h3><p>这些数据来自当前企业系统。机器人访问只说明可达，不代表已被 AI 回答引用。</p></div></div>
+      <div class="diagnostic-section-title"><div><span>企业实测证据</span><h3>官网信源能力、抓取可达性与运营执行健康</h3><p>官网检测、访问日志和运营执行分开呈现；机器人访问只说明可达，不代表已被 AI 回答引用。</p></div></div>
       <div class="diagnostic-evidence-grid">
-        <article class="card diagnostic-evidence-card website"><div class="diagnostic-evidence-card-head"><span data-icon="globe"></span><div><small>官网信源能力</small><h4>网站 GEO 诊断</h4></div><b>${monitoringDisplayNumber(scores.total)}<em>/100</em></b></div><div class="diagnostic-mini-metrics"><span>Schema <b>${monitoringDisplayNumber(scores.schema)}</b></span><span>内容 <b>${monitoringDisplayNumber(scores.content)}</b></span><span>Meta <b>${monitoringDisplayNumber(scores.meta)}</b></span><span>权威外链 <b>${monitoringDisplayNumber(scores.authority)}</b></span></div><div class="diagnostic-run-row"><input class="input" id="monitoring-diagnostic-url" value="${escapeHtml(diagnosticUrl)}" placeholder="https://www.example.com/" /><button class="secondary-button button-small" type="button" data-action="run-monitoring-diagnostic">运行诊断</button></div><small class="diagnostic-card-foot">${updatedAt ? `最近报告：${escapeHtml(formatDateTime(updatedAt))}` : "尚无服务端诊断报告"}</small></article>
+        <article class="card diagnostic-evidence-card website"><div class="diagnostic-evidence-card-head"><span data-icon="globe"></span><div><small>官网信源能力</small><h4>网站 GEO 诊断</h4></div><b>${monitoringDisplayNumber(scores.total)}<em>/100</em></b></div><div class="diagnostic-run-status ${escapeHtml(diagnosticState.className)}"><b>${escapeHtml(diagnosticState.label)}</b><small>${escapeHtml(diagnosticState.message)}</small></div><div class="diagnostic-mini-metrics"><span>Schema <b>${monitoringDisplayNumber(scores.schema)}</b></span><span>内容 <b>${monitoringDisplayNumber(scores.content)}</b></span><span>Meta <b>${monitoringDisplayNumber(scores.meta)}</b></span><span>权威外链 <b>${monitoringDisplayNumber(scores.authority)}</b></span></div><div class="diagnostic-run-row"><input class="input" id="monitoring-diagnostic-url" value="${escapeHtml(diagnosticUrl)}" placeholder="https://www.example.com/" /><button class="secondary-button button-small" type="button" data-action="run-monitoring-diagnostic">开始实测</button></div><small class="diagnostic-url-help">仅填写可公开访问的 HTTP/HTTPS 地址；使用 HTTPS 时请确认该端口已配置证书。</small><small class="diagnostic-card-foot">${diagnosticFoot}</small></article>
         <article class="card diagnostic-evidence-card traffic"><div class="diagnostic-evidence-card-head"><span data-icon="chart"></span><div><small>访问与抓取</small><h4>${ui.monitoringRange} 天官网访问趋势</h4></div><b>${monitoringDisplayNumber(pv)}<em> PV</em></b></div>${monitoringTrendBars(points)}<div class="diagnostic-list-pair"><div class="monitor-real-list"><h4>Top 路径</h4><ul>${pathRows || '<li class="empty"><span>等待访问日志</span><b>—</b></li>'}</ul></div><div class="monitor-real-list"><h4>访问类型分布</h4><ul>${botRows || '<li class="empty"><span>等待访问分类</span><b>—</b></li>'}</ul></div></div><small class="diagnostic-card-foot">AI/搜索爬虫访问 ≠ AI 引用、推荐或排名</small></article>
       </div>
       <div class="monitor-real-production-grid diagnostic-production-grid"><article class="card"><span data-icon="file"></span><small>文章总数</small><b>${monitoringDisplayNumber(production.articleTotal)}</b><p>草稿 / 审核中：${monitoringDisplayNumber(production.draft)}</p></article><article class="card"><span data-icon="check"></span><small>可发布文章</small><b>${monitoringDisplayNumber(production.approved)}</b><p>已发布：${monitoringDisplayNumber(production.published)}</p></article><article class="card"><span data-icon="target"></span><small>内容任务</small><b>${monitoringDisplayNumber(production.taskTotal)}</b><p>计划与文章任务汇总</p></article><article class="card"><span data-icon="send"></span><small>发布运行</small><b>${monitoringDisplayNumber(production.publishRunning)}</b><p>总目标 ${monitoringDisplayNumber(production.publishTotal)} · 异常 ${monitoringDisplayNumber(production.publishFailed)}</p></article></div>
     </section>`;
 }
 
-function renderDiagnosticEvidencePage() {
+function legacyRenderDiagnosticEvidencePage() {
   const traffic = monitoringTrafficRecord();
   const kpis = traffic?.kpis || {};
   const totalPv = monitoringMetric(traffic || {}, ["allPv", "pv", "totalPv", "visits", "pageViews", "total"]);
@@ -6736,6 +7052,85 @@ function renderDiagnosticEvidencePage() {
   return `
     <section class="diagnostic-hero diagnostic-evidence-hero card"><div><span class="diagnostic-kicker">OFFICIAL SITE EVIDENCE</span><h2>官网访问与抓取实测</h2><p>持续记录官网真实页面访问，并区分人工、AI 爬虫和搜索爬虫。这里展示的是企业自己的第一方访问证据，不等同于 AI 回答中的引用、推荐或排名。</p><label class="diagnostic-range-control"><span>统计周期</span><select class="select" data-monitor-filter="range">${[["7", "最近 7 天"], ["30", "最近 30 天"], ["90", "最近 90 天"]].map(([value, label]) => `<option value="${value}" ${ui.monitoringRange === value ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><div class="diagnostic-package-badge diagnostic-traffic-badge"><span data-icon="chart"></span><small>${ui.monitoringRange} 天官网访问</small><b>${monitoringDisplayNumber(totalPv)} PV</b><em>服务端访问日志</em></div></section>
     <div class="diagnostic-stat-grid diagnostic-traffic-stats"><article class="card"><small>全部访问</small><b>${monitoringDisplayNumber(totalPv)}</b><p>官网页面请求总量</p></article><article class="card"><small>人工访问</small><b>${monitoringDisplayNumber(humanPv)}</b><p>依据 User-Agent 分类</p></article><article class="card"><small>AI 爬虫访问</small><b>${monitoringDisplayNumber(aiBotPv)}</b><p>访问不等于已被引用</p></article><article class="card"><small>搜索爬虫访问</small><b>${monitoringDisplayNumber(searchBotPv)}</b><p>搜索引擎抓取信号</p></article></div>
+    ${renderDiagnosticOperationalEvidence()}`;
+}
+
+function renderDiagnosticOperationalEvidence() {
+  const diagnostic = monitoringLatestDiagnostic();
+  const lastCompletedDiagnostic = monitoringLatestCompletedDiagnostic();
+  const diagnosticState = monitoringDiagnosticStateMeta(diagnostic);
+  const scores = monitoringDiagnosticScores(diagnostic);
+  const traffic = monitoringTrafficRecord();
+  const points = traffic?.hasData === false ? [] : monitoringTrafficPoints(traffic);
+  const topPaths = Array.isArray(traffic?.topPaths || traffic?.paths) ? (traffic.topPaths || traffic.paths) : [];
+  const bots = Array.isArray(traffic?.bots || traffic?.botDistribution || traffic?.robots) ? (traffic.bots || traffic.botDistribution || traffic.robots) : [];
+  const pv = monitoringMetric(traffic || {}, ["pv", "totalPv", "pageViews", "total"]);
+  const excludedRequests = monitoringMetric(traffic?.kpis || {}, ["excludedRequests"]) ?? 0;
+  const production = monitoringProductionStats();
+  const diagnosticUrl = diagnostic?.url || diagnostic?.sourceUrl || siteCms()?.settings?.diagnosticUrl || state.site?.remoteUrl || (state.site?.domain ? `https://${state.site.domain}` : "");
+  const updatedAt = diagnostic?.completedAt || diagnostic?.createdAt || diagnostic?.updatedAt || null;
+  const lastCompletedAt = lastCompletedDiagnostic?.completedAt || lastCompletedDiagnostic?.createdAt || lastCompletedDiagnostic?.updatedAt || null;
+  const textProviders = enabledAiProviders("text");
+  const selectedSuggestionProviderId = String(ui.monitoringSuggestionProviderId || selectedTextProviderId() || textProviders[0]?.id || "");
+  const suggestionProviderOptions = textProviders.length
+    ? textProviders.map((provider) => `<option value="${escapeHtml(provider.id)}" ${provider.id === selectedSuggestionProviderId ? "selected" : ""}>${escapeHtml(provider.name || provider.id)} · ${escapeHtml(provider.model || provider.modelId || "默认模型")}</option>`).join("")
+    : '<option value="">暂无可用文本模型</option>';
+  const pathRows = topPaths.slice(0, 4).map((item) => `<li><span>${escapeHtml(String(item.path || item.url || item.name || "—"))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  const botRows = bots.slice(0, 5).map((item) => `<li><span>${escapeHtml(monitoringTrafficLabel(item.name || item.bot || item.userAgent))}</span><b>${monitoringDisplayNumber(item.pv ?? item.visits ?? item.value ?? item.count)}</b></li>`).join("");
+  const diagnosticFoot = diagnosticState.key === "completed"
+    ? `最近完成：${escapeHtml(formatDateTime(updatedAt))}`
+    : diagnosticState.key === "failed"
+      ? `失败时间：${updatedAt ? escapeHtml(formatDateTime(updatedAt)) : "—"}${lastCompletedAt ? ` · 最近成功：${escapeHtml(formatDateTime(lastCompletedAt))}` : ""}`
+      : diagnosticState.key === "running"
+        ? "检测完成前不会计算或显示分数"
+        : "尚无服务端诊断报告";
+  const monitoringError = String(monitoringSnapshot.error || "").trim();
+  const monitoringErrorMarkup = monitoringError
+    ? `<div class="diagnostic-run-status error monitoring-inline-error" role="alert"><b>监测服务提示</b><small>${escapeHtml(monitoringError)}</small></div>`
+    : "";
+  const diagnosticBusy = monitoringSnapshot.loading || monitoringDiagnosticRunInFlight || Boolean(monitoringDiagnosticPollReportId);
+  const requestScope = excludedRequests > 0
+    ? `已排除 ${monitoringDisplayNumber(excludedRequests)} 条资源、协议入口、跳转或错误请求。`
+    : "仅统计服务器成功返回的官网页面请求。";
+  const operationCards = [
+    ["file", `近 ${ui.monitoringRange} 天新增文章`, production.articleTotal, `草稿 / 审核中：${monitoringDisplayNumber(production.draft)}`],
+    ["check", "审核通过", production.approved, `已发布：${monitoringDisplayNumber(production.published)}`],
+    ["target", "内容任务", production.taskTotal, "按计划与文章任务汇总"],
+    ["send", "发布运行中", production.publishRunning, `异常 ${monitoringDisplayNumber(production.publishFailed)} · 总目标 ${monitoringDisplayNumber(production.publishTotal)}`]
+  ];
+  return `
+    <section class="diagnostic-evidence-section">
+      <div class="diagnostic-section-title"><div><span>官网与运营实测</span><h3>把网站质量、有效页面请求和执行状态分开看</h3><p>所有访问统计均按东八区日界计算；页面请求不等同于真实访客、AI 引用、推荐或排名。</p></div></div>
+      ${monitoringErrorMarkup}
+      <div class="diagnostic-evidence-grid">
+        <article class="card diagnostic-evidence-card website">
+          <div class="diagnostic-evidence-card-head">${icon("globe")}<div><small>官网信源能力</small><h4>网站 GEO 诊断</h4></div><b>${monitoringDisplayNumber(scores.total)}<em>/100</em></b></div>
+          <div class="diagnostic-run-status ${escapeHtml(diagnosticState.className)}"><b>${escapeHtml(diagnosticState.label)}</b><small>${escapeHtml(diagnosticState.message)}</small></div>
+          <div class="diagnostic-mini-metrics"><span>Schema <b>${monitoringDisplayNumber(scores.schema)}</b></span><span>内容 <b>${monitoringDisplayNumber(scores.content)}</b></span><span>Meta <b>${monitoringDisplayNumber(scores.meta)}</b></span><span>引用与链接 <b>${monitoringDisplayNumber(scores.authority)}</b></span></div>
+          <div class="diagnostic-run-row"><input class="input" id="monitoring-diagnostic-url" value="${escapeHtml(diagnosticUrl)}" placeholder="https://www.example.com/" /><button class="secondary-button button-small" type="button" data-action="run-monitoring-diagnostic" ${diagnosticBusy ? "disabled" : ""}>开始实测</button></div>
+          <div class="monitoring-suggestion-control"><label><input type="checkbox" id="monitoring-suggestion-generation" ${ui.monitoringSuggestionGeneration ? "checked" : ""} /> <span>使用已配置文本模型整理建议</span></label><select class="select" id="monitoring-suggestion-provider" ${!textProviders.length ? "disabled" : ""}>${suggestionProviderOptions}</select><small>默认仅使用规则建议；勾选后，模型只会整理已发现的问题和证据，不参与评分。</small></div>
+          ${monitoringDiagnosticEvidenceMarkup(diagnostic)}
+          <small class="diagnostic-url-help">仅填写可公开访问的 HTTP/HTTPS 地址；使用 HTTPS 时请确认该端口已配置证书。</small><small class="diagnostic-card-foot">${diagnosticFoot}</small>
+        </article>
+        <article class="card diagnostic-evidence-card traffic"><div class="diagnostic-evidence-card-head">${icon("chart")}<div><small>有效页面请求</small><h4>近 ${ui.monitoringRange} 天成功页面趋势</h4></div><b>${monitoringDisplayNumber(pv)}<em> 次</em></b></div>${monitoringTrendBars(points)}<div class="diagnostic-list-pair"><div class="monitor-real-list"><h4>Top 页面</h4><ul>${pathRows || '<li class="empty"><span>暂无成功页面请求</span><b>—</b></li>'}</ul></div><div class="monitor-real-list"><h4>请求类型</h4><ul>${botRows || '<li class="empty"><span>暂无可分类请求</span><b>—</b></li>'}</ul></div></div><small class="diagnostic-card-foot">${escapeHtml(requestScope)} UA 分类仅用于识别自动化流量。</small></article>
+      </div>
+      <section class="diagnostic-operation-section"><div class="diagnostic-operation-head"><div><span>内容与发布</span><h4>近 ${ui.monitoringRange} 天运营执行</h4></div><small>按所选周期汇总，不把历史总量混入当前任务。</small></div><div class="diagnostic-operation-grid">${operationCards.map(([iconName, label, value, note]) => `<article class="card diagnostic-operation-card"><span class="diagnostic-operation-icon">${icon(iconName)}</span><div><small>${escapeHtml(label)}</small><b>${monitoringDisplayNumber(value)}</b><p>${escapeHtml(note)}</p></div></article>`).join("")}</div></section>
+    </section>`;
+}
+
+function renderDiagnosticEvidencePage() {
+  const traffic = monitoringTrafficRecord();
+  const kpis = traffic?.kpis || {};
+  const totalPv = monitoringMetric(traffic || {}, ["pv", "totalPv", "pageViews", "total"]);
+  const browserUaPv = monitoringMetric(kpis, ["humanPv", "human"]) ?? monitoringMetric(traffic || {}, ["humanPv", "human"]);
+  const aiBotPv = monitoringMetric(kpis, ["aiBotPv", "aiBot"]) ?? monitoringMetric(traffic || {}, ["aiBotPv", "aiBot"]);
+  const searchBotPv = monitoringMetric(kpis, ["searchBotPv", "searchBot"]) ?? monitoringMetric(traffic || {}, ["searchBotPv", "searchBot"]);
+  const excludedRequests = monitoringMetric(kpis, ["excludedRequests"]) ?? 0;
+  const rangeLabel = `${ui.monitoringRange} 天`;
+  return `
+    <section class="diagnostic-hero diagnostic-evidence-hero card"><div><span class="diagnostic-kicker">OFFICIAL SITE EVIDENCE</span><h2>官网实测看板</h2><p>这里仅统计服务器成功返回的官网页面请求，并按 User-Agent 识别浏览器与自动化流量。它不代表真实访客人数，也不等同于 AI 回答中的引用、推荐或排名。</p><label class="diagnostic-range-control"><span>统计周期</span><select class="select" data-monitor-filter="range">${[["7", "最近 7 天"], ["30", "最近 30 天"], ["90", "最近 90 天"]].map(([value, label]) => `<option value="${value}" ${ui.monitoringRange === value ? "selected" : ""}>${label}</option>`).join("")}</select></label></div><div class="diagnostic-package-badge diagnostic-traffic-badge">${icon("chart")}<small>${rangeLabel} 有效页面请求</small><b>${monitoringDisplayNumber(totalPv)} 次</b><em>东八区 · 服务端日志</em></div></section>
+    <div class="diagnostic-stat-grid diagnostic-traffic-stats"><article class="card"><small>成功页面请求</small><b>${monitoringDisplayNumber(totalPv)}</b><p>仅 GET + 2xx 的页面响应</p></article><article class="card"><small>浏览器 UA 请求</small><b>${monitoringDisplayNumber(browserUaPv)}</b><p>未命中已知自动化 UA</p></article><article class="card"><small>AI 爬虫页面请求</small><b>${monitoringDisplayNumber(aiBotPv)}</b><p>可达性信号，不代表被引用</p></article><article class="card"><small>搜索爬虫页面请求</small><b>${monitoringDisplayNumber(searchBotPv)}</b><p>搜索引擎抓取信号</p></article></div>
+    <div class="diagnostic-traffic-disclosure">${icon("info")}<span>${excludedRequests > 0 ? `已从主指标排除 ${monitoringDisplayNumber(excludedRequests)} 条资源、sitemap / robots、跳转或错误请求。` : "主指标不包含资源、协议入口、跳转或错误请求。"}</span></div>
     ${renderDiagnosticOperationalEvidence()}`;
 }
 
@@ -9585,15 +9980,15 @@ function renderEffectMonitor() {
 function renderRealMonitoring() {
   if (!monitoringSnapshot.loaded && !monitoringSnapshot.loading) queueMicrotask(() => refreshRealMonitoring({ silent: true }));
   if (!diagnosticSnapshot.loaded && !diagnosticSnapshot.loading && !diagnosticSnapshot.attempted) queueMicrotask(() => refreshOperationDiagnostics({ silent: true }));
-  if (!["analysis", "evidence", "reports", "rules"].includes(ui.diagnosticSection)) ui.diagnosticSection = "analysis";
+  if (!["analysis", "evidence", "reports", "rules"].includes(ui.diagnosticSection)) ui.diagnosticSection = "evidence";
   const content = ui.diagnosticSection === "analysis" ? renderAnalysisWorkbench() : ui.diagnosticSection === "evidence" ? renderDiagnosticEvidencePage() : ui.diagnosticSection === "reports" ? renderDiagnosticReports() : renderDiagnosticRules();
   const actions = ui.diagnosticSection === "analysis"
     ? `<button class="secondary-button" type="button" data-action="analysis-refresh" ${analysisWorkbenchSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新会话</button><button class="primary-button" type="button" data-action="analysis-new-session"><span data-icon="plus"></span>新建分析</button>`
     : ui.diagnosticSection === "evidence"
-      ? `<button class="secondary-button" type="button" data-action="refresh-monitoring" ${monitoringSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新官网数据</button><button class="primary-button" type="button" data-action="run-monitoring-diagnostic"><span data-icon="shield"></span>运行网站诊断</button>`
+      ? `<button class="secondary-button" type="button" data-action="refresh-monitoring" ${monitoringSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新官网数据</button><button class="primary-button" type="button" data-action="run-monitoring-diagnostic" ${monitoringSnapshot.loading || monitoringDiagnosticRunInFlight || monitoringDiagnosticPollReportId ? "disabled" : ""}><span data-icon="shield"></span>运行网站诊断</button>`
       : `<button class="secondary-button" type="button" data-action="diagnostic-refresh-all" ${monitoringSnapshot.loading || diagnosticSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新数据</button>`;
   const dataState = ["analysis", "evidence", "reports"].includes(ui.diagnosticSection) ? "" : diagnosticDataState();
-  return `<div class="page-container monitor-real-page diagnostic-page">${pageHead("运营诊断", "行业研究由 AI 分析工作台完成；官网实测持续记录第一方访问、爬虫抓取和网站 GEO 健康。", actions)}${dataState}${renderDiagnosticTabs()}<main class="diagnostic-content">${content}</main></div>`;
+  return `<div class="page-container monitor-real-page diagnostic-page">${pageHead("运营诊断", "先查看官网实测，再基于可追溯数据进入 AI 分析与报告；访问和抓取不等同于 AI 引用、推荐或排名。", actions)}${dataState}${renderDiagnosticTabs()}<main class="diagnostic-content">${content}</main></div>`;
 }
 
 function renderMonitoring() {
@@ -10065,6 +10460,11 @@ function renderSiteContactSettings() {
   return `<section class="card site-contact-settings-card"><div class="card-header"><div><h2>公开联系方式</h2><p>统一应用到联系我们、页脚、咨询表单和企业结构化数据。</p></div><button class="primary-button button-small" type="button" data-action="save-site-contact"><span data-icon="check"></span>保存联系方式</button></div><div class="card-body"><div class="field-row"><div class="field"><label for="site-setting-phone">联系电话</label><input class="input" id="site-setting-phone" value="${escapeHtml(settings.phone || "")}" /></div><div class="field"><label for="site-setting-email">企业邮箱</label><input class="input" id="site-setting-email" type="email" value="${escapeHtml(settings.email || "")}" /></div></div><div class="field"><label for="site-setting-address">企业地址</label><input class="input" id="site-setting-address" value="${escapeHtml(settings.address || "")}" /></div><div class="field-row"><div class="field"><label for="site-setting-region">所在区域 / 行业区域</label><input class="input" id="site-setting-region" value="${escapeHtml(settings.industryRegion || "")}" /></div><div class="field"><label for="site-setting-area">服务区域</label><input class="input" id="site-setting-area" value="${escapeHtml(settings.serviceArea || "")}" /></div></div><div class="site-settings-footnote"><span data-icon="info"></span><span>这些信息属于公开资料，请填写经过企业确认、允许对外展示的联系方式。</span></div></div></section>`;
 }
 
+function renderSiteDiagnosticTargetSettings() {
+  const settings = siteCms().settings || {};
+  return `<section class="card site-diagnostic-target-card"><div class="card-header"><div><h2>官网实测地址</h2><p>为运营诊断单独配置抓取目标，不与公开域名、canonical 或 sitemap 混用。</p></div><button class="primary-button button-small" type="button" data-action="save-site-diagnostic-url"><span data-icon="check"></span>保存实测地址</button></div><div class="card-body"><div class="field"><label for="site-setting-diagnostic-url">可公开访问的 HTTP / HTTPS 地址</label><input class="input" id="site-setting-diagnostic-url" value="${escapeHtml(settings.diagnosticUrl || "")}" placeholder="http://124.221.70.55:18080/" /><small>例如当前官网暂用 HTTP 的 18080 端口，请填写 <code>http://</code>，不要误填为 <code>https://</code>。该地址只在后台发起实测时使用。</small></div><div class="site-settings-footnote"><span data-icon="shield"></span><span>服务端会拒绝本机、内网和未允许端口的地址；保存地址不代表自动发起检测。</span></div></div></section>`;
+}
+
 function renderSiteReleasePanel() {
   const current = siteCmsRuntime.publication?.version || 0;
   const rows = (siteCmsRuntime.releases || []).map((release) => `<tr><td><b>v${escapeHtml(release.version)}</b>${release.current ? '<small class="table-subtext">当前正式版本</small>' : ""}</td><td>${escapeHtml(release.operation === "rollback" ? "回滚发布" : release.operation === "bootstrap" ? "初始版本" : "正式发布")}</td><td>${escapeHtml(release.note || "—")}</td><td>${escapeHtml(siteDisplayTime(release.createdAt))}</td><td>${release.current ? siteRecordStatus("published") : `<button class="link-button" type="button" data-action="site-rollback-cms" data-release-id="${escapeHtml(release.id)}" data-release-version="${escapeHtml(release.version)}">恢复为新版本</button>`}</td></tr>`).join("");
@@ -10082,7 +10482,7 @@ function renderSitePanel() {
   else if (ui.siteTab === "problems") body = renderSiteProblems();
   else if (ui.siteTab === "insights") body = renderSiteInsights();
   else if (ui.siteTab === "navigation") body = renderSiteNavigation();
-  else if (ui.siteTab === "seo") body = renderSiteSettings() + renderSiteContactSettings();
+  else if (ui.siteTab === "seo") body = renderSiteSettings() + renderSiteDiagnosticTargetSettings() + renderSiteContactSettings();
   else if (ui.siteTab === "leads") body = renderSiteLeads();
   else if (ui.siteTab === "releases") body = renderSiteReleasePanel();
   else body = renderSiteOverview();
@@ -10645,6 +11045,21 @@ function saveSiteSettings() {
   showToast("站点设置已保存", "企业主体、域名和 AI 抓取配置已更新。", "success");
 }
 
+function saveSiteDiagnosticUrl() {
+  const value = siteValue("site-setting-diagnostic-url");
+  if (value) {
+    let parsed;
+    try { parsed = new URL(value); } catch { return showToast("官网实测地址格式不正确", "请填写完整的 http:// 或 https:// 公网地址。", "error"); }
+    if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || !parsed.hostname) {
+      return showToast("官网实测地址格式不正确", "仅支持不含账号密码的 HTTP / HTTPS 地址。", "error");
+    }
+  }
+  Object.assign(siteCms().settings, { diagnosticUrl: value, updatedAt: siteNow() });
+  saveState();
+  render();
+  showToast("官网实测地址已保存", value ? "运营诊断将优先使用此地址；保存不会自动开始检测。" : "已恢复为使用主域名作为实测默认地址。", "success");
+}
+
 function saveSiteContactSettings() {
   const email = siteValue("site-setting-email");
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast("企业邮箱格式不正确", "请检查邮箱地址后重试。", "error");
@@ -10749,14 +11164,187 @@ function renderEnterpriseFacts() {
   return `<section class="facts-layout"><div class="card fact-summary"><span class="completion-ring"><b>${profile.completion}%</b></span><div><h3>企业事实完成度</h3><p>事实卡用于快速校验，详细原文与版本仍保存在文档库和问答库。</p><button class="secondary-button button-small" type="button" data-action="edit-knowledge" data-knowledge="profile">继续完善企业档案</button></div></div><div class="fact-grid">${facts.map(([label, value, note]) => '<article class="card fact-card"><span>' + label + '</span><b>' + escapeHtml(value || "待补充") + '</b><p>' + escapeHtml(note || "") + '</p></article>').join("")}</div></section>`;
 }
 
+function knowledgePreparationMaterials() {
+  return [
+    {
+      id: "profile",
+      title: "企业基础档案",
+      icon: "briefcase",
+      action: "profile",
+      actionLabel: "填写基础信息",
+      purpose: "统一企业身份与公开联系信息，避免官网、文章和平台介绍出现多个版本。",
+      materials: ["企业全称、品牌名、官网、公开联系方式", "主营业务、服务区域、可公开的企业简介"],
+      example: "例如：一页企业介绍、官网链接和对外联系方式。"
+    },
+    {
+      id: "products",
+      title: "产品与服务",
+      icon: "briefcase",
+      action: "import",
+      actionLabel: "上传产品资料",
+      purpose: "让内容准确说明卖什么、适合谁、解决什么问题，以及哪些情况不适用。",
+      materials: ["产品/服务介绍、型号或套餐、规格参数", "适用客户、应用场景、服务边界与不包含项"],
+      example: "例如：产品手册、服务方案、参数表或服务说明。"
+    },
+    {
+      id: "pricing_delivery",
+      title: "报价与交付",
+      icon: "clock",
+      action: "import",
+      actionLabel: "上传报价与交付说明",
+      purpose: "只有企业确认的价格、周期和交付范围，才能安全出现在对外内容中。",
+      materials: ["对外报价单或报价规则：适用服务、含税口径、有效期、不包含项", "交付说明或项目计划：启动条件、阶段里程碑、典型周期、客户配合事项"],
+      example: "例如：服务包说明、价目表、合同中的交付条款摘录。"
+    },
+    {
+      id: "cases",
+      title: "客户案例与证明",
+      icon: "target",
+      action: "import",
+      actionLabel: "上传案例资料",
+      purpose: "用可核验的事实说明能力，避免把未经授权的客户、数字或成果写进内容。",
+      materials: ["客户行业、原始问题、实施方案、可公开的结果", "客户授权范围、资质证书、检测报告或其他佐证"],
+      example: "例如：脱敏案例、客户授权书、证书或可公开的数据证明。"
+    },
+    {
+      id: "faq",
+      title: "常见问题与标准答复",
+      icon: "help",
+      action: "import",
+      actionLabel: "上传问答资料",
+      purpose: "把销售、客服和交付中最常被问的问题统一成企业确认的回答。",
+      materials: ["客户常问问题、标准回答、适用条件", "售前承诺边界、售后说明、异议处理口径"],
+      example: "例如：FAQ 文档、销售话术中已确认的问答或客服知识库导出。"
+    },
+    {
+      id: "brand_compliance",
+      title: "品牌口径与合规边界",
+      icon: "shield",
+      action: "import",
+      actionLabel: "上传品牌与合规资料",
+      purpose: "明确什么能说、不能说，以及品牌应该以怎样的语气对外表达。",
+      materials: ["品牌简介、标准称呼、语气与用词规范", "禁用表述、敏感信息、资质/效果/排名等宣传边界"],
+      example: "例如：品牌手册、法务审核意见、宣传合规要求。"
+    },
+    {
+      id: "assets",
+      title: "图片与视觉素材",
+      icon: "image",
+      action: "assets",
+      actionLabel: "上传图片素材",
+      purpose: "让官网和内容可以使用真实、授权清晰的图片，而不是随意匹配素材。",
+      materials: ["Logo、产品图、场景图、团队/工厂/案例现场图片", "图片用途说明、版权或客户授权信息"],
+      example: "例如：按产品、场景或案例命名的 PNG、JPG、WebP 图片。"
+    }
+  ];
+}
+
+function knowledgePreparationById(id) {
+  return knowledgePreparationMaterials().find((item) => item.id === id) || null;
+}
+
+function knowledgePreparationIdForGap(gap) {
+  const value = [gap?.field, gap?.label, gap?.title, gap?.fact, gap?.reason, gap?.description].filter(Boolean).join(" ").toLowerCase();
+  if (/(price|quote|cost|fee|报价|价格|费用|交付|周期|delivery|lead[ _-]?time|milestone|里程碑)/.test(value)) return "pricing_delivery";
+  if (/(case|customer|certificate|proof|evidence|案例|客户|资质|证书|证明|佐证)/.test(value)) return "cases";
+  if (/(faq|question|answer|问答|常见问题|售前|售后|异议)/.test(value)) return "faq";
+  if (/(brand|compliance|legal|sensitive|banned|品牌|合规|法务|敏感|禁用)/.test(value)) return "brand_compliance";
+  if (/(image|photo|video|logo|图片|素材|视频|图像)/.test(value)) return "assets";
+  if (/(company|profile|identity|contact|官网|企业名称|企业事实|企业档案|档案|品牌名|联系方式|服务区域|主体)/.test(value)) return "profile";
+  if (/(product|service|parameter|spec|scope|产品|服务|参数|规格|适用|边界)/.test(value)) return "products";
+  return null;
+}
+
+function knowledgePreparationEvidenceCount(id) {
+  const summary = state.knowledge || {};
+  const profile = state.enterpriseProfile || {};
+  const itemCount = (key) => Number(summary[key]?.reviewed ?? summary[key]?.count ?? 0) || 0;
+  const availableItems = (state.knowledgeItems || []).filter((item) => {
+    const version = knowledgeVersionById(item.latestVersionId);
+    const extraction = String(version?.extractionStatus || item.importStatus || "complete").toLowerCase();
+    const index = String(version?.indexStatus || "indexed").toLowerCase();
+    return item.status === "approved" && item.visibility !== "internal" && version?.reviewStatus === "approved" && !["queued", "processing", "pending", "pending_ocr", "pending_parse", "failed"].includes(extraction) && index === "indexed";
+  });
+  const matchingItems = (pattern) => availableItems.filter((item) => {
+    const version = knowledgeVersionById(item.latestVersionId);
+    return pattern.test([item.title, item.question, item.category, ...(item.tags || []), version?.content].filter(Boolean).join(" "));
+  }).length;
+  if (id === "profile") return [profile.companyName, profile.brandName, profile.officialDomain, profile.primaryService, profile.serviceArea].filter(Boolean).length;
+  if (id === "products") return matchingItems(/产品|服务|参数|规格|场景|适用|边界|方案/i) || (!availableItems.length ? itemCount("products") : 0);
+  if (id === "cases") return matchingItems(/案例|客户|项目|证书|资质|证明/i) || (!availableItems.length ? itemCount("cases") : 0);
+  if (id === "faq") return availableItems.filter((item) => item.kind === "qa").length || matchingItems(/问答|常见问题|FAQ|售前|售后/i) || (!availableItems.length ? itemCount("faq") : 0);
+  if (id === "brand_compliance") return matchingItems(/品牌|合规|法务|敏感|禁用|宣传/i) || (!availableItems.length ? itemCount("adLaw") + itemCount("sensitive") + itemCount("banned") : 0);
+  if (id === "assets") return (knowledgeAssetRuntime.items || []).filter((item) => item.assetType === "image" && item.ocrStatus !== "failed").length || (!availableItems.length ? itemCount("images") : 0);
+  return matchingItems(/报价|价格|费用|交付|周期|价目|服务包|套餐|lead[ _-]?time|delivery/i);
+}
+
+function knowledgePreparationStatus(material, gaps) {
+  const related = gaps.filter((gap) => knowledgePreparationIdForGap(gap) === material.id);
+  if (related.length) {
+    const affectedArticles = new Set(related.map((gap) => gap.articleId).filter(Boolean));
+    const affected = affectedArticles.size || related.length;
+    return { state: "missing", label: "待补充", count: related.length, description: `系统在 ${affected} ${affectedArticles.size ? "篇内容" : "条检查"}中发现这类资料尚未确认。` };
+  }
+  const evidenceCount = knowledgePreparationEvidenceCount(material.id);
+  if (evidenceCount > 0) return { state: "ready", label: "已有资料", count: evidenceCount, description: `已发现 ${evidenceCount} 条相关资料，建议定期核对是否仍可对外使用。` };
+  return { state: "suggested", label: "建议准备", count: 0, description: "当前尚未检测到缺项；提前准备可减少后续内容反复补料。" };
+}
+
+function groupedKnowledgeGaps(gaps) {
+  const groups = new Map();
+  gaps.forEach((gap) => {
+    const preparationId = knowledgePreparationIdForGap(gap);
+    const rawLabel = String(gap.title || gap.label || gap.fact || "待补充企业资料").trim() || "待补充企业资料";
+    const field = String(gap.field || rawLabel).trim().toLowerCase().replace(/\s+/g, "_");
+    // A price or delivery rule belongs to a business line. Merge repeated
+    // checks for the same line, but do not pretend different products share
+    // one quoted price or delivery commitment.
+    const key = `${gap.businessLineId || "enterprise"}:${preparationId || `other:${field}`}`;
+    if (!groups.has(key)) groups.set(key, { id: gap.id, label: preparationId ? knowledgePreparationById(preparationId)?.title || rawLabel : rawLabel, preparationId, labels: new Set(), gaps: [], articleIds: new Set(), businessLineIds: new Set() });
+    const group = groups.get(key);
+    group.labels.add(rawLabel);
+    group.gaps.push(gap);
+    if (gap.articleId) group.articleIds.add(gap.articleId);
+    if (gap.businessLineId) group.businessLineIds.add(gap.businessLineId);
+  });
+  return [...groups.values()];
+}
+
 function renderKnowledgeReview() {
   const gaps = (state.knowledgeGaps || []).filter((gap) => !["resolved", "archived"].includes(gap.status));
-  const gapCards = gaps.map((gap) => {
-    const line = state.businessLines.find((item) => item.id === gap.businessLineId);
-    return `<article class="knowledge-gap-card"><span class="gap-icon" data-icon="alert"></span><div><b>${escapeHtml(gap.title || gap.label || gap.fact || "待补充企业知识")}</b><p>${escapeHtml(gap.description || gap.reason || "当前知识范围没有足够证据，模型不会自行补写。")}</p><small>${escapeHtml(line?.name || "全企业")} · 来源：${escapeHtml(gap.source || "内容生成检查")}</small></div><button class="secondary-button button-small" type="button" data-action="resolve-knowledge-gap" data-gap-id="${gap.id}">补充知识</button></article>`;
+  const materials = knowledgePreparationMaterials();
+  const materialStates = materials.map((material) => ({ material, status: knowledgePreparationStatus(material, gaps) }));
+  const gapGroups = groupedKnowledgeGaps(gaps);
+  const readyCount = materialStates.filter(({ status }) => status.state === "ready").length;
+  const missingCount = materialStates.filter(({ status }) => status.state === "missing").length;
+  const materialCards = materialStates.map(({ material, status }) => `
+    <article class="knowledge-prep-card ${status.state}">
+      <div class="knowledge-prep-card-head"><span class="knowledge-icon ${material.id === "faq" || material.id === "brand_compliance" ? "purple" : material.id === "assets" ? "teal" : material.id === "pricing_delivery" ? "amber" : ""}" data-icon="${material.icon}"></span><span class="knowledge-prep-state ${status.state}">${escapeHtml(status.label)}</span></div>
+      <h3>${escapeHtml(material.title)}</h3>
+      <p class="knowledge-prep-purpose">${escapeHtml(material.purpose)}</p>
+      <div class="knowledge-prep-materials"><b>建议准备</b><ul>${material.materials.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+      <div class="knowledge-prep-example"><span data-icon="info"></span><span><b>材料示例：</b>${escapeHtml(material.example)}</span></div>
+      <div class="knowledge-prep-card-foot"><small>${escapeHtml(status.description)}</small><button class="secondary-button button-small" type="button" data-action="prepare-knowledge-material" data-preparation-id="${material.id}"><span data-icon="${material.action === "assets" ? "image" : material.action === "profile" ? "edit" : "upload"}"></span>${escapeHtml(material.actionLabel)}</button></div>
+    </article>
+  `).join("");
+  const gapCards = gapGroups.map((group) => {
+    const material = knowledgePreparationById(group.preparationId);
+    const lines = [...group.businessLineIds].map((id) => state.businessLines.find((item) => item.id === id)?.name).filter(Boolean);
+    const usage = group.articleIds.size ? `影响 ${group.articleIds.size} 篇内容` : `出现 ${group.gaps.length} 次`;
+    const missingFields = [...group.labels].join("、");
+    const need = material ? `待明确：${missingFields}。建议提交：${material.materials[0]}。` : "请提供可以核验、允许使用的企业资料或标准答复。";
+    return `<article class="knowledge-gap-card knowledge-gap-summary-card"><span class="gap-icon" data-icon="alert"></span><div><div class="knowledge-gap-title"><b>${escapeHtml(group.label)}</b><span>${escapeHtml(usage)}</span></div><p>${escapeHtml(need)} 未确认的信息不会由系统猜测或写入对外内容。</p><small>${escapeHtml(lines.join("、") || "全企业")} · 相同缺项已合并显示</small></div><button class="secondary-button button-small" type="button" data-action="prepare-knowledge-material" data-preparation-id="${escapeHtml(material?.id || "products")}"><span data-icon="upload"></span>${material ? `准备${escapeHtml(material.title)}` : "上传资料"}</button></article>`;
   }).join("");
   return `
-    <section class="card"><div class="card-header"><div><h3>知识缺口</h3><p>内容生成时发现缺少企业事实，会在这里提醒补充；新资料保存后直接进入知识库。</p></div><span class="small-tag amber">${gaps.length} 项</span></div><div class="knowledge-gap-list">${gapCards || '<div class="empty-state compact"><div><span data-icon="check"></span><h3>暂无知识缺口</h3><p>最近生成任务没有发现必须补充的企业资料。</p></div></div>'}</div></section>
+    <section class="card knowledge-prep-hero">
+      <div class="knowledge-prep-hero-copy"><span class="knowledge-prep-kicker">CLIENT MATERIAL CHECKLIST</span><h3>先把企业资料准备齐，再让内容安全地引用</h3><p>不需要按模板重写：把已有的 PDF、Word、Excel、文本或图片上传即可。系统会解析并建立检索索引；没有企业确认的价格、案例或承诺不会被自动补写。</p></div>
+      <div class="knowledge-prep-summary"><span><b>${readyCount}</b><small>类已有资料</small></span><span><b>${missingCount}</b><small>类待补充</small></span><span><b>${gapGroups.length}</b><small>类检测缺项</small></span></div>
+    </section>
+    <section class="card knowledge-prep-section">
+      <div class="card-header knowledge-prep-section-head"><div><h3>客户资料准备清单</h3><p>每一类都告诉您资料用于什么、建议提供什么，以及可以直接上传哪些现有文件。</p></div><span class="small-tag teal">按业务资料整理</span></div>
+      <div class="knowledge-prep-grid">${materialCards}</div>
+    </section>
+    <section class="card knowledge-gap-section"><div class="card-header"><div><h3>系统检测到的待补资料</h3><p>相同的缺项会合并显示，不再按每篇文章重复提醒。补齐后只会用于后续检索与创作，不会自动修改或发布已有内容。</p></div><span class="small-tag ${gapGroups.length ? "amber" : "teal"}">${gapGroups.length} 类</span></div><div class="knowledge-gap-list knowledge-gap-summary-list">${gapCards || '<div class="empty-state compact"><div><span data-icon="check"></span><h3>当前没有待补资料</h3><p>最近的内容检查没有发现必须补充的企业事实；仍建议按上方清单定期更新资料。</p></div></div>'}</div></section>
   `;
 }
 
@@ -10810,7 +11398,7 @@ function renderKnowledgeLegacyCards(tab) {
 }
 
 function renderKnowledge() {
-  const tabs = [["libraries", "知识库"], ["packages", "业务线知识包"], ["facts", "企业事实"], ["assets", "图片资料库"], ["review", "知识缺口"], ["rules", "内容规则"]];
+  const tabs = [["libraries", "知识库"], ["packages", "业务线知识包"], ["facts", "企业事实"], ["assets", "图片资料库"], ["review", "资料准备"], ["rules", "内容规则"]];
   if (!tabs.some(([id]) => id === ui.knowledgeTab)) ui.knowledgeTab = "libraries";
   const tabHtml = tabs.map(([id, label]) => '<button class="tab-button ' + (ui.knowledgeTab === id ? "active" : "") + '" type="button" data-action="knowledge-tab" data-tab="' + id + '">' + label + "</button>").join("");
   const actions = ui.knowledgeTab === "libraries"
@@ -10819,6 +11407,8 @@ function renderKnowledge() {
       ? '<button class="primary-button" type="button" data-action="manage-knowledge-package" data-line-id="' + (activeBusinessLine()?.id || "") + '"><span data-icon="layers"></span>配置当前业务线</button>'
       : ui.knowledgeTab === "facts"
         ? '<button class="primary-button" type="button" data-action="edit-knowledge" data-knowledge="profile"><span data-icon="edit"></span>完善企业档案</button>'
+        : ui.knowledgeTab === "review"
+          ? '<button class="primary-button" type="button" data-action="prepare-knowledge-material" data-preparation-id="products"><span data-icon="upload"></span>上传企业资料</button>'
         : "";
   const panel = ui.knowledgeTab === "libraries" ? renderKnowledgeLibraries()
     : ui.knowledgeTab === "packages" ? renderKnowledgePackages()
@@ -10858,17 +11448,17 @@ function renderAssistantLegacy() {
 
   return `
     <div class="page-container">
-      ${pageHead("发布助手", "客户从这里下载本地桌面软件；账号登录与分组在客户电脑完成，后台只同步设备、账号别名和可用状态。", '<a class="secondary-button" href="/downloads/tongzhuo-geo-publisher-setup.exe" download><span data-icon="download"></span>下载本地发布器</a><button class="primary-button" type="button" data-action="pair-device"><span data-icon="plus"></span>配对新设备</button>')}
+      ${pageHead("发布助手", "客户从这里下载本地桌面软件；账号登录与分组在客户电脑完成，后台只同步设备、账号别名和可用状态。", `<a class="secondary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载本地发布器</a><button class="primary-button" type="button" data-action="pair-device"><span data-icon="plus"></span>配对新设备</button>`)}
       <section class="card assistant-download-card">
-        <div class="assistant-download-copy"><span class="download-app-icon" data-icon="monitor"></span><div><span class="section-kicker">CLIENT APP · WINDOWS</span><h3>客户本地发布器</h3><p>安装在运营人员电脑上，在本地登录微信公众号、知乎、头条等平台账号。平台密码、Cookie、验证码和浏览器登录态不会上传到客户服务器。</p><div class="assistant-download-meta"><span class="small-tag blue">版本 1.8.10</span><span class="small-tag">Windows 10/11</span><span class="small-tag teal">默认端口 18280</span></div></div></div>
-        <div class="assistant-download-actions"><a class="primary-button" href="/downloads/tongzhuo-geo-publisher-setup.exe" download><span data-icon="download"></span>下载 Windows 桌面软件</a><button class="secondary-button" type="button" data-action="pair-device"><span data-icon="link"></span>查看配对步骤</button><small>下载安装程序后双击运行，软件会自动创建桌面快捷方式和开始菜单入口。</small></div>
+        <div class="assistant-download-copy"><span class="download-app-icon" data-icon="monitor"></span><div><span class="section-kicker">CLIENT APP · WINDOWS</span><h3>客户本地发布器</h3><p>安装在运营人员电脑上，在本地登录微信公众号、知乎、头条等平台账号。平台密码、Cookie、验证码和浏览器登录态不会上传到客户服务器。</p><div class="assistant-download-meta"><span class="small-tag blue">版本 1.8.14</span><span class="small-tag">Windows 10/11</span><span class="small-tag teal">默认端口 18280</span></div></div></div>
+        <div class="assistant-download-actions"><a class="primary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载 Windows 桌面软件</a><button class="secondary-button" type="button" data-action="pair-device"><span data-icon="link"></span>查看配对步骤</button><small>下载安装程序后双击运行，软件会自动创建桌面快捷方式和开始菜单入口。</small></div>
       </section>
       <section class="assistant-flow card">
         <div class="card-header"><div><h3>本地发布器连接流程</h3><p>只需要首次安装和配对，之后任务会自动同步到本地软件。</p></div><span class="small-tag teal">本机执行</span></div>
         <div class="assistant-flow-steps"><div><i>1</i><b>下载并安装</b><small>客户在当前页面下载 Windows 桌面软件并完成安装。</small></div><div><i>2</i><b>绑定客户后台</b><small>输入配对码，建立设备令牌。</small></div><div><i>3</i><b>本地登录账号</b><small>按账号组逐个平台登录，后台只看到状态。</small></div><div><i>4</i><b>领取并执行</b><small>审核通过的排期由本地软件按平台顺序执行。</small></div></div>
       </section>
       <section class="card assistant-hero">
-        <div class="device-state"><span class="device-icon" data-icon="monitor"><i></i></span><div><h3>运营部电脑 · GEO-OPS-01</h3><p>Windows 11 · 桌面发布节点 1.8.10 · 最近心跳 ${formatRelative(state.accountGroups[0].updatedAt)}</p></div></div>
+        <div class="device-state"><span class="device-icon" data-icon="monitor"><i></i></span><div><h3>运营部电脑 · GEO-OPS-01</h3><p>Windows 11 · 桌面发布节点 1.8.14 · 最近心跳 ${formatRelative(state.accountGroups[0].updatedAt)}</p></div></div>
         <div class="assistant-meta"><span>设备状态<b>在线</b></span><span>账号组<b>${state.accountGroups.length} 组</b></span><span>平台账号<b>6 个</b></span></div>
       </section>
       <div class="stack">${groups}</div>
@@ -10913,9 +11503,9 @@ function renderAssistant() {
   }).join("");
   return `
     <div class="page-container">
-      ${pageHead("发布助手", "本地 Windows 软件负责平台账号登录和执行；发布运营只负责选择审核通过的文章、账号组和平台。", '<a class="secondary-button" href="/downloads/tongzhuo-geo-publisher-setup.exe" download><span data-icon="download"></span>下载桌面软件</a><button class="primary-button" type="button" data-action="pair-device"><span data-icon="plus"></span>配对新设备</button>')}
+      ${pageHead("发布助手", "本地 Windows 软件负责平台账号登录和执行；发布运营只负责选择审核通过的文章、账号组和平台。", `<a class="secondary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载桌面软件</a><button class="primary-button" type="button" data-action="pair-device"><span data-icon="plus"></span>配对新设备</button>`)}
       <section class="card assistant-hero"><div class="device-state"><span class="device-icon" data-icon="monitor"><i></i></span><div><h3>${escapeHtml(deviceName)}</h3><p>最近心跳：${lastHeartbeat ? escapeHtml(formatTimeLabel(lastHeartbeat)) : "尚未连接"}</p></div></div><div class="assistant-meta"><span>设备状态${statusBadge(liveState)}</span><span>账号组<b>${groups ? state.accountGroups.filter((group) => group.id !== "unpaired").length : 0} 组</b></span><span>平台账号<b>${accountCount} 个</b></span></div></section>
-      <section class="card assistant-download-card"><div class="assistant-download-copy"><span class="download-app-icon" data-icon="monitor"></span><div><span class="section-kicker">CLIENT APP · WINDOWS</span><h3>桐灼 GEO 桌面发布器</h3><p>桌面软件启动后会在本机托盘运行，账号登录态只留在客户电脑；后台通过任务队列把审核后的文章交给它执行。</p></div></div><div class="assistant-download-actions"><a class="primary-button" href="/downloads/tongzhuo-geo-publisher-setup.exe" download><span data-icon="download"></span>下载 Windows 桌面软件</a><button class="secondary-button" type="button" data-action="pair-device"><span data-icon="link"></span>生成配对码</button></div></section>
+      <section class="card assistant-download-card"><div class="assistant-download-copy"><span class="download-app-icon" data-icon="monitor"></span><div><span class="section-kicker">CLIENT APP · WINDOWS</span><h3>桐灼 GEO 桌面发布器</h3><p>桌面软件启动后会在本机托盘运行，账号登录态只留在客户电脑；后台通过任务队列把审核后的文章交给它执行。</p></div></div><div class="assistant-download-actions"><a class="primary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载 Windows 桌面软件</a><button class="secondary-button" type="button" data-action="pair-device"><span data-icon="link"></span>生成配对码</button></div></section>
       <div class="stack">${groups || '<section class="card empty-state"><div><span data-icon="monitor"></span><h3>尚未连接本地发布器</h3><p>下载软件、安装后点击“生成配对码”，再把配对码填入桌面软件。</p><button class="primary-button" type="button" data-action="pair-device">生成配对码</button></div></section>'}</div>
       <section class="card assistant-platform-catalog"><div class="card-header"><div><h3>发布平台目录</h3><p>目录与桌面发布器保持一致；状态按当前账号组的本地登录会话实时同步，已登录的平台可直接在发布运营中下发。</p></div><div class="assistant-catalog-tools">${catalogGroupOptions ? `<label><span>账号组</span><select class="select" data-assistant-catalog-group>${catalogGroupOptions}</select></label>` : ""}<span class="small-tag teal">${selectablePlatformCount} 个本地平台 · ${loggedInPlatformCount} 个已登录</span></div></div><div class="assistant-platform-list">${catalogRows || '<div class="empty-state compact"><p>等待桌面发布器目录同步。</p></div>'}</div></section>
       <div class="privacy-note"><span data-icon="lock"></span><span><b style="display:block;color:var(--ink);margin-bottom:2px">平台登录态只留在本机</b>密码、Cookie、验证码与浏览器 Profile 不会上送服务器；后台只保存设备状态、账号别名、任务状态和发布结果。</span></div>
@@ -12560,17 +13150,20 @@ function renderUploadKnowledgeImagesModal() {
 
 function renderImportKnowledgeModal() {
   const bases = (state.knowledgeBases || []).filter((base) => base.kind === "document" && base.status !== "archived");
-  const options = bases.map((base) => `<option value="${base.id}">${escapeHtml(base.name)} · ${escapeHtml(knowledgeScopeLabel(base))}</option>`).join("");
+  const preparation = knowledgePreparationById(ui.modal?.preparationId);
+  const preferredBase = bases.find((base) => base.businessLineId === activeBusinessLine()?.id) || bases[0];
+  const options = bases.map((base) => `<option value="${base.id}" ${base.id === preferredBase?.id ? "selected" : ""}>${escapeHtml(base.name)} · ${escapeHtml(knowledgeScopeLabel(base))}</option>`).join("");
   if (!bases.length) {
     return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">导入资料</h2><p>需要先创建一个文档知识库承接资料</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="empty-state"><div><span data-icon="book"></span><h3>暂无文档知识库</h3><p>先新建文档库，再导入 PDF、Word、Markdown 或文本资料。</p><button class="primary-button button-small" type="button" data-action="create-knowledge-base"><span data-icon="plus"></span>新建知识库</button></div></div></div>`, { wide: true });
   }
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">导入企业资料</h2><p>上传后自动解析、建立索引并进入文章创作；PDF 中的图片会同步进入图片资料库</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
+      ${preparation ? `<section class="knowledge-import-guide"><span class="knowledge-icon ${preparation.id === "pricing_delivery" ? "amber" : preparation.id === "brand_compliance" || preparation.id === "faq" ? "purple" : ""}" data-icon="${preparation.icon}"></span><div><span>正在准备：${escapeHtml(preparation.title)}</span><b>${escapeHtml(preparation.purpose)}</b><p><strong>建议优先上传：</strong>${escapeHtml(preparation.materials.join("；"))}</p></div></section>` : ""}
       <div class="field"><label for="knowledge-import-base">导入到 *</label><select class="select" id="knowledge-import-base">${options}</select></div>
       <div class="field" style="margin-top:14px"><label for="knowledge-import-file">选择资料文件 *</label><input class="input" id="knowledge-import-file" type="file" accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml" multiple /><small>可一次选择多个 PDF、DOCX、XLSX 或普通文档；系统分批解析，失败文件会单独列出。扫描文档需要先配置 OCR。</small></div>
       <div class="field" style="margin-top:14px"><label for="knowledge-import-content">正文或关键摘录（PDF / Word 建议填写）</label><textarea class="textarea" id="knowledge-import-content" rows="8" placeholder="可粘贴资料正文或关键摘录。若是文本类文件，可留空由系统读取。"></textarea></div>
-      <div class="privacy-note" style="margin-top:14px"><span data-icon="lock"></span><span>原文件保存在客户私有服务器；PDF 会拆分为文字知识、内嵌图片和来源页码，扫描件在后台继续 OCR。</span></div>
+      <div class="privacy-note" style="margin-top:14px"><span data-icon="lock"></span><span>原文件保存在客户私有服务器；PDF 会拆分为文字知识、内嵌图片和来源页码，扫描件在后台继续 OCR。上传资料不会自动修改或发布已有文章。</span></div>
     </div>
     <div class="modal-foot"><span>上传即入库；处理失败的文件会单独提示，不阻塞其他资料</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-import"><span data-icon="upload"></span>上传并入库</button></div></div>
   `, { wide: true });
@@ -13528,6 +14121,7 @@ async function submitKnowledgeImport() {
   const fileInput = document.getElementById("knowledge-import-file");
   const files = Array.from(fileInput?.files || []);
   const pasted = document.getElementById("knowledge-import-content")?.value.trim() || "";
+  const preparation = knowledgePreparationById(ui.modal?.preparationId);
   if (!base || base.kind !== "document") return showToast("请选择文档知识库", "导入资料必须进入一个有效的文档知识库。", "error");
   if (!files.length) {
     fileInput?.classList.add("input-error");
@@ -13558,7 +14152,7 @@ async function submitKnowledgeImport() {
           mimeType: file.type || "application/octet-stream",
           contentBase64: arrayBufferToBase64(await file.arrayBuffer()),
           ...(files.length === 1 && pasted ? { content: pasted } : {}),
-          metadata: { visibility: "public", importedFrom: "browser-batch", extension, size: Number(file.size || 0), lastModified: Number(file.lastModified || 0) }
+          metadata: { visibility: "public", importedFrom: "browser-batch", extension, size: Number(file.size || 0), lastModified: Number(file.lastModified || 0), ...(preparation ? { preparationId: preparation.id, preparationLabel: preparation.title } : {}) }
         };
       }));
       const response = await productionApi("/api/v1/knowledge/documents-batch", { method: "POST", body: { libraryId: base.id, documents, defaults: { visibility: "public" } } });
@@ -13567,7 +14161,7 @@ async function submitKnowledgeImport() {
       failures.push(...(response.data?.failures || []));
     }
     await Promise.all([refreshKnowledgeFromServer(), refreshKnowledgeAssetsFromServer()]);
-    addOperationLog("企业知识", `批量导入 ${files.length} 个资料到知识库「${base.name}」：成功 ${created}，重复 ${duplicateCount}，失败 ${failures.length}`);
+    addOperationLog("企业知识", `批量导入 ${files.length} 个${preparation ? `「${preparation.title}」` : ""}资料到知识库「${base.name}」：成功 ${created}，重复 ${duplicateCount}，失败 ${failures.length}`);
     saveState();
     render();
     ui.modal = { type: "knowledgeBaseDetail", baseId: base.id };
@@ -17488,6 +18082,7 @@ document.addEventListener("click", async (event) => {
   if (action === "site-delete-redirect") return deleteSiteRedirect(actionElement.dataset.redirectId);
   if (action === "run-diagnostic") return runDiagnostic(actionElement);
   if (action === "save-site") return saveSiteSettings();
+  if (action === "save-site-diagnostic-url") return saveSiteDiagnosticUrl();
   if (action === "save-site-contact") return saveSiteContactSettings();
   if (action === "export-leads") return exportSiteLeads();
   if (action === "knowledge-tab") {
@@ -17539,6 +18134,21 @@ document.addEventListener("click", async (event) => {
     return renderModal();
   }
   if (action === "save-knowledge-package") return saveKnowledgePackage(actionElement.dataset.lineId);
+  if (action === "prepare-knowledge-material") {
+    const preparation = knowledgePreparationById(actionElement.dataset.preparationId);
+    if (!preparation) return showToast("未找到资料类型", "请刷新页面后重新选择要准备的资料。", "error");
+    if (preparation.action === "profile") {
+      ui.onboardingStep = 1;
+      ui.modal = { type: "onboarding" };
+      return renderModal();
+    }
+    if (preparation.action === "assets") {
+      ui.modal = { type: "uploadKnowledgeImages", preparationId: preparation.id };
+      return renderModal();
+    }
+    ui.modal = { type: "importKnowledge", preparationId: preparation.id };
+    return renderModal();
+  }
   if (action === "resolve-knowledge-gap") {
     const gap = state.knowledgeGaps.find((item) => item.id === actionElement.dataset.gapId);
     const base = (state.knowledgeBases || []).find((item) => item.kind === "document" && item.businessLineId === gap?.businessLineId) || (state.knowledgeBases || []).find((item) => item.kind === "document");
@@ -18520,6 +19130,14 @@ document.addEventListener("change", (event) => {
   if (event.target.matches('[data-monitor-filter="range"]')) {
     ui.monitoringRange = event.target.value;
     return refreshRealMonitoring({ silent: false });
+  }
+  if (event.target.id === "monitoring-suggestion-generation") {
+    ui.monitoringSuggestionGeneration = event.target.checked;
+    return render();
+  }
+  if (event.target.id === "monitoring-suggestion-provider") {
+    ui.monitoringSuggestionProviderId = event.target.value || "";
+    return;
   }
   if (event.target.matches("[data-topic-select]")) {
     const topic = state.topics.find((item) => item.id === event.target.dataset.topicSelect);

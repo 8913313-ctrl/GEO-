@@ -27,10 +27,20 @@ try {
   const html = `<html lang="zh-CN"><head><title>GEO</title><meta name="description" content="GEO"><script type="application/ld+json">{"@type":"Organization"}</script></head><body><h1>GEO</h1><p>这是通过上传 HTML 运行的安全诊断，不会访问本机地址。</p></body></html>`;
 
   await handler({ method: "POST", url: "/api/v1/monitoring/diagnostics", body: { html, baseUrl: "http://127.0.0.1:18080/", sourceLabel: "本地官网 HTML 快照" } }, response, ["api", "v1", "monitoring", "diagnostics"]);
-  assert.equal(response.value.status, 201);
+  assert.equal(response.value.status, 202);
   assert.equal(response.value.body.data.report.sourceKind, "uploaded_html");
   assert.equal(response.value.body.data.report.url, "http://127.0.0.1:18080/");
+  assert.equal(response.value.body.data.report.status, "pending");
+  const reportId = response.value.body.data.report.id;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    await handler({ method: "GET", url: `/api/v1/monitoring/diagnostics/${encodeURIComponent(reportId)}` }, response, ["api", "v1", "monitoring", "diagnostics", reportId]);
+    if (["completed", "failed"].includes(response.value.body.data.report.status)) break;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(response.value.body.data.report.status, "completed", JSON.stringify(response.value.body));
   assert.ok(response.value.body.data.report.scores.schema >= 0);
+  assert.ok(response.value.body.data.report.meta.previewScore >= 0);
+  assert.equal(response.value.body.data.report.recommendationSource, "rules");
 
   await handler({ method: "GET", url: "/api/v1/monitoring/diagnostics" }, response, ["api", "v1", "monitoring", "diagnostics"]);
   assert.equal(response.value.status, 200); assert.equal(response.value.body.data.items.length, 1);

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Trusted answer flow</title>
+  <desc id="desc">An abstract visual of a trusted answer being assembled from enterprise sources.</desc>
+  <defs>
+    <linearGradient id="bg" x1="122" y1="72" x2="1463" y2="850" gradientUnits="userSpaceOnUse"><stop stop-color="#211040"/><stop offset=".48" stop-color="#0B0D27"/><stop offset="1" stop-color="#2D102D"/></linearGradient>
+    <linearGradient id="accent" x1="399" y1="234" x2="1174" y2="679" gradientUnits="userSpaceOnUse"><stop stop-color="#8D9DFF"/><stop offset=".48" stop-color="#B76BFF"/><stop offset="1" stop-color="#FF83C7"/></linearGradient>
+    <radialGradient id="aura" cx="0" cy="0" r="1" gradientTransform="translate(826 424) rotate(90) scale(377 524)"><stop stop-color="#756FFF" stop-opacity=".48"/><stop offset="1" stop-color="#4E5AFF" stop-opacity="0"/></radialGradient>
+    <filter id="drop"><feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#03030D" flood-opacity=".52"/></filter>
+  </defs>
+  <rect width="1600" height="900" rx="48" fill="url(#bg)"/>
+  <ellipse cx="826" cy="424" rx="550" ry="396" fill="url(#aura)"/>
+  <g opacity=".4" stroke="#EBDFFF"><path d="M0 164H1600M0 308H1600M0 452H1600M0 596H1600M0 740H1600" stroke-opacity=".15"/><path d="M160 0V900M428 0V900M696 0V900M964 0V900M1232 0V900M1500 0V900" stroke-opacity=".1"/></g>
+  <g filter="url(#drop)">
+    <rect x="199" y="143" width="1202" height="615" rx="40" fill="#090B1D" fill-opacity=".72" stroke="#F1E7FF" stroke-opacity=".22" stroke-width="2"/>
+    <rect x="199" y="143" width="1202" height="82" rx="40" fill="#FFFFFF" fill-opacity=".055"/>
+    <rect x="242" y="176" width="146" height="17" rx="8.5" fill="#E7DDFF" fill-opacity=".76"/><rect x="1138" y="170" width="204" height="28" rx="14" fill="#9C7CFF" fill-opacity=".2" stroke="#DECFFF" stroke-opacity=".32"/>
+  </g>
+  <g filter="url(#drop)">
+    <rect x="251" y="275" width="332" height="422" rx="28" fill="#FFFFFF" fill-opacity=".055" stroke="#F1E7FF" stroke-opacity=".16"/>
+    <rect x="286" y="314" width="112" height="14" rx="7" fill="#DBCAFF"/><rect x="286" y="354" width="234" height="12" rx="6" fill="#F4EDFF" fill-opacity=".36"/>
+    <g fill="#FFFFFF" fill-opacity=".16"><rect x="286" y="414" width="231" height="57" rx="16"/><rect x="286" y="490" width="231" height="57" rx="16"/><rect x="286" y="566" width="231" height="57" rx="16"/></g>
+    <g fill="url(#accent)"><circle cx="319" cy="442" r="12"/><circle cx="319" cy="518" r="12"/><circle cx="319" cy="594" r="12"/></g>
+    <g fill="#F6F0FF" fill-opacity=".58"><rect x="348" y="430" width="132" height="12" rx="6"/><rect x="348" y="506" width="115" height="12" rx="6"/><rect x="348" y="582" width="143" height="12" rx="6"/></g>
+  </g>
+  <g filter="url(#drop)">
+    <rect x="631" y="275" width="510" height="422" rx="30" fill="#FFFFFF" fill-opacity=".075" stroke="#F1E7FF" stroke-opacity=".21"/>
+    <rect x="673" y="318" width="180" height="15" rx="7.5" fill="#EDE5FF" fill-opacity=".78"/>
+    <path d="M694 429C740 365 811 496 869 400C924 309 1000 457 1088 354" stroke="url(#accent)" stroke-width="10" stroke-linecap="round"/>
+    <g fill="#F7F2FF" fill-opacity=".12"><rect x="678" y="486" width="416" height="56" rx="16"/><rect x="678" y="560" width="416" height="90" rx="16"/></g>
+    <rect x="706" y="506" width="156" height="12" rx="6" fill="#F8F2FF" fill-opacity=".72"/><rect x="706" y="584" width="328" height="12" rx="6" fill="#F8F2FF" fill-opacity=".52"/><rect x="706" y="614" width="258" height="12" rx="6" fill="#F8F2FF" fill-opacity=".24"/>
+  </g>
+  <g filter="url(#drop)">
+    <rect x="1188" y="275" width="160" height="422" rx="28" fill="#FFFFFF" fill-opacity=".05" stroke="#F1E7FF" stroke-opacity=".16"/>
+    <circle cx="1268" cy="372" r="46" fill="#A87BFF" fill-opacity=".2" stroke="#DCC8FF" stroke-opacity=".56" stroke-width="2"/>
+    <circle cx="1268" cy="372" r="20" fill="url(#accent)"/>
+    <rect x="1220" y="461" width="96" height="12" rx="6" fill="#F7F0FF" fill-opacity=".56"/><rect x="1220" y="494" width="77" height="12" rx="6" fill="#F7F0FF" fill-opacity=".22"/>
+    <path d="M1221 616H1314" stroke="#AD84FF" stroke-opacity=".64" stroke-width="7" stroke-linecap="round"/>
+  </g>
+  <g fill="#FFF5FF"><circle cx="154" cy="112" r="3"/><circle cx="1465" cy="706" r="2"/><circle cx="1433" cy="166" r="2"/><circle cx="126" cy="778" r="2"/></g>
+</svg>

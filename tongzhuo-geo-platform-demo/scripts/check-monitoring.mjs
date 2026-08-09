@@ -11,7 +11,8 @@ import {
   analyzeGeoHtml,
   calculateOverallScore,
   classifyTraffic,
-  isPublicAddress
+  isPublicAddress,
+  monitoringReportingDate
 } from "../monitoring-store.mjs";
 import { ProductionDatabase } from "../production-database.mjs";
 
@@ -64,6 +65,7 @@ const diagnosticHtml = `<!doctype html>
     <a href="https://www.gov.cn/zhengce/">政策来源</a>
     <a href="https://doi.org/10.1000/example">研究来源</a>
     <a href="https://github.com/example/reference">公开资料</a>
+    <a href="https://example.net/reference">参考来源</a>
   </main>
 </body>
 </html>`;
@@ -82,9 +84,20 @@ try {
   assert.equal(deterministic.overallScore, 96);
   assert.equal(deterministic.schema.schemaCount, 1);
   assert.deepEqual(deterministic.schema.missingRecommended, []);
-  assert.equal(deterministic.citation.externalLinkCount, 3);
+  assert.deepEqual(deterministic.schema.evidence.found_types.sort(), ["Article", "BreadcrumbList", "FAQPage", "Organization", "WebSite"].sort());
+  assert.equal(deterministic.schema.evidence.jsonld_count, 1);
+  assert.equal(deterministic.content.h3Count, 0);
+  assert.equal(typeof deterministic.content.firstParagraphHasDirectAnswer, "boolean");
+  assert.equal(deterministic.meta.previewScore, 100);
+  assert.equal(deterministic.meta.evidence.check_count, 13);
+  assert.equal(deterministic.citation.externalLinkCount, 4);
   assert.equal(deterministic.citation.authorityLinkCount, 2);
   assert.equal(deterministic.citation.internalLinkCount, 1);
+  assert.equal(deterministic.citation.evidence.has_recognized_source_link, true);
+  assert.equal(deterministic.citation.sourceLinks.includes("https://example.net/reference"), true);
+  assert.equal(deterministic.citation.evidence.source_links[2].href, "https://example.net/reference");
+  assert.equal(deterministic.recommendations.source, "rules");
+  assert.equal(deterministic.recommendations.generation.status, "rule_ready");
   assert.equal(calculateOverallScore(100, 100, 100, 80), 96);
   assert.match(deterministic.contentHash, /^[a-f0-9]{64}$/);
 
@@ -98,6 +111,12 @@ try {
   assert.deepEqual(classifyTraffic(""), { type: "unknown", botName: "" });
   assert.equal(isPublicAddress("127.0.0.1"), false);
   assert.equal(isPublicAddress("10.0.0.1"), false);
+  assert.equal(isPublicAddress("::ffff:127.0.0.1"), false);
+  assert.equal(isPublicAddress("::ffff:7f00:1"), false);
+  assert.equal(isPublicAddress("::ffff:c0a8:101"), false);
+  assert.equal(isPublicAddress("::ffff:ac10:1"), false);
+  assert.equal(isPublicAddress("::ffff:0808:0808"), true);
+  assert.equal(isPublicAddress("::7f00:1"), false);
   assert.equal(isPublicAddress("8.8.8.8"), true);
 
   const contentStore = new ContentStore(database, { workspaceId: "default", requireEvidence: false });
@@ -133,6 +152,56 @@ try {
   assert.equal(uploaded.contentHash, deterministic.contentHash);
   assert.equal(monitoring.listReports({ limit: 10 }).length, 1);
 
+  let suggestionGeneratorInput = null;
+  const modelMonitoring = new MonitoringStore(database, {
+    workspaceId: "model-suggestion-check",
+    ipSalt: "monitoring-model-suggestion-salt",
+    recommendationGenerator: async (input) => {
+      suggestionGeneratorInput = input;
+      return {
+        summary: "模型仅根据规则证据整理建议。",
+        priorityAction: "先补齐结构化数据。",
+        recommendations: [{ priority: "P0", title: "补齐实体 Schema", action: "补齐 Organization 和 WebSite 的字段。", rationale: "当前规则证据显示实体结构需完善。", evidenceKeys: ["schema"] }],
+        generation: { providerId: "provider-check", providerName: "Check provider", model: "check-model", generationRunId: "AIRUN-CHECK", generatedAt: "2026-08-07T00:00:00.000Z" }
+      };
+    }
+  });
+  const queued = modelMonitoring.enqueueDiagnosis({
+    html: diagnosticHtml,
+    baseUrl: "https://example.com/insights/geo",
+    suggestionGeneration: { mode: "llm", providerId: "provider-check", model: "check-model" }
+  });
+  assert.equal(queued.status, "pending", "asynchronous diagnostics must return a pending report first");
+  assert.equal(queued.totalScore, null);
+  assert.equal(queued.schemaScore, null);
+  assert.equal(queued.analysisRevision, null);
+  let queuedCompleted = null;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const report = modelMonitoring.report("model-suggestion-check", queued.id);
+    if (["completed", "failed"].includes(report.status)) { queuedCompleted = report; break; }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(queuedCompleted?.status, "completed", JSON.stringify(queuedCompleted));
+  assert.equal(queuedCompleted.recommendationSource, "llm");
+  assert.equal(queuedCompleted.recommendations.llm.recommendations[0].title, "补齐实体 Schema");
+  assert.equal(queuedCompleted.meta.previewScore, 100);
+  assert.equal(queuedCompleted.evidence.schema.jsonld_count, 1);
+  assert.equal(suggestionGeneratorInput.providerId, "provider-check");
+
+  const fallbackMonitoring = new MonitoringStore(database, {
+    workspaceId: "model-fallback-check",
+    ipSalt: "monitoring-model-fallback-salt",
+    recommendationGenerator: async () => { const error = new Error("model unavailable"); error.code = "UPSTREAM_TIMEOUT"; throw error; }
+  });
+  const fallback = await fallbackMonitoring.diagnose({
+    html: diagnosticHtml,
+    baseUrl: "https://example.com/insights/geo",
+    suggestionGeneration: { mode: "llm", providerId: "provider-check", model: "check-model" }
+  });
+  assert.equal(fallback.recommendationSource, "rule_fallback");
+  assert.equal(fallback.recommendations.generation.status, "fallback");
+  assert.equal(fallback.recommendations.generation.failureCode, "UPSTREAM_TIMEOUT");
+
   const localSiteDirectory = path.join(temporaryDirectory, "public-site");
   await import("node:fs/promises").then(({ mkdir }) => mkdir(localSiteDirectory, { recursive: true }));
   await writeFile(path.join(localSiteDirectory, "index.html"), diagnosticHtml, "utf8");
@@ -144,9 +213,13 @@ try {
     monitoring.diagnose({ url: "http://127.0.0.1/" }),
     (error) => error instanceof MonitoringError && error.code === "MONITORING_SSRF_BLOCKED" && Boolean(error.details?.reportId)
   );
-  assert.equal(monitoring.listReports({ status: "failed" }).length, 1, "failed diagnostics remain auditable");
+  await assert.rejects(
+    monitoring.diagnose({ url: "http://[::ffff:7f00:1]/" }),
+    (error) => error instanceof MonitoringError && error.code === "MONITORING_SSRF_BLOCKED" && Boolean(error.details?.reportId)
+  );
+  assert.equal(monitoring.listReports({ status: "failed" }).length, 2, "failed diagnostics remain auditable");
 
-  const day = timestamp.slice(0, 10);
+  const day = monitoringReportingDate(new Date(timestamp));
   const logItems = [
     { eventId: "evt-human", occurredAt: timestamp, method: "GET", path: "/insights/geo", statusCode: 200, ipAddress: "198.18.0.1", userAgent: "Mozilla/5.0 Chrome/138.0", articleId: article.id },
     { eventId: "evt-gpt", occurredAt: timestamp, method: "GET", path: "/insights/geo", statusCode: 200, ipAddress: "198.18.0.2", userAgent: "GPTBot/1.2", articleId: article.id },
@@ -154,18 +227,19 @@ try {
     { eventId: "evt-google", occurredAt: timestamp, method: "GET", path: "/", statusCode: 200, ipAddress: "198.18.0.4", userAgent: "Googlebot/2.1" },
     { eventId: "evt-curl", occurredAt: timestamp, method: "GET", path: "/robots.txt", statusCode: 200, ipAddress: "198.18.0.5", userAgent: "curl/8.0" },
     { eventId: "evt-unknown", occurredAt: timestamp, method: "GET", path: "/llms.txt", statusCode: 200, ipAddress: "198.18.0.6", userAgent: "" },
+    { eventId: "evt-api", occurredAt: timestamp, method: "GET", path: "/api/v1/workspace", statusCode: 200, ipAddress: "198.18.0.8", userAgent: "Mozilla/5.0" },
     { eventId: "evt-post-ai", occurredAt: timestamp, method: "POST", path: "/contact", statusCode: 201, ipAddress: "198.18.0.7", userAgent: "Bytespider" }
   ];
   const ingested = monitoring.ingestAccessLogs({ source: "server", items: logItems });
-  assert.deepEqual({ received: ingested.received, accepted: ingested.accepted, duplicates: ingested.duplicates }, { received: 7, accepted: 7, duplicates: 0 });
+  assert.deepEqual({ received: ingested.received, accepted: ingested.accepted, duplicates: ingested.duplicates }, { received: 8, accepted: 8, duplicates: 0 });
   const duplicate = monitoring.ingestAccessLogs({ source: "server", items: [logItems[0]] });
   assert.equal(duplicate.accepted, 0);
   assert.equal(duplicate.duplicates, 1);
 
   const traffic = monitoring.trafficSummary({ dateFrom: day, dateTo: day });
   assert.equal(traffic.hasData, true);
-  assert.deepEqual(traffic.kpis, { pv: 6, uniqueIp: 6, humanPv: 1, aiBotPv: 2, searchBotPv: 1, otherBotPv: 1, unknownPv: 1, errors: 1 });
-  assert.deepEqual(Object.fromEntries(traffic.botBreakdown.map((item) => [item.key, item.count])), { human: 1, search_bot: 1, ai_bot: 2, other_bot: 1, unknown: 1 });
+  assert.deepEqual(traffic.kpis, { pv: 3, uniqueIp: 3, humanPv: 1, aiBotPv: 1, searchBotPv: 1, otherBotPv: 0, unknownPv: 0, errors: 1, rawRequests: 7, excludedRequests: 4 });
+  assert.deepEqual(Object.fromEntries(traffic.botBreakdown.map((item) => [item.key, item.count])), { human: 1, search_bot: 1, ai_bot: 1, other_bot: 0, unknown: 0 });
   assert.equal(traffic.topPaths[0].path, "/insights/geo");
   assert.equal(traffic.topPaths[0].views, 2);
   assert.equal(traffic.topArticles[0].articleId, article.id);
@@ -173,6 +247,17 @@ try {
   const storedIp = database.connection.prepare("SELECT ip_hash FROM monitoring_access_logs WHERE event_id = 'evt-human'").get();
   assert.match(storedIp.ip_hash, /^[a-f0-9]{64}$/);
   assert.notEqual(storedIp.ip_hash, "198.18.0.1", "raw client IP must not be persisted");
+
+  monitoring.ingestAccessLogs({ workspaceId: "timezone-check", source: "server", items: [
+    { eventId: "tz-before-midnight", occurredAt: "2026-08-06T15:59:59.000Z", method: "GET", path: "/", statusCode: 200, ipAddress: "198.18.1.1", userAgent: "Mozilla/5.0" },
+    { eventId: "tz-after-midnight", occurredAt: "2026-08-06T16:00:01.000Z", method: "GET", path: "/", statusCode: 200, ipAddress: "198.18.1.2", userAgent: "GPTBot/1.0" },
+    { eventId: "tz-favicon", occurredAt: "2026-08-06T16:00:02.000Z", method: "GET", path: "/favicon.ico", statusCode: 404, ipAddress: "198.18.1.3", userAgent: "Mozilla/5.0" },
+    { eventId: "tz-redirect", occurredAt: "2026-08-06T16:00:03.000Z", method: "GET", path: "/legacy", statusCode: 301, ipAddress: "198.18.1.4", userAgent: "Mozilla/5.0" }
+  ] });
+  const shanghaiDay = monitoring.trafficSummary({ workspaceId: "timezone-check", dateFrom: "2026-08-07", dateTo: "2026-08-07", source: "server" });
+  assert.deepEqual(shanghaiDay.kpis, { pv: 1, uniqueIp: 1, humanPv: 0, aiBotPv: 1, searchBotPv: 0, otherBotPv: 0, unknownPv: 0, errors: 0, rawRequests: 3, excludedRequests: 2 });
+  assert.deepEqual(shanghaiDay.trafficTrend, [{ date: "2026-08-07", pv: 1, aiBotPv: 1 }]);
+  assert.equal(shanghaiDay.filters.timeZoneOffsetMinutes, 480);
 
   const operations = await monitoring.operationsSummary({ dateFrom: day, dateTo: day, businessLineId: "BL-MON" });
   assert.equal(operations.content.totalArticles, 1);
@@ -226,13 +311,24 @@ try {
   apiResult = await apiRequest("/api/v1/monitoring/diagnostics", { method: "POST", headers: { Cookie: cookie, "Content-Type": "application/json" }, body: JSON.stringify({ html: diagnosticHtml, baseUrl: "https://example.com/insights/geo" }) });
   assert.equal(apiResult.response.status, 403, "monitoring writes must enforce CSRF");
   apiResult = await apiRequest("/api/v1/monitoring/diagnostics", { method: "POST", headers: writeHeaders, body: JSON.stringify({ html: diagnosticHtml, baseUrl: "https://example.com/insights/geo", sourceLabel: "API 验收页面" }) });
-  assert.equal(apiResult.response.status, 201, JSON.stringify(apiResult.body));
-  assert.equal(apiResult.body.data.diagnostic.totalScore, 96);
-  assert.equal(apiResult.body.data.diagnostic.scores.schema, 100);
+  assert.equal(apiResult.response.status, 202, JSON.stringify(apiResult.body));
+  assert.equal(apiResult.body.data.diagnostic.status, "pending");
+  assert.equal(apiResult.body.data.diagnostic.totalScore, null);
+  assert.equal(apiResult.body.data.diagnostic.schemaScore, null);
+  assert.equal(apiResult.body.data.diagnostic.previewScore, null);
   const apiReportId = apiResult.body.data.diagnostic.id;
-  apiResult = await apiRequest(`/api/v1/monitoring/diagnostics/${encodeURIComponent(apiReportId)}`, { headers: readHeaders });
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    apiResult = await apiRequest(`/api/v1/monitoring/diagnostics/${encodeURIComponent(apiReportId)}`, { headers: readHeaders });
+    if (["completed", "failed"].includes(apiResult.body.data?.diagnostic?.status)) break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
   assert.equal(apiResult.response.status, 200);
   assert.equal(apiResult.body.data.diagnostic.id, apiReportId);
+  assert.equal(apiResult.body.data.diagnostic.status, "completed", JSON.stringify(apiResult.body));
+  assert.equal(apiResult.body.data.diagnostic.totalScore, 96);
+  assert.equal(apiResult.body.data.diagnostic.scores.schema, 100);
+  assert.equal(apiResult.body.data.diagnostic.meta.previewScore, 100);
+  assert.equal(apiResult.body.data.diagnostic.recommendationSource, "rules");
   apiResult = await apiRequest("/api/v1/monitoring/diagnostics?limit=5", { headers: readHeaders });
   assert.equal(apiResult.response.status, 200);
   assert.equal(apiResult.body.data.items.length, 1);

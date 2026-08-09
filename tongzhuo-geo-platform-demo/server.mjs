@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createReadStream } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
@@ -11,7 +12,8 @@ import { ContentError, ContentStateError, ContentStore } from "./content-store.m
 import { createContentApi } from "./content-api.mjs";
 import { ContentAssetError, ContentAssetStore } from "./content-asset-store.mjs";
 import { createContentAssetApi } from "./content-asset-api.mjs";
-import { MonitoringError, MonitoringStore } from "./monitoring-store.mjs";
+import { MonitoringError, MonitoringStore, monitoringDateDaysBefore, monitoringReportingDate } from "./monitoring-store.mjs";
+import { createMonitoringSuggestionGenerator } from "./monitoring-suggestion-generator.mjs";
 import { DiagnosticError, DiagnosticStore } from "./diagnostic-store.mjs";
 import { createDiagnosticApi } from "./diagnostic-api.mjs";
 import { createDiagnosticRelayClient } from "./diagnostic-relay-client.mjs";
@@ -271,8 +273,11 @@ const monitoringRemotePorts = String(process.env.TZ_MONITORING_REMOTE_PORTS || "
 const monitoringStore = new MonitoringStore(database, {
   workspaceId: "default",
   publisherStore,
-  remotePorts: monitoringRemotePorts.length ? monitoringRemotePorts : [80, 443]
+  remotePorts: monitoringRemotePorts.length ? monitoringRemotePorts : [80, 443],
+  recommendationGenerator: createMonitoringSuggestionGenerator({ aiGenerationService })
 });
+const recoveredMonitoringReports = monitoringStore.recoverInterruptedDiagnostics({ workspaceId: "default" });
+if (recoveredMonitoringReports) productionLogger.info("monitoring.diagnostics_interrupted_recovered", { count: recoveredMonitoringReports });
 const siteCmsStore = new SiteCmsStore(database, { workspaceId: "default", trustProxy: configured.trustProxy });
 const sitePreviewStore = new PublicSiteStore({ database, cmsStore: siteCmsStore, workspaceId: "default" });
 const analysisWorkbenchStore = new AnalysisWorkbenchStore(database, { workspaceId: "default" });
@@ -477,6 +482,7 @@ const mimeTypes = {
 };
 
 mimeTypes[".exe"] = "application/vnd.microsoft.portable-executable";
+const publisherDownloadPath = "/downloads/tongzhuo-geo-publisher-setup.exe";
 
 function requestId(request) {
   const supplied = String(request.headers["x-request-id"] || "").trim();
@@ -490,6 +496,115 @@ function applySecurityHeaders(response, id) {
   response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   response.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+}
+
+function escapeHtmlAttribute(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+}
+
+function publisherDownloadUrl() {
+  const configuredUrl = String(configured.publisherDownloadUrl || "").trim();
+  if (!configuredUrl) return publisherDownloadPath;
+  try {
+    const parsed = new URL(configuredUrl);
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : publisherDownloadPath;
+  } catch {
+    return publisherDownloadPath;
+  }
+}
+
+function isPublisherDownload(filePath) {
+  const downloadsRoot = path.resolve(root, "downloads");
+  const resolved = path.resolve(filePath);
+  return resolved === downloadsRoot || resolved.startsWith(`${downloadsRoot}${path.sep}`);
+}
+
+function entityTag(fileInfo) {
+  return `W/\"${fileInfo.size.toString(16)}-${Math.floor(fileInfo.mtimeMs).toString(16)}\"`;
+}
+
+function parseByteRange(value, size) {
+  const raw = String(value || "").trim();
+  if (!raw.startsWith("bytes=") || raw.slice(6).includes(",")) return null;
+  const [startText, endText] = raw.slice(6).split("-", 2);
+  if (!startText && !endText) return null;
+  if (!size) return null;
+  if (!startText) {
+    const suffixLength = Number(endText);
+    if (!Number.isInteger(suffixLength) || suffixLength <= 0) return null;
+    const length = Math.min(suffixLength, size);
+    return { start: size - length, end: size - 1 };
+  }
+  const start = Number(startText);
+  const end = endText ? Number(endText) : size - 1;
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end < start || start >= size) return null;
+  return { start, end: Math.min(end, size - 1) };
+}
+
+function streamStaticFile(request, response, filePath, fileInfo) {
+  const etag = entityTag(fileInfo);
+  const isDownload = isPublisherDownload(filePath);
+  const baseHeaders = {
+    "Content-Type": mimeTypes[path.extname(filePath)] || "application/octet-stream",
+    "Accept-Ranges": "bytes",
+    "ETag": etag,
+    "Last-Modified": fileInfo.mtime.toUTCString(),
+    "Cache-Control": isDownload ? "public, max-age=300, must-revalidate" : "no-store"
+  };
+  if (isDownload) baseHeaders["Content-Disposition"] = `attachment; filename=\"${path.basename(filePath)}\"`;
+
+  const ifNoneMatch = String(request.headers["if-none-match"] || "").trim();
+  if (ifNoneMatch === "*" || ifNoneMatch.split(",").map((item) => item.trim()).includes(etag)) {
+    response.writeHead(304, baseHeaders);
+    response.end();
+    return;
+  }
+
+  let status = 200;
+  let start = 0;
+  let end = Math.max(0, fileInfo.size - 1);
+  const rangeHeader = request.headers.range;
+  if (rangeHeader) {
+    const range = parseByteRange(rangeHeader, fileInfo.size);
+    if (!range) {
+      response.writeHead(416, {
+        ...baseHeaders,
+        "Content-Range": `bytes */${fileInfo.size}`,
+        "Content-Length": "0"
+      });
+      response.end();
+      return;
+    }
+    status = 206;
+    start = range.start;
+    end = range.end;
+  }
+
+  const contentLength = fileInfo.size ? end - start + 1 : 0;
+  const headers = {
+    ...baseHeaders,
+    "Content-Length": String(contentLength)
+  };
+  if (status === 206) headers["Content-Range"] = `bytes ${start}-${end}/${fileInfo.size}`;
+  response.writeHead(status, headers);
+  if (request.method === "HEAD" || !contentLength) {
+    response.end();
+    return;
+  }
+
+  const stream = createReadStream(filePath, { start, end });
+  stream.on("error", (error) => {
+    if (!response.headersSent) response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+    response.destroy(error);
+  });
+  response.on("close", () => stream.destroy());
+  stream.pipe(response);
 }
 
 function cookie(request, name) {
@@ -732,9 +847,15 @@ async function handleSiteCmsApi(request, response, parts) {
   if (operation === "preview" && parts[4] === "assets" && parts[5] && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const fileName = path.basename(decodeURIComponent(parts[5]));
-    if (!(fileName === "site.css" || fileName === "site.js")) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
+    const previewAssets = new Set(["site.css", "site.js", "geo-signal-hero.svg", "geo-answer-hero.svg", "geo-network-hero.svg"]);
+    if (!previewAssets.has(fileName)) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
     const body = await readFile(path.join(siteAssetRoot, fileName));
-    return rawResponse(response, 200, body, fileName.endsWith(".css") ? "text/css; charset=utf-8" : "text/javascript; charset=utf-8");
+    const contentType = fileName.endsWith(".css")
+      ? "text/css; charset=utf-8"
+      : fileName.endsWith(".svg")
+        ? "image/svg+xml"
+        : "text/javascript; charset=utf-8";
+    return rawResponse(response, 200, body, contentType);
   }
   return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ROUTE_NOT_FOUND", message: "官网 CMS 接口不存在。" });
 }
@@ -781,14 +902,12 @@ async function handleAuditApi(request, response) {
 function monitoringRangeFromQuery(request) {
   const query = new URL(request.url || "/", "http://localhost").searchParams;
   const days = Math.max(1, Math.min(366, Number(query.get("days")) || 30));
-  const dateTo = query.get("dateTo") || new Date().toISOString().slice(0, 10);
-  const start = new Date(`${dateTo}T00:00:00.000Z`);
-  start.setUTCDate(start.getUTCDate() - days + 1);
+  const dateTo = query.get("dateTo") || monitoringReportingDate();
   return {
-    dateFrom: query.get("dateFrom") || start.toISOString().slice(0, 10),
+    dateFrom: query.get("dateFrom") || monitoringDateDaysBefore(dateTo, days - 1),
     dateTo,
     days,
-    source: query.get("source") || "all",
+    source: query.get("source") || "server",
     trafficType: query.get("trafficType") || "all",
     articleId: query.get("articleId") || "",
     businessLineId: query.get("businessLineId") || ""
@@ -797,16 +916,27 @@ function monitoringRangeFromQuery(request) {
 
 function monitoringReportPayload(report) {
   if (!report) return null;
+  const completed = ["completed", "complete", "success", "succeeded"].includes(String(report.status || "").toLowerCase());
+  const score = (value) => completed && value != null ? Number(value) : null;
   return {
     ...report,
     url: report.sourceUrl || "",
-    totalScore: report.overallScore,
+    overallScore: completed ? report.overallScore : null,
+    totalScore: completed ? report.overallScore : null,
     scores: {
-      schema: Number(report.schema?.score ?? 0),
-      content: Number(report.content?.score ?? 0),
-      meta: Number(report.meta?.score ?? 0),
-      authority: Number(report.citation?.score ?? 0)
-    }
+      schema: score(report.schema?.score),
+      content: score(report.content?.score),
+      meta: score(report.meta?.score),
+      authority: score(report.citation?.score),
+      citation: score(report.citation?.score),
+      preview: score(report.meta?.previewScore ?? report.meta?.preview_score)
+    },
+    schemaScore: score(report.schema?.score),
+    contentScore: score(report.content?.score),
+    metaScore: score(report.meta?.score),
+    authorityScore: score(report.citation?.score),
+    citationScore: score(report.citation?.score),
+    previewScore: score(report.meta?.previewScore ?? report.meta?.preview_score)
   };
 }
 
@@ -871,7 +1001,7 @@ async function handleMonitoringApi(request, response, parts) {
         otherBotPv: summary.kpis.otherBotPv,
         unknownPv: summary.kpis.unknownPv,
         uniqueIp: summary.kpis.uniqueIp,
-        trend: summary.trafficTrend.map((item) => ({ label: item.date, pv: item.aiBotPv, allPv: item.pv })),
+        trend: summary.trafficTrend.map((item) => ({ label: item.date, pv: item.pv, allPv: item.pv, aiBotPv: item.aiBotPv })),
         topPaths: summary.topPaths.map((item) => ({ ...item, pv: item.views })),
         bots
       } }
@@ -886,8 +1016,12 @@ async function handleMonitoringApi(request, response, parts) {
   if (operation === "diagnostics" && parts.length === 4 && method === "POST") {
     const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_WRITE);
     const body = await requestJson(request, Math.max(configured.requestBodyLimit, 6_000_000));
-    const report = await monitoringStore.diagnose({ workspaceId, ...body, actor: principal, request });
-    return jsonResponse(response, 201, { ok: true, data: { diagnostic: monitoringReportPayload(report) } });
+    // URL fetches and optional model suggestions can take longer than a
+    // reverse-proxy request window. Persist first, then let the in-process
+    // worker advance pending -> running -> completed/failed while the client
+    // polls the report id.
+    const report = monitoringStore.enqueueDiagnosis({ workspaceId, ...body, actor: principal, request });
+    return jsonResponse(response, 202, { ok: true, data: { diagnostic: monitoringReportPayload(report) } });
   }
   if (operation === "diagnostics" && parts.length === 5 && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
@@ -1416,6 +1550,12 @@ const server = http.createServer(async (request, response) => {
 
     if (parts[0] === "api") return jsonResponse(response, 404, { ok: false, code: "API_ROUTE_NOT_FOUND", message: "接口不存在。" });
 
+    if (!["GET", "HEAD"].includes(method)) {
+      response.writeHead(405, { "Content-Type": "text/plain; charset=utf-8", Allow: "GET, HEAD" });
+      response.end("Method not allowed");
+      return;
+    }
+
     let filePath = safePath(request.url || "/");
     if (!filePath) {
       response.writeHead(403, { "Content-Type": "text/plain; charset=utf-8" });
@@ -1423,19 +1563,38 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    let fileInfo;
     try {
-      const info = await stat(filePath);
-      if (info.isDirectory()) filePath = path.join(filePath, "index.html");
+      fileInfo = await stat(filePath);
+      if (fileInfo.isDirectory()) {
+        filePath = path.join(filePath, "index.html");
+        fileInfo = await stat(filePath);
+      }
     } catch {
+      if (isPublisherDownload(filePath)) {
+        response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        response.end("Not found");
+        return;
+      }
       filePath = path.join(root, "index.html");
+      fileInfo = await stat(filePath);
     }
 
-    const body = await readFile(filePath);
-    response.writeHead(200, {
-      "Content-Type": mimeTypes[path.extname(filePath)] || "application/octet-stream",
-      "Cache-Control": "no-store"
-    });
-    response.end(body);
+    if (path.resolve(filePath) === path.resolve(root, "index.html")) {
+      const html = (await readFile(filePath, "utf8"))
+        .replace("__TZ_PUBLISHER_DOWNLOAD_URL__", escapeHtmlAttribute(publisherDownloadUrl()));
+      const body = Buffer.from(html, "utf8");
+      response.writeHead(200, {
+        "Content-Type": "text/html; charset=utf-8",
+        "Content-Length": String(body.byteLength),
+        "Cache-Control": "no-store"
+      });
+      if (method === "HEAD") response.end();
+      else response.end(body);
+      return;
+    }
+
+    streamStaticFile(request, response, filePath, fileInfo);
   } catch (error) {
     const isApi = routeParts(request)[0] === "api" || routeParts(request)[0] === "health";
     const status = error instanceof WorkspaceConflictError ? 409

@@ -62,6 +62,16 @@
     node.className = `production-auth-message ${tone}`;
   }
 
+  function passwordEyeIcon(visible = false) {
+    return visible
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m3 3 18 18"/><path d="M10.6 10.7a2 2 0 0 0 2.7 2.7"/><path d="M9.9 5.2A11.2 11.2 0 0 1 12 5c6.5 0 10 7 10 7a18.3 18.3 0 0 1-3.1 3.9M6.2 6.2C3.6 8.2 2 12 2 12s3.5 7 10 7a10.8 10.8 0 0 0 4.1-.8"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>';
+  }
+
+  function passwordField({ label, name, autocomplete, required = true }) {
+    return `<label>${label}<span class="production-password-control"><input name="${name}" type="password" minlength="12" maxlength="200" autocomplete="${autocomplete}"${required ? " required" : ""} /><button type="button" class="production-password-toggle" data-auth-password-toggle="${name}" aria-label="显示${label}" aria-pressed="false">${passwordEyeIcon()}</button></span></label>`;
+  }
+
   function renderForm(status) {
     const root = ensureOverlay();
     const setup = !status.initialized;
@@ -76,8 +86,8 @@
         <form data-auth-form autocomplete="${setup ? "off" : "on"}">
           ${setup ? '<label>管理员姓名<input name="name" maxlength="80" autocomplete="name" value="系统管理员" required /></label>' : ""}
           <label>登录账号<input name="username" maxlength="64" autocomplete="username" value="${setup ? "admin" : ""}" required /></label>
-          <label>登录密码<input name="password" type="password" minlength="12" maxlength="200" autocomplete="${setup ? "new-password" : "current-password"}" required /></label>
-          ${setup ? '<label>确认密码<input name="passwordConfirm" type="password" minlength="12" maxlength="200" autocomplete="new-password" required /></label>' : ""}
+          ${passwordField({ label: "登录密码", name: "password", autocomplete: setup ? "new-password" : "current-password" })}
+          ${setup ? passwordField({ label: "确认密码", name: "passwordConfirm", autocomplete: "new-password" }) : ""}
           <div class="production-auth-message" data-auth-message aria-live="assertive"></div>
           <button type="submit">${setup ? "完成初始化并进入系统" : "登录"}</button>
         </form>
@@ -85,6 +95,18 @@
       </main>`;
 
     const form = root.querySelector("[data-auth-form]");
+    form.querySelectorAll("[data-auth-password-toggle]").forEach((toggle) => {
+      toggle.addEventListener("click", () => {
+        const input = form.elements.namedItem(toggle.dataset.authPasswordToggle);
+        if (!input) return;
+        const visible = input.type === "password";
+        input.type = visible ? "text" : "password";
+        toggle.setAttribute("aria-pressed", String(visible));
+        toggle.setAttribute("aria-label", `${visible ? "隐藏" : "显示"}${toggle.dataset.authPasswordToggle === "passwordConfirm" ? "确认密码" : "登录密码"}`);
+        toggle.innerHTML = passwordEyeIcon(visible);
+        input.focus({ preventScroll: true });
+      });
+    });
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const button = form.querySelector("button[type='submit']");

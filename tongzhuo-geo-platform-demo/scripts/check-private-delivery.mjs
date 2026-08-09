@@ -129,9 +129,36 @@ try {
     assert.ok(blankFiles.includes(placeholder), `blank delivery must include disabled Compose input: ${placeholder}`);
     assert.equal((await readFile(path.join(blankRoot, ...placeholder.split("/")), "utf8")).trim(), "", `${placeholder} must not contain a credential`);
   }
+  const blankAppRoot = path.join(blankRoot, "app");
+  const blankConfigProbe = spawnSync(process.execPath, [
+    "--input-type=module",
+    "--eval",
+    "import { productionConfig } from './production-config.mjs'; console.log(JSON.stringify({ relay: productionConfig.relayClientSecret, adHoc: productionConfig.adHocDiagnosticApiToken }));"
+  ], {
+    cwd: blankAppRoot,
+    encoding: "utf8",
+    windowsHide: true,
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      TZ_BIND_HOST: "127.0.0.1",
+      PORT: "43127",
+      TZ_RELAY_BASE_URL: "",
+      TZ_RELAY_INSTANCE_ID: "",
+      TZ_RELAY_CLIENT_ID: "",
+      TZ_RELAY_CLIENT_SECRET: "",
+      TZ_RELAY_CLIENT_SECRET_FILE: "",
+      TZ_AD_HOC_DIAGNOSTIC_API_TOKEN: "",
+      TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE: ""
+    }
+  });
+  assert.equal(blankConfigProbe.status, 0, `blank placeholder config probe failed: ${blankConfigProbe.stderr}`);
+  assert.deepEqual(JSON.parse(blankConfigProbe.stdout), { relay: "", adHoc: "" });
   const productionCompose = await readFile(path.join(blankRoot, "app", "deploy", "docker-compose.production.yml"), "utf8");
-  assert.match(productionCompose, /TZ_RELAY_CLIENT_SECRET_FILE:\s*\/run\/secrets\/tz_relay_client_secret/);
-  assert.match(productionCompose, /TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE:\s*\/run\/secrets\/tz_ad_hoc_diagnostic_api_token/);
+  assert.match(productionCompose, /user:\s*["']0:0["']/);
+  assert.match(productionCompose, /\/run\/tongzhuo-runtime-secrets:rw,noexec,nosuid,nodev,size=1m/);
+  assert.match(productionCompose, /TZ_RELAY_CLIENT_SECRET_FILE:\s*\/run\/tongzhuo-runtime-secrets\/tz_relay_client_secret/);
+  assert.match(productionCompose, /TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE:\s*\/run\/tongzhuo-runtime-secrets\/tz_ad_hoc_diagnostic_api_token/);
   assert.match(productionCompose, /tz_relay_client_secret:\s*\n\s*file: \$\{TZ_RELAY_CLIENT_SECRET_HOST_PATH:-\.\/private-delivery\/compose-placeholders\/relay-client-secret\.disabled\}/);
   assert.match(productionCompose, /tz_ad_hoc_diagnostic_api_token:\s*\n\s*file: \$\{TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_HOST_PATH:-\.\/private-delivery\/compose-placeholders\/ad-hoc-diagnostic-api-token\.disabled\}/);
   assert.doesNotMatch(productionCompose, /^\s+TZ_RELAY_CLIENT_SECRET:\s/m, "production Compose must not accept a plaintext relay HMAC environment variable");
@@ -142,10 +169,21 @@ try {
   const privateCutoverEnvironment = await readFile(path.join(blankRoot, "app", "deploy", "private-delivery", "cutover.env.example"), "utf8");
   assert.match(privateCutoverEnvironment, /^TZ_RELAY_CLIENT_SECRET_HOST_PATH=$/m);
   assert.match(privateCutoverEnvironment, /^TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_HOST_PATH=$/m);
+  const privateLibrary = await readFile(path.join(blankRoot, "app", "deploy", "private-delivery", "lib.sh"), "utf8");
+  assert.match(privateLibrary, /pd_normalize_disabled_compose_secret_placeholders/);
+  assert.match(privateLibrary, /chmod 600 "\$placeholder"/);
   const privateVerifier = await readFile(path.join(blankRoot, "app", "deploy", "private-delivery", "verify.sh"), "utf8");
   assert.match(privateVerifier, /TZ_RELAY_CLIENT_SECRET_HOST_PATH/);
   assert.match(privateVerifier, /TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_HOST_PATH/);
   assert.match(privateVerifier, /plaintext relay or ad-hoc secret environment variable/);
+  assert.match(privateVerifier, /tongzhuo-runtime-secrets/);
+  assert.match(privateVerifier, /bootstrap did not create the expected root:node tmpfs/);
+  const adminEntrypoint = await readFile(path.join(blankRoot, "app", "deploy", "geo-admin-entrypoint.sh"), "utf8");
+  assert.match(adminEntrypoint, /su-exec node:node/);
+  assert.match(adminEntrypoint, /\/run\/secrets\/tz_relay_client_secret/);
+  const adminDockerfile = await readFile(path.join(blankRoot, "app", "Dockerfile"), "utf8");
+  assert.match(adminDockerfile, /apk add --no-cache su-exec/);
+  assert.match(adminDockerfile, /ENTRYPOINT \["\/app\/deploy\/geo-admin-entrypoint\.sh"\]/);
   const stagingCompose = await readFile(path.join(blankRoot, "app", "deploy", "docker-compose.staging.yml"), "utf8");
   for (const override of [
     "TZ_RELAY_BASE_URL: \"\"",

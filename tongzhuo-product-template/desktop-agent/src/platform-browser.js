@@ -11,6 +11,83 @@ import { findPlatform } from './platforms.js';
 
 const profilesDir = path.join(dataDir, 'profiles');
 
+function existingExecutable(value) {
+  const executablePath = String(value || '').trim();
+  if (!executablePath || !fs.existsSync(executablePath)) return '';
+  try {
+    return fs.statSync(executablePath).isFile() ? executablePath : '';
+  } catch {
+    return '';
+  }
+}
+
+function browserLaunchCandidates() {
+  const candidates = [];
+  const seen = new Set();
+  const addExecutable = (label, value) => {
+    const executablePath = existingExecutable(value);
+    if (!executablePath) return;
+    const key = `executable:${executablePath.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ label, executablePath });
+  };
+  const addChannel = (label, value) => {
+    const channel = String(value || '').trim();
+    if (!channel) return;
+    const key = `channel:${channel.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ label, channel });
+  };
+
+  // The desktop shell supplies its packaged Chromium through this variable.
+  addExecutable('内置发布浏览器', process.env.TZ_AGENT_BROWSER_EXECUTABLE);
+  addChannel('指定浏览器通道', process.env.TZ_AGENT_BROWSER_CHANNEL);
+
+  const localAppData = process.env.LOCALAPPDATA;
+  const programFiles = process.env.PROGRAMFILES;
+  const programFilesX86 = process.env['PROGRAMFILES(X86)'];
+  for (const root of [localAppData, programFilesX86, programFiles]) {
+    if (!root) continue;
+    addExecutable('Microsoft Edge', path.join(root, 'Microsoft', 'Edge', 'Application', 'msedge.exe'));
+  }
+  for (const root of [localAppData, programFiles, programFilesX86]) {
+    if (!root) continue;
+    addExecutable('Google Chrome', path.join(root, 'Google', 'Chrome', 'Application', 'chrome.exe'));
+  }
+  addExecutable('Playwright Chromium', chromium.executablePath());
+
+  return candidates;
+}
+
+async function launchPersistentBrowser(profile) {
+  const candidates = browserLaunchCandidates();
+  if (!candidates.length) {
+    throw new Error('未找到可用的发布浏览器。请重新安装桐灼 GEO 发布器（安装包会自带浏览器运行时），或安装 Microsoft Edge / Google Chrome。');
+  }
+
+  for (const candidate of candidates) {
+    const options = {
+      headless: false,
+      viewport: null,
+      locale: 'zh-CN',
+      acceptDownloads: true,
+    };
+    if (candidate.executablePath) options.executablePath = candidate.executablePath;
+    if (candidate.channel) options.channel = candidate.channel;
+    try {
+      return await chromium.launchPersistentContext(profile, options);
+    } catch (error) {
+      // Keep diagnostics in the local service log while returning a useful,
+      // stable error message to the customer instead of Playwright internals.
+      console.warn(`[browser] ${candidate.label} launch failed: ${String(error?.message || error).split('\n')[0]}`);
+    }
+  }
+
+  throw new Error('发布浏览器未能启动。请关闭已经打开的发布器浏览器窗口后重试；若问题持续，请重新安装桐灼 GEO 发布器。');
+}
+
 export class PlatformBrowser {
   constructor() {
     this.contexts = new Map();
@@ -43,13 +120,7 @@ export class PlatformBrowser {
     const start = (async () => {
       const profile = path.join(profilesDir, profileKey);
       fs.mkdirSync(profile, { recursive: true });
-      const context = await chromium.launchPersistentContext(profile, {
-        headless: false,
-        viewport: null,
-        channel: process.env.TZ_AGENT_BROWSER_CHANNEL || undefined,
-        locale: 'zh-CN',
-        acceptDownloads: true,
-      });
+      const context = await launchPersistentBrowser(profile);
       context.on('close', () => {
         if (this.contexts.get(profileKey) === context) this.contexts.delete(profileKey);
         for (const [windowId, record] of this.pages.entries()) {

@@ -46,6 +46,7 @@ export const productionConfig = Object.freeze({
   databasePath: path.resolve(process.env.TZ_DATABASE_PATH || path.join(dataDir, "tongzhuo-production.sqlite")),
   logDir: path.resolve(process.env.TZ_LOG_DIR || path.join(dataDir, "logs")),
   backupDir: path.resolve(process.env.TZ_BACKUP_DIR || path.join(dataDir, "backups")),
+  publisherDownloadUrl: String(process.env.TZ_PUBLISHER_DOWNLOAD_URL || "").trim(),
   cookieSecure: booleanEnv("TZ_COOKIE_SECURE", false),
   trustProxy: booleanEnv("TZ_TRUST_PROXY", false),
   sessionHours: numberEnv("TZ_SESSION_HOURS", 12, { min: 1, max: 24 * 30 }),

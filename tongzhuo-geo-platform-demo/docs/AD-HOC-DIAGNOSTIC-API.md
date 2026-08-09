@@ -19,7 +19,7 @@
 TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_HOST_PATH=/opt/tongzhuo-geo/shared/relay-inputs/ad-hoc-diagnostic-api-token
 ```
 
-该变量只写入受限的 `shared/cutover.env`。Compose 只把文件挂给 `geo-admin`，并自动在容器内设置 `TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE=/run/secrets/tz_ad_hoc_diagnostic_api_token`；`app.env` 不能包含 `TZ_AD_HOC_DIAGNOSTIC_API_TOKEN`。宿主机文件应为绝对路径、普通文件且禁止 group/other 访问。Compose 的本地 `file:` Secret 可能保留源文件 UID/GID，因此应确保容器 `node` UID `1000` 能读取该文件而其他非特权主体不能读取。
+该变量只写入受限的 `shared/cutover.env`。Compose 只把 root-only 源文件挂给 `geo-admin` 的 `/run/secrets/tz_ad_hoc_diagnostic_api_token`；启动阶段会复制到容器内 tmpfs 并将 `TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE` 指向该受限副本。`app.env` 不能包含 `TZ_AD_HOC_DIAGNOSTIC_API_TOKEN`。宿主机文件应为绝对路径、普通文件、`root:root`、`0600`，并禁止 group/other 访问。
 
 生产环境不能用 `TZ_AD_HOC_DIAGNOSTIC_API_TOKEN` 直接注入；必须使用 `*_FILE`。此密钥与 `TZ_RELAY_CLIENT_SECRET_FILE` 必须不同，且都不能进入浏览器、前端构建产物、日志或工单。
 

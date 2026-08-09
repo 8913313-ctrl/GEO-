@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Enterprise visibility network</title>
+  <desc id="desc">An abstract network of enterprise evidence, customer questions and AI visibility signals.</desc>
+  <defs>
+    <linearGradient id="bg" x1="88" y1="107" x2="1512" y2="827" gradientUnits="userSpaceOnUse"><stop stop-color="#101D3A"/><stop offset=".5" stop-color="#130E2B"/><stop offset="1" stop-color="#2A123A"/></linearGradient>
+    <linearGradient id="line" x1="360" y1="164" x2="1248" y2="738" gradientUnits="userSpaceOnUse"><stop stop-color="#73C8FF"/><stop offset=".5" stop-color="#AA79FF"/><stop offset="1" stop-color="#FF87C9"/></linearGradient>
+    <radialGradient id="halo" cx="0" cy="0" r="1" gradientTransform="translate(801 455) rotate(90) scale(408 587)"><stop stop-color="#569CFF" stop-opacity=".28"/><stop offset=".62" stop-color="#C06AFF" stop-opacity=".12"/><stop offset="1" stop-color="#C06AFF" stop-opacity="0"/></radialGradient>
+    <filter id="sh"><feDropShadow dx="0" dy="22" stdDeviation="30" flood-color="#01020A" flood-opacity=".5"/></filter>
+  </defs>
+  <rect width="1600" height="900" rx="48" fill="url(#bg)"/>
+  <ellipse cx="801" cy="455" rx="595" ry="408" fill="url(#halo)"/>
+  <g opacity=".7" stroke="url(#line)" stroke-width="3"><path d="M282 602L505 268L805 444L1127 235L1370 558L1012 694L644 738L282 602"/><path d="M505 268L644 738M805 444L1012 694M1127 235L644 738M282 602L1127 235M505 268L1370 558" stroke-dasharray="6 11"/></g>
+  <g filter="url(#sh)">
+    <rect x="145" y="102" width="1310" height="694" rx="44" fill="#090A19" fill-opacity=".55" stroke="#E9E5FF" stroke-opacity=".2" stroke-width="2"/>
+    <rect x="145" y="102" width="1310" height="82" rx="44" fill="#FFFFFF" fill-opacity=".055"/>
+    <rect x="190" y="136" width="183" height="15" rx="7.5" fill="#F5EFFF" fill-opacity=".7"/><rect x="1245" y="126" width="147" height="32" rx="16" fill="#79B9FF" fill-opacity=".18" stroke="#C8E7FF" stroke-opacity=".28"/>
+  </g>
+  <g fill="#F8F3FF" stroke="url(#line)" stroke-width="6" filter="url(#sh)"><circle cx="282" cy="602" r="33"/><circle cx="505" cy="268" r="33"/><circle cx="805" cy="444" r="52"/><circle cx="1127" cy="235" r="33"/><circle cx="1370" cy="558" r="33"/><circle cx="1012" cy="694" r="33"/><circle cx="644" cy="738" r="33"/></g>
+  <g fill="#ECE6FF" fill-opacity=".75"><rect x="214" y="658" width="136" height="14" rx="7"/><rect x="437" y="324" width="136" height="14" rx="7"/><rect x="1060" y="291" width="136" height="14" rx="7"/><rect x="1302" y="614" width="136" height="14" rx="7"/><rect x="944" y="750" width="136" height="14" rx="7"/><rect x="576" y="793" width="136" height="14" rx="7"/></g>
+  <circle cx="805" cy="444" r="32" fill="url(#line)"/>
+  <g filter="url(#sh)"><rect x="618" y="323" width="374" height="80" rx="22" fill="#FFFFFF" fill-opacity=".08" stroke="#EDE7FF" stroke-opacity=".2"/><rect x="654" y="351" width="183" height="14" rx="7" fill="#F7F1FF" fill-opacity=".78"/><rect x="857" y="351" width="82" height="14" rx="7" fill="#A987FF"/></g>
+  <g opacity=".8" fill="#FFF"><circle cx="90" cy="146" r="2"/><circle cx="1510" cy="734" r="3"/><circle cx="1456" cy="118" r="2"/><circle cx="111" cy="779" r="2"/><circle cx="1302" cy="266" r="2"/></g>
+</svg>

@@ -3,15 +3,15 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>桐灼科技资讯与行业观点</title>
-    <link>http://124.221.70.55:18080/insights.html</link>
+    <link>https://tongzhuo.ink/insights.html</link>
     <description>GEO优化、短视频运营与企业AI落地的行业观点和实践内容。</description>
     <language>zh-cn</language>
     <lastBuildDate>Sat, 11 Jul 2026 08:00:00 +0800</lastBuildDate>
-    <atom:link href="http://124.221.70.55:18080/feed.xml" rel="self" type="application/rss+xml" />
+    <atom:link href="https://tongzhuo.ink/feed.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>企业官网如何成为AI搜索中的可信答案来源？</title>
-      <link>http://124.221.70.55:18080/article-geo-source.html</link>
-      <guid isPermaLink="true">http://124.221.70.55:18080/article-geo-source.html</guid>
+      <link>https://tongzhuo.ink/article-geo-source.html</link>
+      <guid isPermaLink="true">https://tongzhuo.ink/article-geo-source.html</guid>
       <pubDate>Sat, 11 Jul 2026 08:00:00 +0800</pubDate>
       <author>桐灼研究</author>
       <category>GEO优化</category>

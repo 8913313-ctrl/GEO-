@@ -40,7 +40,23 @@ const FRONTEND_DEMO_ARTICLE_SLUGS = Object.freeze([
 
 const BUILT_IN_SITE_ASSETS = Object.freeze({
   "/site-assets/site.css": "site.css",
-  "/site-assets/site.js": "site.js"
+  "/site-assets/site.js": "site.js",
+  "/site-assets/favicon.svg": "favicon.svg",
+  "/site-assets/geo-signal-hero.svg": "geo-signal-hero.svg",
+  "/site-assets/geo-answer-hero.svg": "geo-answer-hero.svg",
+  "/site-assets/geo-network-hero.svg": "geo-network-hero.svg",
+  "/site-assets-r5/site.css": "site.css",
+  "/site-assets-r5/site.js": "site.js",
+  "/site-assets-r5/favicon.svg": "favicon.svg",
+  "/site-assets-r5/geo-signal-hero.svg": "geo-signal-hero.svg",
+  "/site-assets-r5/geo-answer-hero.svg": "geo-answer-hero.svg",
+  "/site-assets-r5/geo-network-hero.svg": "geo-network-hero.svg",
+  "/site-assets-r6/site.css": "site.css",
+  "/site-assets-r6/site.js": "site.js",
+  "/site-assets-r6/favicon.svg": "favicon.svg",
+  "/site-assets-r6/geo-signal-hero.svg": "geo-signal-hero.svg",
+  "/site-assets-r6/geo-answer-hero.svg": "geo-answer-hero.svg",
+  "/site-assets-r6/geo-network-hero.svg": "geo-network-hero.svg"
 });
 
 const LEGACY_REDIRECTS = Object.freeze({
@@ -311,7 +327,7 @@ function frontendDemoPageForPath(site, pathname) {
 }
 
 function redirectLocation(site, pathname, search = "") {
-  if (RESERVED_REDIRECT_PATHS.has(pathname) || pathname.startsWith("/api/") || pathname.startsWith("/assets/") || pathname.startsWith("/site-assets/")) return "";
+  if (RESERVED_REDIRECT_PATHS.has(pathname) || pathname.startsWith("/api/") || pathname.startsWith("/assets/") || pathname.startsWith("/site-assets/") || pathname.startsWith("/site-assets-r5/") || pathname.startsWith("/site-assets-r6/")) return "";
   const key = routeKey(pathname);
   if (!key) return "";
   const configured = (site.redirects || []).find((item) => item?.status === "active" && routeKey(item.from) === key);

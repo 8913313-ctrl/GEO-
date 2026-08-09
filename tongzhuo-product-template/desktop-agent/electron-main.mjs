@@ -28,8 +28,27 @@ const traySvg = encodeURIComponent(`
   </svg>
 `);
 
+function resourcePath(...segments) {
+  const root = app.isPackaged ? process.resourcesPath : __dirname;
+  return path.join(root, ...segments);
+}
+
+function applicationIcon() {
+  const iconPath = resourcePath('assets', 'tongzhuo-geo-publisher.ico');
+  if (fs.existsSync(iconPath)) {
+    const icon = nativeImage.createFromPath(iconPath);
+    if (!icon.isEmpty()) return icon;
+  }
+  return nativeImage.createFromDataURL(`data:image/svg+xml,${traySvg}`);
+}
+
 function trayIcon() {
-  return nativeImage.createFromDataURL(`data:image/svg+xml,${traySvg}`).resize({ width: 24, height: 24 });
+  return applicationIcon().resize({ width: 24, height: 24 });
+}
+
+function bundledBrowserExecutable() {
+  const executablePath = resourcePath('browser-runtime', 'chromium', 'chrome-win64', 'chrome.exe');
+  return fs.existsSync(executablePath) ? executablePath : '';
 }
 
 function servicePath() {
@@ -41,6 +60,12 @@ function dataPath() {
 }
 
 function startService() {
+  const browserExecutable = process.env.TZ_AGENT_BROWSER_EXECUTABLE || bundledBrowserExecutable();
+  if (browserExecutable) {
+    desktopLog(`using bundled browser runtime: ${browserExecutable}`);
+  } else {
+    desktopLog('bundled browser runtime was not found; the service will use a configured or installed browser');
+  }
   desktopLog(`starting local service on ${desktopPort}`);
   serviceProcess = spawn(process.execPath, [servicePath()], {
     cwd: app.getPath('userData'),
@@ -49,7 +74,8 @@ function startService() {
       ELECTRON_RUN_AS_NODE: '1',
       TZ_AGENT_PORT: String(desktopPort),
       TZ_AGENT_DATA_DIR: dataPath(),
-      TZ_AGENT_BROWSER_CHANNEL: process.env.TZ_AGENT_BROWSER_CHANNEL || 'msedge',
+      TZ_AGENT_BROWSER_EXECUTABLE: browserExecutable,
+      TZ_AGENT_BROWSER_CHANNEL: process.env.TZ_AGENT_BROWSER_CHANNEL || '',
     },
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -107,6 +133,7 @@ async function createWindow() {
     minHeight: 680,
     show: false,
     title: '桐灼 GEO 发布器',
+    icon: applicationIcon(),
     backgroundColor: '#eef3f9',
     autoHideMenuBar: true,
     webPreferences: {

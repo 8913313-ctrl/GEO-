@@ -47,6 +47,30 @@
 
 诊断服务底层也支持白名单内的本地静态官网目录。服务端会解析真实路径，阻止 `..`、软链接等方式越出允许目录；当前 HTTP 服务默认不开放本地目录入口，只有部署时显式注入 `allowedLocalRoots` 才能启用。
 
+## 页面分析报告契约
+
+官网页面分析采用“规则先行、建议后置”的两层流程：
+
+```text
+创建报告（pending）
+  -> 抓取并解析 HTML（running）
+  -> 确定性规则评分与证据归集
+  -> 可选：由已明确选择的文本模型整理建议
+  -> 成功完成或记录失败（completed / failed）
+```
+
+四项分数只来自确定性规则，模型不会参与评分。每个已完成报告都保存以下可追溯信息：
+
+- `schema`：`foundTypes` / `missingRecommended` / `jsonldCount` / `schemaScore`，以及 JSON-LD 解析、`@graph` 与嵌套实体的证据；
+- `content`：H1/H2/H3、首段直答信号、字符数、图片 Alt 覆盖、FAQ、列表、CTA 和分数组成；
+- `meta`：`checks` / `missing` / `previewScore` / `metaScore`；
+- `citation`：外部、权威、社交、内部和可识别来源链接数量，以及链接样本；
+- `recommendations`：始终保留规则发现的问题和规则建议，并明确标记 `source`：`rules`、`llm` 或 `rule_fallback`。模型不可用、无可用模型或模型输出不合格时，报告仍以 `rule_fallback` 完成，不影响分数和报告可读性。
+
+管理后台默认只运行规则建议。只有操作者勾选模型整理建议并选择已配置文本模型时，服务端才把本次结构化规则证据发送给模型；不会发送原始 HTML，也不会把模型输出作为 AI 引用、排名或效果证据。
+
+`POST /api/v1/monitoring/diagnostics` 现在返回 `202 Accepted` 和一个 `pending` 报告。前端应轮询 `GET /api/v1/monitoring/diagnostics/:id` 直到报告进入 `completed` 或 `failed`，不能把 `pending/running` 当成 0 分。
+
 ## AI 爬虫访问分析
 
 分类顺序与 GEOFlow 一致：
