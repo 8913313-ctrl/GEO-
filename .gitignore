@@ -49,6 +49,11 @@ make_tongzhuo_ppt.py
 .codex-*
 **/.codex-*
 
+# Local browser captures and design-review artifacts
+.impeccable/
+chrome-*/
+tongzhuo-geo-platform-demo/qa-*/
+
 # Product template source is backed up, but generated/runtime artifacts stay local
 tongzhuo-product-template/**/node_modules/
 tongzhuo-product-template/**/.data/
