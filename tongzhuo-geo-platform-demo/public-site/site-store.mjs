@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { ProductionDatabase } from "../production-database.mjs";
 import { SiteCmsStore } from "../site-cms-store.mjs";
 import { slugify, truncateText } from "./site-renderer.mjs";
+import { applyPublicCitationVisibility } from "../citation-visibility.mjs";
 
 const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DATABASE_PATH = path.resolve(moduleRoot, "..", "data", "tongzhuo-production.sqlite");
@@ -248,7 +249,8 @@ export class PublicSiteStore {
         categoryId: category?.id || categoryId || null, categoryName: category?.name || categoryValue,
         categorySlug: category?.slug || (categorySlugValue ? slugify(categorySlugValue, "") : null),
         tags: [...new Set([...list(nested(metadata, "keywords", "site.keywords")), ...list(nested(metadata, "tags", "site.tags"))])].slice(0, 20),
-        contentHtml: rewritePublishedKnowledgeAssetUrls(row.content_html || "", this.publicKnowledgeAssetBase), contentText: String(row.content_text || ""),
+        contentHtml: applyPublicCitationVisibility(rewritePublishedKnowledgeAssetUrls(row.content_html || "", this.publicKnowledgeAssetBase), metadata),
+        contentText: applyPublicCitationVisibility(String(row.content_text || ""), metadata),
         publishedAt: nested(metadata, "sitePublishedAt", "site.publishedAt", "publishedAt") || row.article_updated_at || row.frozen_at || row.version_created_at,
         updatedAt: nested(metadata, "siteUpdatedAt", "site.updatedAt", "updatedAt") || row.article_updated_at || row.frozen_at,
         reviewStatus: row.review_status, riskStatus: row.risk_status, frozenAt: row.frozen_at, metadata

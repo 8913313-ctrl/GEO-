@@ -82,7 +82,7 @@ try {
   }
   assert.equal(result.response.status, 200, JSON.stringify(result.body)); assert.equal(result.body.data.article.status, "published", "web-only schedule must run without opening the publisher overview or polling from a desktop agent"); assert.equal(result.body.data.article.metadata.siteSlug, "content-api-publisher-loop");
   remoteArticle = result.body.data.article;
-  result = await request(`/api/v1/content-assets?articleId=${encodeURIComponent(article.id)}`, { headers: { Cookie: cookie } });
+  result = await request(`/api/v1/content-assets?publishedOnly=1&articleId=${encodeURIComponent(article.id)}`, { headers: { Cookie: cookie } });
   assert.equal(result.response.status, 200, JSON.stringify(result.body));
   assert.equal(result.body.data.items.length, 1, "successful website publication must create one durable content asset");
   const contentAsset = result.body.data.items[0];

@@ -9,16 +9,17 @@ import { openProductionDatabase } from "../production-foundation.mjs";
 const temp = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-content-assets-"));
 const database = openProductionDatabase({ databasePath: path.join(temp, "assets.sqlite") });
 
-function insertArticle(workspaceId, articleId, versionId, title) {
+function insertArticle(workspaceId, articleId, versionId, title, status = "published") {
   const timestamp = new Date().toISOString();
-  database.connection.prepare(`INSERT INTO content_articles (id, workspace_id, title, status, current_version_id, approved_version_id, revision, metadata_json, created_at, updated_at) VALUES (?, ?, ?, 'published', ?, ?, 1, '{}', ?, ?)`)
-    .run(articleId, workspaceId, title, versionId, versionId, timestamp, timestamp);
+  database.connection.prepare(`INSERT INTO content_articles (id, workspace_id, title, status, current_version_id, approved_version_id, revision, metadata_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, '{}', ?, ?)`)
+    .run(articleId, workspaceId, title, status, versionId, versionId, timestamp, timestamp);
   database.connection.prepare(`INSERT INTO content_article_versions (id, article_id, version_number, title, content_html, content_text, excerpt, content_hash, source, review_status, risk_status, metadata_json, frozen_at, created_at) VALUES (?, ?, 1, ?, '<p>verified</p>', 'verified', '', ?, 'human', 'approved', 'passed', '{}', ?, ?)`)
     .run(versionId, articleId, title, `hash-${articleId}`, timestamp, timestamp);
 }
 
 try {
   insertArticle("default", "ART-ASSET-1", "VER-ASSET-1", "资产追踪测试文章");
+  insertArticle("default", "ART-ASSET-DRAFT", "VER-ASSET-DRAFT", "尚未发布的草稿文章", "draft");
   insertArticle("tenant-b", "ART-ASSET-B", "VER-ASSET-B", "其他租户文章");
   let responseBody = "<html><head><link rel=\"canonical\" href=\"https://www.example.com/article\"></head><body>v1</body></html>";
   const store = new ContentAssetStore(database, {
@@ -30,6 +31,8 @@ try {
   assert.equal(normalizeContentAssetUrl("https://www.example.com/article?utm_source=test&b=2&a=1#top"), "https://www.example.com/article?a=1&b=2");
   const asset = store.ensureAsset({ articleId: "ART-ASSET-1" });
   assert.equal(asset.articleId, "ART-ASSET-1");
+  store.ensureAsset({ articleId: "ART-ASSET-DRAFT" });
+  assert.deepEqual(store.list({ publishedOnly: true }).map((item) => item.articleId), ["ART-ASSET-1"], "published-only asset lists must hide drafts without a publication");
 
   const manual = store.upsertPublication({ articleId: "ART-ASSET-1", articleVersionId: "VER-ASSET-1", platform: "manual", platformName: "行业媒体", source: "manual", url: "https://media.example.com/post/1?utm_medium=x" });
   assert.equal(manual.created, true);

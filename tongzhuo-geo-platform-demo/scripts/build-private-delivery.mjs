@@ -89,6 +89,8 @@ function parseArguments(argv) {
     acknowledgeSensitiveData: false,
     overwrite: false,
     archive: true,
+    pruneHistory: false,
+    retainBuilds: "2",
     help: false
   };
   const valueOptions = new Map([
@@ -96,7 +98,8 @@ function parseArguments(argv) {
     ["--version", "version"],
     ["--output", "output"],
     ["--migration-input", "migrationInput"],
-    ["--customer-id", "customerId"]
+    ["--customer-id", "customerId"],
+    ["--retain-builds", "retainBuilds"]
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -110,6 +113,7 @@ function parseArguments(argv) {
     if (argument === "--acknowledge-sensitive-data") options.acknowledgeSensitiveData = true;
     else if (argument === "--overwrite") options.overwrite = true;
     else if (argument === "--no-archive") options.archive = false;
+    else if (argument === "--prune-history") options.pruneHistory = true;
     else if (argument === "--help" || argument === "-h") options.help = true;
     else throw new Error(`未知参数：${argument}`);
   }
@@ -122,6 +126,14 @@ function safeToken(value, label) {
     throw new Error(`${label} 只允许 1-80 位字母、数字、点、横线和下划线，且须以字母或数字开头。`);
   }
   return normalized;
+}
+
+function positiveInteger(value, label) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 20) {
+    throw new Error(label + " must be an integer between 1 and 20.");
+  }
+  return parsed;
 }
 
 function slash(value) {
@@ -381,6 +393,37 @@ async function createArchive(outputRoot, bundleName, overwrite) {
   return { archivePath, checksumPath, sha256: archiveHash, bytes: archiveDigest.bytes };
 }
 
+async function isOwnedBundle(directory) {
+  try {
+    const manifest = JSON.parse(await readFile(path.join(directory, "manifest.json"), "utf8"));
+    return manifest.product === PRODUCT_ID && manifest.format === MANIFEST_FORMAT;
+  } catch {
+    return false;
+  }
+}
+
+async function pruneHistoricalBundles(outputRoot, retainBuilds) {
+  const entries = await readdir(outputRoot, { withFileTypes: true });
+  const bundles = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const directory = path.join(outputRoot, entry.name);
+    if (!await isOwnedBundle(directory)) continue;
+    const info = await stat(directory);
+    bundles.push({ name: entry.name, directory, modifiedAt: info.mtimeMs });
+  }
+  bundles.sort((left, right) => right.modifiedAt - left.modifiedAt || right.name.localeCompare(left.name, "en"));
+  const removed = [];
+  for (const bundle of bundles.slice(retainBuilds)) {
+    await rm(bundle.directory, { recursive: true, force: true });
+    for (const suffix of [".tar.gz", ".tar.gz.sha256"]) {
+      await rm(path.join(outputRoot, bundle.name + suffix), { force: true });
+    }
+    removed.push(bundle.name);
+  }
+  return removed;
+}
+
 async function main() {
   const options = parseArguments(process.argv.slice(2));
   if (options.help) {
@@ -390,6 +433,7 @@ async function main() {
   if (!new Set(["blank", "migrated"]).has(options.mode)) throw new Error("--mode 只能是 blank 或 migrated。");
   const packageJson = JSON.parse(await readFile(path.join(projectRoot, "package.json"), "utf8"));
   const version = safeToken(options.version || packageJson.version, "版本号");
+  const retainBuilds = positiveInteger(options.retainBuilds, "--retain-builds");
   let customerId = "";
   let migration = null;
   if (options.mode === "migrated") {
@@ -470,6 +514,9 @@ async function main() {
 
     let archive = null;
     if (options.archive) archive = await createArchive(outputRoot, bundleName, options.overwrite);
+    const prunedBundles = options.pruneHistory
+      ? await pruneHistoricalBundles(outputRoot, retainBuilds)
+      : [];
     console.log(JSON.stringify({
       ok: true,
       product: PRODUCT_ID,
@@ -477,7 +524,8 @@ async function main() {
       mode: options.mode,
       bundleRoot: finalBundleRoot,
       files: checksumFiles.length + 1,
-      archive
+      archive,
+      prunedBundles
     }, null, 2));
     if (options.mode === "migrated") {
       console.warn("警告：migrated 交付包包含客户数据和恢复密钥，tar.gz 本身未加密；必须通过受控加密通道传输并在验收后安全删除。");

@@ -2,6 +2,7 @@ import { ContentAssetError } from "./content-asset-store.mjs";
 
 function bodyData(payload = {}) { return payload?.data && typeof payload.data === "object" ? payload.data : payload; }
 function limit(value, fallback = 500) { const parsed = Number(value); return Number.isInteger(parsed) ? Math.max(1, Math.min(2_000, parsed)) : fallback; }
+function booleanParam(value) { return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase()); }
 
 export function createContentAssetApi({ contentAssetStore, requestJson, configured = {} } = {}) {
   if (!contentAssetStore) throw new TypeError("createContentAssetApi requires contentAssetStore.");
@@ -14,7 +15,7 @@ export function createContentAssetApi({ contentAssetStore, requestJson, configur
     const url = new URL(request.url || "/", "http://localhost");
     try {
       if (parts.length === 3 && method === "GET") {
-        const items = contentAssetStore.list({ workspaceId, articleId: url.searchParams.get("articleId") || null, status: url.searchParams.get("status") || null, limit: limit(url.searchParams.get("limit")) });
+        const items = contentAssetStore.list({ workspaceId, articleId: url.searchParams.get("articleId") || null, status: url.searchParams.get("status") || null, publishedOnly: booleanParam(url.searchParams.get("publishedOnly")), limit: limit(url.searchParams.get("limit")) });
         return response.json(200, { ok: true, data: { items, total: items.length } });
       }
       if (parts.length === 3 && method === "POST") {

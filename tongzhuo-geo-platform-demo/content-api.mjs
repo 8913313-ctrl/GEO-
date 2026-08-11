@@ -54,7 +54,7 @@ function assessRisk(version, requested = {}) {
   return { status: severe.length ? "blocked" : all.length ? "warning" : "passed", findings: all, summary: { findingCount: all.length, severeCount: severe.length, contentLength: text.length }, policyVersion: "geo-risk-v1" };
 }
 
-export function createContentApi({ contentStore, requestJson, configured }) {
+export function createContentApi({ contentStore, requestJson, configured, onArticlePublished = null }) {
   const workspaceId = "default";
   async function handler(request, response, parts, principal) {
     const method = request.method || "GET";
@@ -177,6 +177,10 @@ export function createContentApi({ contentStore, requestJson, configured }) {
             request
           })
         : contentStore.unpublish({ workspaceId, articleId, expectedRevision: body.expectedRevision, reason: body.reason || "", actor: principal, request });
+      if (parts[5] === "publish" && typeof onArticlePublished === "function") {
+        const sync = await onArticlePublished({ article: data.article, principal, request });
+        if (sync) data.siteSync = sync;
+      }
       return response.json(200, { ok: true, data });
     }
     return response.json(404, { ok: false, code: "CONTENT_ROUTE_NOT_FOUND", message: "内容生产接口不存在。" });

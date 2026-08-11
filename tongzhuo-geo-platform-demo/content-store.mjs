@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { appendAuditLog } from "./production-audit.mjs";
+import { publicCitationMarkersVisible } from "./citation-visibility.mjs";
 
 const DEFAULT_WORKSPACE_ID = "default";
 const MAX_TITLE = 300;
@@ -627,6 +628,7 @@ export class ContentStore {
     const revision = checkRevision(expectedRevision, current.revision, articleId);
     const publishable = this.assertCanPublish(articleId, versionId, { workspaceId });
     const selectedVersionId = publishable.versionId;
+    const showPublicCitationMarkers = publicCitationMarkersVisible(publishable.version.metadata);
     const timestamp = now();
     const userId = actorId(actor);
     const requestedMetadata = jsonValue(metadata, {});
@@ -660,6 +662,7 @@ export class ContentStore {
         ...(siteCategorySlug ? { categorySlug: siteCategorySlug } : {}),
         ...(siteAuthor ? { author: siteAuthor } : {}),
         ...(hasSiteExcerpt ? { excerpt: siteExcerpt } : {}),
+        showPublicCitationMarkers,
         status: "published",
         versionId: selectedVersionId,
         publishedAt: timestamp,
@@ -671,6 +674,7 @@ export class ContentStore {
       ...(siteCategorySlug ? { siteCategorySlug } : {}),
       ...(siteAuthor ? { siteAuthor } : {}),
       ...(hasSiteExcerpt ? { siteExcerpt } : {}),
+      showPublicCitationMarkers,
       siteStatus: "published",
       sitePublishedAt: timestamp,
       siteUpdatedAt: timestamp,

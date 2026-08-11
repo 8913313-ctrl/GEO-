@@ -122,7 +122,8 @@ try {
     method: "POST", headers: auth,
     body: JSON.stringify({
       articleId: article.id, expectedRevision: article.revision, title: article.title,
-      contentHtml: "<h2>Direct answer</h2><p>This is a reviewed enterprise article with enough factual detail to exercise the complete official website publication workflow and immutable approved-version contract.</p>",
+      contentHtml: "<h2>Direct answer</h2><p>This is a reviewed enterprise article <button class=\"citation-marker\" data-citation-id=\"EVID-SITE-1\">[K1]</button> with enough factual detail to exercise the complete official website publication workflow and immutable approved-version contract.</p>",
+      metadata: { showPublicCitationMarkers: false },
       evidence
     })
   });
@@ -187,6 +188,7 @@ try {
   assert.equal(result.body.data.article.status, "published");
   assert.equal(result.body.data.article.approvedVersionId, approvedVersionId);
   assert.equal(result.body.data.article.metadata.siteSlug, "official-site-publish-loop");
+  assert.equal(result.body.data.article.metadata.showPublicCitationMarkers, false);
   assert.equal(result.body.data.task.status, "completed");
   assert.equal(result.body.data.version.reviewStatus, "approved");
   assert.equal(result.body.data.version.frozenAt, frozenAt);
@@ -198,6 +200,8 @@ try {
   result = await request(siteBase, "/insights/official-site-publish-loop");
   assert.equal(result.response.status, 200);
   assert.match(result.text, /Direct answer/);
+  assert.doesNotMatch(result.text, /\[K1\]/, "citation markers must be hidden from the public article by default");
+  assert.doesNotMatch(result.text, /data-citation-id/, "private evidence identifiers must not leak into public HTML");
 
   result = await request(adminBase, `/api/v1/content/articles/${encodeURIComponent(article.id)}/unpublish`, {
     method: "POST", headers: auth, body: JSON.stringify({ expectedRevision: publishedRevision, reason: "Test unpublish" })

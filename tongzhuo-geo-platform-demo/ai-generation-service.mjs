@@ -135,6 +135,114 @@ function calculateQuestionPriorityScore(quality, business, contentGap = 100) {
   return { priorityScore, scoreBreakdown: breakdown };
 }
 
+function clampScore(value) {
+  return Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+}
+
+function normalizedBigrams(value) {
+  const normalized = normalizeQuestionKey(value);
+  if (!normalized) return new Set();
+  if (normalized.length < 2) return new Set([normalized]);
+  const values = new Set();
+  for (let index = 0; index < normalized.length - 1; index += 1) values.add(normalized.slice(index, index + 2));
+  return values;
+}
+
+function textSimilarity(left, right) {
+  const leftSet = normalizedBigrams(left);
+  const rightSet = normalizedBigrams(right);
+  if (!leftSet.size || !rightSet.size) return 0;
+  let intersection = 0;
+  leftSet.forEach((value) => { if (rightSet.has(value)) intersection += 1; });
+  return intersection / (leftSet.size + rightSet.size - intersection);
+}
+
+function countPatternSignals(value, pattern, maximum = 6) {
+  return Math.min(maximum, new Set(String(value || "").match(pattern) || []).size);
+}
+
+function maximumSimilarity(value, candidates = []) {
+  return candidates.reduce((maximum, candidate) => Math.max(maximum, textSimilarity(value, candidate)), 0);
+}
+
+const QUESTION_COMMERCIAL_BASE = Object.freeze({ semantic: 56, scenario: 68, commercial: 88, ranking: 82, review: 74, brand: 76, question: 70, technical: 80 });
+const QUESTION_EVIDENCE_BASE = Object.freeze({ semantic: 68, scenario: 72, commercial: 78, ranking: 76, review: 82, brand: 80, question: 70, technical: 79 });
+const GENERIC_SOURCE_TERMS = Object.freeze([
+  "企业", "服务", "方案", "优化", "业务", "项目", "内容", "系统", "平台", "行业", "技术", "产品", "客户", "品牌", "公司", "团队", "市场", "实施", "运营", "管理", "专业", "相关"
+]);
+
+function sourceCoreTokens(value) {
+  const normalized = normalizeQuestionKey(value);
+  if (!normalized) return [];
+  const asciiTokens = normalized.match(/[a-z0-9]{2,}/g) || [];
+  let distinctive = normalized.replace(/[a-z0-9]+/g, "");
+  GENERIC_SOURCE_TERMS.forEach((term) => { distinctive = distinctive.split(term).join(""); });
+  const cjkTokens = [];
+  if (distinctive.length >= 2) {
+    cjkTokens.push(distinctive);
+    if (distinctive.length >= 3) {
+      for (let size = Math.min(6, distinctive.length); size >= 3; size -= 1) {
+        for (let index = 0; index <= distinctive.length - size; index += 1) cjkTokens.push(distinctive.slice(index, index + size));
+      }
+    }
+  }
+  return uniqueStrings([...asciiTokens, ...cjkTokens]).filter((token) => token.length >= 2);
+}
+
+function calculateQuestionRuleScores(candidate, input, createdQuestions = []) {
+  const question = String(candidate.question || "").trim();
+  const sourceKeyword = String(candidate.sourceKeyword || "").trim();
+  const normalizedLength = normalizeQuestionKey(question).length;
+  const questionCues = countPatternSignals(question, /如何|怎么|哪些|什么|是否|能否|为什么|多少|多久|哪里|区别|适合|应该|还是|判断|评估|选择|标准|指标|依据/g, 4);
+  const specificitySignals = countPatternSignals(question, /企业|行业|制造|团队|负责人|采购|预算|地区|官网|系统|平台|数据|知识库|项目|服务|实施|交付|场景|目标|资料|指标|周期|条件/g, 7);
+  const commercialSignals = countPatternSignals(question, /采购|报价|费用|成本|预算|交付|验收|服务商|选择|比较|续费|合同|周期|效果/g, 6);
+  const evidenceSignals = countPatternSignals(question, /依据|资料|数据|案例|指标|标准|证据|核验|对比|条件|步骤|流程|系统|资质|来源|版本|边界/g, 7);
+  const lineContext = [input.businessLine.name, input.businessLine.product, input.businessLine.description, input.businessLine.audience, input.businessLine.scenario, input.businessLine.serviceScope, input.businessLine.profile?.label, ...(input.businessLine.profile?.targetUsers || [])].filter(Boolean).join(" ");
+  const sourceRelated = questionMentionsSource(question, sourceKeyword);
+  const contextSimilarity = textSimilarity(question, lineContext);
+  const duplicateSimilarity = maximumSimilarity(question, [...input.existingQuestions, ...createdQuestions]);
+  const askability = clampScore(68 + (/[?？]$/.test(question) ? 10 : 0) + Math.min(12, questionCues * 3) + (normalizedLength >= 12 && normalizedLength <= 58 ? 8 : normalizedLength >= 8 ? 4 : 0) - (GENERIC_TITLE_PATTERNS.test(question) ? 20 : 0));
+  const specificity = clampScore(54 + (sourceRelated ? 12 : 0) + Math.min(21, specificitySignals * 3) + (normalizedLength >= 18 ? 8 : normalizedLength >= 12 ? 4 : 0));
+  const businessRelevance = clampScore(58 + (sourceRelated ? 20 : 0) + Math.min(12, Math.round(contextSimilarity * 30)) + (["commercial", "ranking", "technical"].includes(candidate.dimension) ? 6 : 3));
+  const business = clampScore((QUESTION_COMMERCIAL_BASE[candidate.dimension] || 66) + Math.min(12, commercialSignals * 2) + Math.min(5, specificitySignals));
+  const evidenceReadiness = clampScore((QUESTION_EVIDENCE_BASE[candidate.dimension] || 70) + Math.min(14, evidenceSignals * 2) + (normalizedLength >= 16 ? 4 : 0));
+  const duplicateRisk = clampScore(duplicateSimilarity * 100);
+  return {
+    business,
+    quality: { askability, specificity, businessRelevance, evidenceReadiness, duplicateRisk },
+    scoreSource: "system_rules_v1"
+  };
+}
+
+function calculateSeedRuleScores(term, sourceKeyword, input) {
+  const normalizedLength = normalizeQuestionKey(term).length;
+  const relation = textSimilarity(term, sourceKeyword);
+  const containsSource = normalizeQuestionKey(term).includes(normalizeQuestionKey(sourceKeyword));
+  const decisionSignals = countPatternSignals(term, /采购|费用|成本|预算|交付|实施|场景|行业|方案|服务|系统|技术|效果|指标|内容|知识|品牌|客户/g, 6);
+  const lineContext = [input.businessLine.name, input.businessLine.product, input.businessLine.description, input.businessLine.audience, input.businessLine.scenario, input.businessLine.serviceScope].filter(Boolean).join(" ");
+  const contextSimilarity = Math.max(textSimilarity(term, lineContext), textSimilarity(sourceKeyword, lineContext));
+  return {
+    relevance: clampScore(52 + Math.round(relation * 30) + (containsSource ? 10 : 0) + (normalizedLength >= 4 && normalizedLength <= 24 ? 6 : 2)),
+    business: clampScore(56 + Math.round(contextSimilarity * 24) + decisionSignals * 3)
+  };
+}
+function calculateTopicRuleScores(candidate, question) {
+  const coreSimilarity = textSimilarity(candidate.coreQuestion, question.question);
+  const titleSimilarity = textSimilarity(candidate.title, candidate.coreQuestion);
+  const questionAlignment = clampScore(62 + Math.round(coreSimilarity * 34) + (candidate.coreQuestion === question.question ? 4 : 0));
+  const titleAlignment = clampScore(62 + Math.round(titleSimilarity * 34) + (candidate.title === candidate.coreQuestion ? 4 : 0));
+  const customerLanguage = clampScore(66 + (looksLikeCustomerQuestion(candidate.coreQuestion) ? 16 : 0) + (looksLikeCustomerQuestion(candidate.title) ? 10 : 0) + (normalizeQuestionKey(candidate.title).length <= 58 ? 6 : 2) - (GENERIC_TITLE_PATTERNS.test(candidate.title) ? 20 : 0));
+  const evidenceReadiness = clampScore(56 + Math.min(24, candidate.evidenceNeeds.length * 6) + (candidate.answerPromise.length >= 20 ? 7 : 3) + Math.min(8, candidate.faqSeeds.length * 2));
+  const decisionSignals = countPatternSignals(`${candidate.coreQuestion} ${candidate.answerPromise} ${candidate.answerMode}`, /采购|费用|成本|预算|交付|实施|场景|行业|方案|服务|系统|技术|效果|指标|内容|知识|品牌|客户|判断|选择/g, 7);
+  const business = clampScore((QUESTION_COMMERCIAL_BASE[question.dimension] || 68) + Math.min(14, decisionSignals * 2));
+  const recommendation = clampScore(questionAlignment * 0.30 + titleAlignment * 0.15 + customerLanguage * 0.15 + evidenceReadiness * 0.15 + business * 0.25);
+  return {
+    recommendation,
+    business,
+    quality: { questionAlignment, titleAlignment, customerLanguage, evidenceReadiness },
+    scoreSource: "system_rules_v1"
+  };
+}
 function responseString(value, field, options = {}) {
   const text = String(value ?? "").trim();
   const min = options.min ?? 1;
@@ -190,11 +298,10 @@ function questionMentionsSource(question, sourceKeyword) {
   const questionKey = normalizeQuestionKey(question);
   const sourceKey = normalizeQuestionKey(sourceKeyword);
   if (!questionKey || !sourceKey) return false;
-  if (questionKey.includes(sourceKey) || sourceKey.includes(questionKey)) return true;
-  for (let index = 0; index < sourceKey.length - 1; index += 1) {
-    if (questionKey.includes(sourceKey.slice(index, index + 2))) return true;
-  }
-  return false;
+  if (questionKey.includes(sourceKey)) return true;
+  const coreTokens = sourceCoreTokens(sourceKeyword);
+  if (!coreTokens.length) return false;
+  return coreTokens.some((token) => questionKey.includes(token));
 }
 
 function existingQuestionsForPrompt(existingQuestions, seeds, limit = 6) {
@@ -525,9 +632,7 @@ function seedPrompt(input) {
     seeds: [{
       term: "与核心关键词相关、可用于继续生成客户问题的短语",
       sourceKeyword: "对应的核心关键词",
-      reason: "为什么这个种子词值得继续拓展",
-      relevance: 0,
-      business: 0
+      reason: "为什么这个种子词值得继续拓展"
     }]
   };
   return [
@@ -535,7 +640,7 @@ function seedPrompt(input) {
     `核心关键词：${JSON.stringify(input.coreKeywords)}`,
     `企业业务线与画像：${JSON.stringify(input.businessLine)}`,
     `已有种子词（必须避开）：${JSON.stringify(input.existingSeeds)}`,
-    `请返回 1-${input.count} 个种子词；不要返回问句，不要添加“如何、为什么、吗”等问句结尾，不要虚构品牌、价格、排名或效果承诺。`,
+    `请返回 1-${input.count} 个种子词；不要返回问句，不要添加“如何、为什么、吗”等问句结尾，不要虚构品牌、价格、排名或效果承诺。只生成词和理由，相关度与业务价值由系统按可见文本规则计算。`,
     `严格只输出以下 JSON 结构，不要 Markdown、解释文字或额外字段：${JSON.stringify(schema)}`
   ].join("\n\n");
 }
@@ -552,15 +657,14 @@ function normalizeSeedModelResponse(raw, input) {
     if (!key || seen.has(key) || input.existingSeeds.some((item) => normalizeQuestionKey(item) === key)) return;
     const sourceKeyword = typeof candidate === "string" ? input.coreKeywords[0] : String(candidate?.sourceKeyword || candidate?.source_keyword || "").trim();
     const source = coreByKey.get(normalizeQuestionKey(sourceKeyword)) || input.coreKeywords[0];
-    const relevance = Number(candidate?.relevance ?? candidate?.recommendation ?? 78);
-    const business = Number(candidate?.business ?? candidate?.businessScore ?? 72);
+    const ruleScores = calculateSeedRuleScores(term, source, input);
     seen.add(key);
     seeds.push({
       term,
       sourceKeyword: source,
       reason: String(candidate?.reason || `围绕“${source}”继续拆分用户场景、决策和实施问题。`).slice(0, 240),
-      relevance: Number.isFinite(relevance) ? Math.max(0, Math.min(100, Math.round(relevance))) : 78,
-      business: Number.isFinite(business) ? Math.max(0, Math.min(100, Math.round(business))) : 72
+      ...ruleScores,
+      scoreSource: "system_rules_v1"
     });
   });
   return { seeds: seeds.slice(0, input.count) };
@@ -581,7 +685,8 @@ function validateSeedResponse(raw, input) {
       sourceKeyword: responseString(item.sourceKeyword, `seeds[${index}].sourceKeyword`, { min: 1, max: 80 }),
       reason: responseString(item.reason, `seeds[${index}].reason`, { min: 4, max: 240 }),
       relevance: score(item.relevance, `seeds[${index}].relevance`),
-      business: score(item.business, `seeds[${index}].business`)
+      business: score(item.business, `seeds[${index}].business`),
+      scoreSource: "system_rules_v1",
     };
   });
   return { seeds };
@@ -653,11 +758,7 @@ function normalizeQuestionModelResponse(raw, input) {
     if (!looksLikeCustomerQuestion(normalized.question) || !questionMentionsSource(normalized.question, sourceKeyword)) {
       normalized.question = fallbackQuestion(dimension, sourceKeyword);
     }
-    const scoreDefaults = { recommendation: 72, business: 72, askability: 82, specificity: 72, businessRelevance: 78, evidenceReadiness: 68, duplicateRisk: 12 };
-    Object.entries(scoreDefaults).forEach(([field, fallback]) => {
-      const value = Number(normalized[field]);
-      normalized[field] = Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : fallback;
-    });
+    // Text is normalized first; all score dimensions are recalculated from the final question below.
     const bucket = buckets.get(dimension);
     if (bucket.length < input.limitPerDimension) bucket.push(normalized);
   });
@@ -672,6 +773,7 @@ function validateQuestionResponse(raw, input) {
   if (!raw.questions.length || raw.questions.length > maxItems) throw new ContractValidationError([`questions 数量必须在 1–${maxItems} 之间。`]);
   const existing = new Set(input.existingQuestions.map(normalizeQuestionKey));
   const created = new Set();
+  const createdQuestions = [];
   const counts = {};
   const questions = [];
   const rejected = [];
@@ -685,6 +787,7 @@ function validateQuestionResponse(raw, input) {
     if (!input.dimensions.includes(dimension)) throw new ContractValidationError([`questions[${index}].dimension 不在请求范围内。`]);
     counts[dimension] = (counts[dimension] || 0) + 1;
     if (counts[dimension] > input.limitPerDimension) throw new ContractValidationError([`${dimension} 超过每类上限。`]);
+    const ruleScores = calculateQuestionRuleScores({ sourceKeyword, question, dimension }, input, createdQuestions);
     const item = {
       sourceKeyword,
       question,
@@ -698,21 +801,13 @@ function validateQuestionResponse(raw, input) {
       queryRewrites: [],
       evidenceRequirements: [],
       reason: "",
-      recommendation: score(candidate.recommendation, `questions[${index}].recommendation`),
-      business: score(candidate.business, `questions[${index}].business`),
-      quality: {
-        askability: score(candidate.askability, `questions[${index}].askability`),
-        specificity: score(candidate.specificity, `questions[${index}].specificity`),
-        businessRelevance: score(candidate.businessRelevance, `questions[${index}].businessRelevance`),
-        evidenceReadiness: score(candidate.evidenceReadiness, `questions[${index}].evidenceReadiness`),
-        duplicateRisk: score(candidate.duplicateRisk, `questions[${index}].duplicateRisk`)
-      },
+      business: ruleScores.business,
+      quality: ruleScores.quality,
+      scoreSource: ruleScores.scoreSource,
       generationMode: "model",
       engine: "openai-compatible"
     };
-    const modelRecommendation = item.recommendation;
     const priority = calculateQuestionPriorityScore(item.quality, item.business);
-    item.modelRecommendation = modelRecommendation;
     item.scoreBreakdown = priority.scoreBreakdown;
     item.priorityScore = priority.priorityScore;
     item.recommendation = priority.priorityScore;
@@ -731,6 +826,7 @@ function validateQuestionResponse(raw, input) {
     if (rejectReason) rejected.push({ sourceKeyword, question, dimension, rejectReason });
     else {
       created.add(key);
+      createdQuestions.push(question);
       questions.push(item);
     }
   });
@@ -738,10 +834,51 @@ function validateQuestionResponse(raw, input) {
   const missing = input.dimensions
     .map((dimension) => ({ dimension, count: questions.filter((item) => item.dimension === dimension).length }))
     .filter((item) => item.count !== input.limitPerDimension);
-  if (missing.length) {
-    throw new ContractValidationError(missing.map((item) => `${item.dimension} 通过质量门槛的问题为 ${item.count} 条，必须重写为 ${input.limitPerDimension} 条。`));
-  }
-  return { questions, rejected };
+  return { questions, rejected, incompleteDimensions: missing };
+}
+
+function reconcileQuestionBatchResults(batchResults, input) {
+  const questions = [];
+  const acceptedQuestions = [];
+  const existing = new Set(input.existingQuestions.map(normalizeQuestionKey));
+  const rejected = batchResults.flatMap((result) => result.rejected || []);
+  batchResults.flatMap((result) => result.questions || []).forEach((candidate) => {
+    const question = String(candidate.question || "").trim();
+    const key = normalizeQuestionKey(question);
+    // Each dimension is generated in exactly one batch. Comparing semantic
+    // similarity across different dimensions incorrectly removes valid rows
+    // that share a natural sentence frame (for example scenario vs review).
+    // Keep global exact de-duplication, but only apply fuzzy duplicate scoring
+    // inside the same question dimension.
+    const comparableQuestions = acceptedQuestions
+      .filter((item) => item.dimension === candidate.dimension)
+      .map((item) => item.question);
+    const ruleScores = calculateQuestionRuleScores(candidate, input, comparableQuestions);
+    let rejectReason = "";
+    if (existing.has(key) || acceptedQuestions.some((item) => normalizeQuestionKey(item.question) === key)) rejectReason = "与本次其他批次或已有问题重复";
+    else if (ruleScores.quality.duplicateRisk > 70) rejectReason = "跨批次同义重复风险过高";
+    if (rejectReason) {
+      rejected.push({ sourceKeyword: candidate.sourceKeyword, question, dimension: candidate.dimension, rejectReason });
+      return;
+    }
+    const priority = calculateQuestionPriorityScore(ruleScores.quality, ruleScores.business);
+    questions.push({
+      ...candidate,
+      business: ruleScores.business,
+      business_score: ruleScores.business,
+      quality: ruleScores.quality,
+      scoreSource: ruleScores.scoreSource,
+      scoreBreakdown: priority.scoreBreakdown,
+      priorityScore: priority.priorityScore,
+      recommendation: priority.priorityScore,
+      recommendation_score: priority.priorityScore
+    });
+    acceptedQuestions.push({ question, dimension: candidate.dimension });
+  });
+  const incompleteDimensions = input.dimensions
+    .map((dimension) => ({ dimension, count: questions.filter((item) => item.dimension === dimension).length }))
+    .filter((item) => item.count !== input.limitPerDimension);
+  return { questions, rejected, incompleteDimensions };
 }
 
 function topicRequest(payload) {
@@ -790,19 +927,14 @@ function topicPrompt(input) {
       answerMode: "直接回答/比较框架/步骤清单等",
       evidenceNeeds: ["需要核验的证据"],
       faqSeeds: ["自然追问？"],
-      queryRewrites: ["同一意图的自然改问？"],
-      recommendation: 0,
-      business: 0,
-      questionAlignment: 0,
-      customerLanguage: 0,
-      evidenceReadiness: 0
+      queryRewrites: ["同一意图的自然改问？"]
     }]
   };
   return [
     "任务：把已确认的客户问题转成一对一的正式内容选题。选题不是另造一个更宽泛的营销标题，而是更清楚地承诺回答原问题。",
     "每个 questionId 最多返回一个 topic；不得合并不同问题，不得改变提问者意图，不得把品牌、最好、排名或效果承诺强塞进标题。",
-    "coreQuestion 必须仍是自然问句，只回答一个核心问题，保持来源问题的提问意图但表达得更明确。若原问题已经清楚，可以原样使用。title 围绕 coreQuestion 形成，不得改变问题边界；可以相同，但不强制相同。",
-    "answerPromise 要说清读者获得的判断；evidenceNeeds 只列企业需要提供或核验的事实；faqSeeds 与 queryRewrites 必须保持原问题意图。",
+    "coreQuestion 必须仍是自然问句，只回答一个核心问题。为避免改变已确认的问题意图，优先原样使用来源 question；只有原句不完整时才允许小幅澄清对象，不能替换任务、场景或决策目标。title 围绕 coreQuestion 形成，不得改变问题边界；可以与 coreQuestion 相同。",
+    "answerPromise 要说清读者获得的判断；evidenceNeeds 只列企业需要提供或核验的事实；faqSeeds 与 queryRewrites 必须保持原问题意图。只生成选题内容，质量与优先级由系统按来源问题对齐度、自然语言和证据完整度计算。",
     `企业业务线与画像：${JSON.stringify(input.businessLine)}`,
     `画像禁用表达（选题及标题不得出现）：${JSON.stringify(input.businessLine.profile?.blockedTerms || [])}`,
     `来源问题：${JSON.stringify(input.questions)}`,
@@ -813,48 +945,25 @@ function topicPrompt(input) {
 
 function normalizeTopicModelResponse(raw, input) {
   if (!isPlainObject(raw) || !Array.isArray(raw.topics)) return raw;
-  const byId = new Map(input.questions.map((question) => [question.id, question]));
-  const used = new Set();
-  const scoreDefaults = { recommendation: 78, business: 78, questionAlignment: 86, customerLanguage: 84, evidenceReadiness: 72 };
-  const normalizeArray = (value, fallback) => {
-    const values = Array.isArray(value) ? value : value ? [value] : [];
-    const cleaned = values.map((item) => normalizeGeneratedQuestion(item)).filter(Boolean);
-    return cleaned.length ? cleaned : [fallback];
-  };
-  const topics = input.questions.map((question, index) => {
-    const candidate = raw.topics.find((item) => item?.questionId === question.id) || raw.topics[index] || {};
-    const questionBase = question.question.replace(/[?？]+$/, "").slice(0, 96);
-    const candidateCoreQuestion = String(candidate.coreQuestion || candidate.title || "").trim();
-    const coreQuestion = looksLikeCustomerQuestion(candidateCoreQuestion) && questionMentionsSource(candidateCoreQuestion, question.question)
-      ? candidateCoreQuestion
-      : question.question;
-    const candidateTitle = String(candidate.title || "").trim();
-    const title = looksLikeCustomerQuestion(candidateTitle) && questionMentionsSource(candidateTitle, coreQuestion) ? candidateTitle : coreQuestion;
-    const faqFallback = `${questionBase}需要补充哪些资料？`;
-    const faqSecond = `${questionBase}如何判断答案是否可信？`;
-    const queryFallback = question.question;
-    const faqSeeds = normalizeArray(candidate.faqSeeds, faqFallback);
-    if (faqSeeds.length < 2) faqSeeds.push(faqSecond);
-    const normalized = {
-      questionId: question.id,
-      coreQuestion,
-      title,
-      reason: String(candidate.reason || `围绕客户问题“${question.question}”给出直接判断和可执行边界。`).slice(0, 300),
-      answerPromise: String(candidate.answerPromise || `帮助${question.intent || "客户"}理解${question.question.replace(/[?？]+$/, "")}的判断方法、适用条件与下一步。`).slice(0, 300),
-      decisionRole: String(candidate.decisionRole || question.stage || "方案评估").slice(0, 100),
-      answerMode: String(candidate.answerMode || "直接回答与判断清单").slice(0, 120),
-      evidenceNeeds: Array.isArray(candidate.evidenceNeeds) && candidate.evidenceNeeds.length ? candidate.evidenceNeeds.map(String).slice(0, 8) : (question.evidenceRequirements?.length ? question.evidenceRequirements : ["企业业务事实与服务边界"]),
-      faqSeeds: faqSeeds.slice(0, 5),
-      queryRewrites: normalizeArray(candidate.queryRewrites, queryFallback).slice(0, 5)
+  const topics = raw.topics.map((candidate) => {
+    if (!isPlainObject(candidate)) return candidate;
+    return {
+      ...candidate,
+      questionId: String(candidate.questionId || "").trim(),
+      coreQuestion: normalizeGeneratedQuestion(candidate.coreQuestion),
+      title: normalizeGeneratedQuestion(candidate.title),
+      faqSeeds: Array.isArray(candidate.faqSeeds) ? candidate.faqSeeds.map(normalizeGeneratedQuestion) : candidate.faqSeeds,
+      queryRewrites: Array.isArray(candidate.queryRewrites) ? candidate.queryRewrites.map(normalizeGeneratedQuestion) : candidate.queryRewrites
     };
-    Object.entries(scoreDefaults).forEach(([field, fallback]) => {
-      const value = Number(candidate[field]);
-      normalized[field] = Number.isFinite(value) ? Math.max(fallback, Math.min(100, Math.round(value))) : fallback;
-    });
-    used.add(normalized.questionId);
-    return normalized;
   });
-  return { ...raw, topics };
+  const inputIds = new Set(input.questions.map((question) => question.id));
+  const topicIds = topics.map((topic) => isPlainObject(topic) ? topic.questionId : "");
+  const canRestoreInputOrder = topics.length === input.questions.length
+    && topicIds.every((id) => inputIds.has(id))
+    && new Set(topicIds).size === topicIds.length;
+  if (!canRestoreInputOrder) return { ...raw, topics };
+  const byId = new Map(topics.map((topic) => [topic.questionId, topic]));
+  return { ...raw, topics: input.questions.map((question) => byId.get(question.id)) };
 }
 
 function targetContentTypes(dimension) {
@@ -892,21 +1001,19 @@ function validateTopicResponse(raw, input) {
     if (faqSeeds.some((item) => !looksLikeCustomerQuestion(item)) || queryRewrites.some((item) => !looksLikeCustomerQuestion(item))) {
       throw new ContractValidationError([`topics[${index}] 的 FAQ 或改写不是完整自然问句。`]);
     }
-    const quality = {
-      questionAlignment: score(candidate.questionAlignment, `topics[${index}].questionAlignment`),
-      customerLanguage: score(candidate.customerLanguage, `topics[${index}].customerLanguage`),
-      evidenceReadiness: score(candidate.evidenceReadiness, `topics[${index}].evidenceReadiness`)
-    };
+    const ruleScores = calculateTopicRuleScores({ coreQuestion, title, answerPromise, answerMode, evidenceNeeds, faqSeeds }, question);
+    const quality = ruleScores.quality;
     const key = normalizeQuestionKey(title);
     const blocked = (input.businessLine.profile?.blockedTerms || []).find((term) => term && `${coreQuestion} ${title}`.toLowerCase().includes(String(term).toLowerCase()));
     let rejectReason = "";
     if (!looksLikeCustomerQuestion(coreQuestion)) rejectReason = "核心回答问题不是客户会直接提问的单一问句";
     else if (!looksLikeCustomerQuestion(title)) rejectReason = "选题标题不是客户会直接提问的单一问句";
     else if (blocked) rejectReason = `核心回答问题命中业务画像禁用表达：${blocked}`;
-    else if (!questionMentionsSource(coreQuestion, question.question) && quality.questionAlignment < 75) rejectReason = "核心回答问题与来源客户问题缺少可解释的语义关联";
-    else if (!questionMentionsSource(title, coreQuestion) && quality.questionAlignment < 75) rejectReason = "选题标题与核心回答问题缺少可解释的语义关联";
-    else if (existing.has(key) || seenTitles.has(key)) rejectReason = "与已有选题重复";
+    else if (!questionMentionsSource(coreQuestion, question.question)) rejectReason = "核心回答问题与来源客户问题缺少有效核心词关联";
     else if (quality.questionAlignment < 75) rejectReason = "与来源问题意图不够一致";
+    else if (!questionMentionsSource(title, coreQuestion)) rejectReason = "选题标题与核心回答问题缺少有效核心词关联";
+    else if (quality.titleAlignment < 75) rejectReason = "选题标题与核心回答问题对齐不足";
+    else if (existing.has(key) || seenTitles.has(key)) rejectReason = "与已有选题重复";
     else if (quality.customerLanguage < 70) rejectReason = "不像客户的自然提问语言";
     if (rejectReason) {
       rejected.push({ questionId, title, rejectReason });
@@ -923,10 +1030,11 @@ function validateTopicResponse(raw, input) {
       intent: question.intent,
       stage: question.stage,
       coverage: question.coverage,
-      recommendation: score(candidate.recommendation, `topics[${index}].recommendation`),
-      business: score(candidate.business, `topics[${index}].business`),
+      recommendation: ruleScores.recommendation,
+      business: ruleScores.business,
       reason,
       quality,
+      scoreSource: ruleScores.scoreSource,
       generationMode: "model",
       engine: "openai-compatible",
       geoBrief: {
@@ -954,7 +1062,12 @@ function validateTopicResponse(raw, input) {
     });
   });
   if (topics.length !== input.questions.length) {
-    throw new ContractValidationError([`有 ${input.questions.length - topics.length} 个来源问题未通过选题质量门，必须逐题重写后再返回。`]);
+    const rejectionDetails = rejected.slice(0, 10).map((item) => `questionId=${item.questionId}：${item.rejectReason}`);
+    throw new ContractValidationError([
+      `有 ${input.questions.length - topics.length} 个来源问题未通过选题质量门，必须逐题重写后再返回。`,
+      ...rejectionDetails,
+      "修复要求：逐条保留 questionId。对齐或自然问句校验失败时，coreQuestion 与 title 直接使用对应来源问题原文；重复时只补充来源问题已有的对象或场景，不得另造意图。"
+    ]);
   }
   if (!topics.length) throw new ContractValidationError(["所有选题都未通过客户问题对齐门槛。"]);
   return { topics, rejected };
@@ -1178,6 +1291,7 @@ export class AiGenerationService {
     this.upstreamRetryBaseMs = clampInteger(options.upstreamRetryBaseMs ?? process.env.TZ_AI_UPSTREAM_RETRY_BASE_MS, 800, 0, 10000);
     this.questionBatchConcurrency = clampInteger(options.questionBatchConcurrency ?? process.env.TZ_AI_QUESTION_BATCH_CONCURRENCY, 1, 1, 2);
     this.questionDimensionsPerBatch = clampInteger(options.questionDimensionsPerBatch ?? process.env.TZ_AI_QUESTION_DIMENSIONS_PER_BATCH, 1, 1, 2);
+    this.topicQuestionsPerBatch = clampInteger(options.topicQuestionsPerBatch ?? process.env.TZ_AI_TOPIC_QUESTIONS_PER_BATCH, 3, 1, 5);
     // The production reverse proxy waits 120 seconds. Keep one upstream attempt
     // group below that boundary so a retry can still return a structured error
     // instead of being replaced by a generic gateway timeout.
@@ -1426,7 +1540,7 @@ export class AiGenerationService {
       usage = safeError.usage || usage;
       upstreamRequestId = safeError.requestId || upstreamRequestId;
       const completedAt = Date.now();
-      await this.runStore.append({
+      const failureRun = {
         id: runId,
         operation,
         status: "failed",
@@ -1445,7 +1559,10 @@ export class AiGenerationService {
         startedAt: new Date(startedAt).toISOString(),
         completedAt: new Date(completedAt).toISOString(),
         durationMs: completedAt - startedAt
-      });
+      };
+      await this.runStore.append(failureRun);
+      safeError.generationRunId = runId;
+      safeError.generationRun = failureRun;
       throw safeError;
     }
   }
@@ -1464,16 +1581,20 @@ export class AiGenerationService {
         chunks.push(input.dimensions.slice(index, index + this.questionDimensionsPerBatch));
       }
       const batchResults = [];
+      const priorQuestions = [];
       for (let index = 0; index < chunks.length; index += this.questionBatchConcurrency) {
         const window = chunks.slice(index, index + this.questionBatchConcurrency);
+        const priorQuestionsForPrompt = [...priorQuestions];
         const results = await Promise.all(window.map((dimensions, windowIndex) => {
           const batchIndex = index + windowIndex;
           const seeds = input.seeds.length > 1 ? [input.seeds[batchIndex % input.seeds.length]] : input.seeds;
-          return this.generateQuestions({ ...payload, seeds, dimensions });
+          return this.generateQuestions({ ...payload, seeds, dimensions, _batchExistingQuestions: priorQuestionsForPrompt });
         }));
         batchResults.push(...results);
+        priorQuestions.push(...results.flatMap((result) => (result.questions || []).map((item) => item.question)));
       }
-      const questions = batchResults.flatMap((result) => result.questions || []);
+      const reconciled = reconcileQuestionBatchResults(batchResults, input);
+      const { questions, rejected, incompleteDimensions } = reconciled;
       const firstRun = batchResults[0]?.run || {};
       const usage = batchResults.reduce((total, result) => {
         const current = result.run?.usage || {};
@@ -1483,6 +1604,7 @@ export class AiGenerationService {
           totalTokens: Number(total.totalTokens || 0) + Number(current.totalTokens || 0)
         };
       }, {});
+      const generationRunIds = batchResults.map((result) => result.generationRunId || result.runId).filter(Boolean);
       const batchCompletedAt = Date.now();
       const run = {
         ...firstRun,
@@ -1492,22 +1614,25 @@ export class AiGenerationService {
         model: firstRun.model,
         attempts: Math.max(...batchResults.map((result) => Number(result.run?.attempts || 1))),
         usage,
+        childRunIds: generationRunIds,
         inputSummary: { businessLineId: input.businessLine.id, seedCount: input.seeds.length, dimensions: input.dimensions, limitPerDimension: input.limitPerDimension, batchCount: chunks.length },
-        outputSummary: { questionCount: questions.length, rejectedCount: batchResults.reduce((count, result) => count + Number(result.rejected?.length || 0), 0) },
+        outputSummary: { questionCount: questions.length, rejectedCount: rejected.length, complete: incompleteDimensions.length === 0, incompleteDimensions },
         startedAt: new Date(batchStartedAt).toISOString(),
         completedAt: new Date(batchCompletedAt).toISOString(),
         durationMs: batchCompletedAt - batchStartedAt
       };
       await this.runStore.append(run);
-      const generationRunIds = batchResults.map((result) => result.generationRunId || result.runId).filter(Boolean);
-      return { run, generationRunId: run.id, runId: run.id, generationRunIds, questions, customerQuestions: questions, items: questions, rejected: batchResults.flatMap((result) => result.rejected || []) };
+      return { run, generationRunId: run.id, runId: run.id, generationRunIds, questions, customerQuestions: questions, items: questions, rejected, incompleteDimensions };
     }
-    const promptInput = { ...input, existingQuestions: existingQuestionsForPrompt(input.existingQuestions, input.seeds) };
+    const batchExistingQuestions = Array.isArray(payload._batchExistingQuestions)
+      ? payload._batchExistingQuestions.filter((item) => typeof item === "string")
+      : [];
+    const promptInput = { ...input, existingQuestions: existingQuestionsForPrompt(uniqueStrings([...input.existingQuestions, ...batchExistingQuestions]), input.seeds) };
     const result = await this.generate("questions", input, questionPrompt(promptInput), (raw, request) => validateQuestionResponse(normalizeQuestionModelResponse(raw, request), request), {
       temperature: 0.35,
       maxTokens: 4000,
       inputSummary: { businessLineId: input.businessLine.id, seedCount: input.seeds.length, dimensions: input.dimensions, limitPerDimension: input.limitPerDimension },
-      outputSummary: (result) => ({ questionCount: result.questions.length, rejectedCount: result.rejected.length })
+      outputSummary: (result) => ({ questionCount: result.questions.length, rejectedCount: result.rejected.length, complete: result.incompleteDimensions.length === 0, incompleteDimensions: result.incompleteDimensions })
       ,disableThinking: true
     });
     const questions = result.questions.map((question) => ({
@@ -1561,11 +1686,97 @@ export class AiGenerationService {
 
   async generateTopics(payload) {
     const input = topicRequest(payload);
+    const batchStartedAt = Date.now();
+    if (input.questions.length > this.topicQuestionsPerBatch) {
+      const chunks = [];
+      for (let index = 0; index < input.questions.length; index += this.topicQuestionsPerBatch) {
+        chunks.push(input.questions.slice(index, index + this.topicQuestionsPerBatch));
+      }
+      const parentRunId = `AIRUN-TOPIC-BATCH-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const batchResults = [];
+      const childRunIds = [];
+      const existingTopics = [...input.existingTopics];
+      for (let batchIndex = 0; batchIndex < chunks.length; batchIndex += 1) {
+        const questions = chunks[batchIndex];
+        try {
+          const batch = await this.generateTopics({ ...payload, questions, existingTopics, _parentBatchRunId: parentRunId, _batchIndex: batchIndex });
+          batchResults.push(batch);
+          const childRunId = batch.generationRunId || batch.runId;
+          if (childRunId) childRunIds.push(childRunId);
+          existingTopics.push(...batch.topics.map((topic) => topic.title));
+        } catch (error) {
+          const failedChildRun = error?.generationRun || null;
+          if (error?.generationRunId && !childRunIds.includes(error.generationRunId)) childRunIds.push(error.generationRunId);
+          const recordedRuns = [...batchResults.map((batch) => batch.run).filter(Boolean), ...(failedChildRun ? [failedChildRun] : [])];
+          const usage = recordedRuns.reduce((total, run) => ({
+            promptTokens: Number(total.promptTokens || 0) + Number(run.usage?.promptTokens || 0),
+            completionTokens: Number(total.completionTokens || 0) + Number(run.usage?.completionTokens || 0),
+            totalTokens: Number(total.totalTokens || 0) + Number(run.usage?.totalTokens || 0)
+          }), {});
+          const partialTopics = batchResults.flatMap((batch) => batch.topics || []);
+          const referenceRun = batchResults[0]?.run || failedChildRun || {};
+          const batchCompletedAt = Date.now();
+          const failureRun = {
+            id: parentRunId,
+            operation: "topics",
+            status: "failed",
+            providerId: referenceRun.providerId || input.providerId,
+            providerName: referenceRun.providerName || "",
+            model: referenceRun.model || input.model || "",
+            attempts: recordedRuns.length ? Math.max(...recordedRuns.map((run) => Number(run.attempts || 1))) : 1,
+            usage,
+            errorCode: failedChildRun?.errorCode || error?.code || "AI_GENERATION_ERROR",
+            errorMessage: failedChildRun?.errorMessage || String(error?.message || "选题分批生成失败。"),
+            errorDetails: failedChildRun?.errorDetails || (Array.isArray(error?.details) ? error.details.slice(0, 12).map(String) : []),
+            childRunIds: [...childRunIds],
+            failedBatchIndex: batchIndex,
+            inputSummary: { businessLineId: input.businessLine.id, questionCount: input.questions.length, batchCount: chunks.length, completedBatchCount: batchResults.length, failedBatchIndex: batchIndex },
+            outputSummary: { topicCount: partialTopics.length, rejectedCount: batchResults.reduce((count, batch) => count + Number(batch.rejected?.length || 0), 0), complete: false },
+            startedAt: new Date(batchStartedAt).toISOString(),
+            completedAt: new Date(batchCompletedAt).toISOString(),
+            durationMs: batchCompletedAt - batchStartedAt
+          };
+          try { await this.runStore.append(failureRun); } catch (auditError) { error.parentRunWriteError = String(auditError?.message || auditError); }
+          error.generationRunId = parentRunId;
+          error.parentGenerationRunId = parentRunId;
+          error.childRunIds = [...childRunIds];
+          throw error;
+        }
+      }
+      const topics = batchResults.flatMap((batch) => batch.topics || []);
+      const firstRun = batchResults[0]?.run || {};
+      const usage = batchResults.reduce((total, batch) => {
+        const current = batch.run?.usage || {};
+        return {
+          promptTokens: Number(total.promptTokens || 0) + Number(current.promptTokens || 0),
+          completionTokens: Number(total.completionTokens || 0) + Number(current.completionTokens || 0),
+          totalTokens: Number(total.totalTokens || 0) + Number(current.totalTokens || 0)
+        };
+      }, {});
+      const batchCompletedAt = Date.now();
+      const run = {
+        ...firstRun,
+        id: parentRunId,
+        operation: "topics",
+        status: "succeeded",
+        attempts: Math.max(...batchResults.map((batch) => Number(batch.run?.attempts || 1))),
+        usage,
+        childRunIds: [...childRunIds],
+        inputSummary: { businessLineId: input.businessLine.id, questionCount: input.questions.length, batchCount: chunks.length, completedBatchCount: batchResults.length },
+        outputSummary: { topicCount: topics.length, rejectedCount: batchResults.reduce((count, batch) => count + Number(batch.rejected?.length || 0), 0), complete: true },
+        startedAt: new Date(batchStartedAt).toISOString(),
+        completedAt: new Date(batchCompletedAt).toISOString(),
+        durationMs: batchCompletedAt - batchStartedAt
+      };
+      await this.runStore.append(run);
+      return { run, generationRunId: run.id, runId: run.id, generationRunIds: [...childRunIds], topics, items: topics, rejected: batchResults.flatMap((batch) => batch.rejected || []) };
+    }
     const result = await this.generate("topics", input, topicPrompt(input), (raw, request) => validateTopicResponse(normalizeTopicModelResponse(raw, request), request), {
       temperature: 0.25,
       maxTokens: 6000,
-      inputSummary: { businessLineId: input.businessLine.id, questionCount: input.questions.length },
-      outputSummary: (result) => ({ topicCount: result.topics.length, rejectedCount: result.rejected.length })
+      inputSummary: { businessLineId: input.businessLine.id, questionCount: input.questions.length, parentBatchRunId: payload._parentBatchRunId || null, batchIndex: Number.isInteger(payload._batchIndex) ? payload._batchIndex : null },
+      outputSummary: (result) => ({ topicCount: result.topics.length, rejectedCount: result.rejected.length }),
+      disableThinking: true
     });
     const topics = result.topics.map((topic) => ({
       ...topic,

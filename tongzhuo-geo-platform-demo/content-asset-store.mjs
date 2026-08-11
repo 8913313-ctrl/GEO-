@@ -298,12 +298,16 @@ export class ContentAssetStore {
     };
   }
 
-  list({ workspaceId = this.workspaceId, articleId = null, status = null, limit = 500 } = {}) {
-    const where = ["workspace_id = ?"];
+  list({ workspaceId = this.workspaceId, articleId = null, status = null, publishedOnly = false, limit = 500 } = {}) {
+    const where = ["assets.workspace_id = ?"];
     const values = [workspaceId];
-    if (articleId) { where.push("article_id = ?"); values.push(clean(articleId, "articleId", 180, true)); }
-    if (status) { where.push("status = ?"); values.push(clean(status, "status", 40, true)); }
-    const rows = this.connection.prepare(`SELECT * FROM content_assets WHERE ${where.join(" AND ")} ORDER BY updated_at DESC LIMIT ?`).all(...values, Math.max(1, Math.min(2_000, Number(limit) || 500)));
+    if (articleId) { where.push("assets.article_id = ?"); values.push(clean(articleId, "articleId", 180, true)); }
+    if (status) { where.push("assets.status = ?"); values.push(clean(status, "status", 40, true)); }
+    if (publishedOnly) where.push(`(
+      EXISTS (SELECT 1 FROM content_asset_publications AS publication WHERE publication.workspace_id = assets.workspace_id AND publication.asset_id = assets.id AND publication.status = 'active')
+      OR EXISTS (SELECT 1 FROM content_articles AS article WHERE article.workspace_id = assets.workspace_id AND article.id = assets.article_id AND article.status = 'published')
+    )`);
+    const rows = this.connection.prepare(`SELECT assets.* FROM content_assets AS assets WHERE ${where.join(" AND ")} ORDER BY assets.updated_at DESC LIMIT ?`).all(...values, Math.max(1, Math.min(2_000, Number(limit) || 500)));
     return rows.map((row) => this._assetPayload(row));
   }
 

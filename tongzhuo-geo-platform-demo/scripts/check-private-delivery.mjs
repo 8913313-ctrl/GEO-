@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,6 +49,15 @@ async function assertSums(bundleRoot) {
     assert.ok(relative && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
     const actual = crypto.createHash("sha256").update(await readFile(target)).digest("hex");
     assert.equal(actual, match[1], match[2]);
+  }
+}
+
+async function exists(target) {
+  try {
+    await lstat(target);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -236,10 +245,22 @@ try {
   }
   assert.ok(!blankFiles.some((name) => /app\/research-packages\/geo-citation-lab\/\.document-updates\/(?:state\.json|staging(?:\/|$))/i.test(name)));
   await assertSums(blankRoot);
+  const staleBundle = path.join(blankOutput, "stale-private-delivery");
+  await mkdir(staleBundle, { recursive: true });
+  await writeFile(path.join(staleBundle, "manifest.json"), JSON.stringify({
+    product: "tongzhuo-geo-private-delivery",
+    format: "tongzhuo-private-delivery-manifest-v1"
+  }));
+  await writeFile(path.join(blankOutput, "stale-private-delivery.tar.gz"), "stale archive");
+  await writeFile(path.join(blankOutput, "stale-private-delivery.tar.gz.sha256"), "stale checksum");
+  await utimes(staleBundle, new Date(0), new Date(0));
   const overwriteRequired = runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive"], 1);
   assert.match(overwriteRequired.stderr, /--overwrite/);
-  runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive", "--overwrite"]);
+  runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive", "--overwrite", "--prune-history", "--retain-builds", "1"]);
   await assertSums(blankRoot);
+  assert.equal(await exists(staleBundle), false);
+  assert.equal(await exists(path.join(blankOutput, "stale-private-delivery.tar.gz")), false);
+  assert.equal(await exists(path.join(blankOutput, "stale-private-delivery.tar.gz.sha256")), false);
 
   const fixtureRoot = path.join(testRoot, "migration-fixture");
   const backupDir = await createBackupFixture(fixtureRoot);

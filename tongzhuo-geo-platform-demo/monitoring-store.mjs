@@ -1039,10 +1039,11 @@ export class MonitoringStore {
     const kpis = this.connection.prepare(`SELECT COUNT(*) AS pv, COUNT(DISTINCT CASE WHEN ip_hash <> '' THEN ip_hash END) AS unique_ip, SUM(CASE WHEN traffic_type = 'human' THEN 1 ELSE 0 END) AS human_pv, SUM(CASE WHEN traffic_type = 'ai_bot' THEN 1 ELSE 0 END) AS ai_bot_pv, SUM(CASE WHEN traffic_type = 'search_bot' THEN 1 ELSE 0 END) AS search_bot_pv, SUM(CASE WHEN traffic_type = 'other_bot' THEN 1 ELSE 0 END) AS other_bot_pv, SUM(CASE WHEN traffic_type = 'unknown' THEN 1 ELSE 0 END) AS unknown_pv FROM monitoring_access_logs WHERE ${pageWhere}`).get(...params);
     const errorKpis = this.connection.prepare(`SELECT COUNT(*) AS errors FROM monitoring_access_logs WHERE ${pagePathWhere} AND status_code >= 400`).get(...params);
     const reportingDay = reportingDaySql("occurred_at", this.reportingTimeZoneOffsetMinutes);
-    const trendRows = this.connection.prepare(`SELECT ${reportingDay} AS day, COUNT(*) AS pv, SUM(CASE WHEN traffic_type = 'ai_bot' THEN 1 ELSE 0 END) AS ai_bot_pv FROM monitoring_access_logs WHERE ${pageWhere} GROUP BY day ORDER BY day`).all(...params);
-    const trendMap = new Map(trendRows.map((row) => [row.day, { pv: Number(row.pv), aiBotPv: Number(row.ai_bot_pv || 0) }]));
-    const trafficTrend = []; const cursor = new Date(`${range.dateFrom}T00:00:00.000Z`); const end = new Date(`${range.dateTo}T00:00:00.000Z`);
-    while (cursor <= end) { const day = cursor.toISOString().slice(0, 10); trafficTrend.push({ date: day, ...(trendMap.get(day) || { pv: 0, aiBotPv: 0 }) }); cursor.setUTCDate(cursor.getUTCDate() + 1); }
+    const trendRows = this.connection.prepare(`SELECT ${reportingDay} AS day, COUNT(*) AS pv, SUM(CASE WHEN traffic_type = 'human' THEN 1 ELSE 0 END) AS human_pv, SUM(CASE WHEN traffic_type = 'ai_bot' THEN 1 ELSE 0 END) AS ai_bot_pv, SUM(CASE WHEN traffic_type = 'search_bot' THEN 1 ELSE 0 END) AS search_bot_pv, SUM(CASE WHEN traffic_type = 'other_bot' THEN 1 ELSE 0 END) AS other_bot_pv, SUM(CASE WHEN traffic_type = 'unknown' THEN 1 ELSE 0 END) AS unknown_pv FROM monitoring_access_logs WHERE ${pageWhere} GROUP BY day ORDER BY day`).all(...params);
+    const trendMap = new Map(trendRows.map((row) => [row.day, { pv: Number(row.pv), humanPv: Number(row.human_pv || 0), aiBotPv: Number(row.ai_bot_pv || 0), searchBotPv: Number(row.search_bot_pv || 0), otherBotPv: Number(row.other_bot_pv || 0), unknownPv: Number(row.unknown_pv || 0) }]));
+    const trafficTrendDetailed = []; const cursor = new Date(`${range.dateFrom}T00:00:00.000Z`); const end = new Date(`${range.dateTo}T00:00:00.000Z`);
+    while (cursor <= end) { const day = cursor.toISOString().slice(0, 10); trafficTrendDetailed.push({ date: day, ...(trendMap.get(day) || { pv: 0, humanPv: 0, aiBotPv: 0, searchBotPv: 0, otherBotPv: 0, unknownPv: 0 }) }); cursor.setUTCDate(cursor.getUTCDate() + 1); }
+    const trafficTrend = trafficTrendDetailed.map((item) => ({ date: item.date, pv: item.pv, aiBotPv: item.aiBotPv }));
     const botRows = this.connection.prepare(`SELECT traffic_type, COUNT(*) AS count FROM monitoring_access_logs WHERE ${pageWhere} GROUP BY traffic_type`).all(...params); const botMap = new Map(botRows.map((row) => [row.traffic_type, Number(row.count)]));
     const topPaths = this.connection.prepare(`SELECT path, COUNT(*) AS views, COUNT(DISTINCT CASE WHEN ip_hash <> '' THEN ip_hash END) AS unique_ip FROM monitoring_access_logs WHERE ${pageWhere} GROUP BY path ORDER BY views DESC LIMIT 8`).all(...params).map((row) => ({ path: row.path, views: Number(row.views), uniqueIp: Number(row.unique_ip || 0) }));
     const articleWhere = pageWhere.replaceAll("workspace_id", "l.workspace_id").replaceAll("occurred_at", "l.occurred_at").replaceAll("source", "l.source").replaceAll("traffic_type", "l.traffic_type").replaceAll("article_id", "l.article_id").replaceAll("method", "l.method").replaceAll("status_code", "l.status_code").replaceAll("path", "l.path");
@@ -1063,7 +1064,7 @@ export class MonitoringStore {
     return {
       filters: { ...range, source, trafficType, articleId: articleId || null }, hasData: normalizedKpis.pv > 0, kpis: normalizedKpis,
       pv: normalizedKpis.pv,
-      trend: trafficTrend.map((item) => ({ date: item.date, pv: item.pv, totalPv: item.pv, aiBotPv: item.aiBotPv })),
+      trend: trafficTrendDetailed.map((item) => ({ date: item.date, pv: item.pv, totalPv: item.pv, humanPv: item.humanPv, aiBotPv: item.aiBotPv, searchBotPv: item.searchBotPv, otherBotPv: item.otherBotPv, unknownPv: item.unknownPv })),
       trafficTrend, botBreakdown,
       bots: botBreakdown.filter((item) => item.key !== "human" && item.key !== "unknown").map((item) => ({ name: item.key, pv: item.count })),
       topPaths: topPaths.map((item) => ({ ...item, pv: item.views })), topArticles

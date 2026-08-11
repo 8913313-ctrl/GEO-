@@ -9,6 +9,7 @@ import { aiProviderStore, AiProviderError } from "./ai-provider-store.mjs";
 import { aiGenerationService, AiGenerationError } from "./ai-generation-service.mjs";
 import { KnowledgeError, KnowledgeStore } from "./knowledge-store.mjs";
 import { ContentError, ContentStateError, ContentStore } from "./content-store.mjs";
+import { applyPublicCitationVisibility, publicCitationMarkersVisible } from "./citation-visibility.mjs";
 import { createContentApi } from "./content-api.mjs";
 import { ContentAssetError, ContentAssetStore } from "./content-asset-store.mjs";
 import { createContentAssetApi } from "./content-asset-api.mjs";
@@ -36,6 +37,7 @@ import { createAnalysisWorkbenchApi } from "./analysis-workbench-api.mjs";
 import { SiteCmsError, SiteCmsStore } from "./site-cms-store.mjs";
 import { PublicSiteStore } from "./public-site/site-store.mjs";
 import { renderFixedPage, renderNotFound } from "./public-site/site-renderer.mjs";
+import { createSiteRuntime } from "./site-server.mjs";
 import { assertProductionConfiguration, productionConfig } from "./production-config.mjs";
 import { productionLogger } from "./production-logger.mjs";
 import { requestMetadata } from "./production-audit.mjs";
@@ -79,7 +81,18 @@ publisherStore.setWebPublisher((target) => contentStore.publish({
     socket: { remoteAddress: target.requestMetadata.ipAddress || "" }
   } : null
 }));
-const contentApi = createContentApi({ contentStore, requestJson, configured });
+const contentApi = createContentApi({
+  contentStore, requestJson, configured,
+  onArticlePublished: async ({ principal, request }) => {
+    const draft = siteCmsStore.draft("default");
+    const publication = siteCmsStore.publication("default");
+    const draftInsights = Array.isArray(draft.snapshot?.pages) ? draft.snapshot.pages.find((page) => page?.id === "insights") : null;
+    const publishedInsights = Array.isArray(publication.snapshot?.pages) ? publication.snapshot.pages.find((page) => page?.id === "insights") : null;
+    if (publishedInsights?.status === "published" || draftInsights?.status !== "published") return { status: "already-synced", cmsVersion: publication.version };
+    const released = siteCmsStore.publish({ expectedDraftRevision: draft.revision, note: "文章发布后自动同步官网行业资讯" }, principal, request, "default");
+    return { status: "published", cmsVersion: released.version, releaseId: released.releaseId };
+  }
+});
 const contentAssetApi = createContentAssetApi({ contentAssetStore, requestJson, configured });
 publisherStore.setPublicationObserver((job) => contentAssetStore.syncPublisherJob(job, { workspaceId: "default" }));
 const diagnosticStore = new DiagnosticStore(database, { workspaceId: "default" });
@@ -1001,7 +1014,7 @@ async function handleMonitoringApi(request, response, parts) {
         otherBotPv: summary.kpis.otherBotPv,
         unknownPv: summary.kpis.unknownPv,
         uniqueIp: summary.kpis.uniqueIp,
-        trend: summary.trafficTrend.map((item) => ({ label: item.date, pv: item.pv, allPv: item.pv, aiBotPv: item.aiBotPv })),
+        trend: (summary.trend || summary.trafficTrend).map((item) => ({ label: item.date, pv: item.pv, allPv: item.totalPv ?? item.pv, humanPv: item.humanPv, aiBotPv: item.aiBotPv, searchBotPv: item.searchBotPv, otherBotPv: item.otherBotPv, unknownPv: item.unknownPv })),
         topPaths: summary.topPaths.map((item) => ({ ...item, pv: item.views })),
         bots
       } }
@@ -1199,6 +1212,8 @@ async function handlePublisherApi(request, response, parts, principal = null) {
     const gate = contentStore.assertCanPublish(articleId, versionId, { workspaceId: "default" });
     const publicationMetadata = gate.article.metadata || {};
     const siteMetadata = publicationMetadata.site || {};
+    const showPublicCitationMarkers = publicCitationMarkersVisible(gate.version.metadata);
+    const publicContent = applyPublicCitationVisibility(gate.version.contentHtml, { showPublicCitationMarkers });
     const job = await publisherStore.createJobs({
       ...body,
       articleId: gate.articleId,
@@ -1216,7 +1231,8 @@ async function handlePublisherApi(request, response, parts, principal = null) {
         ...(body.article || {}),
         id: gate.articleId,
         title: gate.version.title,
-        content: gate.version.contentHtml,
+        content: publicContent,
+        showPublicCitationMarkers,
         excerpt: gate.version.excerpt,
         version: gate.version.version,
         category: gate.article.category,
@@ -1613,12 +1629,22 @@ const server = http.createServer(async (request, response) => {
     const code = error.code || (error instanceof WorkspaceConflictError ? "WORKSPACE_CONFLICT" : status === 413 ? "REQUEST_TOO_LARGE" : "INTERNAL_ERROR");
     productionLogger.error("http.error", { requestId: id, status, code, error: error.message, method: request.method, path: request.url });
     if (response.headersSent) return response.end();
-    if (isApi) return jsonResponse(response, status, { ok: false, code, message: status >= 500 ? "服务器处理请求失败，请查看服务日志。" : error.message, ...(error.details ? { details: error.details } : {}) });
+    if (isApi) return jsonResponse(response, status, { ok: false, code, message: status >= 500 && !(error instanceof AiGenerationError) ? "服务器处理请求失败，请查看服务日志。" : error.message, ...(error.details ? { details: error.details } : {}) });
     response.writeHead(status, { "Content-Type": "text/plain; charset=utf-8" });
     response.end(status >= 500 ? "Server error" : error.message);
   }
 });
 
+const embeddedSiteRuntime = configured.environment === "development" && process.env.TZ_SITE_EMBED !== "false"
+  ? createSiteRuntime({ database, host: configured.host, port: Number(process.env.TZ_SITE_PORT) || 18080, workspaceId: "default" })
+  : null;
+if (embeddedSiteRuntime) {
+  embeddedSiteRuntime.listen().then((address) => {
+    productionLogger.info("official_site.embedded_started", { host: embeddedSiteRuntime.config.host, port: address?.port || embeddedSiteRuntime.config.port });
+  }).catch((error) => {
+    productionLogger.error("official_site.embedded_failed", { code: error.code || "SITE_START_FAILED", error: error.message });
+  });
+}
 server.listen(port, configured.host, () => {
   productionLogger.info("server.started", { environment: configured.environment, host: configured.host, port, database: configured.databasePath });
 });
@@ -1638,6 +1664,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       clearInterval(contentAssetPatrolTimer);
       clearTimeout(citationUpdateStartupTimer);
       clearInterval(citationUpdateTimer);
+      if (embeddedSiteRuntime) void embeddedSiteRuntime.close();
       citationResearchStore?.close();
       researchDocumentStore?.close();
       database.close();

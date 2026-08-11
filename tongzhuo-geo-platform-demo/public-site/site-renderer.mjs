@@ -1,3 +1,5 @@
+import { applyPublicCitationVisibility } from "../citation-visibility.mjs";
+
 const DEFAULT_DESCRIPTION = "企业公开信息、行业洞察与可验证的专业内容。";
 
 // Front-end prototype content. These records are presentation fallbacks only:
@@ -799,7 +801,7 @@ export function renderInsightsPage({ site, articles, categories, selectedCategor
 }
 
 export function renderArticlePage({ site, article, origin, relatedArticles = [], compatibility = false }) {
-  const sanitized = sanitizeArticleHtml(article.contentHtml || "");
+  const sanitized = sanitizeArticleHtml(applyPublicCitationVisibility(article.contentHtml || "", article.metadata));
   const rawBody = sanitized || plainText(article.contentText || "").split(/\n{2,}/).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
   const { html: contentHtml, headings } = ensureArticleHeadings(rawBody);
   const pathname = articleLink(article);
