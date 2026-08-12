@@ -1891,6 +1891,78 @@ const MIGRATIONS = Object.freeze([
       ON external_site_publication_tasks
       BEGIN SELECT RAISE(ABORT, 'external site task identity is immutable'); END;
     `
+  },
+  {
+    version: 30,
+    name: "scheduled_draft_generation",
+    sql: `
+      CREATE TABLE content_generation_schedules (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        plan_id TEXT NOT NULL REFERENCES content_plans(id) ON DELETE CASCADE,
+        status TEXT NOT NULL DEFAULT 'paused' CHECK (status IN ('active', 'paused', 'attention')),
+        schedule_json TEXT NOT NULL CHECK (json_valid(schedule_json) AND json_type(schedule_json) = 'object'),
+        generation_payload_json TEXT NOT NULL CHECK (json_valid(generation_payload_json) AND json_type(generation_payload_json) = 'object'),
+        next_run_at TEXT NOT NULL,
+        retry_at TEXT,
+        consecutive_failures INTEGER NOT NULL DEFAULT 0 CHECK (consecutive_failures >= 0),
+        last_scheduled_at TEXT,
+        last_success_at TEXT,
+        last_error_code TEXT,
+        last_error_message TEXT,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (workspace_id, plan_id)
+      ) STRICT;
+
+      CREATE INDEX content_generation_schedules_due_idx
+        ON content_generation_schedules (workspace_id, status, retry_at, next_run_at);
+
+      CREATE TABLE content_generation_schedule_runs (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        schedule_id TEXT NOT NULL REFERENCES content_generation_schedules(id) ON DELETE CASCADE,
+        plan_id TEXT NOT NULL REFERENCES content_plans(id) ON DELETE CASCADE,
+        scheduled_for TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'draft_created', 'failed', 'skipped')),
+        attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+        idempotency_key TEXT NOT NULL,
+        content_task_id TEXT REFERENCES content_tasks(id) ON DELETE SET NULL,
+        content_article_id TEXT REFERENCES content_articles(id) ON DELETE SET NULL,
+        article_version_id TEXT REFERENCES content_article_versions(id) ON DELETE SET NULL,
+        error_code TEXT,
+        error_message TEXT,
+        started_at TEXT,
+        completed_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (schedule_id, scheduled_for),
+        UNIQUE (workspace_id, idempotency_key)
+      ) STRICT;
+
+      CREATE INDEX content_generation_schedule_runs_status_idx
+        ON content_generation_schedule_runs (workspace_id, status, scheduled_for, updated_at);
+
+      CREATE TRIGGER content_generation_schedule_plan_boundary_insert
+      BEFORE INSERT ON content_generation_schedules
+      WHEN NOT EXISTS (SELECT 1 FROM content_plans plan WHERE plan.id = NEW.plan_id AND plan.workspace_id = NEW.workspace_id)
+      BEGIN SELECT RAISE(ABORT, 'content generation schedule plan boundary mismatch'); END;
+
+      CREATE TRIGGER content_generation_schedule_run_boundary_insert
+      BEFORE INSERT ON content_generation_schedule_runs
+      WHEN NOT EXISTS (
+        SELECT 1 FROM content_generation_schedules schedule
+        WHERE schedule.id = NEW.schedule_id AND schedule.workspace_id = NEW.workspace_id AND schedule.plan_id = NEW.plan_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'content generation schedule run boundary mismatch'); END;
+
+      CREATE TRIGGER content_generation_schedule_run_identity_immutable
+      BEFORE UPDATE OF workspace_id, schedule_id, plan_id, scheduled_for, idempotency_key, created_at
+      ON content_generation_schedule_runs
+      BEGIN SELECT RAISE(ABORT, 'content generation schedule run identity is immutable'); END;
+    `
   }
 ]);
 

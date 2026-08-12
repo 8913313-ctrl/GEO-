@@ -14,6 +14,8 @@ import { FoundationMethodologyResolver } from "./foundation-methodology-resolver
 import { FoundationAssetStore } from "./foundation-asset-store.mjs";
 import { applyPublicCitationVisibility, publicCitationMarkersVisible } from "./citation-visibility.mjs";
 import { createContentApi } from "./content-api.mjs";
+import { ContentGenerationScheduler, ContentGenerationSchedulerError } from "./content-generation-scheduler.mjs";
+import { createContentGenerationSchedulerApi } from "./content-generation-scheduler-api.mjs";
 import { ContentAssetError, ContentAssetStore } from "./content-asset-store.mjs";
 import { createContentAssetApi } from "./content-asset-api.mjs";
 import { ExternalSiteConnectorError, ExternalSiteConnectorStore } from "./external-site-connector-store.mjs";
@@ -97,6 +99,15 @@ const contentStore = new ContentStore(database, {
 });
 const recoveredContentGenerationJobs = contentStore.recoverInterruptedGenerationJobs({ workspaceId: projectWorkspaceId });
 if (recoveredContentGenerationJobs) productionLogger.warn("content.generation_interrupted_recovered", { count: recoveredContentGenerationJobs });
+const contentGenerationScheduler = new ContentGenerationScheduler({
+  database,
+  contentStore,
+  workspaceId: projectWorkspaceId,
+  generateDraft: generateScheduledContentDraft
+});
+const recoveredScheduledGenerationRuns = contentGenerationScheduler.recoverStaleRuns();
+if (recoveredScheduledGenerationRuns) productionLogger.warn("content.generation_schedule_interrupted_recovered", { count: recoveredScheduledGenerationRuns });
+const contentGenerationSchedulerApi = createContentGenerationSchedulerApi({ scheduler: contentGenerationScheduler, requestJson, configured });
 const contentAssetStore = new ContentAssetStore(database, { workspaceId: projectWorkspaceId });
 const externalSiteConnectorStore = new ExternalSiteConnectorStore(database, contentStore, { workspaceId: projectWorkspaceId, dataDir: configured.dataDir });
 publisherStore.setWebPublisher((target) => contentStore.publish({
@@ -503,6 +514,22 @@ const brandMonitoringSchedulerStartupTimer = setTimeout(() => runBrandMonitoring
 const brandMonitoringSchedulerTimer = setInterval(() => runBrandMonitoringScheduler(), configured.brandMonitoringSchedulerIntervalMs);
 brandMonitoringSchedulerStartupTimer.unref?.();
 brandMonitoringSchedulerTimer.unref?.();
+
+let contentGenerationSchedulerRunning = false;
+async function runContentGenerationScheduler() {
+  if (contentGenerationSchedulerRunning) return;
+  contentGenerationSchedulerRunning = true;
+  try {
+    const result = await contentGenerationScheduler.processDue({ limit: configured.contentGenerationSchedulerBatchSize });
+    if (result.claimed) productionLogger.info("content.schedule.completed", { claimed: result.claimed, draftCreated: result.draftCreated, failed: result.failed, skipped: result.skipped });
+  } catch (error) {
+    productionLogger.error("content.schedule.failed", { code: error.code || "CONTENT_SCHEDULE_FAILED", error: error.message });
+  } finally { contentGenerationSchedulerRunning = false; }
+}
+const contentGenerationSchedulerStartupTimer = setTimeout(() => runContentGenerationScheduler(), 5_000);
+const contentGenerationSchedulerTimer = setInterval(() => runContentGenerationScheduler(), configured.contentGenerationSchedulerIntervalMs);
+contentGenerationSchedulerStartupTimer.unref?.();
+contentGenerationSchedulerTimer.unref?.();
 
 let contentAssetPatrolRunning = false;
 async function runContentAssetPatrol() {
@@ -1645,6 +1672,62 @@ async function persistGeneratedArticle(payload, generated, ragResult, principal,
   }
 }
 
+async function generateScheduledContentDraft({ planId, scheduledFor, idempotencyKey, attempt = 1, generationPayload, actor = null, request = null }) {
+  const payload = { ...(generationPayload && typeof generationPayload === "object" ? generationPayload : {}) };
+  payload.planId = planId;
+  payload.contentPlanId = planId;
+  payload.industryTemplateContext = projectIndustryTemplateSnapshot;
+  payload.scheduledFor = scheduledFor;
+  payload.useRag = payload.useRag === true || payload.rag?.enabled === true;
+  delete payload.methodologyContext;
+  delete payload.promptFoundationContext;
+  delete payload.approvedEvidence;
+  delete payload.evidence;
+
+  // A crash after persistence must not append another immutable version or
+  // spend model quota: reuse every successful occurrence attempt first.
+  const maximumAttempt = Math.max(1, Number(attempt) || 1);
+  for (let index = 1; index <= maximumAttempt; index += 1) {
+    const attemptKey = index === 1 ? idempotencyKey : `${idempotencyKey}:retry:${index}`;
+    const existing = contentStore.generationJobByIdempotency(projectWorkspaceId, attemptKey);
+    if (existing?.status !== "succeeded" || !existing.result?.versionId || !existing.articleId) continue;
+    const article = contentStore.article(projectWorkspaceId, existing.articleId, { includeVersion: true, includeEvidence: true });
+    const version = contentStore.version(projectWorkspaceId, existing.result.versionId, { includeContent: true, includeEvidence: true });
+    const task = existing.taskId ? contentStore.task(projectWorkspaceId, existing.taskId) : article.taskId ? contentStore.task(projectWorkspaceId, article.taskId) : null;
+    return { task, article, version, generationJob: existing };
+  }
+  payload.idempotencyKey = maximumAttempt === 1 ? idempotencyKey : `${idempotencyKey}:retry:${maximumAttempt}`;
+
+  let ragResult = null;
+  if (payload.useRag) {
+    const query = payload.rag?.query || payload.topic?.coreQuestion || payload.topic?.title || payload.topicBrief?.coreQuestion || "";
+    if (String(query).trim()) {
+      ragResult = await knowledgeStore.retrieve({
+        workspaceId: projectWorkspaceId, query,
+        businessLineId: payload.rag?.businessLineId || payload.businessLine?.id || "",
+        libraryIds: Array.isArray(payload.rag?.libraryIds) ? payload.rag.libraryIds : [], topK: payload.rag?.topK || 8,
+        minScore: payload.rag?.minScore ?? 0.08, providerId: payload.rag?.embeddingProviderId || "", includeInternal: false
+      });
+      if (ragResult.evidence?.length) {
+        const validated = knowledgeStore.validateEvidenceReferences({ workspaceId: projectWorkspaceId, evidence: ragResult.evidence, allowInternal: false });
+        payload.approvedEvidence = validated.items.filter((item) => item.referenceType === "knowledge");
+      }
+    }
+  }
+  payload.methodologyContext = foundationMethodologyResolver.resolveArticleContext({
+    workspaceId: projectWorkspaceId, planId,
+    customerQuestion: payload.topic?.coreQuestion || payload.topic?.title || payload.topicBrief?.coreQuestion || "", topicTitle: payload.topic?.title || "",
+    contentType: payload.contentType || payload.outputContract?.contentType || "", intent: payload.topic?.intent || payload.topic?.geoBrief?.searchIntent || "", stage: payload.topic?.stage || payload.topic?.geoBrief?.decisionStage || ""
+  });
+  payload.promptFoundationContext = foundationMethodologyResolver.resolveArticlePromptContext({
+    workspaceId: projectWorkspaceId, planId, companyProfile: payload.companyProfile || {}, businessLine: payload.businessLine || {}, topic: payload.topic || {},
+    customerQuestion: payload.topic?.coreQuestion || payload.topic?.title || payload.topicBrief?.coreQuestion || "", contentType: payload.contentType || payload.outputContract?.contentType || "",
+    knowledgeScope: { libraryIds: Array.isArray(payload.rag?.libraryIds) ? payload.rag.libraryIds : [] }, retrievedEvidence: payload.approvedEvidence || [], methodology: payload.methodologyContext
+  });
+  const generated = await aiGenerationService.generateArticle(payload);
+  return persistGeneratedArticle(payload, generated, ragResult, actor, request);
+}
+
 async function handleAiGenerationApi(request, response, parts, principal) {
   if (parts.length !== 4) {
     return jsonResponse(response, 404, { ok: false, code: "GENERATION_ROUTE_NOT_FOUND", message: "AI 生成接口不存在。" });
@@ -1844,6 +1927,10 @@ const server = http.createServer(async (request, response) => {
       const principal = await authService.requirePermission(request, method === "GET" ? PERMISSIONS.WORKSPACE_READ : PERMISSIONS.CONTENT_PUBLISH, { requireCsrf: method === "GET" ? false : undefined });
       return await externalSiteConnectorApi(request, { json: (status, payload) => jsonResponse(response, status, payload) }, parts, principal);
     }
+    if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "content-generation-schedules") {
+      const principal = await authService.requirePermission(request, method === "GET" ? PERMISSIONS.WORKSPACE_READ : PERMISSIONS.CONTENT_GENERATE, { requireCsrf: method === "GET" ? false : undefined });
+      return await contentGenerationSchedulerApi(request, { json: (status, payload) => jsonResponse(response, status, payload) }, parts, principal);
+    }
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "content") {
       const isRiskScan = method !== "GET" && parts[5] === "risk-scan";
       const permission = method === "GET" ? PERMISSIONS.WORKSPACE_READ
@@ -1925,7 +2012,7 @@ const server = http.createServer(async (request, response) => {
     const status = error instanceof WorkspaceConflictError ? 409
       : error instanceof PublisherError ? Number(error.status || 400)
       : error instanceof KnowledgeError ? Number(error.status || 422)
-      : error instanceof ContentError ? Number(error.status || 422)
+      : error instanceof ContentError || error instanceof ContentGenerationSchedulerError ? Number(error.status || 422)
       : error instanceof ContentAssetError ? Number(error.status || 422)
       : error instanceof ExternalSiteConnectorError ? Number(error.status || 422)
       : error instanceof MonitoringError ? Number(error.status || 422)
@@ -1975,6 +2062,8 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       clearInterval(diagnosticRelayPullTimer);
       clearTimeout(brandMonitoringSchedulerStartupTimer);
       clearInterval(brandMonitoringSchedulerTimer);
+      clearTimeout(contentGenerationSchedulerStartupTimer);
+      clearInterval(contentGenerationSchedulerTimer);
       clearTimeout(contentAssetPatrolStartupTimer);
       clearInterval(contentAssetPatrolTimer);
       clearTimeout(citationUpdateStartupTimer);

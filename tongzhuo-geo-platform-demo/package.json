@@ -28,6 +28,7 @@
     "check:tongzhuo-e2e": "node --check scripts/check-tongzhuo-end-to-end.mjs && node scripts/check-tongzhuo-end-to-end.mjs",
     "check:planning-generation": "node --check scripts/check-planning-generation-flow.mjs && node scripts/check-planning-generation-flow.mjs",
     "check:content-reliability": "node --check scripts/check-content-task-reliability.mjs && node scripts/check-content-task-reliability.mjs",
+    "check:scheduled-drafts": "node --check content-generation-scheduler.mjs && node --check scripts/check-scheduled-draft-generation.mjs && node scripts/check-scheduled-draft-generation.mjs",
     "check:runtime-identity": "node --check scripts/check-runtime-build-identity.mjs && node scripts/check-runtime-build-identity.mjs",
     "check:clean-delivery-runtime": "node --check scripts/check-clean-delivery-runtime.mjs && node scripts/check-clean-delivery-runtime.mjs",
     "check:concurrent-migrations": "node --check scripts/check-concurrent-migrations.mjs && node scripts/check-concurrent-migrations.mjs",

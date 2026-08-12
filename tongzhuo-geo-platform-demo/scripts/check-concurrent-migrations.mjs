@@ -23,7 +23,7 @@ try {
   const results = await Promise.all([run(), run(), run(), run()]);
   for (const result of results) {
     assert.equal(result.code, 0, result.stderr);
-    assert.match(result.stdout, /29/);
+    assert.match(result.stdout, /30/);
   }
   console.log("Concurrent first-boot database migration check passed.");
 } finally {

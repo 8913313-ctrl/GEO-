@@ -78,6 +78,11 @@ export const productionConfig = Object.freeze({
   // fresh relay quote and is capped by its plan-specific credit authorization.
   brandMonitoringSchedulerIntervalMs: numberEnv("TZ_BRAND_MONITORING_SCHEDULER_INTERVAL_MS", 60_000, { min: 10_000, max: 900_000 }),
   brandMonitoringSchedulerBatchSize: numberEnv("TZ_BRAND_MONITORING_SCHEDULER_BATCH_SIZE", 12, { min: 1, max: 100 }),
+  // Automatic content production is deliberately limited to reviewable
+  // drafts. Each plan remains paused until an authenticated operator enables
+  // it; this timer therefore has no effect on new installations.
+  contentGenerationSchedulerIntervalMs: numberEnv("TZ_CONTENT_GENERATION_SCHEDULER_INTERVAL_MS", 60_000, { min: 10_000, max: 900_000 }),
+  contentGenerationSchedulerBatchSize: numberEnv("TZ_CONTENT_GENERATION_SCHEDULER_BATCH_SIZE", 3, { min: 1, max: 20 }),
   contentAssetPatrolIntervalMs: numberEnv("TZ_CONTENT_ASSET_PATROL_INTERVAL_MS", 6 * 60 * 60 * 1_000, { min: 60_000, max: 7 * 86_400_000 }),
   contentAssetPatrolBatchSize: numberEnv("TZ_CONTENT_ASSET_PATROL_BATCH_SIZE", 20, { min: 1, max: 200 }),
   contentAssetCitationStaleDays: numberEnv("TZ_CONTENT_ASSET_CITATION_STALE_DAYS", 30, { min: 1, max: 365 }),
