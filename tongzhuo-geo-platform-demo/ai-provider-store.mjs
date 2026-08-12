@@ -59,6 +59,11 @@ function normalizeKind(value, fallback = "text") {
   return ["text", "image", "embedding"].includes(kind) ? kind : fallback;
 }
 
+function normalizeFallbackProviderIds(value, providerId = "") {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.map(safeId).filter((id) => id && id !== providerId))].slice(0, 8);
+}
+
 function normalizeUrl(value, field = "baseUrl") {
   const raw = String(value || "").trim();
   if (!raw) throw new AiProviderError(`${field} 不能为空。`);
@@ -227,6 +232,7 @@ export class AiProviderStore {
       kind: normalizeKind(provider.kind),
       apiKey: this.decryptStoredSecret(provider),
       models: Array.isArray(provider.models) ? provider.models.map((item) => String(item || "").trim()).filter(Boolean).slice(0, 50) : [],
+      fallbackProviderIds: normalizeFallbackProviderIds(provider.fallbackProviderIds, id),
       status: normalizeStatus(provider.status),
       connectionStatus: ["passed", "failed", "untested"].includes(provider.connectionStatus) ? provider.connectionStatus : "untested",
       lastTestAt: provider.lastTestAt || null,
@@ -292,7 +298,7 @@ export class AiProviderStore {
     const model = normalizeModel(payload.model);
     const apiKey = readApiKey(payload) || "";
     const createdAt = nowIso();
-    const provider = { id, name, baseUrl, model, protocol: inferProtocol(payload.protocol, baseUrl), kind: normalizeKind(payload.kind), apiKey, models: [], status: normalizeStatus(payload.status), connectionStatus: "untested", lastTestAt: null, lastTestMessage: "", createdAt, updatedAt: createdAt };
+    const provider = { id, name, baseUrl, model, protocol: inferProtocol(payload.protocol, baseUrl), kind: normalizeKind(payload.kind), apiKey, models: [], fallbackProviderIds: normalizeFallbackProviderIds(payload.fallbackProviderIds, id), status: normalizeStatus(payload.status), connectionStatus: "untested", lastTestAt: null, lastTestMessage: "", createdAt, updatedAt: createdAt };
     await this.write((state) => state.providers.push(provider));
     return publicProvider(provider);
   }
@@ -307,6 +313,7 @@ export class AiProviderStore {
     if (Object.prototype.hasOwnProperty.call(payload, "protocol")) provider.protocol = normalizeProtocol(payload.protocol, provider.protocol);
     provider.protocol = inferProtocol(provider.protocol, provider.baseUrl);
     if (Object.prototype.hasOwnProperty.call(payload, "kind")) provider.kind = normalizeKind(payload.kind, provider.kind);
+    if (Object.prototype.hasOwnProperty.call(payload, "fallbackProviderIds")) provider.fallbackProviderIds = normalizeFallbackProviderIds(payload.fallbackProviderIds, provider.id);
     if (Object.prototype.hasOwnProperty.call(payload, "status")) provider.status = normalizeStatus(payload.status, provider.status);
     const nextApiKey = readApiKey(payload);
     if (nextApiKey !== undefined) provider.apiKey = nextApiKey;

@@ -371,7 +371,14 @@ function isRetryableUpstreamError(error) {
   if (!(error instanceof AiGenerationError)) return false;
   if (["UPSTREAM_EMPTY_RESPONSE", "UPSTREAM_OUTPUT_TRUNCATED", "UPSTREAM_TIMEOUT", "UPSTREAM_CONNECTION_ERROR"].includes(error.code)) return true;
   if (error.code !== "UPSTREAM_HTTP_ERROR") return false;
-  return /\b(?:408|409|425|429|500|502|503|504)\b|busy|overload|rate.?limit|temporar|timeout|稍后|繁忙|限流|超时/i.test(String(error.message || ""));
+  return [408, 425, 429].includes(error.upstreamStatus) || error.upstreamStatus >= 500;
+}
+
+function isProviderFailoverEligible(error) {
+  if (!(error instanceof AiGenerationError)) return false;
+  if (["UPSTREAM_TIMEOUT", "UPSTREAM_CONNECTION_ERROR"].includes(error.code)) return true;
+  return error.code === "UPSTREAM_HTTP_ERROR"
+    && ([408, 425, 429].includes(error.upstreamStatus) || error.upstreamStatus >= 500);
 }
 
 function supportedModelsFromError(message) {
@@ -477,6 +484,14 @@ function normalizeUsage(usage) {
   if (Number.isFinite(promptTokens)) normalized.promptTokens = promptTokens;
   if (Number.isFinite(completionTokens)) normalized.completionTokens = completionTokens;
   if (Number.isFinite(totalTokens)) normalized.totalTokens = totalTokens;
+  const inputCost = Number(usage.input_cost ?? usage.prompt_cost);
+  const outputCost = Number(usage.output_cost ?? usage.completion_cost);
+  const totalCost = Number(usage.total_cost ?? usage.cost);
+  if (Number.isFinite(inputCost) && inputCost >= 0) normalized.inputCost = inputCost;
+  if (Number.isFinite(outputCost) && outputCost >= 0) normalized.outputCost = outputCost;
+  if (Number.isFinite(totalCost) && totalCost >= 0) normalized.totalCost = totalCost;
+  const currency = optionalString(usage.currency, 12).toUpperCase();
+  if (currency && /^[A-Z]{3,8}$/.test(currency)) normalized.currency = currency;
   return Object.keys(normalized).length ? normalized : null;
 }
 
@@ -1378,6 +1393,55 @@ export class AiGenerationService {
     return { provider, model };
   }
 
+  async resolveProviderCandidates(providerId, modelOverride = "", expectedKind = "text") {
+    const primary = await this.resolveProvider(providerId, modelOverride, expectedKind);
+    const candidates = [primary];
+    for (const fallbackId of primary.provider.fallbackProviderIds || []) {
+      const fallback = this.providerStore.find(fallbackId);
+      if (!fallback || fallback.status !== "enabled" || fallback.kind !== expectedKind || !fallback.baseUrl || !fallback.model) continue;
+      candidates.push({ provider: fallback, model: fallback.model });
+    }
+    return candidates;
+  }
+
+  async callModelWithFailover(candidates, messages, options = {}) {
+    const providerAttempts = [];
+    let lastError;
+    const totalBudgetMs = clampInteger(options.failoverTotalTimeoutMs ?? options.upstreamTotalTimeoutMs, this.upstreamTotalTimeoutMs, 5_000, 110_000);
+    const deadline = Date.now() + totalBudgetMs;
+    for (let index = 0; index < candidates.length; index += 1) {
+      const candidate = candidates[index];
+      try {
+        const remainingMs = deadline - Date.now();
+        if (remainingMs < 1_000 && lastError) throw lastError;
+        const response = await this.callModel(candidate.provider, candidate.model, messages, {
+          ...options,
+          upstreamTotalTimeoutMs: Math.max(1_000, remainingMs),
+          requestTimeoutMs: Math.min(Number(options.requestTimeoutMs) || this.timeoutMs, Math.max(1_000, remainingMs))
+        });
+        providerAttempts.push({ providerId: candidate.provider.id, model: response.model || candidate.model, outcome: "succeeded" });
+        return { ...response, provider: candidate.provider, providerAttempts };
+      } catch (error) {
+        lastError = error;
+        providerAttempts.push({
+          providerId: candidate.provider.id,
+          model: candidate.model,
+          outcome: "failed",
+          errorCode: optionalString(error?.code, 80) || "AI_GENERATION_ERROR",
+          ...(Number.isInteger(error?.upstreamStatus) ? { upstreamStatus: error.upstreamStatus } : {})
+        });
+        if (!isProviderFailoverEligible(error) || index >= candidates.length - 1) {
+          error.providerAttempts = providerAttempts;
+          error.failedProvider = candidate.provider;
+          error.failedModel = candidate.model;
+          throw error;
+        }
+      }
+    }
+    if (lastError) throw lastError;
+    throw new AiGenerationError("没有可用的 AI 供应商。", 503, "PROVIDER_UNAVAILABLE");
+  }
+
   async callModel(provider, model, messages, options = {}) {
     let lastError = null;
     const upstreamTotalTimeoutMs = clampInteger(options.upstreamTotalTimeoutMs, this.upstreamTotalTimeoutMs, 5_000, 110_000);
@@ -1451,7 +1515,9 @@ export class AiGenerationService {
             return this.callModelOnce(provider, fallbackModel, messages, { ...options, modelFallbackAttempt: true });
           }
         }
-        throw new AiGenerationError(`上游模型请求失败：${cleanProviderError(upstreamMessage, provider.apiKey)}`, 502, "UPSTREAM_HTTP_ERROR");
+        const upstreamError = new AiGenerationError(`上游模型请求失败：${cleanProviderError(upstreamMessage, provider.apiKey)}`, 502, "UPSTREAM_HTTP_ERROR");
+        upstreamError.upstreamStatus = response.status;
+        throw upstreamError;
       }
       const finishReason = optionalString(payload?.choices?.[0]?.finish_reason, 40).toLowerCase();
       const usage = normalizeUsage(payload.usage);
@@ -1475,7 +1541,7 @@ export class AiGenerationService {
       }
       return {
         content,
-        model,
+        model: optionalString(payload.model, 120) || model,
         finishReason,
         usage,
         requestId
@@ -1537,7 +1603,8 @@ export class AiGenerationService {
   }
 
   async generate(operation, input, prompt, validator, options = {}) {
-    const { provider, model } = await this.resolveProvider(input.providerId, input.model);
+    const candidates = await this.resolveProviderCandidates(input.providerId, input.model);
+    const { provider, model } = candidates[0];
     const { systemPrompt, generationTotalTimeoutMs: requestedGenerationTotalTimeoutMs, ...modelOptions } = options;
     const runId = `AIRUN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const startedAt = Date.now();
@@ -1549,6 +1616,8 @@ export class AiGenerationService {
     let usage = null;
     let effectiveModel = model;
     let upstreamRequestId = "";
+    let effectiveProvider = provider;
+    let providerAttempts = [];
     try {
       let lastContractError = null;
       for (attempts = 1; attempts <= this.maxAttempts; attempts += 1) {
@@ -1564,10 +1633,12 @@ export class AiGenerationService {
           perAttemptOptions.upstreamTotalTimeoutMs = Math.min(Number(modelOptions.upstreamTotalTimeoutMs) || this.upstreamTotalTimeoutMs, remainingGenerationMs);
           perAttemptOptions.requestTimeoutMs = Math.min(Number(modelOptions.requestTimeoutMs) || this.timeoutMs, remainingGenerationMs);
         }
-        const response = await this.callModel(provider, model, [
+        const response = await this.callModelWithFailover(candidates, [
           { role: "system", content: optionalString(systemPrompt, 30000) || generationSystemPrompt() },
           { role: "user", content: prompt + repair }
         ], perAttemptOptions);
+        effectiveProvider = response.provider || effectiveProvider;
+        providerAttempts.push(...(response.providerAttempts || []));
         effectiveModel = response.model || effectiveModel;
         usage = response.usage || usage;
         upstreamRequestId = response.requestId || upstreamRequestId;
@@ -1581,10 +1652,11 @@ export class AiGenerationService {
             id: runId,
             operation,
             status: "succeeded",
-            providerId: provider.id,
-            providerName: provider.name,
+            providerId: effectiveProvider.id,
+            providerName: effectiveProvider.name,
             model: effectiveModel,
             attempts,
+            providerAttempts,
             usage,
             upstreamRequestId,
             inputSummary: options.inputSummary || {},
@@ -1607,17 +1679,21 @@ export class AiGenerationService {
         : new AiGenerationError(`AI 生成失败：${cleanProviderError(error?.message || "内部校验异常。")}`, 500, "AI_GENERATION_ERROR");
       usage = safeError.usage || usage;
       upstreamRequestId = safeError.requestId || upstreamRequestId;
+      providerAttempts.push(...(safeError.providerAttempts || []));
+      effectiveProvider = safeError.failedProvider || effectiveProvider;
+      effectiveModel = safeError.failedModel || effectiveModel;
       const completedAt = Date.now();
       const failureRun = {
         id: runId,
         operation,
         status: "failed",
-        providerId: provider.id,
-        providerName: provider.name,
+        providerId: effectiveProvider.id,
+        providerName: effectiveProvider.name,
         model: effectiveModel,
         attempts,
+        providerAttempts,
         errorCode: safeError.code,
-        errorMessage: cleanProviderError(safeError.message, provider.apiKey),
+        errorMessage: cleanProviderError(safeError.message, effectiveProvider.apiKey),
         errorDetails: Array.isArray(safeError.details)
           ? safeError.details.slice(0, 12).map((item) => cleanProviderError(String(item), provider.apiKey))
           : [],
