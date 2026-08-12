@@ -1808,6 +1808,89 @@ const MIGRATIONS = Object.freeze([
       CREATE INDEX knowledge_url_previews_hash_idx
         ON knowledge_url_import_previews (library_id, content_hash, status);
     `
+  },
+  {
+    version: 29,
+    name: "external_site_connectors",
+    sql: `
+      CREATE TABLE external_site_connections (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('wordpress_rest', 'generic_http')),
+        endpoint_url TEXT NOT NULL,
+        settings_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(settings_json) AND json_type(settings_json) = 'object'),
+        credential_envelope_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(credential_envelope_json) AND json_type(credential_envelope_json) = 'object'),
+        credential_fingerprint TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'enabled' CHECK (status IN ('enabled', 'disabled')),
+        last_test_status TEXT NOT NULL DEFAULT 'untested' CHECK (last_test_status IN ('untested', 'passed', 'failed')),
+        last_test_at TEXT,
+        last_error_code TEXT,
+        last_error_message TEXT,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        updated_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (workspace_id, name)
+      ) STRICT;
+
+      CREATE INDEX external_site_connections_workspace_idx
+        ON external_site_connections (workspace_id, status, type, updated_at DESC);
+
+      CREATE TABLE external_site_publication_tasks (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        connection_id TEXT NOT NULL REFERENCES external_site_connections(id) ON DELETE RESTRICT,
+        article_id TEXT NOT NULL REFERENCES content_articles(id) ON DELETE RESTRICT,
+        article_version_id TEXT NOT NULL REFERENCES content_article_versions(id) ON DELETE RESTRICT,
+        operation TEXT NOT NULL CHECK (operation IN ('publish', 'update', 'delete')),
+        remote_id TEXT NOT NULL DEFAULT '',
+        idempotency_key TEXT NOT NULL,
+        payload_hash TEXT NOT NULL CHECK (length(payload_hash) = 64 AND payload_hash NOT GLOB '*[^0-9a-f]*'),
+        status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'running', 'published', 'updated', 'deleted', 'failed')),
+        attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+        next_attempt_at TEXT,
+        receipt_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(receipt_json) AND json_type(receipt_json) = 'object'),
+        remote_url TEXT NOT NULL DEFAULT '',
+        last_error_code TEXT,
+        last_error_message TEXT,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        completed_at TEXT,
+        UNIQUE (workspace_id, connection_id, idempotency_key)
+      ) STRICT;
+
+      CREATE INDEX external_site_publication_queue_idx
+        ON external_site_publication_tasks (workspace_id, status, next_attempt_at, created_at);
+      CREATE INDEX external_site_publication_content_idx
+        ON external_site_publication_tasks (workspace_id, article_id, article_version_id, created_at DESC);
+
+      CREATE TRIGGER external_site_task_connection_boundary_insert
+      BEFORE INSERT ON external_site_publication_tasks
+      WHEN NOT EXISTS (
+        SELECT 1 FROM external_site_connections connector
+        WHERE connector.id = NEW.connection_id
+          AND connector.workspace_id = NEW.workspace_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'external site connector boundary mismatch'); END;
+
+      CREATE TRIGGER external_site_task_content_boundary_insert
+      BEFORE INSERT ON external_site_publication_tasks
+      WHEN NOT EXISTS (
+        SELECT 1 FROM content_articles article
+        JOIN content_article_versions version ON version.article_id = article.id
+        WHERE article.id = NEW.article_id
+          AND article.workspace_id = NEW.workspace_id
+          AND version.id = NEW.article_version_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'external site content boundary mismatch'); END;
+
+      CREATE TRIGGER external_site_task_identity_immutable
+      BEFORE UPDATE OF workspace_id, connection_id, article_id, article_version_id, operation, idempotency_key, payload_hash, created_by, created_at
+      ON external_site_publication_tasks
+      BEGIN SELECT RAISE(ABORT, 'external site task identity is immutable'); END;
+    `
   }
 ]);
 

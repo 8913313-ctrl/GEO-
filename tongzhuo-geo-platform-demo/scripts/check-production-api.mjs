@@ -170,6 +170,21 @@ try {
   });
   assert(result.response.status === 403, "Operator must not manage model credentials");
 
+  result = await request("/api/v1/external-sites/connections", { headers: { Cookie: operatorCookie } });
+  assert(result.response.status === 200 && Array.isArray(result.body.data.items), "Operator should read external site connector metadata");
+  result = await request("/api/v1/external-sites/connections", {
+    method: "POST",
+    headers: { Cookie: operatorCookie, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "No CSRF", type: "generic_http", endpointUrl: "https://publisher.example/hook", settings: { authType: "none" } })
+  });
+  assert(result.response.status === 403 && result.body.code === "CSRF_INVALID", "External site connection writes must require CSRF");
+  result = await request("/api/v1/external-sites/connections", {
+    method: "POST",
+    headers: { Cookie: operatorCookie, "X-CSRF-Token": operatorCsrf, "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Operator forbidden", type: "generic_http", endpointUrl: "https://publisher.example/hook", settings: { authType: "none" } })
+  });
+  assert(result.response.status === 201 && result.body.data.connection && result.body.data.connection.hasCredentials === false, "Operator should create a connector with content.publish permission");
+
   result = await request("/api/v1/audit?limit=50", { headers: { Cookie: adminCookie } });
   assert(result.response.status === 200 && result.body.data.items.some((item) => item.action === "workspace.save"), "Server audit log is missing workspace event");
 

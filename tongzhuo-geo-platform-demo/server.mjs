@@ -16,6 +16,8 @@ import { applyPublicCitationVisibility, publicCitationMarkersVisible } from "./c
 import { createContentApi } from "./content-api.mjs";
 import { ContentAssetError, ContentAssetStore } from "./content-asset-store.mjs";
 import { createContentAssetApi } from "./content-asset-api.mjs";
+import { ExternalSiteConnectorError, ExternalSiteConnectorStore } from "./external-site-connector-store.mjs";
+import { createExternalSiteConnectorApi } from "./external-site-connector-api.mjs";
 import { MonitoringError, MonitoringStore, monitoringDateDaysBefore, monitoringReportingDate } from "./monitoring-store.mjs";
 import { createMonitoringSuggestionGenerator } from "./monitoring-suggestion-generator.mjs";
 import { DiagnosticError, DiagnosticStore } from "./diagnostic-store.mjs";
@@ -96,6 +98,7 @@ const contentStore = new ContentStore(database, {
 const recoveredContentGenerationJobs = contentStore.recoverInterruptedGenerationJobs({ workspaceId: projectWorkspaceId });
 if (recoveredContentGenerationJobs) productionLogger.warn("content.generation_interrupted_recovered", { count: recoveredContentGenerationJobs });
 const contentAssetStore = new ContentAssetStore(database, { workspaceId: projectWorkspaceId });
+const externalSiteConnectorStore = new ExternalSiteConnectorStore(database, contentStore, { workspaceId: projectWorkspaceId, dataDir: configured.dataDir });
 publisherStore.setWebPublisher((target) => contentStore.publish({
   workspaceId: projectWorkspaceId,
   articleId: target.articleId,
@@ -124,6 +127,7 @@ const contentApi = createContentApi({
   }
 });
 const contentAssetApi = createContentAssetApi({ contentAssetStore, requestJson, configured });
+const externalSiteConnectorApi = createExternalSiteConnectorApi({ store: externalSiteConnectorStore, requestJson, configured });
 publisherStore.setPublicationObserver((job) => contentAssetStore.syncPublisherJob(job, { workspaceId: projectWorkspaceId }));
 const diagnosticStore = new DiagnosticStore(database, { workspaceId: projectWorkspaceId });
 let diagnosticRelayClient = null;
@@ -1836,6 +1840,10 @@ const server = http.createServer(async (request, response) => {
       const principal = await authService.requirePermission(request, method === "GET" ? PERMISSIONS.WORKSPACE_READ : PERMISSIONS.CONTENT_PUBLISH, { requireCsrf: method === "GET" ? false : undefined });
       return await contentAssetApi(request, { json: (status, payload) => jsonResponse(response, status, payload) }, parts, principal);
     }
+    if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "external-sites") {
+      const principal = await authService.requirePermission(request, method === "GET" ? PERMISSIONS.WORKSPACE_READ : PERMISSIONS.CONTENT_PUBLISH, { requireCsrf: method === "GET" ? false : undefined });
+      return await externalSiteConnectorApi(request, { json: (status, payload) => jsonResponse(response, status, payload) }, parts, principal);
+    }
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "content") {
       const isRiskScan = method !== "GET" && parts[5] === "risk-scan";
       const permission = method === "GET" ? PERMISSIONS.WORKSPACE_READ
@@ -1919,6 +1927,7 @@ const server = http.createServer(async (request, response) => {
       : error instanceof KnowledgeError ? Number(error.status || 422)
       : error instanceof ContentError ? Number(error.status || 422)
       : error instanceof ContentAssetError ? Number(error.status || 422)
+      : error instanceof ExternalSiteConnectorError ? Number(error.status || 422)
       : error instanceof MonitoringError ? Number(error.status || 422)
       : error instanceof DiagnosticError || error instanceof DiagnosticAnalysisError ? Number(error.status || 422)
       : error instanceof AnalysisWorkbenchError ? Number(error.status || 422)
