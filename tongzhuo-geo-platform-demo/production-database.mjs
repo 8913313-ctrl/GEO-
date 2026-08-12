@@ -1963,6 +1963,25 @@ const MIGRATIONS = Object.freeze([
       ON content_generation_schedule_runs
       BEGIN SELECT RAISE(ABORT, 'content generation schedule run identity is immutable'); END;
     `
+  },
+  {
+    version: 31,
+    name: "scoped_api_tokens",
+    sql: `
+      CREATE TABLE api_tokens (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        token_prefix TEXT NOT NULL,
+        scopes_json TEXT NOT NULL CHECK (json_valid(scopes_json) AND json_type(scopes_json) = 'array'),
+        created_at TEXT NOT NULL,
+        expires_at TEXT,
+        last_used_at TEXT,
+        revoked_at TEXT
+      ) STRICT;
+      CREATE INDEX api_tokens_user_idx ON api_tokens (user_id, revoked_at, expires_at);
+    `
   }
 ]);
 

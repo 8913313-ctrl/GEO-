@@ -1051,6 +1051,15 @@ async function handleUsersApi(request, response, parts) {
   return jsonResponse(response, 404, { ok: false, code: "USER_ROUTE_NOT_FOUND", message: "成员接口不存在。" });
 }
 
+async function handleApiTokensApi(request, response, parts) {
+  const method = request.method || "GET";
+  const principal = await authService.authenticate(request, { requireCsrf: method === "GET" ? false : undefined });
+  if (parts.length === 3 && method === "GET") return jsonResponse(response, 200, { ok: true, data: { items: authService.listApiTokens(principal.userId) } });
+  if (parts.length === 3 && method === "POST") return jsonResponse(response, 201, { ok: true, data: authService.createApiToken(await requestJson(request, 100_000), principal, request) });
+  if (parts.length === 4 && method === "DELETE") return jsonResponse(response, 200, { ok: true, data: authService.revokeApiToken(decodeURIComponent(parts[3]), principal, request) });
+  return jsonResponse(response, 404, { ok: false, code: "API_TOKEN_ROUTE_NOT_FOUND", message: "API Token 接口不存在。" });
+}
+
 async function handleAuditApi(request, response) {
   await authService.requirePermission(request, PERMISSIONS.AUDIT_READ, { requireCsrf: false });
   const query = new URL(request.url || "/", "http://localhost").searchParams;
@@ -1878,6 +1887,7 @@ const server = http.createServer(async (request, response) => {
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "workspace") return await handleWorkspaceApi(request, response, parts);
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "site-cms") return await handleSiteCmsApi(request, response, parts);
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "users") return await handleUsersApi(request, response, parts);
+    if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "api-tokens") return await handleApiTokensApi(request, response, parts);
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "audit" && method === "GET") return await handleAuditApi(request, response);
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "citation-package-updates") {
       const principal = await authService.requirePermission(request, method === "GET" ? PERMISSIONS.WORKSPACE_READ : PERMISSIONS.SYSTEM_MANAGE, { requireCsrf: method === "GET" ? false : undefined });

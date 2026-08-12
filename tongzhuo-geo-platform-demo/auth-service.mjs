@@ -230,6 +230,13 @@ function hashMatches(raw, expectedHash) {
   return actual.length === expected.length && actual.length > 0 && timingSafeEqual(actual, expected);
 }
 
+function normalizeTokenScopes(value) {
+  if (!Array.isArray(value)) throw new AuthError("API Token 必须明确选择权限范围。", 422, "API_TOKEN_SCOPES_REQUIRED");
+  const scopes = [...new Set(value.map(String).filter((item) => allPermissions.includes(item)))];
+  if (!scopes.length || scopes.length !== value.length) throw new AuthError("API Token 权限范围无效。", 422, "API_TOKEN_SCOPES_INVALID");
+  return scopes;
+}
+
 export class AuthService {
   constructor(database, options = {}) {
     if (!database?.connection) throw new TypeError("AuthService requires a ProductionDatabase instance.");
@@ -407,6 +414,15 @@ export class AuthService {
     const extracted = tokenFromRequest(requestOrToken, this.sessionCookieName);
     if (!extracted.token) throw new AuthError("请先登录。", 401, "AUTHENTICATION_REQUIRED");
     const now = new Date().toISOString();
+    if (extracted.source === "bearer") {
+      const tokenRow = this.connection.prepare(`SELECT t.*, u.username, u.display_name, u.email, u.role, u.status, u.created_at AS user_created_at, u.updated_at AS user_updated_at, u.last_login_at FROM api_tokens t JOIN users u ON u.id = t.user_id WHERE t.token_hash = ?`).get(sha256Token(extracted.token));
+      if (tokenRow) {
+        if (tokenRow.revoked_at || (tokenRow.expires_at && tokenRow.expires_at <= now) || tokenRow.status !== "active") throw new AuthError("API Token 已失效。", 401, "API_TOKEN_INVALID");
+        const scopes = JSON.parse(tokenRow.scopes_json);
+        this.connection.prepare("UPDATE api_tokens SET last_used_at = ? WHERE id = ?").run(now, tokenRow.id);
+        return { userId: tokenRow.user_id, tokenId: tokenRow.id, username: tokenRow.username, displayName: tokenRow.display_name, role: tokenRow.role, permissions: scopes, user: { id: tokenRow.user_id, username: tokenRow.username, displayName: tokenRow.display_name, email: tokenRow.email || "", role: tokenRow.role, status: tokenRow.status, permissions: scopes, createdAt: tokenRow.user_created_at, updatedAt: tokenRow.user_updated_at, lastLoginAt: tokenRow.last_login_at || null } };
+      }
+    }
     const row = this.connection.prepare(`
       SELECT
         s.id AS session_id, s.csrf_hash, s.expires_at, s.revoked_at,
@@ -474,6 +490,31 @@ export class AuthService {
 
   listUsers() {
     return this.connection.prepare("SELECT * FROM users ORDER BY created_at ASC").all().map(publicUser);
+  }
+
+  listApiTokens(userId) {
+    return this.connection.prepare("SELECT id, name, token_prefix, scopes_json, created_at, expires_at, last_used_at, revoked_at FROM api_tokens WHERE user_id = ? ORDER BY created_at DESC").all(String(userId)).map((row) => ({ id: row.id, name: row.name, tokenPrefix: row.token_prefix, scopes: JSON.parse(row.scopes_json), createdAt: row.created_at, expiresAt: row.expires_at, lastUsedAt: row.last_used_at, revokedAt: row.revoked_at }));
+  }
+
+  createApiToken(payload = {}, actor = null, request = null) {
+    const name = String(payload.name || "").trim().slice(0, 120);
+    if (!name) throw new AuthError("请填写 API Token 名称。", 422, "API_TOKEN_NAME_REQUIRED");
+    const scopes = normalizeTokenScopes(payload.scopes);
+    const expiresAt = payload.expiresAt ? new Date(payload.expiresAt).toISOString() : null;
+    if (expiresAt && expiresAt <= new Date().toISOString()) throw new AuthError("API Token 到期时间必须晚于当前时间。", 422, "API_TOKEN_EXPIRY_INVALID");
+    const raw = `tz_pat_${base64Url(randomBytes(32))}`;
+    const id = randomUUID(); const now = new Date().toISOString();
+    this.connection.prepare("INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, scopes_json, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(id, actor.userId, name, sha256Token(raw), raw.slice(0, 14), JSON.stringify(scopes), now, expiresAt);
+    appendAuditLog(this.connection, { actorUserId: actor.userId, action: "api_token.create", entityType: "api_token", entityId: id, details: { name, scopes, expiresAt }, request, trustProxy: this.trustProxy, createdAt: now });
+    return { token: raw, item: this.listApiTokens(actor.userId).find((item) => item.id === id) };
+  }
+
+  revokeApiToken(id, actor = null, request = null) {
+    const now = new Date().toISOString();
+    const result = this.connection.prepare("UPDATE api_tokens SET revoked_at = COALESCE(revoked_at, ?) WHERE id = ? AND user_id = ?").run(now, String(id), actor.userId);
+    if (!result.changes) throw new AuthError("API Token 不存在。", 404, "API_TOKEN_NOT_FOUND");
+    appendAuditLog(this.connection, { actorUserId: actor.userId, action: "api_token.revoke", entityType: "api_token", entityId: String(id), details: {}, request, trustProxy: this.trustProxy, createdAt: now });
+    return { revoked: true, id: String(id) };
   }
 
   async createUser(payload = {}, actor = null, request = null) {
