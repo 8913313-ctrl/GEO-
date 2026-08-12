@@ -56,6 +56,7 @@ try {
   assert.match(previewHtml, /data-site-template="energy"/);
   assert.match(previewHtml, /示例设备/);
   assert.doesNotMatch(previewHtml, /桐灼科技|灼见 GEO/, "client template must not inject Tongzhuo identity");
+  assert.doesNotMatch(previewHtml, /aria-label="桐灼服务重点"/, "client template accessibility text must not inject Tongzhuo identity");
 
   cmsStore.submitReview({ reason: "模板预览验收" });
   cmsStore.approve({ reason: "客户内容与模板通过审核" });
