@@ -122,6 +122,18 @@ try {
   });
   assert(result.response.status === 200 && result.body.data.draft.revision > cmsDraft.revision, "CMS draft save failed");
   const updatedCmsDraft = result.body.data.draft;
+  result = await request("/api/v1/site-cms/submit-review", {
+    method: "POST",
+    headers: { Cookie: adminCookie, "X-CSRF-Token": adminCsrf, "Content-Type": "application/json" },
+    body: JSON.stringify({ reason: "HTTP CMS contract review" })
+  });
+  assert(result.response.status === 200 && result.body.data.workflow.status === "pending_review", "CMS review submission failed");
+  result = await request("/api/v1/site-cms/approve", {
+    method: "POST",
+    headers: { Cookie: adminCookie, "X-CSRF-Token": adminCsrf, "Content-Type": "application/json" },
+    body: JSON.stringify({ reason: "HTTP CMS contract approval" })
+  });
+  assert(result.response.status === 200 && result.body.data.workflow.status === "approved", "CMS approval failed");
   result = await request("/api/v1/site-cms/publish", {
     method: "POST",
     headers: { Cookie: adminCookie, "X-CSRF-Token": adminCsrf, "Content-Type": "application/json" },

@@ -1,10 +1,19 @@
-import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const manifestPath = path.join(projectRoot, "research-packages", "geo-citation-lab", "2.0.1", "manifest.json");
+const researchDatabasePath = path.join(path.dirname(manifestPath), "derived", "citation-research.sqlite");
 const errors = [];
+
+async function sha256File(filePath) {
+  const digest = createHash("sha256");
+  for await (const chunk of createReadStream(filePath)) digest.update(chunk);
+  return digest.digest("hex");
+}
 
 function check(condition, message) {
   if (!condition) errors.push(message);
@@ -66,6 +75,14 @@ if (manifest) {
   check(manifest.artifacts?.["cn_geo.duckdb"]?.sha256 === "60ce886643d9cb3ae7a28ca136a855637159f20aaaa38564b7e861440b74c913", "DuckDB SHA-256 must match the pin");
   check(manifest.artifacts?.["citation_observations.parquet"]?.sha256 === "9e59d9e1fc625f4f343ee5d9e17b4a3a86e3d2a356fd300cf86634fab74078c7", "citation Parquet SHA-256 must match the pin");
   check(manifest.artifacts?.["citation-research.sqlite"]?.readOnlyRuntime === true, "derived SQLite must be declared read-only at runtime");
+  try {
+    const databaseInfo = await stat(researchDatabasePath);
+    check(databaseInfo.isFile(), "derived SQLite must be a regular file");
+    check(databaseInfo.size === manifest.artifacts?.["citation-research.sqlite"]?.bytes, "derived SQLite size must match the manifest");
+    check(await sha256File(researchDatabasePath) === manifest.artifacts?.["citation-research.sqlite"]?.sha256, "derived SQLite SHA-256 must match the manifest");
+  } catch (error) {
+    check(false, `derived SQLite is unavailable: ${error.message}`);
+  }
   const responses = manifest.artifacts?.["responses.parquet"];
   requireFields(responses, ["included", "declaredState", "rowCount"], "manifest.artifacts.responses.parquet");
   check(responses?.included === false, "responses.parquet must not be declared as included");
