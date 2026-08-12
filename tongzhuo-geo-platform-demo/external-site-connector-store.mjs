@@ -129,9 +129,20 @@ function publicTask(row) {
 function publicReceipt(value) {
   const receipt = parseJson(value, {});
   const remoteId = text(receipt.id ?? receipt.remoteId, "receipt.remoteId", 500);
-  const remoteUrl = text(receipt.link ?? receipt.url ?? receipt.remoteUrl, "receipt.remoteUrl", 2_000);
+  const remoteUrl = safeReceiptUrl(receipt.link ?? receipt.url ?? receipt.remoteUrl);
   const remoteStatus = text(receipt.status ?? receipt.state, "receipt.status", 120);
   return { ...(remoteId ? { remoteId } : {}), ...(remoteUrl ? { remoteUrl } : {}), ...(remoteStatus ? { status: remoteStatus } : {}) };
+}
+
+function safeReceiptUrl(value) {
+  const candidate = text(value, "receipt.remoteUrl", 2_000);
+  if (!candidate) return "";
+  try {
+    const parsed = new URL(candidate);
+    return ["http:", "https:"].includes(parsed.protocol) && !parsed.username && !parsed.password ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 function origin(value) { return new URL(value).origin; }
@@ -177,7 +188,7 @@ export async function requestExternalJson(url, { payload, headers = {}, method =
           port: target.port || undefined,
           method: normalizedMethod,
           path: `${target.pathname || "/"}${target.search || ""}`,
-          headers: { Host: target.host, "User-Agent": "TongzhuoExternalSiteConnector/1.0", Accept: "application/json", ...(body.length ? { "Content-Type": "application/json", "Content-Length": String(body.length) } : {}), ...headers },
+          headers: { Host: target.host, "User-Agent": "EnterpriseGeoExternalSiteConnector/1.0", Accept: "application/json", "Accept-Encoding": "identity", ...(body.length ? { "Content-Type": "application/json", "Content-Length": String(body.length) } : {}), ...headers },
           timeout: Math.max(1_000, Math.min(30_000, Number(timeoutMs) || DEFAULT_TIMEOUT_MS)),
           lookup(_hostname, lookupOptions, callback) {
             if (lookupOptions?.all) callback(null, [{ address: selected.address, family: selected.family }]);
@@ -260,7 +271,7 @@ export class ExternalSiteConnectorStore {
     const envelope = Object.keys(normalizedCredentials).length ? this.secrets.encryptSecret(credentialJson, this.secretContext(connectionId)) : {};
     this.database.transaction(() => {
       this.connection.prepare(`INSERT INTO external_site_connections (id, workspace_id, name, type, endpoint_url, settings_json, credential_envelope_json, credential_fingerprint, status, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'enabled', ?, ?, ?, ?)`)
-        .run(connectionId, workspaceId, text(name, "name", 160, true), normalizedType, safeEndpoint(endpointUrl), JSON.stringify(normalizedSettings), JSON.stringify(envelope), Object.keys(normalizedCredentials).length ? sha256(credentialJson) : "", userId, userId, timestamp, timestamp);
+        .run(connectionId, workspaceId, text(name, "name", 160, true), normalizedType, safeEndpoint(endpointUrl), JSON.stringify(normalizedSettings), JSON.stringify(envelope), Object.keys(normalizedCredentials).length ? "configured:v1" : "", userId, userId, timestamp, timestamp);
       appendAuditLog(this.connection, { actorUserId: userId, action: "external_site.connection.create", entityType: "external_site_connection", entityId: connectionId, details: { workspaceId, type: normalizedType, endpointOrigin: origin(endpointUrl), hasCredentials: Object.keys(normalizedCredentials).length > 0 }, request, createdAt: timestamp });
     });
     return this.get(workspaceId, connectionId);
@@ -277,7 +288,7 @@ export class ExternalSiteConnectorStore {
     const envelope = Object.keys(normalizedCredentials).length ? this.secrets.encryptSecret(credentialJson, this.secretContext(connectionId)) : {};
     this.database.transaction(() => {
       this.connection.prepare(`UPDATE external_site_connections SET name = ?, endpoint_url = ?, settings_json = ?, credential_envelope_json = ?, credential_fingerprint = ?, status = ?, last_test_status = 'untested', last_test_at = NULL, last_error_code = NULL, last_error_message = NULL, updated_by = ?, updated_at = ? WHERE workspace_id = ? AND id = ?`)
-        .run(name === undefined ? current.name : text(name, "name", 160, true), endpointUrl === undefined ? current.endpoint_url : safeEndpoint(endpointUrl), JSON.stringify(normalizedSettings), JSON.stringify(envelope), Object.keys(normalizedCredentials).length ? sha256(credentialJson) : "", nextStatus, userId, timestamp, workspaceId, connectionId);
+        .run(name === undefined ? current.name : text(name, "name", 160, true), endpointUrl === undefined ? current.endpoint_url : safeEndpoint(endpointUrl), JSON.stringify(normalizedSettings), JSON.stringify(envelope), Object.keys(normalizedCredentials).length ? "configured:v1" : "", nextStatus, userId, timestamp, workspaceId, connectionId);
       appendAuditLog(this.connection, { actorUserId: userId, action: "external_site.connection.update", entityType: "external_site_connection", entityId: connectionId, details: { workspaceId, endpointChanged: endpointUrl !== undefined, credentialsChanged: credentials !== undefined, status: nextStatus }, request, createdAt: timestamp });
     });
     return this.get(workspaceId, connectionId);
