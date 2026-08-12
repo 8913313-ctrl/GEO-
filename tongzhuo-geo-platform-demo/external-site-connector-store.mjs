@@ -401,8 +401,11 @@ export class ExternalSiteConnectorStore {
     try {
       const result = await this.request(target, { payload, method: task.operation === "delete" && connection.type === "wordpress_rest" ? "DELETE" : "POST", headers: { "Idempotency-Key": task.idempotencyKey, ...this.authHeaders(connection, credentials, payload) } });
       const receipt = publicReceipt(result.receipt);
-      const remoteId = text(receipt.id ?? receipt.remoteId ?? task.remoteId, "receipt.remoteId", 500);
-      const remoteUrl = text(receipt.link ?? receipt.url ?? receipt.remoteUrl, "receipt.remoteUrl", 2_000);
+      // Only persist the receipt fields after they have passed the public
+      // allowlist/URL sanitizer.  In particular, never copy a raw remote URL
+      // from a third-party response into the database or audit log.
+      const remoteId = text(receipt.remoteId ?? task.remoteId, "receipt.remoteId", 500);
+      const remoteUrl = text(receipt.remoteUrl, "receipt.remoteUrl", 2_000);
       if (!remoteId && !remoteUrl) throw new ExternalSiteConnectorError("External site returned no publication receipt.", 502, "EXTERNAL_SITE_RECEIPT_MISSING");
       const timestamp = now(); const status = task.operation === "update" ? "updated" : task.operation === "delete" ? "deleted" : "published";
       this.database.transaction(() => {

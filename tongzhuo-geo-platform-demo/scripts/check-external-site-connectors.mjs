@@ -43,6 +43,7 @@ try {
       if (options.payload.event === "connector.test") return { statusCode: 200, receipt: { ok: true }, finalUrl: url };
       if (url.includes("users/me")) return { statusCode: 200, receipt: { id: 7, name: "Publisher" }, finalUrl: url };
       if (options.payload.event === "article.deleted" || options.method === "DELETE") return { statusCode: 200, receipt: { remoteId: "remote-1", status: "deleted", ignoredSecret: "must-not-be-stored" }, finalUrl: url };
+      if (options.payload.idempotencyKey === "unsafe-receipt-1") return { statusCode: 200, receipt: { remoteId: "remote-unsafe", remoteUrl: "https://user:pass@publisher.example/private", secret: "must-not-be-stored" }, finalUrl: url };
       return { statusCode: 200, receipt: { remoteId: "remote-1", remoteUrl: "https://publisher.example/posts/remote-1" }, finalUrl: url };
     }
   });
@@ -53,6 +54,8 @@ try {
   assert.equal(JSON.stringify(generic).includes("super-secret-token"), false, "API model must not reveal credentials");
   const encrypted = database.connection.prepare("SELECT credential_envelope_json FROM external_site_connections WHERE id = ?").get(generic.id).credential_envelope_json;
   assert.equal(encrypted.includes("super-secret-token"), false, "database must contain only encrypted credentials");
+  const fingerprint = database.connection.prepare("SELECT credential_fingerprint FROM external_site_connections WHERE id = ?").get(generic.id).credential_fingerprint;
+  assert.equal(fingerprint, "configured:v1", "credential presence marker must not be a hash derived from the secret");
 
   await assert.rejects(() => store.create({ name: "Local", type: "generic_http", endpointUrl: "http://127.0.0.1/admin", settings: { authType: "none" } }), (error) => error.code === "EXTERNAL_SITE_SSRF_BLOCKED" || error.code === "EXTERNAL_SITE_URL_INVALID");
   await assert.rejects(() => store.create({ name: "Bad port", type: "generic_http", endpointUrl: "https://publisher.example:8443/hook", settings: { authType: "none" } }), (error) => error.code === "EXTERNAL_SITE_SSRF_BLOCKED");
@@ -83,6 +86,11 @@ try {
   const repeatedExecute = await store.executeTask({ workspaceId: "tenant-a", taskId: created.task.id });
   assert.equal(repeatedExecute.idempotent, true);
   assert.equal(calls.length, callCount, "repeated execution must not call the remote site again");
+
+  const unsafeReceipt = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "unsafe-receipt-1" });
+  const unsafeReceiptResult = await store.executeTask({ workspaceId: "tenant-a", taskId: unsafeReceipt.task.id });
+  assert.equal(unsafeReceiptResult.task.remoteUrl, "", "credential-bearing receipt URLs must not be persisted");
+  assert.equal(JSON.stringify(unsafeReceiptResult.task.receipt).includes("must-not-be-stored"), false, "receipt fields must be allowlisted");
 
   const tampered = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "tampered-1" });
   assert.throws(() => database.connection.prepare("UPDATE external_site_publication_tasks SET payload_hash = ? WHERE id = ?").run("b".repeat(64), tampered.task.id), /identity is immutable/);
