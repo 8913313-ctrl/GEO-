@@ -1840,6 +1840,10 @@ export class ProductionDatabase {
     for (const migration of MIGRATIONS) {
       if (applied.get(migration.version)) continue;
       this.transaction(() => {
+        // Another process may finish this migration while this connection is
+        // waiting for the IMMEDIATE write lock during a first boot. Recheck
+        // under that lock before executing non-idempotent CREATE/ALTER SQL.
+        if (applied.get(migration.version)) return;
         this.connection.exec(migration.sql);
         record.run(migration.version, migration.name, new Date().toISOString());
       });
