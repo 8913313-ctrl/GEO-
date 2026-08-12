@@ -84,6 +84,9 @@ try {
   assert.equal(repeatedExecute.idempotent, true);
   assert.equal(calls.length, callCount, "repeated execution must not call the remote site again");
 
+  const tampered = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "tampered-1" });
+  assert.throws(() => database.connection.prepare("UPDATE external_site_publication_tasks SET payload_hash = ? WHERE id = ?").run("b".repeat(64), tampered.task.id), /identity is immutable/);
+
   const update = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", operation: "update", remoteId: "remote-1", idempotencyKey: "update-1" });
   assert.equal((await store.executeTask({ workspaceId: "tenant-a", taskId: update.task.id })).task.status, "updated");
   const deletion = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", operation: "delete", idempotencyKey: "delete-1" });

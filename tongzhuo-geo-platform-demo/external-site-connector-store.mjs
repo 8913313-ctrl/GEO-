@@ -388,6 +388,10 @@ export class ExternalSiteConnectorStore {
     const connection = this.row(workspaceId, task.connectionId);
     if (connection.status !== "enabled") throw new ExternalSiteConnectorError("External site connection is disabled.", 409, "EXTERNAL_SITE_CONNECTION_DISABLED");
     const publishable = this.contentStore.assertCanPublish(task.articleId, task.articleVersionId, { workspaceId });
+    const expectedPayloadHash = sha256(JSON.stringify({ connectionId: task.connectionId, articleId: publishable.article.id, articleVersionId: publishable.version.id, operation: task.operation, remoteId: task.remoteId }));
+    if (task.payloadHash !== expectedPayloadHash) {
+      throw new ExternalSiteConnectorError("External publication task integrity check failed.", 409, "EXTERNAL_SITE_TASK_INTEGRITY");
+    }
     const claimed = this.connection.prepare("UPDATE external_site_publication_tasks SET status = 'running', attempts = attempts + 1, next_attempt_at = NULL, last_error_code = NULL, last_error_message = NULL, updated_at = ? WHERE workspace_id = ? AND id = ? AND status IN ('queued', 'failed')").run(now(), workspaceId, taskId);
     if (Number(claimed.changes) !== 1) throw new ExternalSiteConnectorError("Publication task is already running.", 409, "EXTERNAL_SITE_TASK_BUSY");
     task = this.task(workspaceId, taskId);
