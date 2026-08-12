@@ -23,6 +23,7 @@ import os
 import re
 import sqlite3
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -246,43 +247,63 @@ def resolve_local_artifact(root: Path, artifact: Artifact) -> Path:
 
 def download_artifact(artifact: Artifact, target: Path, expected_sha256: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_name(f".{target.name}.download-{os.getpid()}-{uuid.uuid4().hex}")
+    temporary = target.with_name(f".{target.stem}.download-part{target.suffix}")
     encoded_path = urllib.parse.quote(artifact.repository_path, safe="/")
-    request = urllib.request.Request(
-        RAW_BASE_URL + encoded_path,
-        headers={"User-Agent": "Tongzhuo-GEO-citation-research-builder/1"},
-    )
-    digest = hashlib.sha256()
-    size = 0
-    try:
+    download_url = RAW_BASE_URL + encoded_path
+    maximum_attempts = 6
+    for attempt in range(1, maximum_attempts + 1):
+        size = temporary.stat().st_size if temporary.is_file() else 0
+        if size > artifact.expected_size:
+            temporary.unlink(missing_ok=True)
+            size = 0
+        headers = {"User-Agent": "Tongzhuo-GEO-citation-research-builder/1"}
+        if size:
+            headers["Range"] = f"bytes={size}-"
+        request = urllib.request.Request(download_url, headers=headers)
         try:
-            response = urllib.request.urlopen(request, timeout=60)
-        except (urllib.error.URLError, TimeoutError) as error:
-            raise BuildError(f"Cannot download {artifact.name}: {error}") from error
-        with response, temporary.open("wb") as stream:
-            while True:
-                chunk = response.read(1024 * 1024)
-                if not chunk:
-                    break
-                stream.write(chunk)
-                digest.update(chunk)
-                size += len(chunk)
-            stream.flush()
-            os.fsync(stream.fileno())
-        actual_sha256 = digest.hexdigest()
-        if size != artifact.expected_size:
-            raise BuildError(
-                f"Downloaded {artifact.name} is {size} bytes; "
-                f"expected exactly {artifact.expected_size}"
-            )
-        if actual_sha256 != expected_sha256:
-            raise BuildError(
-                f"Downloaded {artifact.name} SHA-256 mismatch: "
-                f"expected {expected_sha256}, got {actual_sha256}"
-            )
-        os.replace(temporary, target)
-    finally:
-        temporary.unlink(missing_ok=True)
+            response = urllib.request.urlopen(request, timeout=120)
+            status = getattr(response, "status", response.getcode())
+            if size and status != 206:
+                response.close()
+                temporary.unlink(missing_ok=True)
+                size = 0
+                request = urllib.request.Request(download_url, headers={"User-Agent": headers["User-Agent"]})
+                response = urllib.request.urlopen(request, timeout=120)
+            with response, temporary.open("ab" if size else "wb") as stream:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    stream.write(chunk)
+                    size += len(chunk)
+                    if size > artifact.expected_size:
+                        raise BuildError(f"Downloaded {artifact.name} exceeds the pinned size")
+                stream.flush()
+                os.fsync(stream.fileno())
+            if size == artifact.expected_size:
+                actual_sha256 = sha256_file(temporary)
+                if actual_sha256 != expected_sha256:
+                    temporary.unlink(missing_ok=True)
+                    raise BuildError(
+                        f"Downloaded {artifact.name} SHA-256 mismatch: "
+                        f"expected {expected_sha256}, got {actual_sha256}"
+                    )
+                os.replace(temporary, target)
+                return
+        except BuildError:
+            raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as error:
+            if attempt == maximum_attempts:
+                raise BuildError(
+                    f"Cannot download {artifact.name} after {maximum_attempts} attempts; "
+                    f"partial bytes retained for resume: {temporary.stat().st_size if temporary.is_file() else 0}; {error}"
+                ) from error
+        if attempt < maximum_attempts:
+            time.sleep(min(2 ** (attempt - 1), 8))
+    raise BuildError(
+        f"Downloaded {artifact.name} is {temporary.stat().st_size if temporary.is_file() else 0} bytes; "
+        f"expected exactly {artifact.expected_size}"
+    )
 
 
 def expected_source_hashes(args: argparse.Namespace) -> dict[str, str | None]:
