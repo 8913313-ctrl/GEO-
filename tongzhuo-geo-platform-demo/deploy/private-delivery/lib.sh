@@ -31,6 +31,34 @@ pd_validate_install_root() {
   printf '%s\n' "$value"
 }
 
+pd_validate_public_site_url() {
+  local value="${1:-}" authority host
+  [[ -n "$value" ]] || pd_die "--site-url is required on a fresh installation."
+  case "$value" in
+    https://*) ;;
+    *) pd_die "--site-url must be the final HTTPS URL (https://...)." ;;
+  esac
+  [[ "$value" != *[' '@]* && "$value" != *$'\n'* && "$value" != *$'\r'* ]] \
+    || pd_die "--site-url contains credentials, whitespace, or a newline."
+  authority="${value#https://}"
+  authority="${authority%%/*}"
+  authority="${authority%%\?*}"
+  authority="${authority%%\#*}"
+  [[ -n "$authority" && "$authority" != *@* ]] \
+    || pd_die "--site-url must contain a hostname and must not contain credentials."
+  if [[ "$authority" == \[*\]* ]]; then
+    host="${authority#\[}"; host="${host%%\]*}"
+  else
+    host="${authority%%:*}"
+  fi
+  host="${host,,}"
+  case "$host" in
+    ""|localhost|*.localhost|127.*|0.0.0.0|::1|0:0:0:0:0:0:0:1)
+      pd_die "--site-url must use the customer's non-local official hostname."
+      ;;
+  esac
+}
+
 pd_init_paths() {
   INSTALL_ROOT="$(pd_validate_install_root "${INSTALL_ROOT:-${TZ_INSTALL_ROOT:-$PD_DEFAULT_INSTALL_ROOT}}")"
   RELEASES_DIR="$INSTALL_ROOT/releases"

@@ -268,6 +268,42 @@ async function checkOperatorVerifierOwnsRollbackAcceptance() {
   assert.match(await readFile(log, "utf8"), /--timeout 77/);
 }
 
+async function checkInstallInputGuards() {
+  const root = path.join(testRoot, "install-input-guards");
+  const harness = path.join(root, "check-inputs.sh");
+  await mkdir(root, { recursive: true });
+  await writeFile(harness, `#!/usr/bin/env bash
+set -Eeuo pipefail
+source "${bashPath(path.join(projectRoot, "deploy", "private-delivery", "lib.sh"))}"
+pd_validate_public_site_url "$1"
+`, "utf8");
+
+  const accepted = runBash(harness, { MSYS2_ARG_CONV_EXCL: "*" });
+  // runBash does not accept positional arguments, so wrappers preserve URL
+  // punctuation exactly as a real operator invocation would.
+  assert.notEqual(accepted.status, 0, "missing site URL must be rejected");
+  for (const [name, value, pattern] of [
+    ["plain-http", "http://www.customer.example", /HTTPS URL/i],
+    ["localhost", "https://localhost", /non-local official hostname/i],
+    ["loopback", "https://127.0.0.1:18080", /non-local official hostname/i],
+    ["credentials", "https://user@example.com", /credentials/i]
+  ]) {
+    const wrapper = path.join(root, `run-${name}.sh`);
+    await writeFile(wrapper, `#!/usr/bin/env bash\nbash "${bashPath(harness)}" '${value}'\n`, "utf8");
+    const result = runBash(wrapper, { MSYS2_ARG_CONV_EXCL: "*" });
+    assert.notEqual(result.status, 0, `${name} site URL must be rejected`);
+    assert.match(result.stderr, pattern);
+  }
+  const validWrapper = path.join(root, "run-valid.sh");
+  await writeFile(validWrapper, `#!/usr/bin/env bash\nbash "${bashPath(harness)}" 'https://www.customer.example'\n`, "utf8");
+  const valid = runBash(validWrapper, { MSYS2_ARG_CONV_EXCL: "*" });
+  assert.equal(valid.status, 0, valid.stderr);
+
+  const install = await readFile(path.join(projectRoot, "deploy", "private-delivery", "install.sh"), "utf8");
+  assert.match(install, /\[\[ "\$SITE_PORT" != "\$ADMIN_PORT" \]\]/, "install must reject identical website/admin ports before preflight");
+  assert.match(install, /pd_validate_public_site_url "\$SITE_URL"/, "install must enforce the shared production URL contract");
+}
+
 try {
   await checkUpgradeBackupOrdering();
   await checkFailedSafetyBackupStopsRollback(false);
@@ -275,6 +311,7 @@ try {
   await checkFailedCodeRollbackRestoresSafetySnapshot();
   await checkRunningImageAndReleaseIdentity();
   await checkOperatorVerifierOwnsRollbackAcceptance();
+  await checkInstallInputGuards();
   console.log("Private delivery upgrade/rollback safety checks passed");
 } finally {
   await rm(testRoot, { recursive: true, force: true });

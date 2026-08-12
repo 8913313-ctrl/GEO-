@@ -138,6 +138,8 @@ fi
   || pd_die "Invalid admin port: $ADMIN_PORT"
 [[ "$SITE_PORT" =~ ^[0-9]+$ ]] && (( SITE_PORT >= 1 && SITE_PORT <= 65535 )) \
   || pd_die "Invalid website port: $SITE_PORT"
+[[ "$SITE_PORT" != "$ADMIN_PORT" ]] \
+  || pd_die "Website and admin HTTPS ports must be different."
 [[ "$SITE_BIND" =~ ^[0-9.]+$ ]] || pd_die "--site-bind must be an IPv4 bind address."
 [[ "$ADMIN_BIND" =~ ^[0-9.]+$ ]] || pd_die "--admin-bind must be an IPv4 bind address."
 [[ "$ADMIN_NAME" =~ ^[A-Za-z0-9.-]+$ ]] || pd_die "--admin-name contains unsupported characters."
@@ -230,13 +232,7 @@ EOF
 
 write_default_cutover_env() {
   [[ ! -e "$CUTOVER_ENV" ]] || return 0
-  [[ -n "$SITE_URL" ]] || pd_die "--site-url is required on a fresh installation."
-  case "$SITE_URL" in
-    http://*|https://*) ;;
-    *) pd_die "--site-url must begin with http:// or https://" ;;
-  esac
-  [[ "$SITE_URL" != *[' '@]* && "$SITE_URL" != *$'\n'* && "$SITE_URL" != *$'\r'* ]] \
-    || pd_die "--site-url contains credentials, whitespace, or a newline."
+  pd_validate_public_site_url "$SITE_URL"
   {
     printf 'TZ_COMPOSE_PROJECT_NAME=%s\n' "$DEPLOYMENT_ID"
     printf 'TZ_TENANT_ID=%s\n' "$DEPLOYMENT_ID"
