@@ -482,7 +482,7 @@ STORY: visitors identify the enterprise, inspect its GEO method as signed source
 FIRST VIEWPORT: a centered open evidence dossier anchors the fold; the offer sits left and a vertical fact-to-source endorsement chain sits right.
 FORM: verification passport, approved composition 02; concept seed challenger-passport; user-confirmed on 2026-08-10.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
---><a class="skip-link" href="#main">跳到正文</a>${preview ? `<div class="preview-bar" role="status"><span>CMS 草稿预览</span><b>仅供已登录运营人员查看 · 尚未影响正式官网</b></div>` : ""}${navigation(site, active)}<main id="main">${renderedBody}</main>${footer(site)}<script src="${escapeHtml(runtimeAssetBase)}/gsap.min.js?v=20260810-passport8" defer></script><script src="${escapeHtml(runtimeAssetBase)}/site-v8.js?v=20260810-passport3" defer></script></body></html>`;
+--><a class="skip-link" href="#main">跳到正文</a>${preview ? `<div class="preview-bar" role="status"><span>CMS 草稿预览</span><b>仅供已登录运营人员查看 · 尚未影响正式官网</b></div>` : ""}${navigation(site, active)}<main id="main">${renderedBody}</main>${footer(site)}<script src="${escapeHtml(runtimeAssetBase)}/site.js?v=20260813-lead-builder1" defer></script><script src="${escapeHtml(runtimeAssetBase)}/gsap.min.js?v=20260810-passport8" defer></script><script src="${escapeHtml(runtimeAssetBase)}/site-v8.js?v=20260810-passport3" defer></script></body></html>`;
 }
 
 function pageModules(site, page, preview = false) {
@@ -513,12 +513,31 @@ function serviceRows(site, module) {
 function renderContactForm(site, sourcePath) {
   const f = site.leadForm || {};
   if (f.enabled === false) return `<div class="lead-form-disabled"><p>暂未开放在线咨询，请通过页面公开联系方式联系我们。</p></div>`;
-  const fields = [];
-  if (f.showCompany !== false) fields.push(`<label><span>${escapeHtml(f.companyLabel || "企业名称")}</span><input name="company" autocomplete="organization" maxlength="160"></label>`);
-  if (f.showService !== false) fields.push(`<label><span>${escapeHtml(f.serviceLabel || "咨询方向")}</span><select name="service"><option value="业务咨询">业务咨询</option>${(site.businessLines || []).slice(0, 10).map((line) => `<option value="${escapeHtml(line.product || line.name)}">${escapeHtml(line.product || line.name)}</option>`).join("")}</select></label>`);
-  if (f.showWebsite === true) fields.push(`<label><span>${escapeHtml(f.websiteLabel || "企业官网")}</span><input name="website" type="url" maxlength="300" placeholder="https://"></label>`);
-  const message = f.showMessage !== false ? `<label><span>${escapeHtml(f.messageLabel || "需要解决的问题")}</span><textarea name="message" rows="5" maxlength="2000" placeholder="${escapeHtml(f.messagePlaceholder || "请描述企业现状、目标和当前遇到的问题")}"></textarea></label>` : "";
-  return `<form class="lead-form" data-lead-form><div class="form-grid"><label><span>${escapeHtml(f.nameLabel || "姓名")} *</span><input name="name" autocomplete="name" maxlength="80" required></label><label><span>${escapeHtml(f.contactLabel || "联系方式")} *</span><input name="phone" autocomplete="tel" maxlength="60" required></label>${fields.join("")}</div>${message}<input type="hidden" name="source_url" value="${escapeHtml(sourcePath)}"><div class="form-submit"><button class="button ink" type="submit">${escapeHtml(f.submitLabel || "提交咨询")} <span aria-hidden="true">→</span></button><p data-form-message role="status">${escapeHtml([f.responsePromise, f.privacyNotice].filter(Boolean).join("；"))}</p></div></form>`;
+  const legacyFields = [
+    { key: "name", label: f.nameLabel || "姓名", type: "text", required: true, enabled: true, maximum: 80 },
+    { key: "phone", label: f.contactLabel || "联系方式", type: "tel", required: true, enabled: true, maximum: 60 },
+    { key: "company", label: f.companyLabel || "企业名称", type: "text", enabled: f.showCompany !== false, maximum: 160 },
+    { key: "service", label: f.serviceLabel || "咨询方向", type: "select", enabled: f.showService !== false, dynamicOptions: "business-lines", maximum: 160 },
+    { key: "website", label: f.websiteLabel || "企业官网", type: "url", enabled: f.showWebsite === true, placeholder: "https://", maximum: 300 },
+    { key: "message", label: f.messageLabel || "需要解决的问题", type: "textarea", enabled: f.showMessage !== false, placeholder: f.messagePlaceholder, maximum: 2_000 }
+  ];
+  const definitions = (Array.isArray(f.fields) && f.fields.length ? f.fields : legacyFields).filter((field) => field?.enabled !== false).slice(0, 16);
+  const renderField = (field) => {
+    const key = escapeHtml(field.key);
+    const label = `${escapeHtml(field.label || field.key)}${field.required ? " *" : ""}`;
+    const required = field.required ? " required" : "";
+    const placeholder = field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : "";
+    const maximum = Math.max(1, Number(field.maximum) || (field.type === "textarea" ? 2_000 : 160));
+    const autocomplete = field.key === "name" ? " autocomplete=\"name\"" : field.key === "phone" ? " autocomplete=\"tel\"" : field.key === "company" ? " autocomplete=\"organization\"" : "";
+    if (field.type === "textarea") return `<label class="lead-form-field lead-form-field-wide"><span>${label}</span><textarea name="${key}" rows="5" maxlength="${maximum}"${placeholder}${required}></textarea></label>`;
+    if (field.type === "select") {
+      const options = [...(Array.isArray(field.options) ? field.options : []), ...(field.dynamicOptions === "business-lines" ? (site.businessLines || []).slice(0, 10).map((line) => line.product || line.name) : [])];
+      const unique = [...new Set(options.filter(Boolean))].slice(0, 30);
+      return `<label class="lead-form-field"><span>${label}</span><select name="${key}"${required}><option value="">请选择</option>${unique.map((option) => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join("")}</select></label>`;
+    }
+    return `<label class="lead-form-field"><span>${label}</span><input name="${key}" type="${escapeHtml(field.type || "text")}" maxlength="${maximum}"${autocomplete}${placeholder}${required}></label>`;
+  };
+  return `<form class="lead-form" data-lead-form data-form-version="${escapeHtml(f.version || "legacy")}"><div class="form-grid">${definitions.map(renderField).join("")}</div><input type="hidden" name="source_url" value="${escapeHtml(sourcePath)}"><div class="form-submit"><button class="button ink" type="submit">${escapeHtml(f.submitLabel || "提交咨询")} <span aria-hidden="true">→</span></button><p data-form-message role="status">${escapeHtml([f.responsePromise, f.privacyNotice].filter(Boolean).join("；"))}</p></div></form>`;
 }
 
 function renderFixedModule({ site, page, module, articles, index }) {

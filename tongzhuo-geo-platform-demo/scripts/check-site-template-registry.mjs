@@ -34,7 +34,7 @@ function customerCms() {
 try {
   const templates = listSiteTemplates();
   assert.equal(DEFAULT_SITE_TEMPLATE_KEY, "professional");
-  assert.deepEqual(templates.map((template) => template.key), ["professional", "industrial", "energy", "beauty"]);
+  assert.deepEqual(templates.map((template) => template.key), ["professional", "industrial", "energy", "beauty", "engineering-case", "product-matrix"]);
   assert.equal(resolveSiteTemplateKey("professional-services"), "professional");
   assert.equal(resolveSiteTemplateKey("professional/editorial"), "professional");
   assert.equal(resolveSiteTemplateKey("building-materials"), "industrial");
@@ -43,6 +43,10 @@ try {
   assert.equal(resolveSiteTemplateKey("technical/UPS-energy"), "energy");
   assert.equal(resolveSiteTemplateKey("consumer"), "beauty");
   assert.equal(resolveSiteTemplateKey("consumer/beauty"), "beauty");
+  assert.equal(resolveSiteTemplateKey("construction"), "engineering-case");
+  assert.equal(resolveSiteTemplateKey("project/engineering-case"), "engineering-case");
+  assert.equal(resolveSiteTemplateKey("multi-sku"), "product-matrix");
+  assert.equal(resolveSiteTemplateKey("catalog/product-matrix"), "product-matrix");
   assert.equal(resolveSiteTemplateKey("unknown"), DEFAULT_SITE_TEMPLATE_KEY);
   for (const template of templates) {
     assert.match(template.key, /^[a-z][a-z0-9-]*$/);
@@ -52,6 +56,8 @@ try {
 
   const themeCss = await readFile(path.resolve(moduleRoot, "..", "public-site", "themes", "templates.css"), "utf8");
   for (const template of templates) assert.match(themeCss, new RegExp(`\\.site-template-${template.key}\\b`));
+  assert.match(themeCss, /site-template-engineering-case[\s\S]*grid-template-columns:\s*minmax\(0,\s*\.72fr\)\s*minmax\(0,\s*1\.28fr\)/, "engineering template must provide a project-led case composition");
+  assert.match(themeCss, /site-template-product-matrix[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/, "product matrix must provide a multi-item catalog composition");
   assert.match(themeCss, /@media \(max-width: 680px\)/);
   assert.doesNotMatch(themeCss, /桐灼科技|客户案例|增长\s*\d|节省\s*\d|提升\s*\d/);
 
@@ -88,14 +94,14 @@ try {
     assert.match(html, /示例企业/);
     assert.doesNotMatch(html, /桐灼科技|灼见 GEO/, "template injected vendor/customer facts");
 
-    if (template.key === "energy") {
+    if (template.key === "product-matrix") {
       cmsStore.submitReview({ reason: "模板注册表验收" });
       cmsStore.approve({ reason: "模板及客户内容通过审核" });
-      const publication = cmsStore.publish({ expectedDraftRevision: saved.revision, note: "发布能源设备模板快照" });
-      assert.equal(publication.snapshot.theme.key, "energy");
-      assert.equal(publicStore.snapshot().site.theme.key, "energy");
+      const publication = cmsStore.publish({ expectedDraftRevision: saved.revision, note: "发布产品矩阵模板快照" });
+      assert.equal(publication.snapshot.theme.key, "product-matrix");
+      assert.equal(publicStore.snapshot().site.theme.key, "product-matrix");
       assert.equal(cmsStore.releases()[0].sourceDraftRevision, saved.revision);
-      expectedPublishedTemplate = "energy";
+      expectedPublishedTemplate = "product-matrix";
       const nextDraft = cmsStore.draft();
       const resetCms = structuredClone(nextDraft.snapshot);
       resetCms.theme.key = "professional";
@@ -103,7 +109,7 @@ try {
     }
   }
 
-  console.log("Site template registry, four visual themes, shared CMS contract, preview isolation, published snapshot and responsive CSS checks passed.");
+  console.log("Site template registry, six visual themes, shared CMS contract, preview isolation, published snapshot and responsive CSS checks passed.");
 } finally {
   database?.close();
   await rm(directory, { recursive: true, force: true });

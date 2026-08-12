@@ -14,10 +14,12 @@ const workspaceId = "tenant-template-contract";
 let database;
 
 try {
-  assert.deepEqual(listSiteTemplates().map((item) => item.key), ["professional", "industrial", "energy", "beauty"]);
+  assert.deepEqual(listSiteTemplates().map((item) => item.key), ["professional", "industrial", "energy", "beauty", "engineering-case", "product-matrix"]);
   assert.equal(resolveSiteTemplateKey("building-materials"), "industrial");
   assert.equal(resolveSiteTemplateKey("ups"), "energy");
   assert.equal(resolveSiteTemplateKey("skincare"), "beauty");
+  assert.equal(resolveSiteTemplateKey("construction"), "engineering-case");
+  assert.equal(resolveSiteTemplateKey("multi-sku"), "product-matrix");
   assert.equal(resolveSiteTemplateKey("not-a-template"), "professional");
 
   database = new ProductionDatabase({ databasePath: path.join(directory, "templates.sqlite") });
@@ -42,27 +44,27 @@ try {
   assert.equal(publishedBefore.site.theme.key, "professional");
 
   const cms = structuredClone(cmsStore.draft().snapshot);
-  cms.theme.key = "energy";
+  cms.theme.key = "engineering-case";
   const saved = cmsStore.saveDraft({ expectedRevision: cmsStore.draft().revision, cms });
   const preview = publicStore.snapshot({ draft: true });
-  assert.equal(preview.site.theme.key, "energy");
-  assert.equal(preview.site.template.key, "energy");
+  assert.equal(preview.site.theme.key, "engineering-case");
+  assert.equal(preview.site.template.key, "engineering-case");
   assert.deepEqual(preview.site.businessLines, businessBefore, "template switching must not mutate business data");
   assert.equal(publicStore.snapshot().site.theme.key, "professional", "draft template must not leak into publication");
 
   const homePage = preview.site.pages.find((page) => page.id === "home");
   const previewHtml = renderFixedPage({ site: preview.site, page: homePage, origin: "https://example.test", preview: true });
-  assert.match(previewHtml, /class="site-v8 site-template-energy/);
-  assert.match(previewHtml, /data-site-template="energy"/);
+  assert.match(previewHtml, /class="site-v8 site-template-engineering-case/);
+  assert.match(previewHtml, /data-site-template="engineering-case"/);
   assert.match(previewHtml, /示例设备/);
   assert.doesNotMatch(previewHtml, /桐灼科技|灼见 GEO/, "client template must not inject Tongzhuo identity");
   assert.doesNotMatch(previewHtml, /aria-label="桐灼服务重点"/, "client template accessibility text must not inject Tongzhuo identity");
 
   cmsStore.submitReview({ reason: "模板预览验收" });
   cmsStore.approve({ reason: "客户内容与模板通过审核" });
-  const publication = cmsStore.publish({ expectedDraftRevision: saved.revision, note: "发布能源设备模板" });
-  assert.equal(publication.snapshot.theme.key, "energy");
-  assert.equal(publicStore.snapshot().site.theme.key, "energy");
+  const publication = cmsStore.publish({ expectedDraftRevision: saved.revision, note: "发布工程案例模板" });
+  assert.equal(publication.snapshot.theme.key, "engineering-case");
+  assert.equal(publicStore.snapshot().site.theme.key, "engineering-case");
   assert.deepEqual(publicStore.snapshot().site.businessLines, businessBefore);
   assert.equal(cmsStore.releases()[0].sourceDraftRevision, saved.revision, "published template must remain traceable to its draft snapshot");
 

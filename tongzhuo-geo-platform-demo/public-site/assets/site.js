@@ -39,6 +39,12 @@
     const source = String(data.get("source_url") || window.location.pathname).trim();
     let sourceUrl = window.location.href;
     try { sourceUrl = new URL(source || window.location.pathname, window.location.origin).href; } catch { /* use current page */ }
+    const reserved = new Set(["name", "phone", "company", "service", "website", "message", "source_url"]);
+    const customFields = {};
+    for (const [key, rawValue] of data.entries()) {
+      if (reserved.has(key) || Object.hasOwn(customFields, key)) continue;
+      customFields[key] = String(rawValue || "").trim();
+    }
     return {
       name: String(data.get("name") || "").trim(),
       phone: String(data.get("phone") || "").trim(),
@@ -46,6 +52,8 @@
       service: String(data.get("service") || "").trim(),
       website: String(data.get("website") || "").trim(),
       message: String(data.get("message") || "").trim(),
+      form_version: String(form.dataset.formVersion || "legacy"),
+      custom_fields: customFields,
       source_url: sourceUrl,
       utm: Object.fromEntries(["source", "medium", "campaign", "term", "content"].map((key) => [key, new URLSearchParams(window.location.search).get(`utm_${key}`) || ""]).filter(([, value]) => value))
     };

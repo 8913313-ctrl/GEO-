@@ -70,14 +70,22 @@ try {
   assert.equal(result.body.code, "SITE_LEAD_IDEMPOTENCY_REQUIRED");
 
   const dynamicScript = await readFile(path.resolve("public-site/assets/site.js"), "utf8");
+  const visualScript = await readFile(path.resolve("public-site/assets/site-v8.js"), "utf8");
   const staticScript = await readFile(path.resolve("../demo-company-homepage/assets/site.js"), "utf8");
   for (const source of [dynamicScript, staticScript]) {
     assert.match(source, /Idempotency-Key/);
     assert.match(source, /1 个工作日内回复/);
     assert.ok(source.indexOf("form.reset()") > source.indexOf("response.ok"), "form fields must only reset after a successful response");
   }
+  assert.doesNotMatch(visualScript, /site-assets-r6\/site\.js/, "the visual runtime must not inject a second lead-form runtime");
 
-  const configuredCms = normalizeSiteCmsSnapshot({ settings: { leadForm: { nameLabel: "联系人<script>", contactLabel: "手机或微信", submitLabel: "提交选型需求", responsePromise: "2 小时内联系", privacyNotice: "仅用于选型服务", showCompany: false, showService: false, showWebsite: true, showMessage: false } } });
+  const configuredCms = normalizeSiteCmsSnapshot({ settings: { leadForm: { nameLabel: "联系人<script>", contactLabel: "手机或微信", submitLabel: "提交选型需求", responsePromise: "2 小时内联系", privacyNotice: "仅用于选型服务", fields: [
+    { key: "name", label: "联系人<script>", type: "text", required: true },
+    { key: "phone", label: "手机或微信", type: "tel", required: true },
+    { key: "project_type", label: "项目类型", type: "select", required: true, options: ["厂房", "住宅"] },
+    { key: "purchase_volume", label: "预计采购量", type: "number", placeholder: "例如 1000" },
+    { key: "password", label: "密码", type: "text" }
+  ] } } });
   const configuredSite = new PublicSiteStore({ database: building.runtime.store.database, workspaceId: "tenant-building", projectId: "project-building" }).siteConfig({ revision: 1, state: {} }, configuredCms);
   const contactPage = configuredSite.pages.find((item) => item.id === "contact") || { id: "contact", title: "联系我们", path: "/contact/" };
   const configuredHtml = renderFixedPage({ site: configuredSite, page: contactPage, origin: "https://building.example.test" });
@@ -86,10 +94,27 @@ try {
   assert.match(configuredHtml, /手机或微信 \*/);
   assert.match(configuredHtml, /提交选型需求/);
   assert.match(configuredHtml, /2 小时内联系；仅用于选型服务/);
-  assert.match(configuredHtml, /name="website"/);
-  assert.doesNotMatch(configuredHtml, /name="company"|name="service"|name="message"/);
+  assert.match(configuredHtml, /name="project_type"/);
+  assert.match(configuredHtml, /name="purchase_volume"/);
+  assert.match(configuredHtml, /厂房|住宅/);
+  assert.doesNotMatch(configuredHtml, /name="password"/);
   assert.match(configuredHtml, /name="name"[^>]+required/);
   assert.match(configuredHtml, /name="phone"[^>]+required/);
+  assert.match(configuredHtml, /site\.js\?v=20260813-lead-builder1/);
+  assert.equal((configuredHtml.match(/site\.js\?v=20260813-lead-builder1/g) || []).length, 1, "the lead-form runtime must be loaded exactly once");
+  const formVersion = configuredSite.leadForm.version;
+  result = await submit(building.base, "lead-form-config-0001", { name: "李经理", phone: "13900001111", form_version: formVersion, custom_fields: { project_type: "厂房", purchase_volume: "1000" } });
+  assert.equal(result.response.status, 409, "runtime must validate against its own published form, not an unrelated render-only snapshot");
+  building.runtime.leadStore.create({ name: "李经理", phone: "13900001111", form_version: formVersion, custom_fields: { project_type: "厂房", purchase_volume: "1000" } }, { idempotencyKey: "lead-form-snapshot-0001", site: configuredSite });
+  const storedSnapshot = JSON.parse(building.runtime.store.database.connection.prepare("SELECT metadata_json FROM site_contact_leads WHERE idempotency_key = ?").get("lead-form-snapshot-0001").metadata_json).leadForm;
+  assert.equal(storedSnapshot.version, formVersion);
+  assert.equal(storedSnapshot.fields.project_type, "厂房");
+  assert.equal(storedSnapshot.fields.name, "李经理");
+  assert.equal(storedSnapshot.fields.phone, "13900001111");
+  assert.equal(storedSnapshot.definition.find((field) => field.key === "project_type").label, "项目类型");
+  assert.throws(() => building.runtime.store.database.connection.prepare("UPDATE site_contact_leads SET metadata_json = '{}' WHERE idempotency_key = ?").run("lead-form-snapshot-0001"), /immutable/);
+  assert.throws(() => building.runtime.leadStore.create({ name: "李经理", phone: "13900001111", form_version: formVersion, custom_fields: { project_type: "非法选项" } }, { idempotencyKey: "lead-form-invalid-select-1", site: configuredSite }), /选项无效/);
+  assert.throws(() => building.runtime.leadStore.create({ name: "李经理", phone: "13900001111", form_version: "stale-version", custom_fields: { project_type: "厂房" } }, { idempotencyKey: "lead-form-stale-version-1", site: configuredSite }), /表单已更新/);
   const disabledSite = { ...configuredSite, leadForm: { ...configuredSite.leadForm, enabled: false } };
   const disabledHtml = renderFixedPage({ site: disabledSite, page: contactPage, origin: "https://building.example.test" });
   assert.doesNotMatch(disabledHtml, /data-lead-form/);

@@ -9,7 +9,9 @@ const TEMPLATE_DEFINITIONS = Object.freeze([
   Object.freeze({ key: "professional", category: "professional", variant: "editorial", name: "专业服务 · 编辑档案", description: "克制、可信，适合咨询、专业服务与知识型企业。", color: "#5e1d2e", aliases: Object.freeze(["passport", "professional-services", "professional/editorial", "editorial", "standard", "default"]) }),
   Object.freeze({ key: "industrial", category: "industrial", variant: "building-materials", name: "工业制造 · 工程材料", description: "强调产品规格、应用场景、工程能力与案例证据。", color: "#b85b32", aliases: Object.freeze(["manufacturing", "machinery", "industrial/building-materials", "building-materials"]) }),
   Object.freeze({ key: "energy", category: "technical", variant: "ups-energy", name: "技术设备 · UPS 能源", description: "强调可靠性、参数边界、选型与安装运维。", color: "#0d6b67", aliases: Object.freeze(["ups", "power", "technical/ups-energy", "ups-energy", "energy-equipment"]) }),
-  Object.freeze({ key: "beauty", category: "consumer", variant: "beauty", name: "消费品牌 · 美妆", description: "强调成分、适用人群、使用方法、合规与安全。", color: "#9d536b", aliases: Object.freeze(["cosmetics", "skincare", "consumer/beauty", "consumer"]) })
+  Object.freeze({ key: "beauty", category: "consumer", variant: "beauty", name: "消费品牌 · 美妆", description: "强调成分、适用人群、使用方法、合规与安全。", color: "#9d536b", aliases: Object.freeze(["cosmetics", "skincare", "consumer/beauty", "consumer"]) }),
+  Object.freeze({ key: "engineering-case", category: "project", variant: "engineering-case", name: "工程案例 · 项目实录", description: "以项目场景、实施过程和成果证据组织内容，适合工程与施工服务。", color: "#d76632", aliases: Object.freeze(["project", "projects", "construction", "engineering", "project/engineering-case", "construction-cases"]) }),
+  Object.freeze({ key: "product-matrix", category: "catalog", variant: "product-matrix", name: "产品矩阵 · 分类目录", description: "用清晰的产品矩阵承载多条产品线、规格方向与选型入口。", color: "#087f77", aliases: Object.freeze(["catalog", "products", "multi-sku", "catalog/product-matrix", "product-catalog"]) })
 ]);
 
 export const DEFAULT_SITE_TEMPLATE_KEY = "professional";

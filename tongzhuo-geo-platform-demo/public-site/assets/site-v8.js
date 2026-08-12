@@ -1,8 +1,4 @@
 (() => {
-  const legacy = document.createElement("script");
-  legacy.src = "/site-assets-r6/site.js";
-  document.head.append(legacy);
-
   const loader = document.querySelector("[data-identity-loader]");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let introTimeline = null;

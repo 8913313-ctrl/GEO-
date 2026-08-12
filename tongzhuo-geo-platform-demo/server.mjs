@@ -875,6 +875,7 @@ function siteLeadRows({ canReadContact = false, status = "", ownerId = "", sourc
       phone: canReadContact ? row.phone_or_email : maskContact(row.phone_or_email), contactMasked: !canReadContact,
       need: row.need, sourcePage: row.source_page, utm: parseObject(row.utm_json), followUpAt: row.follow_up_at || null, ownerId: row.owner_id || null,
       service: row.service, website: row.website, message: row.message,
+      formSnapshot: metadata.leadForm && typeof metadata.leadForm === "object" ? { ...metadata.leadForm, fields: canReadContact ? (metadata.leadForm.fields || {}) : Object.fromEntries(Object.keys(metadata.leadForm.fields || {}).map((key) => [key, "已隐藏"])) } : { version: "legacy", definition: [], fields: {} },
       sourceUrl: row.source_page, sourcePage: row.source_page || "官网",
       status: row.status, owner: row.owner_display_name || metadata.owner || "未分配",
       nextFollowAt: row.follow_up_at || metadata.nextFollowAt || "", notes: metadata.notes || "",
@@ -1020,7 +1021,7 @@ async function handleSiteCmsApi(request, response, parts) {
   if (operation === "preview" && parts[4] === "assets" && parts[5] && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const fileName = path.basename(decodeURIComponent(parts[5]));
-    const previewAssets = new Set(["site-v8.css", "site-v8.js", "gsap.min.js", "geo-signal-hero.svg", "geo-answer-hero.svg", "geo-network-hero.svg"]);
+    const previewAssets = new Set(["site-v8.css", "site-v8.js", "site.js", "gsap.min.js", "geo-signal-hero.svg", "geo-answer-hero.svg", "geo-network-hero.svg"]);
     if (!previewAssets.has(fileName)) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
     const body = await readFile(path.join(siteAssetRoot, fileName));
     const contentType = fileName.endsWith(".css")

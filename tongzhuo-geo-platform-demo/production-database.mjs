@@ -1982,6 +1982,16 @@ const MIGRATIONS = Object.freeze([
       ) STRICT;
       CREATE INDEX api_tokens_user_idx ON api_tokens (user_id, revoked_at, expires_at);
     `
+  },
+  {
+    version: 32,
+    name: "official_site_lead_submission_immutable",
+    sql: `
+      CREATE TRIGGER site_contact_leads_submission_immutable
+      BEFORE UPDATE OF name, company, phone_or_email, phone, service, website, message, need, source_url, source_page, utm_json, user_agent, metadata_json, created_at
+      ON site_contact_leads
+      BEGIN SELECT RAISE(ABORT, 'site lead submission is immutable'); END;
+    `
   }
 ]);
 

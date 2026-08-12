@@ -121,6 +121,7 @@ const BUILT_IN_SITE_ASSETS = Object.freeze({
   "/site-assets-r8/site-v8.js": "site-v8.js",
   "/site-assets-r9/site-v8.css": "site-v8.css",
   "/site-assets-r9/site-v8.js": "site-v8.js",
+  "/site-assets-r9/site.js": "site.js",
   "/site-assets-r9/gsap.min.js": "gsap.min.js",
   "/site-assets-r9/tz-display.woff2": "fonts/tz-display.woff2",
   "/site-assets-r9/OFL-Smiley-Sans.txt": "fonts/OFL-Smiley-Sans.txt",
@@ -675,9 +676,11 @@ export function createSiteRuntime(options = {}) {
       try {
         const payload = await requestJson(request);
         leadRateLimiter.assert(clientIp(request, config.trustProxy));
-        const lead = leadStore.create(payload, { userAgent: request.headers["user-agent"] || "", idempotencyKey: request.headers["idempotency-key"] || payload.idempotency_key });
+        const publishedSite = publishedRuntimeSnapshot(store.snapshot({ draft: false }), config.production).site;
+        const lead = leadStore.create(payload, { userAgent: request.headers["user-agent"] || "", idempotencyKey: request.headers["idempotency-key"] || payload.idempotency_key, site: publishedSite });
         const { replayed, ...publicLead } = lead;
-        return response(request, responseObject, { status: replayed ? 200 : 201, contentType: "application/json; charset=utf-8", body: JSON.stringify({ ok: true, data: { ...publicLead, duplicate: replayed, message: replayed ? "本次诊断需求已提交，请勿重复操作。我们将在 1 个工作日内回复。" : "提交成功，我们将在 1 个工作日内回复。" } }), cacheControl: "no-store" }, { requestId: id, track: false });
+        const responsePromise = String(publishedSite.leadForm?.responsePromise || "我们会尽快与您联系").replace(/[。；;]+$/, "");
+        return response(request, responseObject, { status: replayed ? 200 : 201, contentType: "application/json; charset=utf-8", body: JSON.stringify({ ok: true, data: { ...publicLead, duplicate: replayed, message: replayed ? `本次需求已提交，请勿重复操作。${responsePromise}。` : `提交成功，${responsePromise}。` } }), cacheControl: "no-store" }, { requestId: id, track: false });
       } catch (error) {
         const known = error instanceof PublicLeadError;
         if (!known) config.logger.error?.("official_site.lead_failed", { requestId: id, error: error.message });

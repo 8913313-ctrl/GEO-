@@ -6,6 +6,9 @@ import { resolveSiteTemplateKey } from "./public-site/templates/site-template-re
 const CORE_PAGE_IDS = new Set(["home", "services", "about", "contact", "insights", "cases", "problem-map"]);
 const OPTIONAL_PATHS = new Set(["/cases/", "/faq/", "/team/", "/honors/", "/jobs/"]);
 const MAX_SNAPSHOT_BYTES = 2_000_000;
+const LEAD_FORM_FIELD_TYPES = new Set(["text", "tel", "email", "url", "number", "select", "textarea"]);
+const LEAD_FORM_RESERVED_KEYS = new Set(["name", "phone", "company", "service", "website", "message"]);
+const LEAD_FORM_BLOCKED_KEYWORDS = /(?:password|passwd|pwd|密码|身份证|证件号|银行卡|信用卡|cvv|支付密码)/i;
 
 export class SiteCmsError extends Error {
   constructor(message, status = 422, code = "SITE_CMS_ERROR", details = undefined) {
@@ -25,6 +28,50 @@ function cleanText(value, fallback = "", maximum = 2_000) {
 function cleanList(value, maximum = 20) {
   const source = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[,，、;；|]/) : [];
   return [...new Set(source.map((item) => cleanText(item, "", 120)).filter(Boolean))].slice(0, maximum);
+}
+
+function defaultLeadFormFields(source = {}) {
+  return [
+    { key: "name", label: cleanText(source.nameLabel, "姓名", 40), type: "text", required: true, enabled: true, placeholder: "", options: [], maximum: 80 },
+    { key: "phone", label: cleanText(source.contactLabel, "联系方式", 40), type: "tel", required: true, enabled: true, placeholder: "", options: [], maximum: 60 },
+    { key: "company", label: cleanText(source.companyLabel, "企业名称", 40), type: "text", required: false, enabled: source.showCompany !== false, placeholder: "", options: [], maximum: 160 },
+    { key: "service", label: cleanText(source.serviceLabel, "咨询方向", 40), type: "select", required: false, enabled: source.showService !== false, placeholder: "", options: [], maximum: 160, dynamicOptions: "business-lines" },
+    { key: "website", label: cleanText(source.websiteLabel, "企业官网", 40), type: "url", required: false, enabled: source.showWebsite === true, placeholder: "https://", options: [], maximum: 300 },
+    { key: "message", label: cleanText(source.messageLabel, "需要解决的问题", 60), type: "textarea", required: false, enabled: source.showMessage !== false, placeholder: cleanText(source.messagePlaceholder, "请描述企业现状、目标和当前遇到的问题", 200), options: [], maximum: 2_000 }
+  ];
+}
+
+function normalizeLeadFormFields(source = {}) {
+  const raw = Array.isArray(source.fields) && source.fields.length ? source.fields : defaultLeadFormFields(source);
+  const fields = [];
+  const seen = new Set();
+  for (let index = 0; index < Math.min(raw.length, 16); index += 1) {
+    const item = raw[index];
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const rawKey = cleanText(item.key || item.id || item.name, "", 48).toLocaleLowerCase("en-US");
+    const key = rawKey.replace(/[^a-z0-9_-]/g, "");
+    if (!/^[a-z][a-z0-9_-]{0,47}$/.test(key) || seen.has(key) || LEAD_FORM_BLOCKED_KEYWORDS.test(key)) continue;
+    const label = cleanText(item.label, key, 60);
+    if (LEAD_FORM_BLOCKED_KEYWORDS.test(label)) continue;
+    const type = LEAD_FORM_FIELD_TYPES.has(item.type) ? item.type : "text";
+    const maximumLimit = type === "textarea" ? 8_000 : 500;
+    const maximum = Math.max(1, Math.min(maximumLimit, Number.parseInt(item.maximum ?? item.maxLength, 10) || (type === "textarea" ? 2_000 : 160)));
+    const required = LEAD_FORM_RESERVED_KEYS.has(key) && ["name", "phone"].includes(key) ? true : item.required === true;
+    fields.push({
+      key, label, type, required, enabled: ["name", "phone"].includes(key) ? true : item.enabled !== false,
+      placeholder: cleanText(item.placeholder, "", 200), options: cleanList(item.options, 30), maximum,
+      dynamicOptions: key === "service" && item.dynamicOptions !== false ? "business-lines" : ""
+    });
+    seen.add(key);
+  }
+  for (const requiredField of defaultLeadFormFields(source).slice(0, 2).reverse()) {
+    if (!seen.has(requiredField.key)) fields.unshift(requiredField);
+  }
+  return fields.slice(0, 16);
+}
+
+function leadFormVersion(fields) {
+  return createHash("sha256").update(JSON.stringify(fields)).digest("hex").slice(0, 16);
 }
 
 function cleanPublicUrl(value, { allowRelative = false } = {}) {
@@ -269,6 +316,7 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const legacySite = state.site && typeof state.site === "object" ? state.site : {};
   const settingsSource = cms.settings && typeof cms.settings === "object" ? cms.settings : {};
   const leadFormSource = settingsSource.leadForm && typeof settingsSource.leadForm === "object" && !Array.isArray(settingsSource.leadForm) ? settingsSource.leadForm : {};
+  const leadFormFields = normalizeLeadFormFields(leadFormSource);
   const settings = {
     siteName: cleanText(settingsSource.siteName, profile.brandName || "企业官网", 160),
     companyName: cleanText(settingsSource.companyName, profile.companyName || profile.brandName || "企业", 300),
@@ -292,6 +340,7 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
     footerLabel: cleanText(settingsSource.footerLabel, profile.brandName || "企业", 120),
     leadForm: {
       enabled: leadFormSource.enabled !== false,
+      version: leadFormVersion(leadFormFields), fields: leadFormFields,
       nameLabel: cleanText(leadFormSource.nameLabel, "姓名", 40), contactLabel: cleanText(leadFormSource.contactLabel, "联系方式", 40),
       companyLabel: cleanText(leadFormSource.companyLabel, "企业名称", 40), serviceLabel: cleanText(leadFormSource.serviceLabel, "咨询方向", 40),
       websiteLabel: cleanText(leadFormSource.websiteLabel, "企业官网", 40), messageLabel: cleanText(leadFormSource.messageLabel, "需要解决的问题", 60),
