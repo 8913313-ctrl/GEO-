@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+
+process.env.NODE_ENV = 'test';
+process.env.TZ_AGENT_ALLOW_INSECURE_DEV_KEY = '1';
 import { configSchemaVersion, dataDir, defaultGeoFlowBaseUrl, readConfig, writeConfig } from '../src/config-store.js';
 
 const configPath = path.join(dataDir, 'config.json');

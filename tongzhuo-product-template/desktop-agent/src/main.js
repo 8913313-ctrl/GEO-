@@ -1,22 +1,65 @@
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { TongzhuoDesktopAgent } from './agent.js';
 import { platforms } from './platforms.js';
+import { agentVersion } from './version.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(__dirname, '..', 'public');
 const agent = new TongzhuoDesktopAgent();
 const app = express();
+const instanceId = String(process.env.TZ_AGENT_INSTANCE_ID || crypto.randomUUID());
+const localToken = String(process.env.TZ_AGENT_LOCAL_TOKEN || '').trim();
+let warnedAboutUnauthenticatedApi = false;
 
 app.disable('x-powered-by');
+app.use((_request, response, next) => {
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('X-Frame-Options', 'DENY');
+  response.setHeader('Referrer-Policy', 'no-referrer');
+  response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+  next();
+});
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(publicDir));
 
 app.get('/healthz', (_request, response) => {
-  response.json({ ok: true, service: 'tongzhuo-geo-desktop-agent', status: agent.publicStatus() });
+  response.json({ ok: true, service: 'tongzhuo-geo-desktop-agent', version: agentVersion, instanceId });
 });
 
+function tokensMatch(expected, received) {
+  if (!expected || !received) return false;
+  const expectedBuffer = Buffer.from(expected, 'utf8');
+  const receivedBuffer = Buffer.from(received, 'utf8');
+  return expectedBuffer.length === receivedBuffer.length && crypto.timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
+function requireLocalToken(request, response, next) {
+  if (!localToken) {
+    if (!warnedAboutUnauthenticatedApi) {
+      warnedAboutUnauthenticatedApi = true;
+      console.warn('[security] TZ_AGENT_LOCAL_TOKEN is not set; /api is unauthenticated development mode');
+    }
+    const explicitDevelopment = process.env.TZ_AGENT_ALLOW_INSECURE_DEV_API === '1'
+      && ['test', 'development'].includes(String(process.env.NODE_ENV || '').toLowerCase());
+    if (!explicitDevelopment) {
+      response.status(503).json({ ok: false, message: 'Local API token is not configured' });
+      return;
+    }
+    next();
+    return;
+  }
+  if (!tokensMatch(localToken, String(request.get('X-Agent-Token') || ''))) {
+    response.status(401).json({ ok: false, message: 'Unauthorized' });
+    return;
+  }
+  next();
+}
+
+app.use('/api', requireLocalToken);
 app.get('/api/status', (_request, response) => {
   response.json({ ok: true, status: agent.publicStatus(), platforms });
 });
@@ -178,7 +221,7 @@ const server = app.listen(port, '127.0.0.1', () => {
     agent.heartbeat().catch(() => {});
     agent.poll().catch(() => {});
   }
-  console.log(`Tongzhuo GEO 发布节点已启动：http://127.0.0.1:${port}`);
+  console.log(`桐灼 GEO 发布节点已启动：http://127.0.0.1:${port}`);
 });
 
 async function shutdown() {

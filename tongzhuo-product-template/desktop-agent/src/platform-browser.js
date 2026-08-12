@@ -11,6 +11,11 @@ import { exportArticleBundle } from './export-bundle.js';
 import { findPlatform } from './platforms.js';
 
 const profilesDir = path.join(dataDir, 'profiles');
+const privateEnvironmentKeys = new Set(['TZ_AGENT_LOCAL_TOKEN', 'TZ_AGENT_MASTER_KEY']);
+
+export function sanitizedBrowserEnvironment(environment = process.env) {
+  return Object.fromEntries(Object.entries(environment).filter(([key]) => !privateEnvironmentKeys.has(key)));
+}
 
 function existingExecutable(value) {
   const executablePath = String(value || '').trim();
@@ -89,6 +94,7 @@ async function launchPersistentBrowser(profile) {
       viewport: null,
       locale: 'zh-CN',
       acceptDownloads: true,
+      env: sanitizedBrowserEnvironment(),
     };
     if (candidate.executablePath) options.executablePath = candidate.executablePath;
     if (candidate.channel) options.channel = candidate.channel;
@@ -122,6 +128,7 @@ export class PlatformBrowser {
       detached: false,
       windowsHide: false,
       stdio: 'ignore',
+      env: sanitizedBrowserEnvironment(),
     }));
   }
 

@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\LegacyController;
 use App\Http\Controllers\Admin\MaterialsController;
 use App\Http\Controllers\Admin\PublisherAssistantController;
 use App\Http\Controllers\Admin\PublisherDeviceController;
+use App\Http\Controllers\Admin\PublisherDeviceControlController;
 use App\Http\Controllers\Admin\SecuritySettingsController;
 use App\Http\Controllers\Admin\SiteSettingsController;
 use App\Http\Controllers\Admin\TaskController;
@@ -223,6 +224,8 @@ Route::prefix($adminPrefix)->name('admin.')->middleware(['admin.locale'])->group
             Route::post('{deviceId}/disable', [PublisherDeviceController::class, 'disable'])->name('disable')->whereNumber('deviceId');
             Route::post('{deviceId}/enable', [PublisherDeviceController::class, 'enable'])->name('enable')->whereNumber('deviceId');
             Route::post('{deviceId}/delete', [PublisherDeviceController::class, 'destroy'])->name('delete')->whereNumber('deviceId');
+            Route::post('{deviceId}/desired-state', [PublisherDeviceControlController::class, 'updateDesiredState'])->name('desired-state.update')->whereNumber('deviceId');
+            Route::post('{deviceId}/commands', [PublisherDeviceControlController::class, 'storeCommand'])->name('commands.store')->whereNumber('deviceId');
         });
 
         Route::get('publisher-assistant', [PublisherAssistantController::class, 'index'])->name('publisher-assistant');

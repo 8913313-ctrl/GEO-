@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PublisherPlatformJob extends Model
 {
-    public const TERMINAL_STATUSES = ['draft_saved', 'published', 'failed', 'cancelled', 'skipped'];
+    public const TERMINAL_STATUSES = ['draft_saved', 'published', 'failed', 'cancelled', 'skipped', 'awaiting_confirmation', 'login_required', 'verification_required'];
 
     protected $fillable = [
         'article_distribution_id',
@@ -23,6 +23,9 @@ class PublisherPlatformJob extends Model
         'max_attempts',
         'claimed_at',
         'lease_expires_at',
+        'lease_token',
+        'claimed_by',
+        'lease_heartbeat_at',
         'started_at',
         'last_progress_at',
         'finished_at',
@@ -46,6 +49,7 @@ class PublisherPlatformJob extends Model
             'max_attempts' => 'integer',
             'claimed_at' => 'datetime',
             'lease_expires_at' => 'datetime',
+            'lease_heartbeat_at' => 'datetime',
             'started_at' => 'datetime',
             'last_progress_at' => 'datetime',
             'finished_at' => 'datetime',

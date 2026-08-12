@@ -25,12 +25,17 @@ const viewMeta = {
   logs: { kicker: 'DIAGNOSTICS', title: '诊断日志', subtitle: '检查本地服务、节点凭证和平台执行能力。' },
 };
 
+function localApiHeaders() {
+  return window.tongzhuoAgent?.requestHeaders?.() || {};
+}
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     ...options,
     headers: {
       Accept: 'application/json',
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...localApiHeaders(),
       ...(options.headers || {}),
     },
   });
@@ -550,7 +555,7 @@ async function runDiagnostics() {
 async function downloadSupportBundle() {
   const button = $('#supportBundleButton');
   button.disabled = true;
-  try { const response = await fetch('/api/support-bundle?probe=1'); if (!response.ok) throw new Error(`支持包导出失败：${response.status}`); const blob = await response.blob(); const url = URL.createObjectURL(blob); const filename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || `tongzhuo-desktop-agent-support-${new Date().toISOString().slice(0, 10)}.json`; const link = document.createElement('a'); link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); setNotice('支持包已导出。', 'success'); } catch (error) { setNotice(error.message, 'error'); } finally { button.disabled = false; }
+  try { const response = await fetch('/api/support-bundle?probe=1', { headers: localApiHeaders() }); if (!response.ok) throw new Error(`支持包导出失败：${response.status}`); const blob = await response.blob(); const url = URL.createObjectURL(blob); const filename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || `tongzhuo-desktop-agent-support-${new Date().toISOString().slice(0, 10)}.json`; const link = document.createElement('a'); link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); setNotice('支持包已导出。', 'success'); } catch (error) { setNotice(error.message, 'error'); } finally { button.disabled = false; }
 }
 
 async function switchWorkspace(groupId) {

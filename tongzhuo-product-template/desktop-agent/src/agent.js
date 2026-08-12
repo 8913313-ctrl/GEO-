@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events';
+﻿import { EventEmitter } from 'node:events';
 import { readConfig, writeConfig } from './config-store.js';
 import { GeoFlowClient } from './geoflow-client.js';
 import { RuntimeLogBuffer } from './log-buffer.js';
@@ -8,6 +8,7 @@ import { buildResultPayload, retryDecision } from './job-state-machine.js';
 import { buildDiagnostics, buildSupportBundle } from './diagnostics.js';
 import { findPlatform, platforms } from './platforms.js';
 import { agentVersion } from './version.js';
+import { PublishPolicy } from './publish-policy.js';
 
 export class TongzhuoDesktopAgent extends EventEmitter {
   constructor() {
@@ -23,6 +24,14 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     this.lastHeartbeatAt = null;
     this.lastError = null;
     this.activeJobId = null;
+    this.activeJobs = new Map();
+    this.platformJobsSupported = null;
+    this.pollInFlight = null;
+    this.commandsInFlight = null;
+    this.publishPolicy = new PublishPolicy({
+      policy: { ...(this.config.publishPolicy || {}), platformPolicy: this.config.platformPolicy || {} },
+      state: this.config.publishPolicyState,
+    });
     this.pollTimer = null;
     this.heartbeatTimer = null;
     this.loginSyncTimer = null;
@@ -67,7 +76,13 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       sessions: this.sessions,
       jobs: this.jobs,
       browser: this.browser.status(),
-      activeJobId: this.activeJobId,
+      activeJobId: this.activeJobId || this.activeJobIds()[0] || null,
+      activeJobs: [...this.activeJobs.entries()].map(([jobId, item]) => ({ jobId, ...item })),
+      publishPolicy: this.publishPolicy.snapshot(),
+      desiredStateVersion: Number(this.config.desiredStateVersion || 0),
+      appliedStateVersion: Number(this.config.appliedStateVersion || 0),
+      localOverride: Boolean(this.config.localOverride),
+      enabledPlatforms: this.config.enabledPlatforms || [],
       lastPollAt: this.lastPollAt,
       lastHeartbeatAt: this.lastHeartbeatAt,
       lastError: this.lastError,
@@ -313,8 +328,13 @@ export class TongzhuoDesktopAgent extends EventEmitter {
   }
 
   configure(next) {
-    this.config = writeConfig(next);
+    const remoteApply = Boolean(next?.__remoteApply);
+    const cleaned = { ...(next || {}) };
+    delete cleaned.__remoteApply;
+    if (!remoteApply && (Object.prototype.hasOwnProperty.call(cleaned, 'autoRun') || Object.prototype.hasOwnProperty.call(cleaned, 'pollSeconds') || Object.prototype.hasOwnProperty.call(cleaned, 'loginCheckSeconds'))) cleaned.localOverride = true;
+    this.config = writeConfig(cleaned);
     this.client.updateConfig(this.config);
+    if (!remoteApply) this.publishPolicy = new PublishPolicy({ policy: { ...(this.config.publishPolicy || {}), platformPolicy: this.config.platformPolicy || {} }, state: this.publishPolicy.snapshot() });
     this.restartTimers();
     this.log('info', 'config.saved', '连接配置已保存。', {
       geoflow_base_url: this.config.geoflowBaseUrl,
@@ -348,14 +368,136 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     return result;
   }
 
+  activeJobIds() {
+    return [...this.activeJobs.keys()]
+      .map((id) => Number(String(id).replace(/^[^:]+:/, '')))
+      .filter(Number.isFinite);
+  }
   async heartbeat(extra = {}) {
     if (!this.hasCredential()) return null;
-    const result = await this.client.heartbeat({ active_job_id: this.activeJobId, ...extra });
+    const activeJobIds = this.activeJobIds();
+    const reportedState = {
+      desired_version_seen: Number(this.config.desiredStateVersion || 0) || 0,
+      applied_version: Number(this.config.appliedStateVersion || 0) || 0,
+      apply_status: 'applied',
+      local_override: Boolean(this.config.localOverride),
+      effective_auto_run: Boolean(this.config.autoRun),
+      active_job_ids: activeJobIds,
+      publish_policy: this.publishPolicy.snapshot(),
+    };
+    let result;
+    try {
+      result = await this.client.shadowHeartbeat(reportedState, {
+        active_job_id: this.activeJobId || activeJobIds[0] || null,
+        active_job_ids: activeJobIds,
+        ...extra,
+      });
+    } catch (error) {
+      // A deployed backend can be upgraded independently of the node. Keep
+      // its legacy heartbeat functioning until the shadow route is available.
+      if (![404, 405].includes(Number(error?.status || 0))) throw error;
+      result = await this.client.heartbeat({
+        active_job_id: this.activeJobId || activeJobIds[0] || null,
+        active_job_ids: activeJobIds,
+        desired_state_report: reportedState,
+        ...extra,
+      });
+    }
+    const body = result?.data || result || {};
+    await this.applyDesiredState(body.desired_state || body.device?.desired_state);
     this.lastHeartbeatAt = new Date().toISOString();
     this.lastError = null;
+    if (Number(body?.commands_hint?.queued || 0) > 0) this.processCommands({ triggerPoll: false }).catch((error) => this.log('warn', 'device.commands.failed', error.message));
     return result;
   }
 
+  async processCommands() {
+    if (this.commandsInFlight) return this.commandsInFlight;
+    this.commandsInFlight = this.processCommandsOnce().finally(() => { this.commandsInFlight = null; });
+    return this.commandsInFlight;
+  }
+
+  async processCommandsOnce() {
+    if (!this.hasCredential()) return [];
+    let response;
+    try { response = await this.client.commands(20); } catch (error) {
+      if ([404, 405].includes(Number(error?.status || 0))) return [];
+      throw error;
+    }
+    const commands = Array.isArray(response?.data?.items) ? response.data.items
+      : Array.isArray(response?.data?.commands) ? response.data.commands
+        : Array.isArray(response?.items) ? response.items : [];
+    const results = [];
+    for (const item of commands) {
+      const id = Number(item?.id);
+      if (!id) continue;
+      let claimed;
+      try { claimed = await this.client.claimCommand(id); } catch (error) {
+        if (Number(error?.status || 0) === 409) continue;
+        throw error;
+      }
+      const lease = claimed?.lease_token || claimed?.leaseToken;
+      if (!lease) continue;
+      const type = String(claimed.command_type || claimed.commandType || '');
+      try {
+        let result = {};
+        if (type === 'login_check' || type === 'check_login') result = { sessions: await this.syncLoginStates() };
+        else if (type === 'poll_now' || type === 'refresh_jobs') result = { jobs: await this.poll({ skipCommands: true }) };
+        else if (type === 'apply_desired_state') result = await this.applyDesiredState(claimed.payload?.desired_state || claimed.payload || {});
+        else result = { ignored: true, reason: 'unsupported_command_type', command_type: type };
+        await this.client.ackCommand(id, lease, 'completed', result);
+        results.push({ id, type, status: 'completed', result });
+      } catch (error) {
+        await this.client.ackCommand(id, lease, 'failed', { message: error.message }).catch(() => {});
+        results.push({ id, type, status: 'failed', message: error.message });
+      }
+    }
+    return results;
+  }
+  async applyDesiredState(desired) {
+    if (!desired || typeof desired !== 'object' || Array.isArray(desired)) return null;
+    const version = Number(desired.version || desired.desired_state_version || 0) || 0;
+    const applied = Number(this.config.appliedStateVersion || 0) || 0;
+    const takeoverRequired = Boolean(desired.takeover) && Boolean(this.config.localOverride);
+    if (Boolean(this.config.localOverride) && !takeoverRequired) {
+      return { appliedVersion: applied, status: 'local_override' };
+    }
+    // Version zero is the server's unconfigured/default shadow. It must not
+    // overwrite local settings or restart timers on every heartbeat. A
+    // takeover-only response is still allowed to clear a real local override.
+    if (version <= applied && !takeoverRequired) {
+      return { appliedVersion: applied, status: 'unchanged' };
+    }
+    const next = {};
+    if (Object.prototype.hasOwnProperty.call(desired, 'auto_run')) next.autoRun = Boolean(desired.auto_run);
+    if (Object.prototype.hasOwnProperty.call(desired, 'poll_seconds')) next.pollSeconds = desired.poll_seconds;
+    if (Object.prototype.hasOwnProperty.call(desired, 'login_check_seconds')) next.loginCheckSeconds = desired.login_check_seconds;
+    if (Object.prototype.hasOwnProperty.call(desired, 'max_job_attempts')) next.maxJobAttempts = desired.max_job_attempts;
+    if (Object.prototype.hasOwnProperty.call(desired, 'max_concurrent_groups')) {
+      next.publishPolicy = { ...(this.config.publishPolicy || {}), maxConcurrentGroups: desired.max_concurrent_groups };
+    }
+    if (desired.platform_policy && typeof desired.platform_policy === 'object' && !Array.isArray(desired.platform_policy)) {
+      next.platformPolicy = desired.platform_policy;
+    }
+    if (Array.isArray(desired.enabled_platform_ids)) next.enabledPlatforms = desired.enabled_platform_ids;
+    if (version > 0) {
+      next.desiredStateVersion = version;
+      next.appliedStateVersion = version;
+    }
+    if (takeoverRequired) next.localOverride = false;
+    const changed = Object.keys(next).length > 0 && (version > applied || takeoverRequired);
+    if (changed) {
+      this.config = writeConfig(next);
+      this.client.updateConfig(this.config);
+      this.publishPolicy = new PublishPolicy({
+        policy: { ...(this.config.publishPolicy || {}), platformPolicy: this.config.platformPolicy || {} },
+        state: this.publishPolicy.snapshot(),
+      });
+      this.restartTimers();
+      this.persistPublishPolicy();
+    }
+    return { appliedVersion: version || applied, status: changed ? 'applied' : 'unchanged' };
+  }
   async loadSessions() {
     if (!this.hasCredential()) {
       this.sessions = [];
@@ -370,32 +512,142 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     return this.sessions;
   }
 
-  async poll() {
+  async poll(options = {}) {
+    if (this.pollInFlight) return this.pollInFlight;
+    this.pollInFlight = this.pollOnce(options).finally(() => { this.pollInFlight = null; });
+    return this.pollInFlight;
+  }
+
+  async pollOnce(options = {}) {
     if (!this.hasCredential()) {
       this.lastError = null;
       return [];
     }
     this.log('info', 'jobs.poll.start', '正在读取分发任务。');
-    const response = await this.client.jobs(30);
-    const items = Array.isArray(response?.data?.items)
-      ? response.data.items
-      : Array.isArray(response?.items)
-        ? response.items
-        : Array.isArray(response?.data)
-          ? response.data
-          : [];
+    let items = [];
+    let protocol = 'platform-jobs';
+    try {
+      if (this.platformJobsSupported === false) throw Object.assign(new Error('platform jobs unavailable'), { status: 404 });
+      const response = await this.client.platformJobs(30);
+      this.platformJobsSupported = true;
+      items = Array.isArray(response?.data?.items)
+        ? response.data.items
+        : Array.isArray(response?.data?.jobs)
+          ? response.data.jobs
+          : Array.isArray(response?.items)
+            ? response.items
+            : [];
+    } catch (error) {
+      if (![404, 405].includes(Number(error?.status || 0))) throw error;
+      this.platformJobsSupported = false;
+      protocol = 'legacy';
+      const response = await this.client.jobs(30);
+      items = Array.isArray(response?.data?.items)
+        ? response.data.items
+        : Array.isArray(response?.items)
+          ? response.items
+          : Array.isArray(response?.data)
+            ? response.data
+            : [];
+    }
     this.jobs = items;
     this.lastPollAt = new Date().toISOString();
     this.lastError = null;
-    this.log('info', 'jobs.poll.done', `已读取 ${this.jobs.length} 个任务。`);
+    this.log('info', 'jobs.poll.done', `已读取 ${items.length} 个任务。`, { protocol });
     await this.loadSessions().catch(() => {});
     if (this.config.autoRun) {
-      const next = this.jobs.find((job) => job.status === 'queued');
-      if (next) await this.runJob(next.id);
+      if (!options.skipCommands) this.processCommands().catch((error) => this.log('warn', 'device.commands.failed', error.message));
+      const pending = items.filter((job) => ['queued', 'pending', 'ready', 'waiting_for_device'].includes(String(job.status || '').toLowerCase()));
+      const activeIds = new Set(this.activeJobIds());
+      const scheduledGroups = new Set([...this.activeJobs.values()].map((entry) => entry?.groupId).filter(Boolean));
+      const available = Math.max(0, this.publishPolicy.maxConcurrentGroups - this.publishPolicy.activeCount());
+      const ready = [];
+      for (const next of pending) {
+        if (ready.length >= available) break;
+        if (activeIds.has(Number(next.id))) continue;
+        const groupId = next?.account_group_id || next?.group_id || next?.payload?.account_group_id || next?.payload?.group_id || this.groupIdForProfile(next?.profile_key) || this.config.activeGroupId;
+        if (scheduledGroups.has(groupId)) continue;
+        scheduledGroups.add(groupId);
+        ready.push(next);
+      }
+      for (const next of ready) {
+        const taskKey = protocol === 'platform-jobs' ? `platform:${next.id}` : Number(next.id);
+        if (this.activeJobs.has(taskKey)) continue;
+        const runner = protocol === 'platform-jobs'
+          ? this.runPlatformJob(next, { automatic: true })
+          : this.runJob(next.id, [], { automatic: true, jobHint: next });
+        runner.catch((error) => {
+          this.lastError = error.message;
+          this.log('error', 'jobs.auto_run.failed', `自动执行任务 #${next.id} 失败：${error.message}`, { job_id: Number(next.id), protocol });
+        });
+      }
     }
     return this.jobs;
   }
 
+  async runPlatformJob(jobHint, options = {}) {
+    const automatic = options.automatic === true;
+    const id = Number(jobHint?.id);
+    const taskKey = `platform:${id}`;
+    let leaseToken = '';
+    let platformId = '';
+    let resultReported = false;
+    if (!id || this.activeJobs.has(taskKey)) throw new Error('平台子任务无效或已在执行。');
+    const hintedGroupId = jobHint?.account_group_id || jobHint?.group_id || jobHint?.payload?.account_group_id || jobHint?.payload?.group_id || this.groupIdForProfile(jobHint?.profile_key) || this.config.activeGroupId;
+    const groupPermit = this.publishPolicy.acquireGroup(hintedGroupId, automatic);
+    if (!groupPermit.allowed) throw new Error(`任务暂缓执行：${groupPermit.reason}`);
+    this.activeJobs.set(taskKey, { groupId: hintedGroupId, startedAt: new Date().toISOString(), automatic, protocol: 'platform-jobs' });
+    try {
+      const claimed = await this.client.claimPlatformJob(id);
+      leaseToken = claimed?.lease_token || claimed?.leaseToken || '';
+      if (!leaseToken) throw new Error('平台子任务领取响应缺少 lease_token。');
+      platformId = claimed.platform_id || claimed.platformId || '';
+      const groupId = claimed?.account_group_id || claimed?.group_id || claimed?.payload?.account_group_id || claimed?.payload?.group_id || this.groupIdForProfile(claimed.profile_key) || hintedGroupId;
+      const group = this.accountGroupById(groupId);
+      if (!group || !platformId) throw new Error('平台子任务缺少可用账号组或平台。');
+      this.activeJobs.set(taskKey, { groupId, startedAt: this.activeJobs.get(taskKey)?.startedAt, automatic, protocol: 'platform-jobs' });
+      await this.client.heartbeatPlatformJob(id, leaseToken, { progress_step: 'local_executor_started', progress_percent: 10 }).catch(() => {});
+      const leaseTimer = setInterval(() => this.client.heartbeatPlatformJob(id, leaseToken, { progress_step: 'local_executor_running' }).catch(() => {}), 60000);
+      let result;
+      try {
+        result = await this.runPlatformWithRetry(platformId, claimed, id, group, { automatic });
+      } finally {
+        clearInterval(leaseTimer);
+      }
+      const status = this.platformJobStatus(result);
+      await this.client.reportPlatformJobResult(id, leaseToken, status, {
+        ...result,
+        selector_telemetry: result.selector_telemetry || result.selectorTelemetry || result.telemetry || null,
+      });
+      resultReported = true;
+      return { jobId: id, platformId, state: status, result };
+    } catch (error) {
+      if (leaseToken && !resultReported) {
+        await this.client.reportPlatformJobResult(id, leaseToken, 'failed', { platform: platformId, state: 'failed', message: error.message, failure_category: 'agent_runtime_error', retryable: false }).catch(() => {});
+      }
+      this.log('error', 'platform_job.failed', `平台子任务 #${id} 执行失败：${error.message}`, { job_id: id });
+      throw error;
+    } finally {
+      const entry = this.activeJobs.get(taskKey);
+      this.publishPolicy.releaseGroup(entry?.groupId || hintedGroupId);
+      this.activeJobs.delete(taskKey);
+      this.persistPublishPolicy();
+      await this.heartbeat().catch(() => {});
+    }
+  }
+
+  groupIdForProfile(profileKey = '') {
+    const key = String(profileKey || '');
+    const match = this.listAccountGroups().find((group) => key === group.id || key.startsWith(`${group.id}--`));
+    return match?.id || '';
+  }
+
+  platformJobStatus(result = {}) {
+    const state = String(result.state || 'failed').toLowerCase();
+    if (['published', 'draft_saved', 'failed', 'cancelled', 'skipped', 'awaiting_confirmation', 'login_required', 'verification_required', 'needs_verification', 'needs_captcha'].includes(state)) return state;
+    if (state === 'awaiting_login') return 'login_required';
+    return 'failed';
+  }
   async openLogin(platformId, options = {}) {
     let group = this.accountGroupById(options.groupId);
     const groupId = group?.id || this.config.activeGroupId;
@@ -738,124 +990,110 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     return result;
   }
 
-  async runJob(id, selectedPlatforms = []) {
-    if (this.activeJobId) throw new Error('当前已有任务正在执行。');
-    this.activeJobId = Number(id);
+  async runJob(id, selectedPlatforms = [], options = {}) {
+    const automatic = options.automatic === true;
+    const jobNumber = Number(id);
+    if (!automatic && this.activeJobs.size > 0) throw new Error('当前已有任务正在执行。');
+    if (this.activeJobs.has(jobNumber)) throw new Error('该任务已在执行。');
+    const hint = options.jobHint || this.jobs.find((item) => Number(item.id) === jobNumber) || {};
+    const hintedGroupId = hint?.account_group_id || hint?.group_id || hint?.payload?.account_group_id || hint?.payload?.group_id || this.config.activeGroupId;
+    const groupPermit = this.publishPolicy.acquireGroup(hintedGroupId, automatic);
+    if (!groupPermit.allowed) throw new Error(`任务暂缓执行：${groupPermit.reason}`);
+    this.activeJobs.set(jobNumber, { groupId: hintedGroupId, startedAt: new Date().toISOString(), automatic });
+    this.activeJobId = jobNumber;
     try {
-      this.log('info', 'job.start', `开始执行任务 #${id}。`, {
-        job_id: Number(id),
-        selected_platforms: selectedPlatforms,
-      });
+      this.log('info', 'job.start', `开始执行任务 #${id}。`, { job_id: jobNumber, selected_platforms: selectedPlatforms, automatic });
       await this.heartbeat().catch(() => {});
       const job = await this.client.claimJob(id);
-      const groupId = job?.account_group_id || job?.group_id || job?.payload?.account_group_id || job?.payload?.group_id || this.config.activeGroupId;
+      const groupId = job?.account_group_id || job?.group_id || job?.payload?.account_group_id || job?.payload?.group_id || hintedGroupId;
       const group = this.accountGroupById(groupId);
       if (!group) throw new Error('当前任务没有可用账号组，请先在本地发布器创建账号组。');
+      this.activeJobs.set(jobNumber, { groupId, startedAt: this.activeJobs.get(jobNumber)?.startedAt, automatic });
       const targetPlatforms = this.choosePlatforms(job, selectedPlatforms);
-      if (!targetPlatforms.length) {
-        throw new Error('当前发布节点没有可处理的平台。请检查分发渠道或升级执行器适配器。');
-      }
-      this.log('info', 'job.claimed', `任务 #${id} 已领取，准备执行 ${targetPlatforms.length} 个平台。`, {
-        job_id: Number(id),
-        platforms: targetPlatforms,
-      });
-      const results = {};
+      if (!targetPlatforms.length) throw new Error('当前发布节点没有可处理的平台。请检查分发渠道或升级执行器适配器。');
+      const results = this.completedPlatformResults(job, targetPlatforms);
       for (const platformId of targetPlatforms) {
-        results[platformId] = await this.runPlatformWithRetry(platformId, job, Number(id), group);
+        if (results[platformId] && ['published', 'draft_saved'].includes(String(results[platformId].state || ''))) continue;
+        results[platformId] = await this.runPlatformWithRetry(platformId, job, jobNumber, group, { automatic });
       }
-      const payload = buildResultPayload({
-        workerId: this.config.deviceId,
-        platformResults: results,
-      });
+      const payload = buildResultPayload({ workerId: this.config.deviceId, platformResults: results });
       await this.client.reportResult(id, payload.state, payload.message, payload);
-      this.log('info', 'job.reported', `任务 #${id} 已回写 GEOFlow：${payload.state}。`, {
-        job_id: Number(id),
-        state: payload.state,
-        next_operator_action: payload.next_operator_action,
-        state_counts: payload.state_summary.state_counts,
-      });
+      this.log('info', 'job.reported', `任务 #${id} 已回写 GEOFlow：${payload.state}。`, { job_id: jobNumber, state: payload.state, next_operator_action: payload.next_operator_action, state_counts: payload.state_summary.state_counts });
       await this.poll().catch(() => {});
       return { jobId: id, state: payload.state, platformResults: results, stateSummary: payload.state_summary };
     } catch (error) {
-      this.log('error', 'job.failed', `任务 #${id} 执行失败：${error.message}`, { job_id: Number(id) });
+      this.log('error', 'job.failed', `任务 #${id} 执行失败：${error.message}`, { job_id: jobNumber });
       await this.client.reportResult(id, 'failed', error.message).catch(() => {});
       throw error;
     } finally {
-      this.activeJobId = null;
+      const entry = this.activeJobs.get(jobNumber);
+      this.publishPolicy.releaseGroup(entry?.groupId || hintedGroupId);
+      this.activeJobs.delete(jobNumber);
+      this.activeJobId = this.activeJobIds()[0] || null;
+      this.persistPublishPolicy();
       await this.heartbeat().catch(() => {});
     }
   }
-
-  async runPlatformWithRetry(platformId, job, jobId, group = this.accountGroupById()) {
+  async runPlatformWithRetry(platformId, job, jobId, group = this.accountGroupById(), options = {}) {
     const maxAttempts = Math.max(1, Number(this.config.maxJobAttempts) || 1);
+    const profileKey = this.profileKeyFor(group?.id, platformId);
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      this.log('info', 'platform.run.start', `开始处理平台 ${platformId}。`, {
-        job_id: jobId,
-        platform_id: platformId,
-        attempt,
-        max_attempts: maxAttempts,
+      const permit = this.publishPolicy.acquireProfile({
+        groupId: group?.id,
+        profileKey,
+        platformId,
+        platformPolicy: this.config.platformPolicy || this.config.publishPolicy?.platformPolicy,
+        automatic: options.automatic === true,
       });
+      if (!permit.allowed) {
+        return { platform: platformId, state: 'failed', message: `发布策略暂缓执行：${permit.reason}`, attempt, max_attempts: maxAttempts, failure_category: `policy_${permit.reason}`, retryable: false, next_action: 'retry_platform' };
+      }
+      this.log('info', 'platform.run.start', `开始处理平台 ${platformId}。`, { job_id: jobId, platform_id: platformId, attempt, max_attempts: maxAttempts });
       try {
-        const profileKey = this.profileKeyFor(group?.id, platformId);
+        const delayMs = await this.publishPolicy.waitBeforePublish(platformId, this.config.platformPolicy || this.config.publishPolicy?.platformPolicy, options);
         const result = await this.browser.openEditor(platformId, job?.payload || {}, { profileKey });
-        const serialized = {
-          ...serializePlatformResult(result),
-          platform: platformId,
-          window_id: result.windowId || null,
-          attempt,
-          max_attempts: maxAttempts,
-        };
+        const serialized = { ...serializePlatformResult(result), platform: platformId, window_id: result.windowId || null, attempt, max_attempts: maxAttempts, ...(delayMs ? { policy_delay_ms: delayMs } : {}) };
+        this.publishPolicy.recordOutcome(platformId, serialized, this.config.platformPolicy || this.config.publishPolicy?.platformPolicy);
         await this.syncPlatformSession(platformId, serialized, group).catch(() => {});
-        this.log(serialized.state === 'failed' ? 'error' : 'info', 'platform.run.done', `${platformId} 返回状态：${serialized.state}。`, {
-          job_id: jobId,
-          platform_id: platformId,
-          state: serialized.state,
-          message: serialized.message,
-          remote_url: serialized.remote_url,
-          attempt,
-        });
+        this.log(serialized.state === 'failed' ? 'error' : 'info', 'platform.run.done', `${platformId} 返回状态：${serialized.state}。`, { job_id: jobId, platform_id: platformId, state: serialized.state, message: serialized.message, remote_url: serialized.remote_url, attempt });
+        this.publishPolicy.releaseProfile({ groupId: group?.id, profileKey, platformId });
+        this.persistPublishPolicy();
         return serialized;
       } catch (error) {
         const decision = retryDecision(error, attempt, maxAttempts);
-        this.log(decision.should_retry ? 'warn' : 'error', 'platform.run.failed', `${platformId} 执行失败：${error.message}`, {
-          job_id: jobId,
-          platform_id: platformId,
-          attempt,
-          max_attempts: maxAttempts,
-          failure_category: decision.category,
-          retryable: decision.retryable,
-          should_retry: decision.should_retry,
-        });
-        if (decision.should_retry) continue;
-        return {
-          platform: platformId,
-          state: 'failed',
-          message: error.message,
-          attempt,
-          max_attempts: maxAttempts,
-          failure_category: decision.category,
-          retryable: decision.retryable,
-          next_action: decision.next_action,
-        };
+        const outcome = this.publishPolicy.recordOutcome(platformId, { state: 'failed', message: error.message }, this.config.platformPolicy || this.config.publishPolicy?.platformPolicy);
+        this.log(decision.should_retry && outcome.retryable ? 'warn' : 'error', 'platform.run.failed', `${platformId} 执行失败：${error.message}`, { job_id: jobId, platform_id: platformId, attempt, max_attempts: maxAttempts, failure_category: decision.category, retryable: decision.retryable, should_retry: decision.should_retry && outcome.retryable });
+        this.publishPolicy.releaseProfile({ groupId: group?.id, profileKey, platformId });
+        this.persistPublishPolicy();
+        if (decision.should_retry && outcome.retryable) continue;
+        return { platform: platformId, state: 'failed', message: error.message, attempt, max_attempts: maxAttempts, failure_category: decision.category, retryable: decision.retryable && outcome.retryable, next_action: decision.next_action };
       }
     }
-    return {
-      platform: platformId,
-      state: 'failed',
-      message: 'Platform execution failed after retry policy ended.',
-      attempt: maxAttempts,
-      max_attempts: maxAttempts,
-      failure_category: 'retry_exhausted',
-      retryable: false,
-      next_action: 'operator_inspect_failed_platforms',
-    };
+    return { platform: platformId, state: 'failed', message: 'Platform execution failed after retry policy ended.', attempt: maxAttempts, max_attempts: maxAttempts, failure_category: 'retry_exhausted', retryable: false, next_action: 'operator_inspect_failed_platforms' };
   }
 
+  completedPlatformResults(job, targetPlatforms = []) {
+    const source = job?.platform_results || job?.platformResults || job?.result?.platform_results || job?.result?.platformResults || job?.payload?.platform_results || job?.payload?.platformResults || {};
+    const normalized = Array.isArray(source) ? Object.fromEntries(source.filter((item) => item?.platform).map((item) => [item.platform, item])) : (source && typeof source === 'object' ? source : {});
+    return Object.fromEntries((targetPlatforms || []).filter((platformId) => normalized[platformId] && ['published', 'draft_saved'].includes(String(normalized[platformId].state || ''))).map((platformId) => [platformId, { platform: platformId, ...normalized[platformId] }]));
+  }
+
+  persistPublishPolicy() {
+    try {
+      this.config = writeConfig({ publishPolicyState: this.publishPolicy.snapshot() });
+      this.client.updateConfig(this.config);
+    } catch (error) {
+      this.log('warn', 'publish.policy.persist.failed', `保存发布策略状态失败：${error.message}`);
+    }
+  }
   choosePlatforms(job, selectedPlatforms) {
     const jobPlatforms = Array.isArray(job?.platforms) ? job.platforms : [];
     const selected = Array.isArray(selectedPlatforms) ? selectedPlatforms : [];
     const allowed = selected.length ? selected.filter((id) => jobPlatforms.includes(id)) : jobPlatforms;
-    return allowed.filter((id) => this.config.capabilities.includes(id));
+    const remotelyEnabled = Array.isArray(this.config.enabledPlatforms) && this.config.enabledPlatforms.length
+      ? new Set(this.config.enabledPlatforms)
+      : null;
+    return allowed.filter((id) => this.config.capabilities.includes(id) && (!remotelyEnabled || remotelyEnabled.has(id)));
   }
 
   async syncPlatformSession(platformId, result = {}, group = this.accountGroupById()) {
@@ -875,7 +1113,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       'needs_verification',
       'needs_captcha',
     ].includes(state) || Boolean(result.verification_reason)
-      || /(login|captcha|verify|verification|risk|登录|验证码|验证|风控)/i.test(String(result.message || ''));
+      || /(login|captcha|verify|verification|risk|code|challenge)/i.test(String(result.message || ''));
     // A draft/submit result proves the profile was usable. Conversely, a
     // normal editor or save failure is not evidence that the account logged
     // out, so retain the last verified login state in that case.

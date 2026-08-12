@@ -37,8 +37,12 @@ function formatTime(value) {
   return Number.isFinite(date.getTime()) ? date.toLocaleString('zh-CN', { hour12: false }) : String(value);
 }
 
+function localApiHeaders() {
+  return window.tongzhuoAgent?.requestHeaders?.() || {};
+}
+
 function request(url, options = {}) {
-  return fetch(url, { cache: 'no-store', headers: { Accept: 'application/json', ...(options.headers || {}) }, ...options })
+  return fetch(url, { cache: 'no-store', headers: { Accept: 'application/json', ...localApiHeaders(), ...(options.headers || {}) }, ...options })
     .then(async (response) => {
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload.ok === false) throw new Error(payload.message || `请求失败：HTTP ${response.status}`);

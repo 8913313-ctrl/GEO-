@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+
+process.env.NODE_ENV = 'test';
+process.env.TZ_AGENT_ALLOW_INSECURE_DEV_KEY = '1';
 import { dataDir } from '../src/config-store.js';
 import { exportArticleBundle } from '../src/export-bundle.js';
 

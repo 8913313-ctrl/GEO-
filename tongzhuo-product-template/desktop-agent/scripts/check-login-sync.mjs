@@ -3,6 +3,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+process.env.NODE_ENV = 'test';
+process.env.TZ_AGENT_ALLOW_INSECURE_DEV_KEY = '1';
+
 const temporaryDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tongzhuo-agent-login-sync-'));
 const originalDataDir = process.env.TZ_AGENT_DATA_DIR;
 process.env.TZ_AGENT_DATA_DIR = temporaryDataDir;

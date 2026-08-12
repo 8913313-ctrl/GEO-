@@ -111,6 +111,19 @@ export class GeoFlowClient {
     });
   }
 
+  shadowHeartbeat(reportedState = {}, extra = {}) {
+    const route = `/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/shadow/heartbeat`;
+    return this.request(route, {
+      method: 'POST',
+      body: {
+        status: 'online',
+        connection_mode: this.config.connectionMode || 'token',
+        capabilities: this.config.capabilities,
+        meta: { ...this.meta(), ...extra },
+        reported_state: reportedState,
+      },
+    });
+  }
   heartbeat(extra = {}) {
     return this.request(`/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/heartbeat`, {
       method: 'POST',
@@ -143,6 +156,48 @@ export class GeoFlowClient {
     });
   }
 
+
+  platformJobs(limit = 20) {
+    return this.request(`/api/v1/publisher/platform-jobs?limit=${Math.max(1, Math.min(50, Number(limit) || 20))}&leaseable=1`);
+  }
+
+  claimPlatformJob(id) {
+    return this.request(`/api/v1/publisher/platform-jobs/${encodeURIComponent(id)}/claim`, { method: 'POST', body: {} })
+      .then((response) => response?.data?.job || response?.job || response?.data || response);
+  }
+
+  heartbeatPlatformJob(id, leaseToken, progress = {}) {
+    return this.request(`/api/v1/publisher/platform-jobs/${encodeURIComponent(id)}/heartbeat`, {
+      method: 'POST',
+      headers: { 'X-Publisher-Lease': leaseToken },
+      body: { lease_token: leaseToken, ...progress },
+    });
+  }
+
+  reportPlatformJobResult(id, leaseToken, status, result = {}) {
+    return this.request(`/api/v1/publisher/platform-jobs/${encodeURIComponent(id)}/result`, {
+      method: 'POST',
+      headers: { 'X-Publisher-Lease': leaseToken },
+      body: { lease_token: leaseToken, status, result, ...result },
+    });
+  }
+
+  commands(limit = 20) {
+    return this.request(`/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/commands?limit=${Math.max(1, Math.min(50, Number(limit) || 20))}`);
+  }
+
+  claimCommand(id) {
+    return this.request(`/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/commands/${encodeURIComponent(id)}/claim`, { method: 'POST', body: {} })
+      .then((response) => response?.data?.command || response?.command || response?.data || response);
+  }
+
+  ackCommand(id, leaseToken, status = 'completed', result = {}) {
+    return this.request(`/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/commands/${encodeURIComponent(id)}/ack`, {
+      method: 'POST',
+      headers: { 'X-Publisher-Lease': leaseToken },
+      body: { lease_token: leaseToken, status, result },
+    });
+  }
   reportSession(platformId, session = {}) {
     return this.request(`/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/sessions`, {
       method: 'POST',
@@ -179,6 +234,8 @@ export class GeoFlowClient {
       paired_at: this.config.pairedAt || '',
       has_pairing_token: Boolean(this.config.pairingToken),
       has_api_token: Boolean(this.config.apiToken),
+      crash_count_last_window: Math.max(0, Number(process.env.TZ_AGENT_CRASH_COUNT || 0) || 0),
+      crash_window_seconds: Math.max(0, Number(process.env.TZ_AGENT_CRASH_WINDOW_SECONDS || 0) || 0),
       active_group_id: this.config.activeGroupId || '',
       account_groups: Array.isArray(this.config.accountGroups)
         ? this.config.accountGroups.map((group) => ({

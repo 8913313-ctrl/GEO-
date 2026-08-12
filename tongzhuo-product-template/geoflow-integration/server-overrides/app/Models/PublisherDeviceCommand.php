@@ -15,6 +15,9 @@ class PublisherDeviceCommand extends Model
         'result',
         'expires_at',
         'claimed_at',
+        'lease_token',
+        'lease_expires_at',
+        'claimed_by',
         'completed_at',
         'error_message',
     ];
@@ -26,6 +29,9 @@ class PublisherDeviceCommand extends Model
             'result' => 'array',
             'expires_at' => 'datetime',
             'claimed_at' => 'datetime',
+            'lease_token' => 'string',
+            'lease_expires_at' => 'datetime',
+            'claimed_by' => 'string',
             'completed_at' => 'datetime',
         ];
     }
