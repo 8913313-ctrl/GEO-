@@ -1,11 +1,53 @@
 {
+  "project": {
+    "slug": "example-company",
+    "name": "Example Company GEO Project",
+    "status": "active"
+  },
+  "tenant_id": "tenant_example_company",
+  "product_capability": "geo",
+  "industry_template": "professional-services",
+  "company_profile": {
+    "legal_name": "Example Company Ltd.",
+    "short_name": "Example Company",
+    "description": "Replace with a factual public description of this customer.",
+    "region": ""
+  },
+  "brand": {
+    "logo_path": "",
+    "primary_color": "",
+    "secondary_color": "",
+    "font_family": ""
+  },
+  "site": {
+    "domain": "https://www.example.com",
+    "title": "Example Company",
+    "navigation": [],
+    "footer_icp": ""
+  },
+  "contact": {
+    "email": "",
+    "phone": "",
+    "wechat": "",
+    "reply_sla": "1 business day"
+  },
+  "integrations": {
+    "geoflow_base_url": "http://127.0.0.1:18080",
+    "relay_enabled": false
+  },
+  "methodology": {
+    "core_pack": "geo-core",
+    "core_version": "",
+    "prompt_pack": "geo-content",
+    "prompt_version": ""
+  },
   "customer_slug": "example-company",
   "company": {
-    "legal_name": "示例（城市）网络科技有限公司",
-    "brand_name": "示例科技",
-    "alternate_name": "示例AI",
-    "description": "面向企业获客的GEO、内容运营与企业AI服务商。",
-    "services": ["GEO优化", "短视频运营", "企业AI落地"]
+    "legal_name": "Example Company Ltd.",
+    "brand_name": "Example Company",
+    "alternate_name": "Example Company",
+    "description": "Replace with a factual public description of this customer.",
+    "services": ["Customer product or service 1"]
   },
   "website": {
     "site_url": "https://www.example.com",

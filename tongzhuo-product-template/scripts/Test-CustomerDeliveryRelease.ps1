@@ -83,6 +83,13 @@ $manifest = Get-Content -LiteralPath $resolvedManifestPath -Raw -Encoding UTF8 |
 Assert-Condition ([string] $manifest.version -eq $ExpectedVersion) "Customer delivery release manifest version mismatch. Expected $ExpectedVersion, got $($manifest.version)"
 Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $manifest.release_slug)) 'Customer delivery release manifest is missing release_slug.'
 Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $manifest.customer_slug)) 'Customer delivery release manifest is missing customer_slug.'
+Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $manifest.project_id)) 'Customer delivery release manifest is missing project_id.'
+Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $manifest.tenant_id)) 'Customer delivery release manifest is missing tenant_id.'
+Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $manifest.industry_template)) 'Customer delivery release manifest is missing industry_template.'
+Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $manifest.source_control.git_commit)) 'Customer delivery release manifest is missing the source Git commit.'
+Assert-Condition ([string] $manifest.methodology.core_version -eq 'MVER-GEO-CORE-V1') 'Customer delivery release manifest must pin MVER-GEO-CORE-V1.'
+Assert-Condition ([string] $manifest.methodology.prompt_version -eq 'PVER-GEO-ARTICLE-V1') 'Customer delivery release manifest must pin PVER-GEO-ARTICLE-V1.'
+Assert-Condition ([string] $manifest.methodology.quality_rule_pack -eq 'QRULE-GEO-CONTENT-V1') 'Customer delivery release manifest must pin QRULE-GEO-CONTENT-V1.'
 Assert-Condition ([bool] $manifest.gates.customer_config_validation) 'Customer delivery release manifest must declare customer_config_validation gate.'
 Assert-Condition ([bool] $manifest.gates.customer_delivery_generation) 'Customer delivery release manifest must declare customer_delivery_generation gate.'
 Assert-Condition ([bool] $manifest.gates.customer_delivery_package_validation) 'Customer delivery release manifest must declare customer_delivery_package_validation gate.'
@@ -135,6 +142,12 @@ Assert-Condition ($summaryText -like "*$deliveryHash*") 'Customer delivery relea
 $configReview = Get-Content -LiteralPath $configReviewJsonFile -Raw -Encoding UTF8 | ConvertFrom-Json
 Assert-Condition ([string] $configReview.review_type -eq 'tongzhuo_customer_config_review') "Customer config review type mismatch: $($configReview.review_type)"
 Assert-Condition ([string] $configReview.customer.slug -eq ([string] $manifest.customer_slug)) 'Customer config review customer slug does not match release manifest.'
+Assert-Condition ([string] $configReview.customer.project_id -eq ([string] $manifest.project_id)) 'Customer config review project ID does not match release manifest.'
+Assert-Condition ([string] $configReview.customer.tenant_id -eq ([string] $manifest.tenant_id)) 'Customer config review tenant ID does not match release manifest.'
+Assert-Condition ([string] $configReview.customer.industry_template -eq ([string] $manifest.industry_template)) 'Customer config review industry template does not match release manifest.'
+Assert-Condition ([string] $configReview.methodology.core_version -eq ([string] $manifest.methodology.core_version)) 'Customer config review methodology version does not match release manifest.'
+Assert-Condition ([string] $configReview.methodology.prompt_version -eq ([string] $manifest.methodology.prompt_version)) 'Customer config review prompt version does not match release manifest.'
+Assert-Condition ([string] $configReview.methodology.quality_rule_pack -eq ([string] $manifest.methodology.quality_rule_pack)) 'Customer config review quality-rule pack does not match release manifest.'
 Assert-Condition ([string] $configReview.endpoints.website -eq ([string] $manifest.site_url).TrimEnd('/')) 'Customer config review website endpoint does not match release manifest.'
 Assert-Condition ([bool] $configReview.validation.api_token_empty) 'Customer config review must declare API Token is empty.'
 $configReviewMarkdown = Get-Content -LiteralPath $configReviewFile -Raw -Encoding UTF8
@@ -146,6 +159,13 @@ Assert-Condition ([string] $archiveIndex.index_type -eq 'tongzhuo_customer_proje
 Assert-Condition ([string] $archiveIndex.version -eq $ExpectedVersion) "Archive index version mismatch. Expected $ExpectedVersion, got $($archiveIndex.version)"
 Assert-Condition ([string] $archiveIndex.release_slug -eq ([string] $manifest.release_slug)) 'Archive index release_slug does not match release manifest.'
 Assert-Condition ([string] $archiveIndex.customer.slug -eq ([string] $manifest.customer_slug)) 'Archive index customer slug does not match release manifest.'
+Assert-Condition ([string] $archiveIndex.customer.project_id -eq ([string] $manifest.project_id)) 'Archive index project ID does not match release manifest.'
+Assert-Condition ([string] $archiveIndex.customer.tenant_id -eq ([string] $manifest.tenant_id)) 'Archive index tenant ID does not match release manifest.'
+Assert-Condition ([string] $archiveIndex.customer.industry_template -eq ([string] $manifest.industry_template)) 'Archive index industry template does not match release manifest.'
+Assert-Condition ([string] $archiveIndex.source_control.git_commit -eq ([string] $manifest.source_control.git_commit)) 'Archive index Git commit does not match release manifest.'
+Assert-Condition ([string] $archiveIndex.methodology.core_version -eq ([string] $manifest.methodology.core_version)) 'Archive index methodology version does not match release manifest.'
+Assert-Condition ([string] $archiveIndex.methodology.prompt_version -eq ([string] $manifest.methodology.prompt_version)) 'Archive index prompt version does not match release manifest.'
+Assert-Condition ([string] $archiveIndex.methodology.quality_rule_pack -eq ([string] $manifest.methodology.quality_rule_pack)) 'Archive index quality-rule pack does not match release manifest.'
 $archiveSiteUrl = ([string] $manifest.site_url).TrimEnd('/')
 $archiveGeoflowUrl = ([string] $manifest.geoflow_base_url).TrimEnd('/')
 $manifestDesktopAgentPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 18280 }

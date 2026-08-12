@@ -4298,6 +4298,61 @@ function enterpriseProfileCompletion() {
   return Math.min(100, Math.round(requiredScore + optionalScore + (hasBusinessLine ? 10 : 0) + (hasEvidence ? 10 : 0) + (hasQuestions ? 10 : 0)));
 }
 
+// Create the minimum usable planning baseline after a customer completes onboarding.
+// This is deliberately deterministic and local: it never invents evidence or call an
+// AI provider, and all records are scoped to the newly-created business line.
+function ensureOnboardingPlanningBaseline() {
+  const profile = state.enterpriseProfile || {};
+  let line = (state.businessLines || []).find((item) => item.status === "active");
+  if (!line) {
+    const product = String(profile.primaryService || "核心产品或服务").trim();
+    line = {
+      id: uid("BL"),
+      name: product,
+      product,
+      description: String(profile.serviceDescription || profile.introduction || "").trim(),
+      audience: String(profile.audience || "目标客户").trim(),
+      scenario: String(profile.industryRegion || "核心业务场景").trim(),
+      serviceScope: String(profile.serviceArea || "").trim(),
+      status: "active",
+      knowledgeBaseIds: [],
+      defaultWritingAgentId: state.settings?.defaultWritingAgentId || "",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    state.businessLines.push(line);
+  }
+
+  const service = String(line.product || line.name || profile.primaryService || "核心产品或服务").trim();
+  const existing = new Set((state.questionLibrary || [])
+    .filter((item) => item.businessLineId === line.id && item.status !== "archived")
+    .map((item) => String(item.question || "").trim()));
+  const baseline = [
+    ["semantic", `${service}是什么，适合哪些企业或客户？`],
+    ["scenario", `哪些业务场景适合使用${service}？`],
+    ["commercial", `企业选择${service}时应该重点比较哪些服务和交付条件？`],
+    ["ranking", `如何判断${service}服务商或供应商是否值得长期合作？`],
+    ["review", `${service}的效果应该用哪些指标和证据进行评估？`],
+    ["brand", `为什么客户会选择${profile.brandName || profile.companyName || "这家企业"}提供${service}？`],
+    ["question", `企业从零开始使用${service}，第一步应该准备什么？`],
+    ["technical", `${service}实施过程中有哪些技术、流程和验收要点？`]
+  ];
+  baseline.forEach(([dimension, questionText], index) => {
+    if (existing.has(questionText)) return;
+    state.questionLibrary.push({
+      id: uid("Q"), packId: null, businessLineId: line.id, sourceKeyword: service,
+      question: questionText, dimension, intent: "客户问题", stage: "基线",
+      coverage: "未覆盖", source: "企业建档基线", status: "active", version: 1,
+      selected: false, recommendation: 72 + (index % 4), business: 68 + (index % 5),
+      createdAt: Date.now(), updatedAt: Date.now(), topicId: null
+    });
+    existing.add(questionText);
+  });
+  const keywordExists = (state.keywords || []).some((item) => item.businessLineId === line.id && String(item.term || "").trim() === service);
+  if (!keywordExists) state.keywords.push({ id: uid("KW"), term: service, businessLineId: line.id, keywordRole: "core", source: "企业建档", status: "active", createdAt: Date.now(), updatedAt: Date.now() });
+  return line;
+}
+
 function syncEnterpriseProfileToSiteCms() {
   const profile = state.enterpriseProfile || {};
   const cms = siteCms();
@@ -7224,7 +7279,7 @@ function renderAnalysisRun(run) {
   const entries = calls.length ? calls : planned.map((item, index) => ({ id: `planned-${index}`, ordinal: index + 1, toolName: item.toolName, status: "queued", evidenceId: "" }));
   const completed = entries.filter((item) => item.status === "completed").length;
   const percent = run.status === "completed" ? 100 : entries.length ? Math.round((completed / entries.length) * 78) + (run.status === "running" ? 12 : 0) : run.status === "running" ? 12 : 0;
-  return `<section class="card analysis-run-card"><div class="analysis-run-head"><div><small>本次分析运行</small><h3>受控工具与证据进度</h3><p>先生成事实台账，再由大模型组织报告；模型不能直接查询数据库。</p></div>${analysisRunBadge(run.status)}</div><div class="analysis-progress"><i style="width:${Math.min(100, percent)}%"></i></div><div class="analysis-tool-list">${entries.map((tool) => `<div class="analysis-tool-row ${escapeHtml(tool.status || "queued")}"><i>${String(Number(tool.ordinal || 0)).padStart(2, "0")}</i><span><b>${escapeHtml(analysisToolLabel(tool.toolName))}</b><small>${tool.evidenceId ? `证据 ${escapeHtml(tool.evidenceId)}` : tool.status === "running" ? "正在计算并固化证据" : tool.status === "failed" ? escapeHtml(tool.errorMessage || "执行失败") : "等待执行"}</small></span>${tool.status === "completed" ? '<b data-icon="check"></b>' : tool.status === "running" ? '<span class="loading-spinner dark"></span>' : tool.status === "failed" ? '<b class="failed" data-icon="alert"></b>' : '<em></em>'}</div>`).join("") || '<div class="analysis-tool-empty">正在规划所需的本地统计工具…</div>'}</div>${run.status === "failed" ? `<div class="analysis-run-error"><span data-icon="alert"></span><div><b>${escapeHtml(run.errorCode || "分析运行失败")}</b><p>${escapeHtml(run.errorMessage || "请检查模型配置、网络或数据源后重新分析。")}</p></div></div>` : ""}</section>`;
+  return `<section class="card analysis-run-card"><div class="analysis-run-head"><div><small>本次分析运行</small><h3>受控工具与证据进度</h3><p>先生成事实台账，再由大模型组织报告；模型不能直接查询数据库。</p></div>${analysisRunBadge(run.status)}</div><div class="analysis-progress"><i style="--analysis-progress:${Math.min(100, percent) / 100}"></i></div><div class="analysis-tool-list">${entries.map((tool) => `<div class="analysis-tool-row ${escapeHtml(tool.status || "queued")}"><i>${String(Number(tool.ordinal || 0)).padStart(2, "0")}</i><span><b>${escapeHtml(analysisToolLabel(tool.toolName))}</b><small>${tool.evidenceId ? `证据 ${escapeHtml(tool.evidenceId)}` : tool.status === "running" ? "正在计算并固化证据" : tool.status === "failed" ? escapeHtml(tool.errorMessage || "执行失败") : "等待执行"}</small></span>${tool.status === "completed" ? '<b data-icon="check"></b>' : tool.status === "running" ? '<span class="loading-spinner dark"></span>' : tool.status === "failed" ? '<b class="failed" data-icon="alert"></b>' : '<em></em>'}</div>`).join("") || '<div class="analysis-tool-empty">正在规划所需的本地统计工具…</div>'}</div>${run.status === "failed" ? `<div class="analysis-run-error"><span data-icon="alert"></span><div><b>${escapeHtml(run.errorCode || "分析运行失败")}</b><p>${escapeHtml(run.errorMessage || "请检查模型配置、网络或数据源后重新分析。")}</p></div></div>` : ""}</section>`;
 }
 
 function renderAnalysisReport(session, artifact) {
@@ -10726,10 +10781,17 @@ function renderSiteNavigation() {
   const modules = siteModules("home");
   const navItems = siteNavItems();
   const theme = siteCms().theme;
+  const siteTemplates = [
+    { key: "professional", name: "专业服务", type: "编辑档案", description: "适合咨询、专业服务与知识型企业，强调可信表达和咨询转化。", color: "#5e1d2e" },
+    { key: "industrial", name: "工业制造", type: "工程材料", description: "适合建材、机械与制造企业，突出规格、应用场景和工程案例。", color: "#b85b32" },
+    { key: "energy", name: "技术设备", type: "UPS 能源", description: "适合 UPS、电力与技术设备企业，突出可靠性、选型和运维边界。", color: "#0d6b67" },
+    { key: "beauty", name: "消费品牌", type: "美妆个护", description: "适合美妆与消费品企业，突出成分、人群、使用方法和安全合规。", color: "#9d536b" }
+  ];
+  const selectedTemplateKey = ["professional", "industrial", "energy", "beauty"].includes(theme.key) ? theme.key : "professional";
   return `
     <div class="site-page-toolbar"><div><h2>导航与外观</h2><p>统一维护导航、首页模块、主题和公共组件，不改变文章事实内容。</p></div><button class="primary-button button-small" type="button" data-action="site-nav-save"><span data-icon="check"></span>保存外观设置</button></div>
     <div class="site-navigation-grid"><section class="card"><div class="card-header"><div><h3>主导航</h3><p>顺序、名称、地址与显示状态均可维护。</p></div><button class="secondary-button button-small" type="button" data-action="site-nav-add"><span data-icon="plus"></span>添加导航项</button></div><div class="site-nav-list">${navItems.map((item, index) => `<div class="site-nav-row"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><span class="site-module-grip">⋮⋮</span><div><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.path)} · ${escapeHtml(item.type)}</small></div><span class="status-badge ${item.visible ? "status-approved" : "status-draft"}">${item.visible ? "显示" : "隐藏"}</span><button class="icon-button" type="button" data-action="site-nav-edit" data-nav-id="${escapeHtml(item.id)}" aria-label="编辑导航"><span data-icon="edit"></span></button></div>`).join("")}</div></section><section class="card"><div class="card-header"><div><h3>首页语义模块</h3><p>每个模块均可关联知识、产品、案例或资讯。</p></div></div><div class="site-nav-list">${modules.slice(0, 5).map((module, index) => `<div class="site-nav-row compact"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><div><b>${escapeHtml(module.title)}</b><small>${escapeHtml(module.description)}</small></div><span>${module.status === "published" ? statusBadge("published") : statusBadge("draft")}</span><button class="link-button" type="button" data-action="site-module-edit" data-page-id="home" data-module-id="${escapeHtml(module.id)}">编辑</button></div>`).join("")}</div></section></div>
-    <section class="card site-theme-card"><div class="card-header"><div><h3>主题与公共信息</h3><p>一次设置，自动应用到所有页面。当前主题版本 v${escapeHtml(theme.version || 1)}。</p></div></div><div class="field-row"><div class="field"><label for="site-theme-name">当前主题</label><select class="select" id="site-theme-name"><option ${theme.name === "桐灼企业官网 · 标准版" ? "selected" : ""}>桐灼企业官网 · 标准版</option><option ${theme.name === "企业服务 · 深色版" ? "selected" : ""}>企业服务 · 深色版</option></select></div><div class="field"><label for="site-theme-color">品牌主色</label><div class="color-setting"><i style="background:${escapeHtml(theme.primaryColor)}"></i><input class="input" id="site-theme-color" value="${escapeHtml(theme.primaryColor)}" /></div></div><div class="field"><label for="site-theme-cta">默认 CTA 文案</label><input class="input" id="site-theme-cta" value="${escapeHtml(theme.cta)}" /></div></div></section>
+    <section class="card site-theme-card"><div class="card-header"><div><h3>企业官网模板</h3><p>模板只改变页面结构与视觉表达，不会修改企业资料、产品、知识、文章或案例。当前模板版本 v${escapeHtml(theme.version || 1)}。</p></div><button class="secondary-button button-small" type="button" data-action="preview-site"><span data-icon="eye"></span>预览当前草稿</button></div><div class="site-template-picker" role="radiogroup" aria-label="企业官网模板">${siteTemplates.map((template) => `<label class="site-template-option ${selectedTemplateKey === template.key ? "is-selected" : ""}" style="--template-swatch:${escapeHtml(template.color)}"><input type="radio" name="site-template-key" value="${escapeHtml(template.key)}" ${selectedTemplateKey === template.key ? "checked" : ""}><span class="site-template-swatch" aria-hidden="true"><i></i><i></i><i></i></span><span class="site-template-copy"><b>${escapeHtml(template.name)}</b><em>${escapeHtml(template.type)}</em><small>${escapeHtml(template.description)}</small></span><span class="site-template-check" aria-hidden="true">✓</span></label>`).join("")}</div><div class="site-theme-fields"><div class="field"><label for="site-theme-name">内部版本名称</label><input class="input" id="site-theme-name" value="${escapeHtml(theme.name || "企业官网主题")}" maxlength="120" /></div><div class="field"><label for="site-theme-color">客户品牌主色</label><div class="color-setting"><i style="background:${escapeHtml(theme.primaryColor)}"></i><input class="input" id="site-theme-color" value="${escapeHtml(theme.primaryColor)}" /></div></div><div class="field"><label for="site-theme-cta">默认 CTA 文案</label><input class="input" id="site-theme-cta" value="${escapeHtml(theme.cta)}" /></div></div><div class="site-settings-footnote"><span data-icon="info"></span><span>保存后只更新官网草稿。正式站必须重新预览、审核并发布，已有正式版本不会被静默覆盖。</span></div></section>
   `;
 }
 
@@ -11243,7 +11305,11 @@ function deleteSiteNav(navId) {
 function saveSiteAppearance() {
   const theme = siteCms().theme;
   const color = siteValue("site-theme-color");
+  const templateKey = document.querySelector('input[name="site-template-key"]:checked')?.value || theme.key || "professional";
+  const allowedTemplateKeys = new Set(["professional", "industrial", "energy", "beauty"]);
   if (color && !/^#[0-9a-f]{6}$/i.test(color)) return showToast("品牌主色格式不正确", "请输入类似 #1D5CFF 的 6 位十六进制颜色。", "error");
+  if (!allowedTemplateKeys.has(templateKey)) return showToast("官网模板无效", "请重新选择一套可用的企业官网模板。", "error");
+  theme.key = templateKey;
   theme.name = siteValue("site-theme-name") || theme.name;
   theme.primaryColor = color || theme.primaryColor;
   theme.cta = siteValue("site-theme-cta") || theme.cta;
@@ -17728,6 +17794,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "finish-onboarding") {
     persistOnboardingDraft();
+    ensureOnboardingPlanningBaseline();
     state.enterpriseProfile.completion = enterpriseProfileCompletion();
     state.enterpriseProfile.steps.forEach((step) => {
       if (step.id === "evidence") step.status = (state.knowledgeBases || []).some((base) => approvedKnowledgeItems(base.id).length) ? "complete" : "pending";

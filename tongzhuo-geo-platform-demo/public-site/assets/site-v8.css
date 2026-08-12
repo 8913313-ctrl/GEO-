@@ -8,6 +8,91 @@
   font-weight: 400 900;
 }
 
+/* CMS website templates
+   The template class changes presentation only. Content, navigation, business
+   records and publication state continue to come from the shared CMS snapshot. */
+body.site-v8.site-template-industrial {
+  --passport-wine: #8d4228;
+  --passport-wine-dark: #26211d;
+  --passport-gold: #c2834e;
+  --passport-gold-soft: #e2b886;
+  --passport-paper: #f3f0e9;
+  --passport-paper-deep: #dfddd6;
+  --passport-sage: #aab2a5;
+  --passport-blue: #425d69;
+  --passport-ink: #1d2427;
+  --passport-black: #171b1d;
+  --passport-line: rgba(41, 48, 50, .23);
+}
+
+body.site-v8.site-template-industrial .site-header,
+body.site-v8.site-template-industrial .mobile-navigation { background: #191d1f; }
+body.site-v8.site-template-industrial .passport-hero { background: #1d2325; }
+body.site-v8.site-template-industrial .passport-hero::before {
+  background: linear-gradient(118deg, rgba(13, 17, 19, .98), rgba(37, 47, 50, .96) 60%, rgba(125, 67, 36, .92)), repeating-linear-gradient(90deg, transparent 0 79px, rgba(255,255,255,.025) 80px);
+}
+body.site-v8.site-template-industrial .passport-card,
+body.site-v8.site-template-industrial .lead-form { border-radius: 1px; }
+body.site-v8.site-template-industrial .kicker,
+body.site-v8.site-template-industrial .eyebrow { letter-spacing: .16em; }
+body.site-v8.site-template-industrial .corp-record,
+body.site-v8.site-template-industrial .service-record,
+body.site-v8.site-template-industrial .corp-article-row { border-top-width: 2px; }
+
+body.site-v8.site-template-energy {
+  --passport-wine: #0d6b67;
+  --passport-wine-dark: #092f34;
+  --passport-gold: #78a99b;
+  --passport-gold-soft: #b7d5c8;
+  --passport-paper: #eef3ef;
+  --passport-paper-deep: #dbe5df;
+  --passport-sage: #8eaaa0;
+  --passport-blue: #176b7c;
+  --passport-ink: #11292b;
+  --passport-black: #071e22;
+  --passport-line: rgba(20, 75, 75, .2);
+}
+body.site-v8.site-template-energy .site-header,
+body.site-v8.site-template-energy .mobile-navigation { background: #06282d; }
+body.site-v8.site-template-energy .passport-hero { background: #082e33; }
+body.site-v8.site-template-energy .passport-hero::before {
+  background: radial-gradient(circle at 67% 38%, rgba(49, 151, 142, .23), transparent 24%), linear-gradient(125deg, #061d22, #0b3e43 63%, #102c34);
+}
+body.site-v8.site-template-energy .passport-hero::after {
+  opacity: .38;
+  background: radial-gradient(ellipse at center, transparent 0 48%, rgba(2, 20, 23, .42) 100%);
+}
+body.site-v8.site-template-energy .button.primary,
+body.site-v8.site-template-energy .button.ink { box-shadow: 0 10px 28px rgba(3, 71, 72, .16); }
+
+body.site-v8.site-template-beauty {
+  --passport-wine: #96556b;
+  --passport-wine-dark: #482a37;
+  --passport-gold: #b9818e;
+  --passport-gold-soft: #e8c6cd;
+  --passport-paper: #faf5f3;
+  --passport-paper-deep: #efe3e1;
+  --passport-sage: #bec6b7;
+  --passport-blue: #765f76;
+  --passport-ink: #33262b;
+  --passport-black: #2c2025;
+  --passport-line: rgba(108, 68, 82, .18);
+  --passport-serif: "Songti SC", "Source Han Serif SC", serif;
+}
+body.site-v8.site-template-beauty .site-header,
+body.site-v8.site-template-beauty .mobile-navigation { background: #3b2931; }
+body.site-v8.site-template-beauty .passport-hero { background: #493039; }
+body.site-v8.site-template-beauty .passport-hero::before {
+  background: radial-gradient(ellipse at 69% 34%, rgba(245, 203, 212, .23), transparent 28%), radial-gradient(circle at 18% 77%, rgba(188, 181, 155, .16), transparent 26%), linear-gradient(126deg, #36242c, #6b4351 62%, #49313a);
+}
+body.site-v8.site-template-beauty .passport-card,
+body.site-v8.site-template-beauty .lead-form { border-radius: 18px; }
+body.site-v8.site-template-beauty .button,
+body.site-v8.site-template-beauty .nav-cta { border-radius: 999px; }
+body.site-v8.site-template-beauty .corp-record,
+body.site-v8.site-template-beauty .service-record,
+body.site-v8.site-template-beauty .corp-article-row { border-color: rgba(130, 77, 96, .22); }
+
 :root {
   --passport-ink: #201a17;
   --passport-black: #130e0f;

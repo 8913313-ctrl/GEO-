@@ -584,7 +584,7 @@ function checkStoreLifecycle(store) {
   assert.equal(artifact.version, 1);
   run = store.completeRun(run.id);
   assert.equal(run.status, "completed");
-  const hydrated = store.session("default", session.id);
+  const hydrated = store.session(store.workspaceId, session.id);
   assert.equal(hydrated.latestArtifact.id, artifact.id);
   assert.equal(hydrated.runs[0].toolCalls[0].evidenceId, tool.evidenceId);
 }
@@ -748,7 +748,7 @@ async function checkApiAndFollowUp(store) {
   assert.equal(result.status, 200);
   assert.equal(result.body.data.deleted, true);
   assert.equal(result.body.data.artifacts, 1);
-  assert.throws(() => store.session("default", deletionSession.id), (error) => error.code === "ANALYSIS_SESSION_NOT_FOUND");
+  assert.throws(() => store.session(store.workspaceId, deletionSession.id), (error) => error.code === "ANALYSIS_SESSION_NOT_FOUND");
   for (const table of ["analysis_sessions", "analysis_messages", "analysis_runs", "analysis_tool_calls", "analysis_artifacts"]) {
     assert.equal(database.connection.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE ${table === "analysis_sessions" ? "id" : table === "analysis_messages" ? "session_id" : table === "analysis_runs" || table === "analysis_artifacts" ? "session_id" : "run_id"} = ?`).get(table === "analysis_sessions" ? deletionSession.id : table === "analysis_tool_calls" ? deletionRun.id : deletionSession.id)?.count, 0, `${table} rows must be removed with a deleted report`);
   }
@@ -757,14 +757,14 @@ async function checkApiAndFollowUp(store) {
   const busyMessage = store.addMessage(busySession.id, "user", "运行中删除保护测试");
   const busyRun = store.createRun(busySession.id, busyMessage.id, { providerId: "mock-provider" });
   store.startRun(busyRun.id, []);
-  assert.throws(() => store.deleteSession("default", busySession.id), (error) => error.code === "ANALYSIS_SESSION_BUSY");
+  assert.throws(() => store.deleteSession(store.workspaceId, busySession.id), (error) => error.code === "ANALYSIS_SESSION_BUSY");
   store.failRun(busyRun.id, new Error("测试结束"));
-  store.deleteSession("default", busySession.id);
+  store.deleteSession(store.workspaceId, busySession.id);
 }
 
 try {
   database = new ProductionDatabase({ databasePath: path.join(temporaryDirectory, "analysis-workbench.sqlite") });
-  const store = new AnalysisWorkbenchStore(database);
+  const store = new AnalysisWorkbenchStore(database, { workspaceId: "tenant-analysis-workbench" });
   checkMigrationNine();
   checkQuickPlanning();
   checkBoundedResearchDocumentQuery();

@@ -181,11 +181,41 @@ try {
     contentType: "深度文章",
     topic: { id: "TOP-001", title: coreQuestion, dimension: "question", geoBrief: { coreQuestion } },
     writingAgent: { id: "WA-001", strictKnowledge: true, citationsRequired: true, minWords: 800, maxWords: 1600 },
-    evidence: [{ id: "CIT-1", marker: "K1", claim: "企业资料需要审核", quote: "企业资料应保留来源、版本和审核状态。", status: "verified" }]
+    evidence: [{ id: "CIT-1", marker: "K1", claim: "企业资料需要审核", quote: "企业资料应保留来源、版本和审核状态。", status: "verified" }],
+    methodologyContext: {
+      packKey: "geo-core",
+      versionId: "MVER-GEO-CORE-V1",
+      version: 1,
+      checksum: "1111111111111111111111111111111111111111111111111111111111111111",
+      selectedAt: "2026-08-12T00:00:00.000Z",
+      fragments: [{ id: "UPS-GEO-R003", theme: "first-party-evidence", rule: "证据先于文案，关键企业断言必须引用已审核证据。", classification: "method" }]
+    },
+    industryTemplateContext: { templateKey: "building-materials", version: "1.0.0", checksum: "4444444444444444444444444444444444444444444444444444444444444444", promptPreset: { key: "geo-building-materials", version: "1.0.0" } },
+    promptFoundationContext: {
+      templateId: "PVER-GEO-ARTICLE-V1",
+      templateKey: "geo-article",
+      version: 1,
+      checksum: "2222222222222222222222222222222222222222222222222222222222222222",
+      variables: { company_profile: { legal_name: "测试企业" }, customer_question: coreQuestion },
+      renderedPrompt: `企业资料：测试企业\n客户问题：${coreQuestion}`,
+      quality: {
+        packId: "QRULE-GEO-CONTENT-V1",
+        version: 1,
+        checksum: "3333333333333333333333333333333333333333333333333333333333333333",
+        rules: ["facts_require_approved_evidence", "citations_must_be_traceable"]
+      },
+      frozenAt: "2026-08-12T00:00:00.000Z"
+    }
   });
   assert.equal(article.title, coreQuestion);
   assert.equal(article.quality.safeHtml, true);
   assert.deepEqual(article.usedEvidenceIds, ["CIT-1"]);
+  assert.deepEqual(article.article.methodology.fragmentIds, ["UPS-GEO-R003"]);
+  assert.deepEqual(article.article.industryTemplate, { templateKey: "building-materials", version: "1.0.0", checksum: "4444444444444444444444444444444444444444444444444444444444444444", promptPreset: { key: "geo-building-materials", version: "1.0.0" } });
+  assert.equal(article.article.promptFoundation.templateId, "PVER-GEO-ARTICLE-V1");
+  assert.equal(article.article.promptFoundation.qualityRulePackId, "QRULE-GEO-CONTENT-V1");
+  assert.equal(article.article.promptFoundation.variables.company_profile.legal_name, "测试企业");
+  assert.ok(article.article.promptFoundation.renderedPrompt.includes(coreQuestion));
 
   assert.equal(calls.length, 3);
   assert.equal(calls[0].options.body.includes("askerRole"), false);
@@ -196,6 +226,11 @@ try {
   assert.equal(JSON.parse(calls[1].options.body).enable_thinking, false);
   assert.deepEqual(JSON.parse(calls[1].options.body).thinking, { type: "disabled" });
   assert.equal(JSON.parse(calls[2].options.body).enable_thinking, false);
+  assert.equal(calls[2].options.body.includes("UPS-GEO-R003"), true, "article prompt must contain the selected methodology fragment");
+  assert.equal(calls[2].options.body.includes("MVER-GEO-CORE-V1"), true, "article prompt must contain the methodology version ID");
+  assert.equal(calls[2].options.body.includes("building-materials v1.0.0"), true, "article prompt must contain the frozen industry template version");
+  assert.equal(calls[2].options.body.includes("PVER-GEO-ARTICLE-V1"), true, "article prompt must contain the frozen prompt version ID");
+  assert.equal(calls[2].options.body.includes("facts_require_approved_evidence"), true, "article prompt must contain the frozen quality rules");
   calls.forEach(({ url, options }) => {
     assert.equal(url, "https://api.deepseek.com/v1/chat/completions");
     assert.equal(options.headers.Authorization, `Bearer ${secret}`);

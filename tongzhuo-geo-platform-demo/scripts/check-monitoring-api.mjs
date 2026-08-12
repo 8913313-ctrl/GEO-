@@ -16,11 +16,12 @@ function responseCapture() {
 
 try {
   database = new ProductionDatabase({ databasePath: path.join(temporaryDirectory, "monitoring-api.sqlite") });
-  const contentStore = new ContentStore(database, { requireEvidence: false });
+  const workspaceId = "tenant-monitoring-api";
+  const contentStore = new ContentStore(database, { workspaceId, requireEvidence: false });
   const task = contentStore.createTask({ id: "TASK-MON-API", title: "监测 API 文章", businessLineId: "BL-MON" });
   contentStore.createArticle({ id: "ART-MON-API", taskId: task.id, title: "监测 API 文章", businessLineId: "BL-MON" });
   const publisherStore = { async load() {}, state: { jobs: [{ id: 1, status: "queued", createdAt: new Date().toISOString(), targetPlatforms: ["zhihu"], results: { zhihu: { state: "queued" } } }] } };
-  const store = new MonitoringStore(database, { publisherStore, ipSalt: "monitoring-api-test" });
+  const store = new MonitoringStore(database, { workspaceId, publisherStore, ipSalt: "monitoring-api-test" });
   const requestJson = async (request) => request.body || {};
   const handler = createMonitoringApi({ monitoringStore: store, requestJson, configured: { requestBodyLimit: 1_000_000 } });
   const response = responseCapture();

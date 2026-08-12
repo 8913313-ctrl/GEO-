@@ -61,7 +61,7 @@ if (manifest) {
   check(manifest.releasedAt === "2026-07-14", "manifest.releasedAt must equal 2026-07-14");
   check(manifest.status === "ready", "manifest.status must equal ready");
   check(manifest.sourceCommit === "81ba1566f70f114e9202b798f8d4525a9329ebd3", "manifest.sourceCommit must match the pinned upstream commit");
-  check(manifest.checksum === "ffa70bf08ee8bdbb47391ea13959e3852b19907027cef03374344d1519f2247f", "manifest.checksum must match the derived SQLite artifact");
+  check(manifest.checksum === "90c9bfe87c96ff250eb92a5d06e9b18a5aacdc6013b4b4bb7e45be46df886070", "manifest.checksum must match the derived SQLite artifact");
 
   requireFields(manifest.statistics, ["citations", "questions", "platformsOrTerminals", "sources", "pages"], "manifest.statistics");
   exactInteger(manifest.statistics?.citations, 214119, "manifest.statistics.citations");
@@ -72,7 +72,7 @@ if (manifest) {
 
   requireFields(manifest.artifacts, ["upstreamManifest", "cn_geo.duckdb", "citation_observations.parquet", "citation-research.sqlite", "responses.parquet"], "manifest.artifacts");
   check(manifest.artifacts?.["upstreamManifest"]?.sha256 === "8d6b27fabdb2b5b446ba097f66301e4e77d1d0633427ac4fd160655369a0de5b", "upstream manifest SHA-256 must match the pin");
-  check(manifest.artifacts?.["cn_geo.duckdb"]?.sha256 === "60ce886643d9cb3ae7a28ca136a855637159f20aaaa38564b7e861440b74c913", "DuckDB SHA-256 must match the pin");
+  check(manifest.artifacts?.["cn_geo.duckdb"]?.sha256 === "ff76fb6fc049768df1760b0d0bfe91df075f7335779cfeddc7a792bd5ff52f6e", "DuckDB SHA-256 must match the immutable source commit");
   check(manifest.artifacts?.["citation_observations.parquet"]?.sha256 === "9e59d9e1fc625f4f343ee5d9e17b4a3a86e3d2a356fd300cf86634fab74078c7", "citation Parquet SHA-256 must match the pin");
   check(manifest.artifacts?.["citation-research.sqlite"]?.readOnlyRuntime === true, "derived SQLite must be declared read-only at runtime");
   try {

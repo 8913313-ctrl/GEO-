@@ -35,12 +35,12 @@ const SNAPSHOT_NAV = Object.freeze([
 ]);
 
 function argumentsFrom(values) {
-  const result = { databasePath: productionConfig.databasePath, workspaceId: "default", dryRun: false, publicAddress: "" };
+  const result = { databasePath: productionConfig.databasePath, workspaceId: productionConfig.workspaceId, dryRun: false, publicAddress: "" };
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
     if (value === "--dry-run") result.dryRun = true;
     else if (value === "--database") result.databasePath = path.resolve(values[++index] || "");
-    else if (value === "--workspace") result.workspaceId = values[++index] || "default";
+    else if (value === "--workspace") result.workspaceId = values[++index] || productionConfig.workspaceId;
     else if (value === "--public-address") result.publicAddress = values[++index] || "";
     else throw new Error(`Unknown argument: ${value}`);
   }

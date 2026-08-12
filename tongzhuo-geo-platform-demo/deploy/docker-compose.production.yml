@@ -9,6 +9,7 @@ x-app-build: &app-build
 
 x-common-env: &common-env
   NODE_ENV: production
+  TZ_TENANT_ID: ${TZ_TENANT_ID:?Set TZ_TENANT_ID in deploy/cutover.env}
   TZ_DATA_DIR: /app/data
   TZ_DATABASE_PATH: /app/data/tongzhuo-production.sqlite
   TZ_LOG_DIR: /app/data/logs
@@ -90,7 +91,6 @@ services:
       TZ_SITE_PORT: 18080
       TZ_SITE_STATIC_ROOT: /site
       TZ_SITE_BASE_URL: ${TZ_PRODUCTION_SITE_BASE_URL:?Set TZ_PRODUCTION_SITE_BASE_URL in deploy/cutover.env}
-      TZ_SITE_WORKSPACE_ID: ${TZ_SITE_WORKSPACE_ID:-default}
     volumes:
       - geo-production-data:/app/data
       - "${TZ_SITE_STATIC_HOST_PATH:-../../demo-company-homepage}:/site:ro"

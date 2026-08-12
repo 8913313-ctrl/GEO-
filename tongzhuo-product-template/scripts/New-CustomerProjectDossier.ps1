@@ -115,8 +115,18 @@ if (-not [string]::IsNullOrWhiteSpace($BackendDossierPath)) {
 }
 
 $highWarnings = @($configReview.warnings | Where-Object { [string] $_.code -like '*https*' -or [string] $_.code -like '*local*' })
+$productionBlockingWarnings = @($configReview.warnings | Where-Object {
+    $property = $_.PSObject.Properties['blocking_for_production']
+    if ($null -ne $property) { return [bool] $property.Value }
+    return [string] $_.code -in @('placeholder_site_url', 'local_geoflow_url', 'geoflow_not_https', 'missing_telephone', 'missing_email', 'missing_address', 'missing_credit_code', 'missing_logo', 'missing_icp')
+})
+$configProductionReady = if ($null -ne $configReview.PSObject.Properties['production_readiness']) {
+    [bool] $configReview.production_readiness.ready
+} else {
+    $productionBlockingWarnings.Count -eq 0 -and [string] $configReview.status -eq 'ready'
+}
 $validationStatus = [string] $validationReport.status
-$releaseStatus = if ($validationStatus -eq 'passed' -and [string] $handoffChecklist.status -eq 'ready_for_signoff') {
+$releaseStatus = if ($validationStatus -eq 'passed' -and [string] $handoffChecklist.status -eq 'ready_for_signoff' -and $configProductionReady) {
     'ready_for_launch'
 } else {
     'needs_attention'
@@ -195,6 +205,9 @@ $dossier = [ordered]@{
         config_review_status = [string] $configReview.status
         config_warning_count = @($configReview.warnings).Count
         high_attention_count = @($highWarnings).Count
+        config_production_ready = [bool] $configProductionReady
+        production_blocking_warning_count = [int] $productionBlockingWarnings.Count
+        production_blocking_warning_codes = @($productionBlockingWarnings | ForEach-Object { [string] $_.code })
     }
     geoflow_backend_snapshot = if ($null -ne $backendDossier) {
         [ordered]@{
@@ -307,6 +320,8 @@ $markdown = @(
     "- Validation checks: $($dossier.validation.validation_check_count)",
     "- Config review: $($dossier.validation.config_review_status)",
     "- Config warnings: $($dossier.validation.config_warning_count)",
+    "- Config production ready: $($dossier.validation.config_production_ready)",
+    "- Production blocking warnings: $($dossier.validation.production_blocking_warning_count)",
     '',
     '## GEOFlow Backend Snapshot',
     '',

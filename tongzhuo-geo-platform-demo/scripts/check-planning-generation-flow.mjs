@@ -6,7 +6,13 @@ import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { AI_GENERATION_DIMENSIONS } from "../ai-generation-service.mjs";
+import { ProductionDatabase } from "../production-database.mjs";
+import { FoundationAssetStore } from "../foundation-asset-store.mjs";
+import { ensureGeoFoundationPublishedAssets } from "../foundation-assets/bootstrap.mjs";
+import { importUpsGeoCandidateRules } from "../foundation-assets/ups-geo-review-import.mjs";
+import { requireIndustryTemplate } from "../industry-templates/index.mjs";
 
 const PROVIDER_ID = "offline-fictional-e2e";
 const PROVIDER_SECRET = "sk-offline-fictional-only";
@@ -35,6 +41,38 @@ const QUESTION_PATTERNS = [
 ];
 
 const tempDir = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-planning-flow-"));
+const databasePath = path.join(tempDir, "planning-flow.sqlite");
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const candidateManifest = JSON.parse(await readFile(path.join(projectRoot, "docs", "baseline", "P2-T06-UPS-GEO-RULE-CANDIDATES-20260812.json"), "utf8"));
+const machineryTemplate = requireIndustryTemplate("machinery");
+const machineryTemplateSnapshot = {
+  templateKey: machineryTemplate.templateKey,
+  version: machineryTemplate.version,
+  checksum: machineryTemplate.checksum,
+  promptPreset: machineryTemplate.promptPreset
+};
+const bootstrapDatabase = new ProductionDatabase({ databasePath });
+try {
+  const foundationStore = new FoundationAssetStore(bootstrapDatabase);
+  const methodology = importUpsGeoCandidateRules(foundationStore, candidateManifest);
+  for (const review of methodology.rules) foundationStore.upsertMethodologySourceReview({
+    methodologyVersionId: methodology.version.id,
+    ruleId: review.ruleId,
+    theme: review.theme,
+    rule: review.rule,
+    source: review.source,
+    classification: review.classification,
+    applicability: review.applicability,
+    licenseStatus: review.licenseStatus,
+    reuseDecision: "approved-global",
+    reviewStatus: "approved",
+    reviewNote: "isolated planning-generation persistence fixture"
+  });
+  foundationStore.setMethodologyVersionStatus(methodology.version.id, "published");
+  ensureGeoFoundationPublishedAssets(foundationStore);
+} finally {
+  bootstrapDatabase.close();
+}
 const modelCalls = [];
 const callCounts = { seeds: 0, questions: 0, topics: 0, article: 0 };
 let topicQuestions = [];
@@ -219,7 +257,8 @@ try {
   const env = cleanChildEnvironment();
   Object.assign(env, {
     NODE_ENV: "test", TZ_BIND_HOST: "127.0.0.1", TZ_COOKIE_SECURE: "0", TZ_SITE_EMBED: "false",
-    TZ_DATABASE_PATH: path.join(tempDir, "planning-flow.sqlite"), TZ_DATA_DIR: path.join(tempDir, "data"),
+    TZ_TENANT_ID: "tenant_offline_machinery", TZ_PROJECT_ID: "offline-machinery", TZ_INDUSTRY_TEMPLATE: "machinery",
+    TZ_DATABASE_PATH: databasePath, TZ_DATA_DIR: path.join(tempDir, "data"),
     TZ_LOG_DIR: path.join(tempDir, "logs"), TZ_AI_PROVIDER_DATA_DIR: path.join(tempDir, "providers"),
     TZ_AI_GENERATION_DATA_DIR: path.join(tempDir, "generation"), TZ_PUBLISHER_DATA_DIR: path.join(tempDir, "publisher"),
     TZ_MASTER_KEY: randomBytes(32).toString("base64"), TZ_AI_GENERATION_TIMEOUT_MS: "5000",
@@ -316,6 +355,7 @@ try {
   body = await expectRequest(baseUrl, "/api/v1/content/plans", { method: "POST", headers: auth, body: JSON.stringify(planPayload) }, 201, "content plan creation");
   const plan = body.data.plan;
   assert.equal(plan.scheduledFor, expectedCompletionAt);
+  assert.deepEqual(plan.metadata.industryTemplateSnapshot, machineryTemplate, "content plan must freeze the server-selected industry template");
   body = await expectRequest(baseUrl, "/api/v1/content/plans", { method: "POST", headers: auth, body: JSON.stringify(planPayload) }, 201, "content plan replay");
   assert.equal(body.data.plan.id, plan.id);
   assert.equal(body.data.plan.revision, plan.revision);
@@ -330,7 +370,7 @@ try {
       contentPlanId: plan.id, planId: plan.id, contentTaskId: taskId, contentArticleId: articleId,
       expectedCompletionAt, idempotencyKey: "offline-fictional-article-v1", useRag: true,
       rag: { enabled: true, query: articleTopic.coreQuestion, businessLineId: BUSINESS_LINE_ID, libraryIds: [libraryId], topK: 4, minScore: 0 },
-      writingAgent: { id: "AGENT-OFFLINE-FICTIONAL", name: "虚构知识编辑", strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", minWords: 300, maxWords: 900 }
+      writingAgent: { id: "AGENT-OFFLINE-FICTIONAL", name: "虚构知识编辑", version: 3, role: "虚构设备知识编辑", style: "证据优先", strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", minWords: 300, maxWords: 900 }
     })
   }, 200, "article generation");
   const articleResult = body.data;
@@ -339,7 +379,30 @@ try {
   assert.ok(articleResult.articleVersionId);
   assert.equal(articleResult.contentVersion.reviewStatus, "draft");
   assert.equal(articleResult.generationJob.status, "succeeded");
+  assert.equal(articleResult.generationJob.model, MODEL, "generation job must record the effective provider model");
   assert.deepEqual(articleResult.article.citations.map((item) => item.id), [retrievedEvidence.id]);
+  const persistedMetadata = articleResult.contentVersion.metadata;
+  assert.equal(persistedMetadata.model, MODEL);
+  assert.deepEqual(persistedMetadata.industryTemplate, machineryTemplateSnapshot);
+  assert.deepEqual(persistedMetadata.writingAgentSnapshot, {
+    id: "AGENT-OFFLINE-FICTIONAL", name: "虚构知识编辑", version: 3,
+    role: "虚构设备知识编辑", style: "证据优先", strictKnowledge: true,
+    citationsRequired: true, missingEvidenceAction: "omit"
+  });
+  assert.equal(persistedMetadata.methodology.versionId, "MVER-GEO-CORE-V1");
+  assert.match(persistedMetadata.methodology.checksum, /^[0-9a-f]{64}$/);
+  assert.ok(persistedMetadata.methodology.fragmentIds.length > 0);
+  assert.equal(persistedMetadata.promptFoundation.templateId, "PVER-GEO-ARTICLE-V1");
+  assert.match(persistedMetadata.promptFoundation.checksum, /^[0-9a-f]{64}$/);
+  assert.deepEqual(persistedMetadata.promptFoundation.variables.knowledge_scope.library_ids, [libraryId]);
+  assert.ok(persistedMetadata.promptFoundation.renderedPrompt.includes(libraryId));
+  assert.equal(persistedMetadata.promptFoundation.quality.packId, "QRULE-GEO-CONTENT-V1");
+  assert.deepEqual(persistedMetadata.rag.libraryIds, [libraryId]);
+  assert.equal(persistedMetadata.rag.businessLineId, BUSINESS_LINE_ID);
+  assert.equal(articleResult.generationJob.request.writingAgentSnapshot.version, 3);
+  assert.deepEqual(articleResult.generationJob.request.industryTemplate, machineryTemplate);
+  assert.equal(articleResult.generationJob.request.methodology.versionId, "MVER-GEO-CORE-V1");
+  assert.equal(articleResult.generationJob.request.promptFoundation.templateId, "PVER-GEO-ARTICLE-V1");
 
   body = await expectRequest(baseUrl, `/api/v1/content/tasks/${encodeURIComponent(taskId)}`, { headers: { Cookie: sessionCookie } }, 200, "content task detail");
   assert.equal(body.data.task.planId, plan.id);

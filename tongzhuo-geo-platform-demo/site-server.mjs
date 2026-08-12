@@ -268,7 +268,7 @@ function contentType(filePath) {
   return MIME_TYPES[path.extname(filePath).toLocaleLowerCase("en-US")] || "application/octet-stream";
 }
 
-function securityHeaders(response, id) {
+function securityHeaders(response, id, request = null, trustProxy = false) {
   response.setHeader("X-Request-Id", id);
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("X-Frame-Options", "DENY");
@@ -276,6 +276,8 @@ function securityHeaders(response, id) {
   response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
   response.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+  const forwardedProto = trustProxy ? String(request?.headers?.["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase() : "";
+  if (request?.socket?.encrypted || forwardedProto === "https") response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
 }
 
 function errorBody(status, message) {
@@ -442,7 +444,7 @@ async function readStaticFile(staticRoot, relativePath) {
 class SiteAccessRecorder {
   constructor(monitoringStore, options = {}) {
     this.monitoringStore = monitoringStore;
-    this.workspaceId = options.workspaceId || "default";
+    this.workspaceId = options.workspaceId || process.env.TZ_TENANT_ID || "default";
     this.logger = options.logger || console;
     this.pending = [];
     this.flushing = null;
@@ -494,7 +496,8 @@ export function createSiteRuntime(options = {}) {
   const store = options.store || new PublicSiteStore({
     database: options.database,
     databasePath: options.databasePath,
-    workspaceId: options.workspaceId || process.env.TZ_SITE_WORKSPACE_ID || "default",
+    workspaceId: options.workspaceId || process.env.TZ_TENANT_ID || "default",
+    projectSeedKey: options.projectSeedKey || process.env.TZ_PROJECT_SEED || "",
     publicKnowledgeAssetBase: "/site-assets/knowledge"
   });
   const ownStore = !options.store;
@@ -504,7 +507,7 @@ export function createSiteRuntime(options = {}) {
     port: positiveInteger(options.port ?? process.env.TZ_SITE_PORT, DEFAULT_PORT, 1, 65_535),
     staticRoot: path.resolve(options.staticRoot || process.env.TZ_SITE_STATIC_ROOT || DEFAULT_STATIC_ROOT),
     baseUrl: configuredOrigin(options.baseUrl || process.env.TZ_SITE_BASE_URL),
-    workspaceId: options.workspaceId || process.env.TZ_SITE_WORKSPACE_ID || "default",
+    workspaceId: options.workspaceId || process.env.TZ_TENANT_ID || "default",
     trustProxy: options.trustProxy ?? booleanValue(process.env.TZ_TRUST_PROXY),
     production: options.production ?? process.env.NODE_ENV === "production",
     logger: options.logger || console
@@ -512,13 +515,13 @@ export function createSiteRuntime(options = {}) {
   const monitoringStore = options.monitoringStore || new MonitoringStore(store.database, { workspaceId: config.workspaceId });
   const knowledgeStore = options.knowledgeStore || new KnowledgeStore(store.database, { workspaceId: config.workspaceId });
   const recorder = options.recorder || new SiteAccessRecorder(monitoringStore, { workspaceId: config.workspaceId, logger: config.logger, flushIntervalMs: options.flushIntervalMs });
-  const leadStore = options.leadStore || new PublicLeadStore(store.database, { workspaceId: config.workspaceId });
+  const leadStore = options.leadStore || new PublicLeadStore(store.database, { workspaceId: config.workspaceId, projectId: options.projectId || process.env.TZ_PROJECT_ID || config.workspaceId });
   const leadRateLimiter = options.leadRateLimiter || new SiteLeadRateLimiter(options.leadRateLimit);
 
   async function response(request, responseObject, result, context = {}) {
     const body = Buffer.isBuffer(result.body) ? result.body : Buffer.from(String(result.body || ""), "utf8");
     const id = context.requestId || requestId(request);
-    securityHeaders(responseObject, id);
+    securityHeaders(responseObject, id, request, config.trustProxy);
     responseObject.statusCode = result.status || 200;
     responseObject.setHeader("Content-Type", result.contentType || "text/html; charset=utf-8");
     responseObject.setHeader("Content-Length", body.byteLength);
@@ -670,9 +673,11 @@ export function createSiteRuntime(options = {}) {
         return response(request, responseObject, { status: 405, contentType: "application/json; charset=utf-8", body: JSON.stringify({ ok: false, code: "METHOD_NOT_ALLOWED", message: "只支持 POST 提交。" }), headers: { Allow: "POST" }, cacheControl: "no-store" }, { requestId: id, track: false });
       }
       try {
+        const payload = await requestJson(request);
         leadRateLimiter.assert(clientIp(request, config.trustProxy));
-        const lead = leadStore.create(await requestJson(request), { userAgent: request.headers["user-agent"] || "" });
-        return response(request, responseObject, { status: 201, contentType: "application/json; charset=utf-8", body: JSON.stringify({ ok: true, data: { ...lead, message: "提交成功，企业运营人员会尽快与您联系。" } }), cacheControl: "no-store" }, { requestId: id, track: false });
+        const lead = leadStore.create(payload, { userAgent: request.headers["user-agent"] || "", idempotencyKey: request.headers["idempotency-key"] || payload.idempotency_key });
+        const { replayed, ...publicLead } = lead;
+        return response(request, responseObject, { status: replayed ? 200 : 201, contentType: "application/json; charset=utf-8", body: JSON.stringify({ ok: true, data: { ...publicLead, duplicate: replayed, message: replayed ? "本次诊断需求已提交，请勿重复操作。我们将在 1 个工作日内回复。" : "提交成功，我们将在 1 个工作日内回复。" } }), cacheControl: "no-store" }, { requestId: id, track: false });
       } catch (error) {
         const known = error instanceof PublicLeadError;
         if (!known) config.logger.error?.("official_site.lead_failed", { requestId: id, error: error.message });
@@ -712,6 +717,9 @@ export function createSiteRuntime(options = {}) {
       // publication pointer. Draft preview is an authenticated admin concern.
       const snapshot = publishedRuntimeSnapshot(store.snapshot({ draft: false }), config.production);
       origin = requestOrigin(request, config, snapshot.site);
+      if (snapshot.cms?.status === "unpublished" && !["/health/live", "/health/ready"].includes(pathname)) {
+        return response(request, responseObject, { status: 404, body: renderNotFound({ site: snapshot.site, origin, pathname }) }, { requestId: id, pathname });
+      }
       const location = redirectLocation(snapshot.site, pathname, url.search);
       if (location) {
         return response(request, responseObject, {

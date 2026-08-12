@@ -196,6 +196,11 @@ export class ContentStore {
       ownerUserId: row.owner_user_id || null,
       status: row.status,
       scheduledFor: row.scheduled_for || null,
+      foundationAssets: {
+        methodologyVersionId: row.methodology_version_id || null,
+        promptVersionId: row.prompt_version_id || null,
+        qualityRulePackId: row.quality_rule_pack_id || null
+      },
       revision: Number(row.revision),
       metadata: jsonValue(row.metadata_json),
       createdAt: row.created_at,
@@ -243,16 +248,16 @@ export class ContentStore {
     return rows.map((row) => this.versionRow(row, { includeContent }));
   }
 
-  createPlan({ workspaceId = this.workspaceId, id: requestedId, businessLineId = null, name, contentType = "", ownerUserId = null, status = "draft", scheduledFor = null, metadata = {}, actor = null, request = null } = {}) {
+  createPlan({ workspaceId = this.workspaceId, id: requestedId, businessLineId = null, name, contentType = "", ownerUserId = null, status = "draft", scheduledFor = null, metadata = {}, foundationAssets = {}, actor = null, request = null } = {}) {
     const planId = stringValue(requestedId || id("PLAN"), "plan id", 180, true);
     const timestamp = now();
     const normalizedStatus = allowedStatus(status, new Set(["draft", "planned", "active", "completed", "cancelled", "archived"]), "plan status");
     this.database.transaction(() => {
-      this.connection.prepare(`INSERT INTO content_plans (id, workspace_id, business_line_id, name, content_type, owner_user_id, status, scheduled_for, metadata_json, created_at, updated_at, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-        planId, workspaceId, stringValue(businessLineId, "businessLineId", 180) || null, stringValue(name, "plan name", MAX_TITLE, true), stringValue(contentType, "contentType", 120), ownerUserId || null, normalizedStatus, scheduledFor || null, jsonText(metadata), timestamp, timestamp, actorId(actor)
+      this.connection.prepare(`INSERT INTO content_plans (id, workspace_id, business_line_id, name, content_type, owner_user_id, status, scheduled_for, metadata_json, methodology_version_id, prompt_version_id, quality_rule_pack_id, created_at, updated_at, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        planId, workspaceId, stringValue(businessLineId, "businessLineId", 180) || null, stringValue(name, "plan name", MAX_TITLE, true), stringValue(contentType, "contentType", 120), ownerUserId || null, normalizedStatus, scheduledFor || null, jsonText(metadata), foundationAssets.methodologyVersionId || null, foundationAssets.promptVersionId || null, foundationAssets.qualityRulePackId || null, timestamp, timestamp, actorId(actor)
       );
-      appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "content.plan.create", entityType: "content_plan", entityId: planId, details: { workspaceId }, request, createdAt: timestamp });
+      appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "content.plan.create", entityType: "content_plan", entityId: planId, details: { workspaceId, foundationAssets: { methodologyVersionId: foundationAssets.methodologyVersionId || null, promptVersionId: foundationAssets.promptVersionId || null, qualityRulePackId: foundationAssets.qualityRulePackId || null } }, request, createdAt: timestamp });
     });
     return this.plan(workspaceId, planId);
   }
@@ -272,12 +277,21 @@ export class ContentStore {
     const scheduledFor = options.scheduledFor === undefined ? existing.scheduled_for : (options.scheduledFor || null);
     const ownerUserId = options.ownerUserId === undefined ? existing.owner_user_id : (options.ownerUserId || null);
     const metadata = options.metadata === undefined ? jsonValue(existing.metadata_json) : jsonValue(options.metadata);
+    const requestedFoundation = options.foundationAssets && typeof options.foundationAssets === "object" ? options.foundationAssets : {};
+    const foundation = {
+      methodologyVersionId: existing.methodology_version_id || requestedFoundation.methodologyVersionId || null,
+      promptVersionId: existing.prompt_version_id || requestedFoundation.promptVersionId || null,
+      qualityRulePackId: existing.quality_rule_pack_id || requestedFoundation.qualityRulePackId || null
+    };
     const unchanged = name === existing.name
       && businessLineId === (existing.business_line_id || null)
       && contentType === existing.content_type
       && ownerUserId === (existing.owner_user_id || null)
       && status === existing.status
       && scheduledFor === (existing.scheduled_for || null)
+      && foundation.methodologyVersionId === (existing.methodology_version_id || null)
+      && foundation.promptVersionId === (existing.prompt_version_id || null)
+      && foundation.qualityRulePackId === (existing.quality_rule_pack_id || null)
       && JSON.stringify(metadata) === JSON.stringify(jsonValue(existing.metadata_json));
     if (unchanged) return this.plan(workspaceId, planId);
 
@@ -285,9 +299,9 @@ export class ContentStore {
     const userId = actorId(options.actor);
     this.database.transaction(() => {
       this.connection.prepare(`UPDATE content_plans
-        SET business_line_id = ?, name = ?, content_type = ?, owner_user_id = ?, status = ?, scheduled_for = ?, metadata_json = ?, revision = revision + 1, updated_at = ?
+        SET business_line_id = ?, name = ?, content_type = ?, owner_user_id = ?, status = ?, scheduled_for = ?, metadata_json = ?, methodology_version_id = ?, prompt_version_id = ?, quality_rule_pack_id = ?, revision = revision + 1, updated_at = ?
         WHERE workspace_id = ? AND id = ?`).run(
-        businessLineId, name, contentType, ownerUserId, status, scheduledFor, jsonText(metadata), timestamp, workspaceId, planId
+        businessLineId, name, contentType, ownerUserId, status, scheduledFor, jsonText(metadata), foundation.methodologyVersionId, foundation.promptVersionId, foundation.qualityRulePackId, timestamp, workspaceId, planId
       );
       appendAuditLog(this.connection, { actorUserId: userId, action: "content.plan.sync", entityType: "content_plan", entityId: planId, details: { workspaceId, localPlanId: requestedId, revision: Number(existing.revision) + 1 }, request: options.request, createdAt: timestamp });
     });
@@ -337,7 +351,12 @@ export class ContentStore {
     const assigneeUserId = options.assigneeUserId === undefined ? existing.assignee_user_id : (options.assigneeUserId || null);
     const dueAt = options.dueAt === undefined ? existing.due_at : (options.dueAt || null);
     const requestedStatus = options.status === undefined ? existing.status : allowedStatus(options.status, new Set(["planned", "queued", "generating", "draft", "in_review", "changes_requested", "approved", "completed", "cancelled"]), "task status");
-    const status = ["in_review", "changes_requested", "approved", "completed"].includes(existing.status) && ["planned", "queued", "generating", "draft"].includes(requestedStatus) ? existing.status : requestedStatus;
+    const terminalTaskStates = new Set(["completed", "cancelled"]);
+    const status = terminalTaskStates.has(existing.status)
+      ? existing.status
+      : ["in_review", "changes_requested", "approved"].includes(existing.status) && ["planned", "queued", "generating", "draft"].includes(requestedStatus)
+        ? existing.status
+        : requestedStatus;
     const metadata = options.metadata === undefined ? jsonValue(existing.metadata_json) : jsonValue(options.metadata);
     const unchanged = planId === (existing.plan_id || null)
       && topicId === (existing.topic_id || null)
@@ -731,15 +750,23 @@ export class ContentStore {
   createGenerationJob({ workspaceId = this.workspaceId, id: requestedId, articleId = null, taskId = null, operation = "article", idempotencyKey = null, providerId = null, model = null, promptVersion = null, retrievalRunId = null, requestPayload = {}, actor = null, request = null } = {}) {
     const jobId = stringValue(requestedId || id("GEN"), "generation job id", 180, true); const timestamp = now(); const userId = actorId(actor);
     if (!["article", "rewrite", "collaboration"].includes(operation)) throw new ContentError("Invalid generation operation.", 422, "CONTENT_INVALID_INPUT");
+    const normalizedIdempotencyKey = stringValue(idempotencyKey, "idempotencyKey", 500) || null;
+    const requestHash = crypto.createHash("sha256").update(jsonText(requestPayload), "utf8").digest("hex");
     try {
       this.database.transaction(() => {
-        this.connection.prepare("INSERT INTO content_generation_jobs (id, workspace_id, article_id, task_id, operation, idempotency_key, provider_id, model, prompt_version, retrieval_run_id, request_json, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(jobId, workspaceId, articleId || null, taskId || null, operation, idempotencyKey || null, providerId || null, model || null, promptVersion || null, retrievalRunId || null, jsonText(requestPayload), timestamp, userId);
+        this.connection.prepare("INSERT INTO content_generation_jobs (id, workspace_id, article_id, task_id, operation, idempotency_key, provider_id, model, prompt_version, retrieval_run_id, request_json, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(jobId, workspaceId, articleId || null, taskId || null, operation, normalizedIdempotencyKey, providerId || null, model || null, promptVersion || null, retrievalRunId || null, jsonText(requestPayload), timestamp, userId);
         appendAuditLog(this.connection, { actorUserId: userId, action: "content.generation.create", entityType: "content_generation_job", entityId: jobId, details: { workspaceId, articleId, operation }, request, createdAt: timestamp });
       });
     } catch (error) {
-      if (String(error?.message || "").includes("UNIQUE") && idempotencyKey) {
-        const existing = this.connection.prepare("SELECT id FROM content_generation_jobs WHERE workspace_id = ? AND idempotency_key = ?").get(workspaceId, idempotencyKey);
-        if (existing?.id) return this.generationJob(workspaceId, existing.id);
+      if (String(error?.message || "").includes("UNIQUE") && normalizedIdempotencyKey) {
+        const existing = this.connection.prepare("SELECT * FROM content_generation_jobs WHERE workspace_id = ? AND idempotency_key = ?").get(workspaceId, normalizedIdempotencyKey);
+        if (existing?.id) {
+          const existingHash = crypto.createHash("sha256").update(String(existing.request_json || "{}"), "utf8").digest("hex");
+          if (existing.operation !== operation || (existing.article_id || null) !== (articleId || null) || (existing.task_id || null) !== (taskId || null) || existingHash !== requestHash) {
+            throw new ContentConflictError("The idempotency key was already used with a different generation request.", { idempotencyKey: normalizedIdempotencyKey, existingJobId: existing.id });
+          }
+          return this.generationJob(workspaceId, existing.id);
+        }
       }
       throw error;
     }
@@ -759,10 +786,43 @@ export class ContentStore {
     return row?.id ? this.generationJob(workspaceId, row.id) : null;
   }
 
+  recoverInterruptedGenerationJobs({ workspaceId = this.workspaceId, staleBefore = now(), actor = null, request = null } = {}) {
+    const cutoff = String(staleBefore || now());
+    const timestamp = now();
+    const userId = actorId(actor);
+    let changes = 0;
+    this.database.transaction(() => {
+      const rows = this.connection.prepare(`
+        SELECT id, status FROM content_generation_jobs
+        WHERE workspace_id = ? AND status IN ('queued', 'running') AND created_at < ?
+      `).all(workspaceId, cutoff);
+      if (!rows.length) return;
+      const result = this.connection.prepare(`
+        UPDATE content_generation_jobs
+        SET status = 'failed', error_code = 'CONTENT_GENERATION_INTERRUPTED',
+            error_message = 'Generation was interrupted by a process restart; retry with a new idempotency key.',
+            completed_at = ?, result_json = '{}'
+        WHERE workspace_id = ? AND status IN ('queued', 'running') AND created_at < ?
+      `).run(timestamp, workspaceId, cutoff);
+      changes = Number(result.changes || 0);
+      rows.forEach((row) => appendAuditLog(this.connection, {
+        actorUserId: userId,
+        action: "content.generation.recover",
+        entityType: "content_generation_job",
+        entityId: row.id,
+        details: { workspaceId, previousStatus: row.status, status: "failed", errorCode: "CONTENT_GENERATION_INTERRUPTED" },
+        request,
+        createdAt: timestamp
+      }));
+    });
+    return changes;
+  }
+
   updateGenerationJob({ workspaceId = this.workspaceId, jobId, status, result = {}, errorCode = null, errorMessage = null, inputTokens = 0, outputTokens = 0, costMicros = 0, actor = null, request = null } = {}) {
     const job = this.generationJob(workspaceId, jobId); const allowed = new Set(["queued", "running", "succeeded", "failed", "cancelled"]);
     if (!allowed.has(status)) throw new ContentError("Invalid generation job status.", 422, "CONTENT_INVALID_INPUT");
     if (["succeeded", "failed", "cancelled"].includes(job.status)) throw new ContentStateError("A completed generation job cannot be changed.", "CONTENT_JOB_COMPLETED");
+    if (status === "queued" && job.status !== "queued") throw new ContentStateError("A running generation job cannot return to queued.", "CONTENT_JOB_STATUS_REGRESSION");
     const timestamp = now(); const userId = actorId(actor); const startedAt = status === "running" ? (job.startedAt || timestamp) : job.startedAt; const completedAt = ["succeeded", "failed", "cancelled"].includes(status) ? timestamp : null;
     this.database.transaction(() => {
       this.connection.prepare("UPDATE content_generation_jobs SET status = ?, result_json = ?, input_tokens = ?, output_tokens = ?, cost_micros = ?, attempts = attempts + ?, error_code = ?, error_message = ?, started_at = ?, completed_at = ? WHERE workspace_id = ? AND id = ?").run(status, jsonText(result), Math.max(0, Number(inputTokens) || 0), Math.max(0, Number(outputTokens) || 0), Math.max(0, Number(costMicros) || 0), status === "running" ? 1 : 0, errorCode || null, errorMessage ? String(errorMessage).slice(0, 2_000) : null, startedAt || null, completedAt, workspaceId, jobId);

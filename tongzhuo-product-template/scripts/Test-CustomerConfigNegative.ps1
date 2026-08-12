@@ -15,6 +15,16 @@ $testRoot = Join-Path ([IO.Path]::GetTempPath()) ('tongzhuo-config-negative-' + 
 
 function New-ValidConfig {
     return [ordered]@{
+        project = [ordered]@{ slug = 'valid-client'; id = 'valid-client'; name = 'Valid Client GEO Project'; status = 'active' }
+        tenant_id = 'tenant_valid_client'
+        product_capability = 'geo'
+        industry_template = 'professional-services'
+        company_profile = [ordered]@{ legal_name = 'Valid Client Network Technology Co Ltd'; short_name = 'Valid Client'; description = 'Valid customer config for negative test baseline.'; region = '' }
+        brand = [ordered]@{ logo_path = ''; primary_color = ''; secondary_color = ''; font_family = '' }
+        site = [ordered]@{ domain = 'https://valid.example.com'; title = 'Valid Client'; navigation = @(); footer_icp = '' }
+        contact = [ordered]@{ email = ''; phone = ''; wechat = ''; reply_sla = '1 business day' }
+        integrations = [ordered]@{ geoflow_base_url = ''; relay_enabled = $false }
+        methodology = [ordered]@{ core_pack = 'geo-core'; core_version = 'MVER-GEO-CORE-V1'; prompt_pack = 'geo-content'; prompt_version = 'PVER-GEO-ARTICLE-V1'; quality_rule_pack = 'QRULE-GEO-CONTENT-V1' }
         customer_slug = 'valid-client'
         company = [ordered]@{
             legal_name = 'Valid Client Network Technology Co Ltd'
@@ -86,11 +96,13 @@ try {
     Invoke-InvalidCase -Name 'invalid-slug' -ExpectedMessage 'customer_slug must match' -Mutate {
         param($config)
         $config.customer_slug = 'Invalid Client'
+        $config.project.slug = 'Invalid Client'
     }
 
     Invoke-InvalidCase -Name 'http-website' -ExpectedMessage 'website.site_url should use https' -Mutate {
         param($config)
         $config.website.site_url = 'http://valid.example.com'
+        $config.site.domain = 'http://valid.example.com'
     }
 
     Invoke-InvalidCase -Name 'filled-token' -ExpectedMessage 'geoflow.api_token must be empty' -Mutate {

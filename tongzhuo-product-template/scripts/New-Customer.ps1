@@ -4,6 +4,9 @@ param(
     [Parameter(Mandatory = $true)] [string]$CompanyName,
     [Parameter(Mandatory = $true)] [string]$ShortName,
     [Parameter(Mandatory = $true)] [uri]$SiteUrl,
+    [ValidateSet('professional-services', 'building-materials', 'machinery')] [string]$IndustryTemplate = 'professional-services',
+    [string]$TenantId = '',
+    [string]$ProjectId = '',
     [string]$GeoFlowBaseUrl = 'http://127.0.0.1:18080',
     [int]$PublisherPort = 18180,
     [int]$DesktopAgentPort = 18280,
@@ -26,6 +29,8 @@ $destinationRoot = [IO.Path]::GetFullPath($OutputPath)
 if ($null -eq $WorkbenchUrl) {
     $WorkbenchUrl = $SiteUrl
 }
+if ([string]::IsNullOrWhiteSpace($TenantId)) { $TenantId = 'tenant_' + ($CustomerSlug -replace '-', '_') }
+if ([string]::IsNullOrWhiteSpace($ProjectId)) { $ProjectId = $CustomerSlug }
 if (Test-Path $destinationRoot) {
     throw "Output path already exists: $destinationRoot"
 }
@@ -107,6 +112,9 @@ $desktopAgentConfig = @{
 $desktopAgentConfig | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $destinationRoot 'desktop-agent\.data\config.json') -Encoding UTF8
 
 $manifest = @{
+    project_id = $ProjectId
+    tenant_id = $TenantId
+    industry_template = $IndustryTemplate
     customer_slug = $CustomerSlug
     company_name = $CompanyName
     short_name = $ShortName

@@ -68,6 +68,20 @@ try {
   const csrf = result.body.data.csrfToken;
   const headers = { Cookie: cookie, "X-CSRF-Token": csrf, "Content-Type": "application/json" };
 
+  const activeHtml = Buffer.from("<script>document.body.dataset.compromised='1'</script>", "utf8").toString("base64");
+  result = await request("/api/v1/knowledge/assets", { method: "POST", headers, body: JSON.stringify({ assetType: "file", sourceName: "active.html", mimeType: "text/html", contentBase64: activeHtml }) });
+  assertOk(result.response.status === 422 && result.body.code === "KNOWLEDGE_ASSET_ACTIVE_CONTENT_FORBIDDEN", "active HTML asset upload was not rejected");
+
+  const passiveBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).toString("base64");
+  result = await request("/api/v1/knowledge/assets", { method: "POST", headers, body: JSON.stringify({ assetType: "image", sourceName: "evidence.png", mimeType: "image/png", contentBase64: passiveBytes, extractedText: "企业证据图片" }) });
+  assertOk(result.response.status === 201, "passive image asset upload failed");
+  const passiveAssetId = result.body.data.asset.id;
+  result = await request(`/api/v1/knowledge/assets/${encodeURIComponent(passiveAssetId)}/content`, { headers });
+  assertOk(result.response.status === 200, "passive asset download failed");
+  assertOk(result.response.headers.get("content-type") === "application/octet-stream", "asset content must use a non-executable response type");
+  assertOk(/^attachment;/i.test(result.response.headers.get("content-disposition") || ""), "asset content must be forced to download");
+  assertOk(/sandbox/.test(result.response.headers.get("content-security-policy") || ""), "asset download must carry a restrictive sandbox CSP");
+
   result = await request("/api/v1/knowledge/libraries", { method: "POST", headers, body: JSON.stringify({ name: "工业品资料", kind: "document", businessLineId: "BL-1", description: "企业产品和服务资料" }) });
   assertOk(result.response.status === 201, "library creation failed");
   const libraryId = result.body.data.library.id;

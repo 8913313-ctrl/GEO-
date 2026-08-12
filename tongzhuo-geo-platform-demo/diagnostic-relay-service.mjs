@@ -404,6 +404,7 @@ export class DiagnosticRelayService {
     const platform = upstream.platform || item.platform || "unknown";
     const terminal = upstream.terminal || item.terminal || "web";
     const mode = upstream.mode || item.mode || "fast";
+    const dataOrigin = payload.dataOrigin || normalized.dataOrigin || upstream.dataOrigin || (payload.mock === true || normalized.mock === true || upstream.environment === "mock" ? "mock_demo" : "realtime_sampling");
     return {
       id: `LIVE-${delivery.deliveryId}`,
       evidenceType: "live",
@@ -417,6 +418,8 @@ export class DiagnosticRelayService {
       observedAt,
       provenance: {
         collectionMethod: "relay_pull",
+        dataOrigin,
+        ...(dataOrigin === "mock_demo" ? { environment: "mock" } : {}),
         platform,
         terminal,
         mode,
@@ -429,6 +432,7 @@ export class DiagnosticRelayService {
         questionId: item.questionId || null
       },
       payload: {
+        dataOrigin,
         delivery: payload,
         request: item,
         payloadHash: delivery.payloadHash

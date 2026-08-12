@@ -8,7 +8,7 @@ function queryOf(request) { return new URL(request.url || "/", "http://localhost
 export function createAnalysisWorkbenchApi({ store, engine, requestJson, configured = {}, onBackgroundError = null } = {}) {
   if (!store || typeof store.createSession !== "function") throw new TypeError("createAnalysisWorkbenchApi requires an AnalysisWorkbenchStore.");
   if (typeof requestJson !== "function") throw new TypeError("createAnalysisWorkbenchApi requires requestJson.");
-  const workspaceId = "default";
+  const workspaceId = String(store.workspaceId || "default");
   const bodyLimit = Math.max(Number(configured.requestBodyLimit) || 1_000_000, 5_000_000);
 
   async function launch(runId, actor, request, waitForCompletion = false) {

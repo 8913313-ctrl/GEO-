@@ -239,8 +239,8 @@ write_default_cutover_env() {
     || pd_die "--site-url contains credentials, whitespace, or a newline."
   {
     printf 'TZ_COMPOSE_PROJECT_NAME=%s\n' "$DEPLOYMENT_ID"
+    printf 'TZ_TENANT_ID=%s\n' "$DEPLOYMENT_ID"
     printf 'TZ_SITE_STATIC_HOST_PATH=%s\n' "$(dotenv_quote "$SITE_DIR")"
-    printf 'TZ_SITE_WORKSPACE_ID=default\n'
     printf 'TZ_STAGING_SITE_BIND_ADDRESS=127.0.0.1\n'
     printf 'TZ_STAGING_ADMIN_BIND_ADDRESS=127.0.0.1\n'
     printf 'TZ_STAGING_SITE_BASE_URL=http://127.0.0.1:18182\n'

@@ -434,6 +434,8 @@ try {
   const offlineCms = structuredClone(currentDraft.snapshot);
   offlineCms.pages.find((page) => page.id === "insights").status = "draft";
   const savedOfflineDraft = cmsStore.saveDraft({ expectedRevision: currentDraft.revision, cms: offlineCms }, null, null, workspaceId);
+  cmsStore.submitReview({ reason: "AI readiness: submit offline industry section" }, null, null, workspaceId);
+  cmsStore.approve({ reason: "AI readiness: approve offline industry section" }, null, null, workspaceId);
   cmsStore.publish({ expectedDraftRevision: savedOfflineDraft.revision, note: "AI readiness: take industry section offline" }, null, null, workspaceId);
 
   assert.equal((await request(localBase, "/insights/")).response.status, 404);

@@ -18,6 +18,17 @@ const MAX_BATCH_ASSETS = 500;
 const MAX_BATCH_ASSET_BYTES = 100 * 1024 * 1024;
 const MAX_BATCH_DOCUMENTS = 100;
 const MAX_BATCH_DOCUMENT_BYTES = 100 * 1024 * 1024;
+const ACTIVE_ASSET_MIME_TYPES = new Set([
+  "application/ecmascript",
+  "application/javascript",
+  "application/xhtml+xml",
+  "image/svg+xml",
+  "text/css",
+  "text/html",
+  "text/javascript",
+  "text/xml"
+]);
+const ACTIVE_ASSET_EXTENSIONS = new Set(["css", "htm", "html", "js", "mjs", "svg", "xhtml", "xml"]);
 
 export class KnowledgeError extends Error {
   constructor(message, status = 422, code = "KNOWLEDGE_ERROR", details = undefined) {
@@ -103,6 +114,14 @@ function decodeBase64(value) {
   if (!buffer.length) throw new KnowledgeError("contentBase64 不能为空。", 422, "KNOWLEDGE_CONTENT_REQUIRED");
   if (buffer.length > MAX_DOCUMENT_BYTES) throw new KnowledgeError("知识文件超过 20 MB 限制。", 413, "KNOWLEDGE_CONTENT_TOO_LARGE");
   return buffer;
+}
+
+function assertPassiveAsset({ mimeType = "", sourceName = "" } = {}) {
+  const mime = String(mimeType || "").toLowerCase().split(";", 1)[0].trim();
+  const extension = String(sourceName || "").toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] || "";
+  if (ACTIVE_ASSET_MIME_TYPES.has(mime) || ACTIVE_ASSET_EXTENSIONS.has(extension)) {
+    throw new KnowledgeError("知识资产不允许上传可执行的网页、脚本、样式或 SVG 文件。", 422, "KNOWLEDGE_ASSET_ACTIVE_CONTENT_FORBIDDEN");
+  }
 }
 
 function decodeHtmlEntities(value) {
@@ -1180,6 +1199,7 @@ export class KnowledgeStore {
   }
 
   createAsset({ workspaceId = this.workspaceId, libraryId = null, documentId = null, versionId = null, assetType = "image", sourceName = "", mimeType = "application/octet-stream", contentBase64, extractedText = "", altText = "", metadata = {}, actor = null, request = null } = {}) {
+    assertPassiveAsset({ mimeType, sourceName });
     const buffer = decodeBase64(contentBase64);
     const timestamp = now();
     let assetId;

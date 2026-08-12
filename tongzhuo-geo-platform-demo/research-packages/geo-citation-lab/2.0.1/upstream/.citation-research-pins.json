@@ -3,8 +3,8 @@
     "duckdb": {
       "minimumSizeBytes": 41943040,
       "repositoryPath": "03-cn-geo-citation-dataset/data/catalog/cn_geo.duckdb",
-      "sha256": "60ce886643d9cb3ae7a28ca136a855637159f20aaaa38564b7e861440b74c913",
-      "sizeBytes": 42790912
+      "sha256": "ff76fb6fc049768df1760b0d0bfe91df075f7335779cfeddc7a792bd5ff52f6e",
+      "sizeBytes": 42741760
     },
     "manifest": {
       "minimumSizeBytes": 16000,
@@ -21,10 +21,10 @@
   },
   "datasetVersion": "2.0.1",
   "derived": {
-    "builtAt": "2026-07-28T03:29:15+00:00",
+    "builtAt": "2026-08-12T15:16:41+00:00",
     "relativeName": "derived/citation-research.sqlite",
     "schemaVersion": 1,
-    "sha256": "ffa70bf08ee8bdbb47391ea13959e3852b19907027cef03374344d1519f2247f",
+    "sha256": "90c9bfe87c96ff250eb92a5d06e9b18a5aacdc6013b4b4bb7e45be46df886070",
     "sizeBytes": 455598080
   },
   "schemaVersion": 1,

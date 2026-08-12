@@ -47,12 +47,14 @@ function Add-Warning {
     param(
         [System.Collections.ArrayList]$Warnings,
         [Parameter(Mandatory = $true)] [string]$Code,
-        [Parameter(Mandatory = $true)] [string]$Message
+        [Parameter(Mandatory = $true)] [string]$Message,
+        [bool]$BlockingForProduction = $false
     )
 
     [void] $Warnings.Add([ordered]@{
         code = $Code
         message = $Message
+        blocking_for_production = $BlockingForProduction
     })
 }
 
@@ -78,36 +80,45 @@ $siteUri = [uri] $siteUrl
 $geoflowUri = [uri] $geoflowBaseUrl
 $warnings = [System.Collections.ArrayList]::new()
 
-if ($siteUri.Host -like '*.example.com' -or $siteUri.Host -eq 'example.com') {
-    Add-Warning -Warnings $warnings -Code 'placeholder_site_url' -Message 'website.site_url still uses an example.com domain.'
+if ($siteUri.Host -match '(^|\.)example\.(com|test|invalid)$' -or $siteUri.Host -match '\.(test|invalid)$') {
+    Add-Warning -Warnings $warnings -Code 'placeholder_site_url' -Message 'website.site_url still uses a reserved example/test/invalid domain.' -BlockingForProduction $true
 }
 if ($geoflowUri.Host -in @('127.0.0.1', 'localhost')) {
-    Add-Warning -Warnings $warnings -Code 'local_geoflow_url' -Message 'geoflow.base_url points to a local address; replace it before production handoff.'
+    Add-Warning -Warnings $warnings -Code 'local_geoflow_url' -Message 'geoflow.base_url points to a local address; replace it before production handoff.' -BlockingForProduction $true
 }
 if ($geoflowUri.Scheme -ne 'https' -and $geoflowUri.Host -notin @('127.0.0.1', 'localhost')) {
-    Add-Warning -Warnings $warnings -Code 'geoflow_not_https' -Message 'geoflow.base_url should use HTTPS for production delivery.'
+    Add-Warning -Warnings $warnings -Code 'geoflow_not_https' -Message 'geoflow.base_url should use HTTPS for production delivery.' -BlockingForProduction $true
 }
 $telephone = Get-OptionalPropertyValue -Object $config.website -PropertyName 'telephone'
 $email = Get-OptionalPropertyValue -Object $config.website -PropertyName 'email'
 $address = Get-OptionalPropertyValue -Object $config.website -PropertyName 'address'
 $creditCode = Get-OptionalPropertyValue -Object $config.company -PropertyName 'unified_social_credit_code'
 $foundingDate = Get-OptionalPropertyValue -Object $config.company -PropertyName 'founding_date'
+$logoPath = Get-OptionalPropertyValue -Object $config.brand -PropertyName 'logo_path'
+$footerIcp = Get-OptionalPropertyValue -Object $config.site -PropertyName 'footer_icp'
 
 if (-not (Test-Present -Value $telephone)) {
-    Add-Warning -Warnings $warnings -Code 'missing_telephone' -Message 'website.telephone is empty; public contact conversion may be weaker.'
+    Add-Warning -Warnings $warnings -Code 'missing_telephone' -Message 'website.telephone is empty; public contact conversion may be weaker.' -BlockingForProduction $true
 }
 if (-not (Test-Present -Value $email)) {
-    Add-Warning -Warnings $warnings -Code 'missing_email' -Message 'website.email is empty; support and lead handoff records may be incomplete.'
+    Add-Warning -Warnings $warnings -Code 'missing_email' -Message 'website.email is empty; support and lead handoff records may be incomplete.' -BlockingForProduction $true
 }
 if (-not (Test-Present -Value $address)) {
-    Add-Warning -Warnings $warnings -Code 'missing_address' -Message 'website.address is empty; organization structured data will be less complete.'
+    Add-Warning -Warnings $warnings -Code 'missing_address' -Message 'website.address is empty; organization structured data will be less complete.' -BlockingForProduction $true
 }
 if (-not (Test-Present -Value $creditCode)) {
-    Add-Warning -Warnings $warnings -Code 'missing_credit_code' -Message 'company.unified_social_credit_code is empty; archive identity evidence is incomplete.'
+    Add-Warning -Warnings $warnings -Code 'missing_credit_code' -Message 'company.unified_social_credit_code is empty; archive identity evidence is incomplete.' -BlockingForProduction $true
 }
 if (-not (Test-Present -Value $foundingDate)) {
     Add-Warning -Warnings $warnings -Code 'missing_founding_date' -Message 'company.founding_date is empty; organization structured data is less complete.'
 }
+if (-not (Test-Present -Value $logoPath)) {
+    Add-Warning -Warnings $warnings -Code 'missing_logo' -Message 'brand.logo_path is empty; a customer-owned logo is required before production launch.' -BlockingForProduction $true
+}
+if (-not (Test-Present -Value $footerIcp)) {
+    Add-Warning -Warnings $warnings -Code 'missing_icp' -Message 'site.footer_icp is empty; confirm the filing requirement before a mainland China production launch.' -BlockingForProduction $true
+}
+$productionBlockingWarnings = @($warnings | Where-Object { [bool] $_.blocking_for_production })
 
 $review = [ordered]@{
     review_type = 'tongzhuo_customer_config_review'
@@ -116,6 +127,9 @@ $review = [ordered]@{
     config_path = $resolvedConfig
     customer = [ordered]@{
         slug = $customerSlug
+        project_id = [string] $validated.project_id
+        tenant_id = [string] $validated.tenant_id
+        industry_template = [string] $validated.industry_template
         company_name = [string] $validated.company_name
         short_name = [string] $validated.short_name
         service_count = [int] $validated.service_count
@@ -149,6 +163,13 @@ $review = [ordered]@{
         address_present = Test-Present -Value $address
         credit_code_present = Test-Present -Value $creditCode
         founding_date_present = Test-Present -Value $foundingDate
+        logo_present = Test-Present -Value $logoPath
+        footer_icp_present = Test-Present -Value $footerIcp
+    }
+    methodology = [ordered]@{
+        core_version = [string] $config.methodology.core_version
+        prompt_version = [string] $config.methodology.prompt_version
+        quality_rule_pack = [string] $config.methodology.quality_rule_pack
     }
     validation = [ordered]@{
         strict_config_validation = 'passed'
@@ -156,6 +177,11 @@ $review = [ordered]@{
         desktop_and_legacy_ports_different = ($publisherPort -ne $desktopAgentPort)
     }
     warnings = @($warnings)
+    production_readiness = [ordered]@{
+        ready = ($productionBlockingWarnings.Count -eq 0)
+        blocking_warning_count = [int] $productionBlockingWarnings.Count
+        blocking_warning_codes = @($productionBlockingWarnings | ForEach-Object { [string] $_.code })
+    }
     security_boundary = [ordered]@{
         geoflow_api_token_must_be_empty_before_packaging = $true
         platform_credentials_stay_local = $true
@@ -182,6 +208,9 @@ $markdown = @(
     "Status: $($review.status)",
     "Generated at: $($review.generated_at)",
     "Customer: $($review.customer.company_name)",
+    "Project ID: $($review.customer.project_id)",
+    "Tenant ID: $($review.customer.tenant_id)",
+    "Industry template: $($review.customer.industry_template)",
     "Short name: $($review.customer.short_name)",
     '',
     '## Endpoints',
@@ -207,6 +236,19 @@ $markdown = @(
     "- Address present: $($review.contacts.address_present)",
     "- Credit code present: $($review.contacts.credit_code_present)",
     "- Founding date present: $($review.contacts.founding_date_present)",
+    "- Logo present: $($review.contacts.logo_present)",
+    "- ICP present: $($review.contacts.footer_icp_present)",
+    '',
+    '## GEO Foundation Versions',
+    '',
+    "- Methodology: $($review.methodology.core_version)",
+    "- Prompt: $($review.methodology.prompt_version)",
+    "- Quality rules: $($review.methodology.quality_rule_pack)",
+    '',
+    '## Production Launch Gate',
+    '',
+    "- Ready: $($review.production_readiness.ready)",
+    "- Blocking warning count: $($review.production_readiness.blocking_warning_count)",
     '',
     '## Warnings',
     ''

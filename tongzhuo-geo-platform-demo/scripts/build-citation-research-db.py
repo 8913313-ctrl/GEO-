@@ -73,7 +73,7 @@ ARTIFACTS = (
         "03-cn-geo-citation-dataset/data/catalog/cn_geo.duckdb",
         "data/catalog/cn_geo.duckdb",
         40 * 1024 * 1024,
-        42_790_912,
+        42_741_760,
     ),
     Artifact(
         "parquet",

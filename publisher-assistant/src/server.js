@@ -23,6 +23,7 @@ const configuredAutoRun = String(process.env.PUBLISHER_AUTO_RUN || '').toLowerCa
 const browserDesktopUrl = process.env.PUBLISHER_VNC_URL || '/publisher-vnc/vnc.html?autoconnect=1&resize=scale&path=publisher-vnc%2Fwebsockify&reconnect=true';
 const defaultConfig = {
   geoflowBaseUrl: process.env.GEOFLOW_BASE_URL || 'http://127.0.0.1:18080',
+  projectId: process.env.GEOFLOW_PROJECT_ID || process.env.TZ_PROJECT_ID || 'default',
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
   apiToken: '',
   port: Number.isInteger(configuredPort) && configuredPort >= 1024 && configuredPort <= 65535 ? configuredPort : 18180,
@@ -46,6 +47,7 @@ function readConfig() {
     return {
       ...merged,
       geoflowBaseUrl: process.env.GEOFLOW_BASE_URL || merged.geoflowBaseUrl,
+      projectId: process.env.GEOFLOW_PROJECT_ID || process.env.TZ_PROJECT_ID || merged.projectId,
       port: process.env.PUBLISHER_PORT ? configuredPort : merged.port,
       browserChannel: process.env.BROWSER_CHANNEL || merged.browserChannel,
       browserHeadless: process.env.BROWSER_HEADLESS ? configuredHeadless : Boolean(merged.browserHeadless),
@@ -68,6 +70,7 @@ function writeConfig(next) {
 function publicConfig() {
   return {
     geoflowBaseUrl: config.geoflowBaseUrl,
+    projectId: config.projectId,
     publicBaseUrl: config.publicBaseUrl,
     port: config.port,
     pollSeconds: config.pollSeconds,
@@ -104,6 +107,7 @@ async function geoflowRequest(endpoint, options = {}) {
     ...(config.apiToken ? { Authorization: `Bearer ${config.apiToken}` } : {}),
     ...(options.headers || {}),
   };
+  headers['X-TZ-Project-ID'] = config.projectId;
   const response = await fetch(apiUrl(endpoint), {
     ...options,
     headers,
@@ -541,6 +545,13 @@ async function claimJob(id) {
   return response?.data;
 }
 
+async function startJob(id) {
+  const response = await geoflowRequest(`/api/v1/publisher/jobs/${id}/start`, {
+    method: 'POST', headers: { 'X-Publisher-Worker': workerId() }, body: {},
+  });
+  return response?.data;
+}
+
 async function reportResult(id, state, message = '', extra = {}) {
   const response = await geoflowRequest(`/api/v1/publisher/jobs/${id}/result`, {
     method: 'POST',
@@ -577,7 +588,8 @@ async function runJob(id, requestedPlatforms = []) {
   if (runtime.activeJobId) throw new Error('当前已有一个发布任务正在处理');
   runtime.activeJobId = Number(id);
   try {
-    const job = await claimJob(id);
+    await claimJob(id);
+    const job = await startJob(id);
     const activePlatformIds = chooseJobPlatforms(job, requestedPlatforms);
     if (!activePlatformIds.length) throw new Error('当前任务没有可执行的平台。');
 
@@ -728,6 +740,7 @@ app.post('/api/config', (request, response) => {
     const body = request.body || {};
     writeConfig({
       geoflowBaseUrl: normalizeBaseUrl(body.geoflowBaseUrl || config.geoflowBaseUrl),
+      projectId: String(body.projectId || config.projectId || 'default').trim().slice(0, 120),
       publicBaseUrl: body.publicBaseUrl !== undefined ? normalizeBaseUrl(body.publicBaseUrl) : config.publicBaseUrl,
       apiToken: body.apiToken !== undefined ? String(body.apiToken).trim() : config.apiToken,
       port: Math.max(1024, Math.min(65535, Number(body.port || config.port))),

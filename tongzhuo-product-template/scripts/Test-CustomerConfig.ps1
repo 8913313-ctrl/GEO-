@@ -57,9 +57,24 @@ if ($customerSlug -notmatch '^[a-z0-9][a-z0-9-]{1,40}$') {
     throw 'customer_slug must match: ^[a-z0-9][a-z0-9-]{1,40}$'
 }
 
+$projectSlug = Get-RequiredValue -Value $config.project.slug -Name 'project.slug'
+$projectId = Get-RequiredValue -Value $config.project.id -Name 'project.id'
+$tenantId = Get-RequiredValue -Value $config.tenant_id -Name 'tenant_id'
+$productCapability = Get-RequiredValue -Value $config.product_capability -Name 'product_capability'
+$industryTemplate = Get-RequiredValue -Value $config.industry_template -Name 'industry_template'
 $companyName = Get-RequiredValue -Value $config.company.legal_name -Name 'company.legal_name'
 $shortName = Get-RequiredValue -Value $config.company.brand_name -Name 'company.brand_name'
 $siteUrl = Test-UriValue -Value (Get-RequiredValue -Value $config.website.site_url -Name 'website.site_url') -Name 'website.site_url'
+if ($projectSlug -ne $customerSlug) { throw 'project.slug must equal customer_slug during compatibility migration.' }
+if ($projectId -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$') { throw 'project.id format is invalid.' }
+if ($tenantId -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$') { throw 'tenant_id format is invalid.' }
+if ($productCapability -ne 'geo') { throw 'product_capability must be geo.' }
+if ($industryTemplate -notin @('professional-services', 'building-materials', 'machinery')) { throw 'industry_template is not registered.' }
+if ((Get-RequiredValue -Value $config.company_profile.legal_name -Name 'company_profile.legal_name') -ne $companyName) { throw 'company_profile.legal_name must equal company.legal_name.' }
+if ((Get-RequiredValue -Value $config.company_profile.short_name -Name 'company_profile.short_name') -ne $shortName) { throw 'company_profile.short_name must equal company.brand_name.' }
+if ((Get-RequiredValue -Value $config.site.domain -Name 'site.domain').TrimEnd('/') -ne $siteUrl.AbsoluteUri.TrimEnd('/')) { throw 'site.domain must equal website.site_url.' }
+foreach ($requiredVersion in @('core_version', 'prompt_version', 'quality_rule_pack')) { if ([string]::IsNullOrWhiteSpace([string]$config.methodology.$requiredVersion)) { throw "methodology.$requiredVersion is required." } }
+
 $workbenchUrlValue = Get-OptionalValue -Value $config.website.workbench_url
 if (-not [string]::IsNullOrWhiteSpace($workbenchUrlValue)) {
     Test-UriValue -Value $workbenchUrlValue -Name 'website.workbench_url' | Out-Null
@@ -135,6 +150,9 @@ if ($services.Count -eq 0) {
 }
 
 $result = [ordered]@{
+    project_id = $projectId
+    tenant_id = $tenantId
+    industry_template = $industryTemplate
     customer_slug = $customerSlug
     company_name = $companyName
     short_name = $shortName

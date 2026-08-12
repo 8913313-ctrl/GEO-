@@ -19,6 +19,16 @@ $rootPath = (Resolve-Path $Root).Path
 $resolvedConfig = (Resolve-Path $ConfigPath).Path
 $product = & (Join-Path $rootPath 'scripts\Read-ProductMetadata.ps1') -Root $rootPath
 $version = [string] $product.version
+$gitCommit = ''
+$gitDirty = $null
+try {
+    $gitCommit = [string] (& git -C $rootPath rev-parse HEAD 2>$null)
+    if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($gitCommit)) {
+        $gitStatus = @(& git -C $rootPath status --porcelain --untracked-files=normal 2>$null)
+        $gitDirty = ($LASTEXITCODE -ne 0) -or ($gitStatus.Count -gt 0)
+    } else { $gitCommit = '' }
+} catch { $gitCommit = '' }
+$global:LASTEXITCODE = 0
 
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
     $OutputRoot = Join-Path $rootPath 'dist\customer-releases'
@@ -185,6 +195,9 @@ try {
         version = $version
         release_slug = $safeReleaseSlug
         customer_slug = $customerSlug
+        project_id = [string] $validatedConfig.project_id
+        tenant_id = [string] $validatedConfig.tenant_id
+        industry_template = [string] $validatedConfig.industry_template
         company_name = [string] $validatedConfig.company_name
         short_name = [string] $validatedConfig.short_name
         site_url = [string] $validatedConfig.site_url
@@ -192,6 +205,15 @@ try {
         publisher_port = [int] $validatedConfig.publisher_port
         desktop_agent_port = [int] $validatedConfig.desktop_agent_port
         generated_at = $report.generated_at
+        source_control = [ordered]@{
+            git_commit = $gitCommit
+            working_tree_dirty = $gitDirty
+        }
+        methodology = [ordered]@{
+            core_version = 'MVER-GEO-CORE-V1'
+            prompt_version = 'PVER-GEO-ARTICLE-V1'
+            quality_rule_pack = 'QRULE-GEO-CONTENT-V1'
+        }
         delivery_package = [ordered]@{
             path = $deliveryZip
             file = Split-Path $deliveryZip -Leaf
@@ -336,6 +358,9 @@ try {
         release_slug = $safeReleaseSlug
         customer = [ordered]@{
             slug = $customerSlug
+            project_id = [string] $validatedConfig.project_id
+            tenant_id = [string] $validatedConfig.tenant_id
+            industry_template = [string] $validatedConfig.industry_template
             company_name = [string] $validatedConfig.company_name
             short_name = [string] $validatedConfig.short_name
             site_url = [string] $validatedConfig.site_url
@@ -380,6 +405,8 @@ try {
             browser_profiles_excluded = $true
             server_passwords_excluded = $true
         }
+        source_control = [ordered]@{ git_commit = $gitCommit; working_tree_dirty = $gitDirty }
+        methodology = [ordered]@{ core_version = 'MVER-GEO-CORE-V1'; prompt_version = 'PVER-GEO-ARTICLE-V1'; quality_rule_pack = 'QRULE-GEO-CONTENT-V1' }
     }
     Write-JsonFile -Value $archiveIndex -Path $archiveIndexFile
 

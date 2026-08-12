@@ -603,7 +603,7 @@ function readDatabasePlan(database, exportData, options) {
   return buildPlan(database?.connection || null, exportData, options);
 }
 
-export async function importLegacyGeoFlowExport({ data, database = null, databasePath = productionConfig.databasePath, workspaceId = "default", initializeWorkspace = false, dryRun = false, workspaceMaxBytes = MAX_WORKSPACE_BYTES } = {}) {
+export async function importLegacyGeoFlowExport({ data, database = null, databasePath = productionConfig.databasePath, workspaceId = productionConfig.workspaceId, initializeWorkspace = false, dryRun = false, workspaceMaxBytes = MAX_WORKSPACE_BYTES } = {}) {
   const exportData = normalizeLegacyGeoFlowExport(data);
   const options = { workspaceId: requiredString(workspaceId, "workspaceId", 120), initializeWorkspace: Boolean(initializeWorkspace), workspaceMaxBytes };
   let ownDatabase = null;
@@ -656,7 +656,7 @@ async function readExportFile(filePath) {
 }
 
 function parseCliArguments(argv) {
-  const options = { input: "", databasePath: productionConfig.databasePath, workspaceId: "default", dryRun: false, initializeWorkspace: false };
+  const options = { input: "", databasePath: productionConfig.databasePath, workspaceId: productionConfig.workspaceId, dryRun: false, initializeWorkspace: false };
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
     if (value === "--input") options.input = argv[++index] || "";
@@ -673,7 +673,7 @@ function parseCliArguments(argv) {
 function usage() {
   return [
     "Usage:",
-    "  node scripts/import-legacy-geoflow.mjs --input legacy-export.json [--database path] [--workspace default] [--dry-run] [--initialize-workspace]",
+    "  node scripts/import-legacy-geoflow.mjs --input legacy-export.json [--database path] [--workspace tenant-id] [--dry-run] [--initialize-workspace]",
     "",
     "The import is immutable and additive. It imports only categories and published articles; it never overwrites an existing article."
   ].join("\n");

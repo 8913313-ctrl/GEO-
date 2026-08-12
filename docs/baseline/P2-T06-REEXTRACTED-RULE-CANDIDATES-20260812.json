@@ -1,0 +1,21 @@
+{
+  "manifestVersion": 2,
+  "generatedAt": "2026-08-12",
+  "sourceRegistry": "P2-T06-EXTERNAL-SOURCE-REGISTRY-20260812.json",
+  "status": "candidate-for-review-only",
+  "note": "本清单重新吸收了 GEOHub、qiaomu-seo 和 Waza 的工程边界；研究文档和数据集尚未在本轮伪造正文定位，仍保持 review-only。",
+  "rules": [
+    {"id":"EXT-GEO-R001","theme":"capability-registry","rule":"每项 GEO 能力应声明状态、意图、入口、输入契约和输出产物，未实现能力必须返回可用性元数据而不是假装执行。","sources":["SRC-016"],"classification":"engineering-governance","applicability":"产品能力注册表和 API 路由","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R002","theme":"routing","rule":"单一意图路由到最小可用能力；明确多阶段请求才进入预先定义的稳定工作流。","sources":["SRC-016"],"classification":"engineering-method","applicability":"GEOHub 式统一入口","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R003","theme":"artifact-lineage","rule":"每次能力运行必须产生自包含产物、证据账本、质量报告和运行清单，并保留输入到输出的来源链。","sources":["SRC-016"],"classification":"data-contract","applicability":"诊断、内容、测量和 SEO 任务","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R004","theme":"research-boundary","rule":"将来源报告结论、复现实验、不可复现主张、代理指标和描述性测量分开标记，不能把研究背景写成客户实时表现。","sources":["SRC-001","SRC-006","SRC-007","SRC-016"],"classification":"evidence-boundary","applicability":"研究上下文和客户报告","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R005","theme":"measurement-boundary","rule":"离线测量只能聚合用户提供的观察数据；实时平台采集、排名数据和账号操作必须通过明确授权的外部连接器。","sources":["SRC-016"],"classification":"safety","applicability":"测量服务和平台集成","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R006","theme":"content-evidence","rule":"内容生产必须使用证据单元和可追溯引用；证据缺失时保留 unknown、unverified 或 blocked-by-evidence，不补写客户事实。","sources":["SRC-016","SRC-018"],"classification":"quality-gate","applicability":"文章、对比、榜单、页面蓝图和优化任务","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R007","theme":"diagnosis-scope","rule":"网站诊断默认只读，只访问用户明确提供的公开规范 HTTP(S) URL，不自动扩展爬取范围。","sources":["SRC-016","SRC-018"],"classification":"security","applicability":"官网、页面和信源诊断","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R008","theme":"seo-geo-separation","rule":"SEO 技术语法、搜索功能资格、实际展示、AI 引用和业务结果必须分层，不因 Schema 或 Lighthouse 通过就宣称收录、富结果或 GEO 成功。","sources":["SRC-018"],"classification":"measurement","applicability":"官网技术优化和 GEO 报告","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R009","theme":"authorized-change","rule":"代码、CMS、索引控制、发布器和账号修改只有在明确授权后执行，并保存修改前证据、测试结果、回滚信息和复查时间点。","sources":["SRC-018","SRC-019"],"classification":"change-governance","applicability":"发布、SEO 修复和系统运维","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R010","theme":"workflow-discipline","rule":"复杂开发任务按研究/计划、实现、检查和发布阶段分步执行，每一步停止等待明确授权，不自动跨阶段扩张范围。","sources":["SRC-019"],"classification":"engineering-governance","applicability":"内部开发和客户交付流程","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R011","theme":"commercial-boundary","rule":"GEOHub、研究数据集和开源 Skill 的工程质量或离线评测，不等于客户排名、引用、流量、转化或收入保证。","sources":["SRC-001","SRC-016","SRC-018"],"classification":"commercial-risk","applicability":"销售材料、合同、报告和看板","reuseDecision":"candidate-global-after-approval"},
+    {"id":"EXT-GEO-R012","theme":"license-boundary","rule":"AGPL、MIT、Apache、论文、数据集、文档和第三方材料分别遵循其许可证；未经法律和负责人确认不得把 GEOHub 代码或受版权保护的正文复制进商业产品。","sources":["SRC-001","SRC-003","SRC-004","SRC-016","SRC-018","SRC-019"],"classification":"license-governance","applicability":"私有交付、打包和代码集成","reuseDecision":"candidate-global-after-approval"}
+  ]
+}

@@ -890,7 +890,7 @@ export class AnalysisWorkbenchEngine {
     try {
       const generated = await this.aiGenerationService.generate(
         "analysis_research_intent",
-        { providerId: options.providerId, model: options.model, workspaceId: options.workspaceId || "default" },
+        { providerId: options.providerId, model: options.model, workspaceId: options.workspaceId || this.store.workspaceId },
         prompt,
         (raw) => ({ intent: normalizeResearchIntent(raw, { ...fallback, ...options, userRequest: promptText }) }),
         {
@@ -925,7 +925,7 @@ export class AnalysisWorkbenchEngine {
     const parsed = await this.interpretRequest(userRequest, {
       providerId: input.providerId,
       model: input.model,
-      workspaceId: input.workspaceId || "default",
+      workspaceId: input.workspaceId || this.store.workspaceId,
       industry: input.industry,
       platforms: input.platforms,
       reportDepth: input.reportDepth
@@ -941,7 +941,7 @@ export class AnalysisWorkbenchEngine {
 
   async execute(runId, actor = null, request = null) {
     let run = this.store.run(runId, { includeTools: true });
-    const session = this.store.session("default", run.sessionId);
+    const session = this.store.session(this.store.workspaceId, run.sessionId);
     const userMessage = session.messages.find((item) => item.id === run.userMessageId) || session.messages.filter((item) => item.role === "user").at(-1);
     const snapshot = run.requestSnapshot || {};
     const userRequest = stringValue(userMessage?.content || snapshot.prompt, 40_000);
@@ -961,7 +961,7 @@ export class AnalysisWorkbenchEngine {
           const parsed = await this.interpretRequest(userRequest, {
             providerId: run.providerId,
             model: run.model,
-            workspaceId: "default",
+            workspaceId: this.store.workspaceId,
             industry: snapshot.industry,
             platforms: initialPlatforms,
             reportDepth: initialDepth
@@ -1038,10 +1038,10 @@ export class AnalysisWorkbenchEngine {
             } else result = { available: false, state: "not_configured", results: [], limitations: ["Citation Lab 研究文档索引尚未配置；本次仅使用结构化数据事实。"] };
           }
           else if (item.toolName === "enterprise_knowledge_search") {
-            const retrieval = await this.knowledgeStore.retrieve({ workspaceId: "default", query: userRequest, businessLineId: stringValue(snapshot.businessLineId, 180), topK: 8, minScore: 0.08, includeInternal: false, providerId: stringValue(snapshot.embeddingProviderId, 180), actor });
+            const retrieval = await this.knowledgeStore.retrieve({ workspaceId: this.store.workspaceId, query: userRequest, businessLineId: stringValue(snapshot.businessLineId, 180), topK: 8, minScore: 0.08, includeInternal: false, providerId: stringValue(snapshot.embeddingProviderId, 180), actor });
             result = { knowledgeGap: Boolean(retrieval?.knowledgeGap), message: retrieval?.message || "", results: (retrieval?.results || retrieval?.evidence || []).slice(0, 8).map((row) => ({ title: row.title, quote: row.quote || row.excerpt || row.content, source: row.libraryName || row.source, sourceUrl: row.sourceUrl || "", locator: row.locator || "", score: row.score })) };
           } else if (item.toolName === "site_operations_snapshot") {
-            result = typeof this.siteOperationsProvider === "function" ? await this.siteOperationsProvider({ workspaceId: "default", userRequest, actor, request }) : { available: false, message: "官网与运营摘要服务未配置。" };
+            result = typeof this.siteOperationsProvider === "function" ? await this.siteOperationsProvider({ workspaceId: this.store.workspaceId, userRequest, actor, request }) : { available: false, message: "官网与运营摘要服务未配置。" };
           } else throw new AnalysisWorkbenchError(`不支持的分析工具：${item.toolName}`, 422, "ANALYSIS_TOOL_NOT_ALLOWED");
           const completed = this.store.completeToolCall(tool.id, compact(result));
           evidence.push({ evidenceId: completed.evidenceId, toolName: completed.toolName, label: TOOL_LABELS[completed.toolName] || completed.toolName, result: completed.result });
@@ -1063,7 +1063,7 @@ export class AnalysisWorkbenchEngine {
       const prompt = modelContext.prompt;
       const generated = await this.aiGenerationService.generate(
         "analysis_workbench",
-        { providerId: run.providerId, model: run.model, workspaceId: "default", sessionId: session.id, runId },
+        { providerId: run.providerId, model: run.model, workspaceId: this.store.workspaceId, sessionId: session.id, runId },
         prompt,
         (raw) => {
           return validateWorkbenchReport(normalizeWorkbenchModelResponse(raw, fullModelEvidence), fullModelEvidence, {
@@ -1111,7 +1111,7 @@ export class AnalysisWorkbenchEngine {
       const artifact = this.store.createArtifact(runId, report, actor, request);
       this.store.addMessage(session.id, "assistant", report.executiveSummary, { artifactId: artifact.id, runId, title: artifact.title }, actor, request);
       run = this.store.completeRun(runId);
-      return { session: this.store.session("default", session.id), run, artifact };
+      return { session: this.store.session(this.store.workspaceId, session.id), run, artifact };
     } catch (error) {
       this.store.failRun(runId, error);
       throw error;

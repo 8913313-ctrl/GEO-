@@ -8,6 +8,8 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+function powershell.exe { & ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) @args }
+
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 }

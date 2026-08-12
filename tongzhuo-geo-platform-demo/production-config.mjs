@@ -37,11 +37,20 @@ function secretEnv(name, fileName, unreadableCode = "RELAY_CLIENT_SECRET_FILE_UN
 }
 
 const dataDir = path.resolve(process.env.TZ_DATA_DIR || path.join(moduleRoot, "data"));
+const tenantId = String(process.env.TZ_TENANT_ID || "default").trim();
 
 export const productionConfig = Object.freeze({
   environment: String(process.env.NODE_ENV || "development").trim().toLowerCase(),
   host: String(process.env.TZ_BIND_HOST || "127.0.0.1").trim(),
   port: numberEnv("PORT", 43127, { min: 1, max: 65535 }),
+  // Customer-facing configuration has one project identity: tenant_id.
+  // GEOFlow keeps its established workspace_id database columns; workspaceId
+  // is the internal, one-way mapping of that same value rather than a second ID.
+  tenantId,
+  workspaceId: tenantId,
+  projectSeedKey: String(process.env.TZ_PROJECT_SEED || "").trim(),
+  projectId: String(process.env.TZ_PROJECT_ID || process.env.TZ_TENANT_ID || "default").trim(),
+  industryTemplate: String(process.env.TZ_INDUSTRY_TEMPLATE || "").trim(),
   dataDir,
   databasePath: path.resolve(process.env.TZ_DATABASE_PATH || path.join(dataDir, "tongzhuo-production.sqlite")),
   logDir: path.resolve(process.env.TZ_LOG_DIR || path.join(dataDir, "logs")),
@@ -81,8 +90,17 @@ export const productionConfig = Object.freeze({
 export function assertProductionConfiguration(config = productionConfig) {
   const problems = [];
   if (!config.host) problems.push("TZ_BIND_HOST 不能为空");
-  if (config.environment === "production" && config.host !== "127.0.0.1" && !config.cookieSecure && !config.trustProxy) {
-    problems.push("生产环境对外监听时必须启用安全 Cookie，或明确配置可信反向代理");
+  if (!config.tenantId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(config.tenantId)) {
+    problems.push("TZ_TENANT_ID 格式不正确，只能包含字母、数字、点、下划线、冒号和连字符，且最长 120 个字符");
+  }
+  if (config.workspaceId !== config.tenantId) {
+    problems.push("workspaceId 必须与 tenantId 完全一致，不能建立第二套客户身份");
+  }
+  if (!config.projectId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(config.projectId)) {
+    problems.push("TZ_PROJECT_ID 格式不正确，只能包含字母、数字、点、下划线、冒号和连字符，且最长 120 个字符");
+  }
+  if (config.environment === "production" && config.host !== "127.0.0.1" && !config.cookieSecure) {
+    problems.push("生产环境对外监听时必须启用安全 Cookie（即使由可信反向代理终止 TLS）");
   }
   const relayValues = [config.relayBaseUrl, config.relayInstanceId, config.relayClientId, config.relayClientSecret];
   const relayConfiguredFields = relayValues.filter(Boolean).length;

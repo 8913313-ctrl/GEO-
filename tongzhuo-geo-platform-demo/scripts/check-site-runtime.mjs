@@ -60,7 +60,8 @@ try {
         categories: [{ id: "geo", name: "GEO 优化", slug: "geo", status: "active", navVisible: true, description: "GEO 方法与信源建设。" }],
         pages: [{ id: "home", title: "首页", path: "/", status: "published", sitemapEnabled: true }, { id: "insights", title: "行业资讯", path: "/insights", status: "published", sitemapEnabled: true }],
         navItems: [{ id: "home", label: "首页", path: "/", visible: true }, { id: "insights", label: "行业资讯", path: "/insights", visible: true }],
-        theme: { cta: "联系测试企业" }
+        theme: { cta: "联系测试企业" },
+        problemGroups: [{ id: "geo", title: "GEO 服务问题", service: "GEO 服务", status: "published", order: 1, questions: [{ id: "question-industrial-geo-start", slug: "industrial-geo-start", title: "工业品企业做 GEO 应该从哪里开始？", answer: "先统一企业事实，再围绕真实客户问题建设公开内容。", status: "published", order: 1 }] }]
       }
     }
   }, { expectedRevision: 0 });
@@ -126,7 +127,7 @@ try {
 
   result = await request(base, "/api/v1/leads", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "User-Agent": "site-runtime-check/1.0" },
+    headers: { "Content-Type": "application/json", "User-Agent": "site-runtime-check/1.0", "Idempotency-Key": "site-runtime-lead-0001" },
     body: JSON.stringify({ name: "测试客户", phone: "13800000000", company: "测试企业", service: "GEO优化", message: "希望了解官网信源建设。", source_url: "https://www.example.test/contact.html" })
   });
   assert.equal(result.response.status, 201);
@@ -135,7 +136,7 @@ try {
   assert.match(leadResponse.data.id, /^LEAD-/);
   const lead = database.connection.prepare("SELECT name, phone, company, service, status, source_url, user_agent FROM site_contact_leads WHERE id = ?").get(leadResponse.data.id);
   assert.deepEqual({ ...lead }, { name: "测试客户", phone: "13800000000", company: "测试企业", service: "GEO优化", status: "new", source_url: "https://www.example.test/contact.html", user_agent: "site-runtime-check/1.0" });
-  result = await request(base, "/api/v1/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "缺少联系方式" }) });
+  result = await request(base, "/api/v1/leads", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": "site-runtime-invalid-0001" }, body: JSON.stringify({ name: "缺少联系方式" }) });
   assert.equal(result.response.status, 422); assert.equal(JSON.parse(result.text).code, "SITE_LEAD_REQUIRED");
   result = await request(base, "/api/v1/leads");
   assert.equal(result.response.status, 405); assert.equal(result.response.headers.get("allow"), "POST");

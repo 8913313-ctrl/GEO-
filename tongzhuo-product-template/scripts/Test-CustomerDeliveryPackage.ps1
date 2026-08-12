@@ -7,6 +7,8 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+function powershell.exe { & ([Diagnostics.Process]::GetCurrentProcess().MainModule.FileName) @args }
+
 $resolvedPackage = (Resolve-Path $PackagePath).Path
 $extractRoot = Join-Path ([IO.Path]::GetTempPath()) ('tongzhuo-delivery-verify-' + [guid]::NewGuid().ToString('N'))
 

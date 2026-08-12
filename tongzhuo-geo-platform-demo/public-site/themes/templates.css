@@ -1,0 +1,219 @@
+/*
+  Website template registry visual layer.
+  Templates only restyle the shared CMS markup. They contain no company,
+  product, customer, result, or industry claims.
+*/
+
+.site-v8 {
+  --template-accent: #5e1d2e;
+  --template-accent-strong: #2a1018;
+  --template-accent-soft: #d8c08b;
+  --template-page: #f3ecdc;
+  --template-page-alt: #e8ddc7;
+  --template-surface: #f8f1e2;
+  --template-ink: #201a17;
+  --template-muted: #685b50;
+  --template-line: rgba(70, 48, 38, .22);
+  --template-hero: #201218;
+  --template-hero-ink: #fff5e4;
+  --template-header: #160f11;
+  --template-radius: 2px;
+  --template-display: var(--passport-display);
+  --template-title: var(--passport-serif);
+  --template-body: var(--passport-sans);
+}
+
+.site-v8.site-template-industrial {
+  --template-accent: #a64e25;
+  --template-accent-strong: #492815;
+  --template-accent-soft: #d6a36f;
+  --template-page: #eee8dd;
+  --template-page-alt: #d9d2c5;
+  --template-surface: #f5f1e8;
+  --template-ink: #27241f;
+  --template-muted: #666057;
+  --template-line: rgba(57, 51, 43, .27);
+  --template-hero: #292722;
+  --template-hero-ink: #fff8eb;
+  --template-header: #20201d;
+  --template-radius: 0;
+  --template-display: "TZ Display", "Source Han Sans SC", sans-serif;
+  --template-title: "Source Han Sans SC", "Microsoft YaHei UI", sans-serif;
+}
+
+.site-v8.site-template-energy {
+  --template-accent: #0d6b67;
+  --template-accent-strong: #103e43;
+  --template-accent-soft: #79c7bd;
+  --template-page: #edf3f0;
+  --template-page-alt: #dbe6e2;
+  --template-surface: #f7fbf9;
+  --template-ink: #14272a;
+  --template-muted: #50676a;
+  --template-line: rgba(21, 69, 72, .22);
+  --template-hero: #102e32;
+  --template-hero-ink: #f2fffb;
+  --template-header: #0b2428;
+  --template-radius: 5px;
+  --template-display: "TZ Display", "Source Han Sans SC", sans-serif;
+  --template-title: "Source Han Sans SC", "Microsoft YaHei UI", sans-serif;
+}
+
+.site-v8.site-template-beauty {
+  --template-accent: #9d536b;
+  --template-accent-strong: #562d3c;
+  --template-accent-soft: #deb0bb;
+  --template-page: #f6f0ee;
+  --template-page-alt: #eadfdd;
+  --template-surface: #fffaf8;
+  --template-ink: #31272b;
+  --template-muted: #725f65;
+  --template-line: rgba(93, 57, 68, .19);
+  --template-hero: #55333e;
+  --template-hero-ink: #fff8f6;
+  --template-header: #3c2830;
+  --template-radius: 18px;
+  --template-display: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", serif;
+  --template-title: "Source Han Serif SC", "Noto Serif CJK SC", "Songti SC", serif;
+}
+
+body.site-v8 { color: var(--template-ink); background: var(--template-page); font-family: var(--template-body); }
+body.site-v8 ::selection { color: var(--template-hero-ink); background: var(--template-accent); }
+body.site-v8 :focus-visible { outline-color: var(--template-accent-soft); }
+body.site-v8 .site-header { color: var(--template-hero-ink) !important; background: var(--template-header) !important; }
+body.site-v8 .nav-links a,
+body.site-v8 .brand small { color: color-mix(in srgb, var(--template-hero-ink) 68%, transparent) !important; }
+body.site-v8 .nav-links a:hover,
+body.site-v8 .nav-links a.active,
+body.site-v8 .brand,
+body.site-v8 .brand b { color: var(--template-hero-ink) !important; }
+body.site-v8 .nav-links a::after { background: var(--template-accent-soft) !important; }
+body.site-v8 .nav-cta { border-color: var(--template-accent-soft) !important; color: var(--template-hero-ink) !important; }
+body.site-v8 .nav-cta:hover { color: var(--template-accent-strong) !important; background: var(--template-accent-soft) !important; }
+body.site-v8 .mobile-navigation { color: var(--template-hero-ink); background: var(--template-header); }
+
+body.site-v8 .page-hero,
+body.site-v8 .article-hero,
+body.site-v8 .problem-detail-hero { color: var(--template-hero-ink); background-color: var(--template-hero); }
+body.site-v8 .page-hero-v2-inner > h1,
+body.site-v8 .blog-hero h1,
+body.site-v8 .article-hero h1,
+body.site-v8 .problem-detail-hero h1,
+body.site-v8 .passport-hero-copy h1 { color: var(--template-hero-ink) !important; font-family: var(--template-display) !important; }
+body.site-v8 .page-hero p,
+body.site-v8 .article-hero p,
+body.site-v8 .problem-detail-hero p { color: color-mix(in srgb, var(--template-hero-ink) 72%, transparent); }
+body.site-v8 main .section,
+body.site-v8 main .corp-section,
+body.site-v8 main .problem-detail-main { background-color: var(--template-page); }
+body.site-v8 .section.white,
+body.site-v8 .corp-services,
+body.site-v8 .corp-insights { background-color: var(--template-surface) !important; }
+body.site-v8 .corp-method,
+body.site-v8 .service-method-section { background-color: var(--template-page-alt) !important; }
+body.site-v8 .section-head h2,
+body.site-v8 .corp-section-top h2,
+body.site-v8 .corp-split-heading h2,
+body.site-v8 .problem-map-intro h2,
+body.site-v8 .service-method-layout h2,
+body.site-v8 .case-note h2 { color: var(--template-ink) !important; font-family: var(--template-title); }
+body.site-v8 .section-head > p,
+body.site-v8 .problem-map-intro > p,
+body.site-v8 .service-card-copy p,
+body.site-v8 .case-card > p,
+body.site-v8 .problem-card p,
+body.site-v8 .blog-entry p { color: var(--template-muted) !important; }
+body.site-v8 .button.primary,
+body.site-v8 .button.ink { color: #fff !important; background: var(--template-accent) !important; }
+body.site-v8 .button.secondary { color: var(--template-accent) !important; border-color: var(--template-accent) !important; }
+body.site-v8 .service-card.service-card-detailed,
+body.site-v8 .case-grid-wide .case-card,
+body.site-v8 .problem-card,
+body.site-v8 .blog-entry { border-color: var(--template-line); }
+body.site-v8 .service-card-copy h3,
+body.site-v8 .case-card h3,
+body.site-v8 .problem-card h3,
+body.site-v8 .blog-entry h3 a,
+body.site-v8 .insight-copy h3 { color: var(--template-accent-strong) !important; font-family: var(--template-title); }
+body.site-v8 .service-detail-card,
+body.site-v8 .case-card,
+body.site-v8 .principle-grid article,
+body.site-v8 .fact-grid article,
+body.site-v8 .blog-panel,
+body.site-v8 .insight-card,
+body.site-v8 .lead-form,
+body.site-v8 .direct-answer,
+body.site-v8 .problem-detail-aside,
+body.site-v8 .insight-feature { border-color: var(--template-line); border-radius: var(--template-radius); background-color: var(--template-surface); }
+body.site-v8 .text-link,
+body.site-v8 .card-link,
+body.site-v8 .blog-entry-link,
+body.site-v8 .blog-date strong { color: var(--template-accent) !important; }
+body.site-v8 .contact-band,
+body.site-v8 .corp-contact { color: var(--template-hero-ink); background: var(--template-accent-strong) !important; }
+body.site-v8 .contact-band h2 { color: var(--template-hero-ink) !important; }
+body.site-v8 .contact-band .button.ink { color: var(--template-accent-strong) !important; border-color: var(--template-accent-soft) !important; background: var(--template-accent-soft) !important; }
+body.site-v8 .site-footer { color: color-mix(in srgb, var(--template-hero-ink) 78%, transparent); background: var(--template-header); }
+
+/* Professional retains the verification-passport signature composition. */
+.site-template-professional .passport-hero { background: var(--template-hero); }
+
+/* Industrial: specification-sheet rules, squared records and high-density structure. */
+.site-template-industrial .page-hero::before { color: color-mix(in srgb, var(--template-accent-soft) 18%, transparent); }
+.site-template-industrial .service-detail-list,
+.site-template-industrial .case-grid.case-grid-wide,
+.site-template-industrial .problem-group-head { border-top-color: var(--template-accent); }
+.site-template-industrial .service-card.service-card-detailed:first-child { background: color-mix(in srgb, var(--template-accent) 7%, var(--template-page)) !important; }
+.site-template-industrial .case-filter button.is-active { border-bottom-color: var(--template-accent); color: var(--template-accent-strong); }
+.site-template-industrial .passport-hero {
+  background: var(--template-hero);
+  background-image: linear-gradient(90deg, transparent 0 49.9%, rgba(214, 163, 111, .12) 50%, transparent 50.1%);
+}
+.site-template-industrial .passport-cover { border-radius: 0; background: #4b3322; }
+.site-template-industrial .passport-page { border-radius: 0; background-color: #ece7db; }
+.site-template-industrial .passport-stamp { border-radius: 2px; transform: scale(.74) rotate(-2deg); }
+
+/* Energy: measured control-room calm without dashboard chrome. */
+.site-template-energy .page-hero,
+.site-template-energy .article-hero,
+.site-template-energy .problem-detail-hero { background-image: radial-gradient(circle at 82% 30%, rgba(121, 199, 189, .2), transparent 30%); }
+.site-template-energy .lead-form input,
+.site-template-energy .lead-form select,
+.site-template-energy .lead-form textarea { border-color: var(--template-line); background: var(--template-surface); }
+.site-template-energy .service-card-meta b,
+.site-template-energy .case-result b { color: var(--template-accent); }
+.site-template-energy .passport-hero { background: var(--template-hero); }
+.site-template-energy .passport-cover { background: #123f43; }
+.site-template-energy .passport-page { background-color: #e6f0ed; }
+.site-template-energy .passport-endorsements { background-color: #d5e8e5; }
+.site-template-energy .passport-stamp { color: var(--template-accent); }
+
+/* Beauty: soft editorial pacing and product-journal surfaces. */
+.site-template-beauty .page-hero,
+.site-template-beauty .article-hero,
+.site-template-beauty .problem-detail-hero { background-image: radial-gradient(ellipse at 78% 36%, rgba(222, 176, 187, .28), transparent 38%); }
+.site-template-beauty .service-card.service-card-detailed,
+.site-template-beauty .case-grid-wide .case-card { padding-inline: 24px; }
+.site-template-beauty .service-card.service-card-detailed:first-child,
+.site-template-beauty .insight-feature { background: var(--template-surface) !important; }
+.site-template-beauty .case-filter button { border-radius: 999px; }
+.site-template-beauty .passport-hero { background: var(--template-hero); }
+.site-template-beauty .passport-cover { border-radius: 24px; background: #794658; }
+.site-template-beauty .passport-page { background-color: #f4e9e7; }
+.site-template-beauty .passport-identity { background-color: #f0e6e2; }
+.site-template-beauty .passport-endorsements { background-color: #ecd9df; }
+.site-template-beauty .passport-stamp { color: var(--template-accent); }
+
+@media (max-width: 680px) {
+  body.site-v8 .shell { width: min(100% - 34px, 700px); }
+  .site-template-beauty .service-card.service-card-detailed,
+  .site-template-beauty .case-grid-wide .case-card { padding-inline: 0; }
+  body.site-v8 .page-hero-v2-inner > h1,
+  body.site-v8 .blog-hero h1,
+  body.site-v8 .article-hero h1,
+  body.site-v8 .problem-detail-hero h1 { overflow-wrap: anywhere; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-v8 *, .site-v8 *::before, .site-v8 *::after { scroll-behavior: auto !important; }
+}

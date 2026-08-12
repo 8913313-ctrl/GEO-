@@ -9,6 +9,9 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS", "TRACE"]);
 export const PERMISSIONS = Object.freeze({
   WORKSPACE_READ: "workspace.read",
   WORKSPACE_WRITE: "workspace.write",
+  LEADS_CONTACT_READ: "leads.contact.read",
+  LEADS_MANAGE: "leads.manage",
+  LEADS_EXPORT: "leads.export",
   CONTENT_GENERATE: "content.generate",
   CONTENT_REVIEW: "content.review",
   CONTENT_PUBLISH: "content.publish",
@@ -27,6 +30,9 @@ export const ROLE_PERMISSIONS = Object.freeze({
   operator: Object.freeze([
     PERMISSIONS.WORKSPACE_READ,
     PERMISSIONS.WORKSPACE_WRITE,
+    PERMISSIONS.LEADS_CONTACT_READ,
+    PERMISSIONS.LEADS_MANAGE,
+    PERMISSIONS.LEADS_EXPORT,
     PERMISSIONS.CONTENT_GENERATE,
     PERMISSIONS.CONTENT_PUBLISH,
     PERMISSIONS.KNOWLEDGE_MANAGE,
@@ -234,6 +240,49 @@ export class AuthService {
     this.csrfCookieName = String(options.csrfCookieName || process.env.TZ_CSRF_COOKIE_NAME || "tz_csrf").trim();
     this.secureCookies = options.secureCookies ?? (String(process.env.NODE_ENV || "").toLowerCase() === "production");
     this.trustProxy = options.trustProxy ?? (String(process.env.TZ_TRUST_PROXY || "").toLowerCase() === "true");
+    this.loginAttemptWindowMs = boundedInteger(options.loginAttemptWindowMs ?? process.env.TZ_LOGIN_ATTEMPT_WINDOW_MS, 15 * 60_000, 10_000, 24 * 60 * 60_000);
+    this.loginAccountMaxAttempts = boundedInteger(options.loginAccountMaxAttempts ?? process.env.TZ_LOGIN_ACCOUNT_MAX_ATTEMPTS, 8, 3, 100);
+    this.loginIpMaxAttempts = boundedInteger(options.loginIpMaxAttempts ?? process.env.TZ_LOGIN_IP_MAX_ATTEMPTS, 30, 5, 500);
+    this.loginAttempts = new Map();
+  }
+
+  loginAttemptKeys(normalized, request) {
+    const ipAddress = requestMetadata(request, { trustProxy: this.trustProxy }).ipAddress || "unknown";
+    return [
+      { key: `account:${normalized}`, limit: this.loginAccountMaxAttempts },
+      { key: `ip:${ipAddress}`, limit: this.loginIpMaxAttempts }
+    ];
+  }
+
+  assertLoginAllowed(normalized, request) {
+    const timestamp = Date.now();
+    for (const { key, limit } of this.loginAttemptKeys(normalized, request)) {
+      const entry = this.loginAttempts.get(key);
+      if (!entry || timestamp - entry.startedAt >= this.loginAttemptWindowMs) {
+        if (entry) this.loginAttempts.delete(key);
+        continue;
+      }
+      if (entry.count >= limit) {
+        const retryAfterSeconds = Math.max(1, Math.ceil((entry.startedAt + this.loginAttemptWindowMs - timestamp) / 1000));
+        throw new AuthError("登录失败次数过多，请稍后再试。", 429, "LOGIN_RATE_LIMITED", { retryAfterSeconds });
+      }
+    }
+  }
+
+  recordLoginFailure(normalized, request) {
+    const timestamp = Date.now();
+    for (const { key } of this.loginAttemptKeys(normalized, request)) {
+      const current = this.loginAttempts.get(key);
+      const entry = !current || timestamp - current.startedAt >= this.loginAttemptWindowMs
+        ? { count: 0, startedAt: timestamp }
+        : current;
+      entry.count += 1;
+      this.loginAttempts.set(key, entry);
+    }
+  }
+
+  clearLoginAccountFailures(normalized) {
+    this.loginAttempts.delete(`account:${normalized}`);
   }
 
   initialized() {
@@ -274,9 +323,11 @@ export class AuthService {
 
   async login(payload = {}, request = null, response = null) {
     const { username, normalized } = normalizeUsername(payload.username);
+    this.assertLoginAllowed(normalized, request);
     const row = this.connection.prepare("SELECT * FROM users WHERE username_normalized = ?").get(normalized);
     const valid = row?.status === "active" && await verifyPassword(payload.password, row.password_hash);
     if (!valid) {
+      this.recordLoginFailure(normalized, request);
       appendAuditLog(this.connection, {
         action: "auth.login_failed",
         entityType: "user",
@@ -286,6 +337,7 @@ export class AuthService {
       });
       throw new AuthError("用户名或密码不正确。", 401, "INVALID_CREDENTIALS");
     }
+    this.clearLoginAccountFailures(normalized);
     const now = new Date().toISOString();
     this.connection.prepare("UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?").run(now, now, row.id);
     row.last_login_at = now;

@@ -1,0 +1,189 @@
+{
+  "manifestVersion": 1,
+  "generatedAt": "2026-08-12",
+  "sourceManifest": "P2-T06-UPS-GEO-SOURCE-MANIFEST-20260811.json",
+  "status": "candidate-for-review-only",
+  "scopePolicy": "仅提取研究方法与治理规则；不复制客户事实、第三方全文或未经确认的商业结论。",
+  "themes": [
+    {
+      "key": "digital-identity",
+      "name": "企业数字身份",
+      "rules": [
+        {
+          "id": "UPS-GEO-R001",
+          "rule": "先建立企业、品牌、产品、地区和语言的稳定实体边界，再开始内容和采样。",
+          "source": {"path": "docs/UPS_GEO_PROJECT_PLAN.md", "locator": "第 2.1 节；第 3.1 节第 1 项", "excerpt": "证据层连接企业事实、产品参数、资质、案例与行业知识", "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2"},
+          "classification": "method",
+          "applicability": "所有客户项目；具体实体值只能来自项目数据",
+          "licenseStatus": "内部资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R002",
+          "rule": "客户事实、品牌观点、数据推断、行业经验和待验证假设必须分级保存。",
+          "source": {"path": "docs/UPS_GEO_PROJECT_PLAN.md", "locator": "第 2.2 节第 4 项", "excerpt": "将事实、品牌观点、数据推断、行业经验和待验证假设明确分级", "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2"},
+          "classification": "governance",
+          "applicability": "全局内容与诊断流程",
+          "licenseStatus": "内部资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        }
+      ]
+    },
+    {
+      "key": "first-party-evidence",
+      "name": "官网事实与第一方信源",
+      "rules": [
+        {
+          "id": "UPS-GEO-R003",
+          "rule": "证据先于文案；关键商业断言优先使用一手来源并补充独立佐证。",
+          "source": {"path": "docs/UPS_GEO_PROJECT_PLAN.md", "locator": "第 2.2 节第 1-2 项", "excerpt": "证据先于文案，事实先于表达；一手来源优先", "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2"},
+          "classification": "method",
+          "applicability": "所有行业的事实型内容",
+          "licenseStatus": "内部资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R004",
+          "rule": "每条证据都要记录来源、原文定位、核验日期、适用条件和维护责任人。",
+          "source": {"path": "docs/UPS_GEO_PROJECT_PLAN.md", "locator": "第 2.2 节第 3 项；5.1 节", "excerpt": "每条证据记录来源、原文定位、核验日期、适用条件和维护责任", "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2"},
+          "classification": "data-contract",
+          "applicability": "证据台账、知识库和内容审核",
+          "licenseStatus": "内部资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R005",
+          "rule": "高优先级断言没有来源、核验日期、适用条件、状态和责任人时，不得进入发布队列。",
+          "source": {"path": "docs/UPS_GEO_PROJECT_PLAN.md", "locator": "WP2 验收标准，第 139 行", "excerpt": "未补证内容不得进入发布队列", "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2"},
+          "classification": "quality-gate",
+          "applicability": "所有客户项目的发布前审核",
+          "licenseStatus": "内部资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        }
+      ]
+    },
+    {
+      "key": "question-map",
+      "name": "问题地图",
+      "rules": [
+        {
+          "id": "UPS-GEO-R006",
+          "rule": "从业务问题拆解用户问题和原子断言，再决定页面、内容和采样任务。",
+          "source": {"path": "docs/UPS_GEO_PROJECT_PLAN.md", "locator": "项目工作链路，第 16 行", "excerpt": "业务问题 → 用户问题 → 原子断言 → 一手证据", "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2"},
+          "classification": "method",
+          "applicability": "行业模板只提供问题类型，具体问题由客户项目生成",
+          "licenseStatus": "内部资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R007",
+          "rule": "问题集按角色、采购阶段、场景和意图版本化，不能用一次性临时问法替代。",
+          "source": {"path": "docs/UPS_GEO_PROJECT_PLAN.md", "locator": "WP3；第 3.1 节第 2 项", "excerpt": "按用户角色、采购阶段、场景和意图建立固定问题", "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2"},
+          "classification": "method",
+          "applicability": "所有行业的 Prompt Map",
+          "licenseStatus": "内部资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        }
+      ]
+    },
+    {
+      "key": "content-and-citation",
+      "name": "内容与引用",
+      "rules": [
+        {
+          "id": "UPS-GEO-R008",
+          "rule": "必须区分搜索触发、召回、引用、答案吸收、品牌提及、正确归因和业务行为。",
+          "source": {"path": "research/SYNTHESIS_AND_ROADMAP.md", "locator": "第 4.1 节；第 49 行", "excerpt": "引用不是单一指标，至少区分触发、召回、引用、吸收、提及与归因", "sha256": "fdde1b66c1e5cfc372c10f7d6377431aa09156a64ff1a49d05c41ee79296ed14"},
+          "classification": "measurement",
+          "applicability": "看板、报告、客户交付和验收",
+          "licenseStatus": "内部研究资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R009",
+          "rule": "内容优化目标是证据可用性，不是机械套用 FAQ、Schema、标题年份或文章长度模板。",
+          "source": {"path": "research/DEEP_DUE_DILIGENCE_SYNTHESIS.md", "locator": "第 2.3 节；第 51 行", "excerpt": "格式技巧不能替代证据；FAQ、Schema 等应作为实验变量", "sha256": "3c9b6e7f8da1aba42bdd2b8234e44ef32f497f8ffba477f3bca66aa63e84ee70"},
+          "classification": "guardrail",
+          "applicability": "内容生成提示词和实验设计",
+          "licenseStatus": "内部研究资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R010",
+          "rule": "官方事实源、第三方权威互证和平台适配要组合使用，不能只做官网或只做外部分发。",
+          "source": {"path": "research/SYNTHESIS_AND_ROADMAP.md", "locator": "第 4.4 节；第 61 行", "excerpt": "策略应是官方事实源 + 第三方权威互证 + 平台适配", "sha256": "fdde1b66c1e5cfc372c10f7d6377431aa09156a64ff1a49d05c41ee79296ed14"},
+          "classification": "distribution",
+          "applicability": "所有行业的信源策略",
+          "licenseStatus": "内部研究资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        }
+      ]
+    },
+    {
+      "key": "publishing-and-review",
+      "name": "发布与复盘",
+      "rules": [
+        {
+          "id": "UPS-GEO-R011",
+          "rule": "发布内容必须可抓取、可抽取、可追溯，并与源证据保持一致。",
+          "source": {"path": "docs/UPS_GEO_PROJECT_PLAN.md", "locator": "第 2.2 节第 5 项", "excerpt": "所有发布内容必须可抓取、可抽取、可追溯", "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2"},
+          "classification": "quality-gate",
+          "applicability": "官网、文章、结构化数据和外部发布",
+          "licenseStatus": "内部资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R012",
+          "rule": "每次内容或信源干预都必须有版本、发布时间、目标问题、处理/对照和观察窗口。",
+          "source": {"path": "research/DEEP_DUE_DILIGENCE_SYNTHESIS.md", "locator": "第 6.2 节；第 135-140 行", "excerpt": "每次只改变可说明的一组变量，并冻结页面版本和观察窗口", "sha256": "3c9b6e7f8da1aba42bdd2b8234e44ef32f497f8ffba477f3bca66aa63e84ee70"},
+          "classification": "experiment",
+          "applicability": "内容实验、发布台账与复测",
+          "licenseStatus": "内部研究资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R013",
+          "rule": "失败、无搜索、无引用、拒答和超时样本必须保留，报告使用重复采样和区间而非单次截图。",
+          "source": {"path": "research/DEEP_DUE_DILIGENCE_SYNTHESIS.md", "locator": "第 2.2 节；第 6.1 节", "excerpt": "失败、无搜索、无引用、拒答和超时全部保留", "sha256": "3c9b6e7f8da1aba42bdd2b8234e44ef32f497f8ffba477f3bca66aa63e84ee70"},
+          "classification": "measurement",
+          "applicability": "采样服务、报告和客户验收",
+          "licenseStatus": "内部研究资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        }
+      ]
+    },
+    {
+      "key": "risk-boundaries",
+      "name": "风险边界",
+      "rules": [
+        {
+          "id": "UPS-GEO-R014",
+          "rule": "不能承诺固定推荐、排名、引用、流量倍数或销量；AI 可见性按概率和样本边界表达。",
+          "source": {"path": "research/DEEP_DUE_DILIGENCE_SYNTHESIS.md", "locator": "第 2.2 节、第 2.4 节", "excerpt": "AI 可见性是概率，不是固定排名；不能对客户保证固定效果", "sha256": "3c9b6e7f8da1aba42bdd2b8234e44ef32f497f8ffba477f3bca66aa63e84ee70"},
+          "classification": "commercial-risk",
+          "applicability": "销售话术、报告和自动生成内容",
+          "licenseStatus": "内部研究资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R015",
+          "rule": "禁止虚构事实、伪造认证或数据、攻击竞品、隐藏广告关系、提示注入、知识库污染和低质批量分发。",
+          "source": {"path": "research/THIRD_GEO_CLASS_LEARNING_2026-07-27.md", "locator": "第 2.4 节；第 99 行", "excerpt": "虚假事实、伪造认证/数据、攻击竞品等风险应有审核、纠错和撤回机制", "sha256": "cd654dfd57da1d9b2f690b9afd7df753ddb815eba0c8be11af1fe70a8d856ab3"},
+          "classification": "safety",
+          "applicability": "所有客户项目和所有生成/发布任务",
+          "licenseStatus": "内部研究资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        },
+        {
+          "id": "UPS-GEO-R016",
+          "rule": "研究基线、相关性观察和一次平台采样不能写成实时表现、因果结论或全平台结论。",
+          "source": {"path": "research/SYNTHESIS_AND_ROADMAP.md", "locator": "第 4.2-4.3 节；第 8 节", "excerpt": "不能用一次单平台测试推断全平台效果", "sha256": "fdde1b66c1e5cfc372c10f7d6377431aa09156a64ff1a49d05c41ee79296ed14"},
+          "classification": "evidence-boundary",
+          "applicability": "诊断报告、销售材料和客户看板",
+          "licenseStatus": "内部研究资料，待负责人确认可再分发",
+          "reuseDecision": "candidate-global-after-approval"
+        }
+      ]
+    }
+  ]
+}

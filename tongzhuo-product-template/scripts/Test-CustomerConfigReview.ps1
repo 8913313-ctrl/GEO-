@@ -35,14 +35,16 @@ try {
         -ShortName 'Ready Client' `
         -AlternateName 'Ready Client AI' `
         -Description 'Ready client config review fixture.' `
-        -SiteUrl 'https://ready-client.test' `
-        -GeoFlowBaseUrl 'https://flow.ready-client.test' `
+        -SiteUrl 'https://ready-client.company.cn' `
+        -GeoFlowBaseUrl 'https://flow.ready-client.company.cn' `
         -Telephone '+86-100-0000-0000' `
-        -Email 'service@ready-client.test' `
+        -Email 'service@ready-client.company.cn' `
         -Address 'No. 1 Ready Road' `
         -AddressRegion 'Ready City' `
         -UnifiedSocialCreditCode '91370000READYCLIENT' `
         -FoundingDate '2024-01-01' `
+        -LogoPath 'assets/ready-logo.png' `
+        -FooterIcp 'ICP-READY-001' `
         -OutputPath $readyConfigPath `
         -Force | Out-Null
 
@@ -58,9 +60,19 @@ try {
 
     $readyReview = Get-Content -LiteralPath $readyReviewJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-Condition ([string] $readyReview.review_type -eq 'tongzhuo_customer_config_review') "Config review type mismatch: $($readyReview.review_type)"
-    Assert-Condition ([string] $readyReview.endpoints.llms_txt -eq 'https://ready-client.test/llms.txt') 'Config review should include llms.txt endpoint.'
+    Assert-Condition ([string] $readyReview.endpoints.llms_txt -eq 'https://ready-client.company.cn/llms.txt') 'Config review should include llms.txt endpoint.'
     Assert-Condition ([string] $readyReview.endpoints.desktop_health -eq 'http://127.0.0.1:18280/healthz') 'Config review should include default desktop health endpoint.'
     Assert-Condition ([bool] $readyReview.validation.api_token_empty) 'Config review should declare API Token is empty.'
+    Assert-Condition ([bool] $readyReview.contacts.logo_present) 'Ready config review should confirm a customer logo.'
+    Assert-Condition ([bool] $readyReview.contacts.footer_icp_present) 'Ready config review should confirm an ICP value.'
+    Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $readyReview.customer.project_id)) 'Ready config review should include project identity.'
+    Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $readyReview.customer.tenant_id)) 'Ready config review should include tenant identity.'
+    Assert-Condition (-not [string]::IsNullOrWhiteSpace([string] $readyReview.customer.industry_template)) 'Ready config review should include industry identity.'
+    Assert-Condition ([string] $readyReview.methodology.core_version -eq 'MVER-GEO-CORE-V1') 'Ready config review should pin the formal methodology version.'
+    Assert-Condition ([string] $readyReview.methodology.prompt_version -eq 'PVER-GEO-ARTICLE-V1') 'Ready config review should pin the formal prompt version.'
+    Assert-Condition ([string] $readyReview.methodology.quality_rule_pack -eq 'QRULE-GEO-CONTENT-V1') 'Ready config review should pin the formal quality-rule pack.'
+    Assert-Condition ([bool] $readyReview.production_readiness.ready) 'Ready config review should be production-ready.'
+    Assert-Condition ([int] $readyReview.production_readiness.blocking_warning_count -eq 0) 'Ready config review should not have production blockers.'
 
     $warningConfigPath = Join-Path $testRoot 'warning-client.json'
     $warningReviewPath = Join-Path $testRoot 'warning-client-CONFIG-REVIEW.md'
@@ -89,9 +101,11 @@ try {
 
     $warningReview = Get-Content -LiteralPath $warningReviewJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $warningCodes = @($warningReview.warnings | ForEach-Object { [string] $_.code })
-    foreach ($code in @('placeholder_site_url', 'local_geoflow_url', 'missing_telephone', 'missing_email', 'missing_address')) {
+    foreach ($code in @('placeholder_site_url', 'local_geoflow_url', 'missing_telephone', 'missing_email', 'missing_address', 'missing_logo', 'missing_icp')) {
         Assert-Condition ($warningCodes -contains $code) "Warning review is missing warning code: $code"
     }
+    Assert-Condition (-not [bool] $warningReview.production_readiness.ready) 'Warning config review must not be production-ready.'
+    Assert-Condition ([int] $warningReview.production_readiness.blocking_warning_count -ge 7) 'Warning config review should report its production blockers.'
     Assert-Condition ([string] $warningReview.endpoints.desktop_health -eq 'http://127.0.0.1:19280/healthz') 'Config review should use custom desktop agent port.'
 
     $warningMarkdown = Get-Content -LiteralPath $warningReviewPath -Raw -Encoding UTF8

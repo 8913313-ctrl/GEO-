@@ -68,6 +68,27 @@ try {
     $releaseManifest = @($artifacts | Where-Object { [string] $_.artifact_type -eq 'customer_release_manifest' })
     $dossier = @($artifacts | Where-Object { [string] $_.artifact_type -eq 'customer_project_dossier' })
     $configReview = @($artifacts | Where-Object { [string] $_.artifact_type -eq 'customer_config_review' })
+    $configReviewDetails = @($configReview | ForEach-Object {
+        try {
+            Get-Content -LiteralPath ([string] $_.path) -Raw -Encoding UTF8 | ConvertFrom-Json
+        } catch {
+            $null
+        }
+    } | Where-Object { $null -ne $_ })
+    $productionReadyConfigReviews = @($configReviewDetails | Where-Object {
+        if ($null -ne $_.PSObject.Properties['production_readiness']) {
+            return [bool] $_.production_readiness.ready
+        }
+        return [string] $_.status -eq 'ready'
+    })
+    $productionBlockingConfigCodes = @($configReviewDetails | ForEach-Object {
+        if ($null -ne $_.PSObject.Properties['production_readiness']) {
+            @($_.production_readiness.blocking_warning_codes)
+        } elseif ([string] $_.status -ne 'ready') {
+            @('legacy_config_review_warning')
+        }
+    } | ForEach-Object { [string] $_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Sort-Object -Unique)
+    $configProductionReady = $configReview.Count -gt 0 -and $productionReadyConfigReviews.Count -gt 0
     $backendReadyDossier = @($dossier | Where-Object {
         [bool] $_.geoflow_backend_snapshot_attached -and
         [int] $_.backend_delivery_score -ge 80 -and
@@ -105,10 +126,10 @@ try {
             -Passed $backendSnapshotReady -Blocking $true `
             -Evidence "Backend snapshots ready: $($backendReadyDossier.Count); dossier artifacts: $($dossier.Count)" `
             -NextAction 'Download the GEOFlow backend dossier JSON, attach it with -BackendDossierPath, and resolve delivery score or status gaps.'
-        New-Gate -Id 'config_review' -Name 'Customer config review exists' -Weight 5 `
-            -Passed ($configReview.Count -gt 0) -Blocking $false `
-            -Evidence "Config review artifacts: $($configReview.Count)" `
-            -NextAction 'Generate a customer config review and review production URL, ports, contacts, and token boundary.'
+        New-Gate -Id 'config_review' -Name 'Customer config is production-ready' -Weight 5 `
+            -Passed $configProductionReady -Blocking $true `
+            -Evidence "Config review artifacts: $($configReview.Count); production-ready reviews: $($productionReadyConfigReviews.Count); blockers: $($productionBlockingConfigCodes -join ', ')" `
+            -NextAction 'Resolve placeholder URLs, HTTPS, customer identity, contact, logo, and ICP blockers; then regenerate the config review.'
         New-Gate -Id 'security_boundary' -Name 'Evidence security boundary declared' -Weight 5 `
             -Passed $securityBoundary -Blocking $true `
             -Evidence "Platform credentials, API Tokens, and browser profiles excluded: $securityBoundary" `
@@ -155,6 +176,8 @@ try {
             missing_recommended_after_launch = [int] $missingRecommended.Count
             geoflow_backend_snapshot_ready = [bool] $backendSnapshotReady
             geoflow_backend_snapshot_count = [int] $backendReadyDossier.Count
+            config_production_ready = [bool] $configProductionReady
+            config_blocking_warning_codes = @($productionBlockingConfigCodes)
         }
         gates = $gates
         blocking_gates = @($blockingGates)

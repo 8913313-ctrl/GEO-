@@ -75,12 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const submitButton = form.querySelector('button[type="submit"]');
       const payload = Object.fromEntries(data.entries());
       payload.source_url = window.location.href;
+      payload.utm = Object.fromEntries(['source', 'medium', 'campaign', 'term', 'content'].map((key) => [key, new URLSearchParams(window.location.search).get(`utm_${key}`) || '']).filter(([, value]) => value));
+      if (!form.dataset.idempotencyKey) form.dataset.idempotencyKey = globalThis.crypto?.randomUUID?.() || `lead-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       if (submitButton) submitButton.disabled = true;
 
       try {
         const response = await fetch(form.dataset.endpoint || '/api/v1/leads', {
           method: 'POST',
-          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': form.dataset.idempotencyKey },
           body: JSON.stringify(payload),
         });
         const result = await response.json().catch(() => ({}));
@@ -91,8 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           throw new Error(result.message || '提交失败');
         }
-        status.textContent = result.data?.message || result.message || '提交成功，桐灼团队会尽快与您联系。';
+        status.textContent = result.data?.message || result.message || '提交成功，我们将在 1 个工作日内回复。';
         form.reset();
+        delete form.dataset.idempotencyKey;
         return;
       } catch (_error) {
         status.textContent = '提交暂时失败，请稍后再试。当前信息未保存。';

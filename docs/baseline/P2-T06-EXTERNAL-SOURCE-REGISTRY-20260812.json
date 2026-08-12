@@ -1,0 +1,31 @@
+{
+  "registryVersion": 1,
+  "generatedAt": "2026-08-12",
+  "purpose": "重新审计负责人提供的 GEO 研究、工具、Skill 与文档来源；仅记录来源边界和可复核元数据，不复制第三方全文。",
+  "reusePolicy": {
+    "globalMethodology": "只允许经过来源定位、许可证确认、事实/观点分类和负责人批准的规则进入；客户事实、案例和数据不得进入 global。",
+    "engineeringReference": "开源工程可以提供协议、路由、测试和安全设计参考，但其工程能力不等于 GEO 效果证据。",
+    "externalDocuments": "登录、动态页面或未取得正文定位的文档暂存为 review-only，不得作为已核验规则。"
+  },
+  "sources": [
+    {"id":"SRC-001","name":"geo-citation-lab","url":"https://github.com/yaojingang/geo-citation-lab","type":"research-repository","license":"MIT software; repository content and third-party materials require individual notice review","commit":"81ba1566f70f114e9202b798f8d4525a9329ebd3","status":"audited-existing","reuse":"research-reference-only"},
+    {"id":"SRC-002","name":"国内生成式AI引用生态全景报告","url":"https://doc.laoyao.cn/qty18p","type":"research-report","license":"not verified from public metadata","status":"locator-pending","reuse":"review-only"},
+    {"id":"SRC-003","name":"GEOFlow","url":"https://github.com/yaojingang/GEOFlow","type":"open-source-engineering","license":"Apache-2.0","commit":"4786cab802055db3e81aa7ea388b6329ffb01d3f","status":"audited-existing","reuse":"engineering-reference"},
+    {"id":"SRC-004","name":"yao-geo-skills","url":"https://github.com/yaojingang/yao-geo-skills","type":"open-source-skill","license":"MIT","commit":"201c0c45ccaa2047530b2295679a9aa116f4d3e4","status":"audited-existing","reuse":"engineering-reference"},
+    {"id":"SRC-005","name":"信源偏好分析报告","url":"https://doc.laoyao.cn/krgovd","type":"research-report","license":"not verified from public metadata","status":"locator-pending","reuse":"review-only"},
+    {"id":"SRC-006","name":"国内AI引用偏好数据集","url":"https://github.com/yaojingang/geo-citation-lab/tree/main/03-cn-geo-citation-dataset","type":"research-dataset","license":"must follow repository and dataset notices","status":"audited-existing","reuse":"research-reference-only"},
+    {"id":"SRC-007","name":"海外AI引用偏好数据集","url":"https://github.com/yaojingang/geo-citation-lab/tree/main/01-geo-experiment-data-report","type":"research-dataset","license":"must follow repository and dataset notices","status":"audited-existing","reuse":"research-reference-only"},
+    {"id":"SRC-008","name":"GEO资源专题","url":"https://www.tok123.cc/collections/geo-resources-and-services","type":"resource-index","license":"not verified","status":"locator-pending","reuse":"discovery-only"},
+    {"id":"SRC-009","name":"GEO白皮书","url":"https://yaojingang.feishu.cn/docx/Jv85dXAeZoKJ7exJi4Yc4Edrnhf","type":"methodology-document","license":"not verified from public metadata","status":"locator-pending","reuse":"review-only"},
+    {"id":"SRC-010","name":"GEO红皮书","url":"https://yaojingang.feishu.cn/wiki/Otqtw0HFbiNeCMkjKalcFkoJnpf","type":"risk-governance-document","license":"not verified from public metadata","status":"locator-pending","reuse":"review-only"},
+    {"id":"SRC-011","name":"GEO蓝皮书","url":"https://yaojingang.feishu.cn/wiki/MwkiwPDqCiHGwVk2uOtcNUlrnnf","type":"procurement-governance-document","license":"not verified from public metadata","status":"locator-pending","reuse":"review-only"},
+    {"id":"SRC-012","name":"GEO到底是什么","url":"https://mp.weixin.qq.com/s/GXuu0Hku-j-8ona5yzQSvA","type":"public-article","license":"copyrighted article","status":"locator-pending","reuse":"quote-or-summary-only"},
+    {"id":"SRC-013","name":"从SEO到GEO，从流量到Agent，真正的变化才刚刚开始","url":"https://mp.weixin.qq.com/s/2P_zSjJkybl-rAyZjMIQAw","type":"public-article","license":"copyrighted article","status":"locator-pending","reuse":"quote-or-summary-only"},
+    {"id":"SRC-014","name":"从AI搜索逻辑到GEOFlow落地实战","url":"https://mp.weixin.qq.com/s/8Lyrzux7WacHjiHx_P9Fbg","type":"public-article","license":"copyrighted article","status":"locator-pending","reuse":"quote-or-summary-only"},
+    {"id":"SRC-015","name":"一文讲透GEO内容工程：目标、要素、关系与反馈","url":"https://mp.weixin.qq.com/s/0ZZ5je2-W83HY7RtmsYkJA","type":"public-article","license":"copyrighted article","status":"locator-pending","reuse":"quote-or-summary-only"},
+    {"id":"SRC-016","name":"GEOHub","url":"https://github.com/yaojingang/GEOHub","type":"open-source-skill-hub","license":"AGPL-3.0-only; commercial licensing inquiry-only","commit":"ffe81f6f7bdffccee73d4372c4d5f689c758cf8b","status":"audited-2026-08-12","reuse":"engineering-reference; do-not-copy-AGPL-code-into-product-without-legal-review"},
+    {"id":"SRC-017","name":"GEOHub原理及能力可视化报告","url":"https://doc.laoyao.cn/n2c7p3?lang=zh-CN","type":"engineering-report","license":"not verified from public metadata","status":"locator-pending","reuse":"review-only"},
+    {"id":"SRC-018","name":"一句话网站SEO / qiaomu-seo","url":"https://github.com/joeseesun/qiaomu-seo","type":"open-source-skill","license":"MIT","commit":"b892b70639ac2839e7fa61302ff54a60a6cc9b74","status":"audited-2026-08-12","reuse":"engineering-reference"},
+    {"id":"SRC-019","name":"Waza","url":"https://github.com/tw93/Waza","type":"agent-workflow-framework","license":"MIT","commit":"24b8eecf1e7e522dedc7a6fb89535a878d9f48c0","status":"audited-2026-08-12","reuse":"engineering-reference"}
+  ]
+}

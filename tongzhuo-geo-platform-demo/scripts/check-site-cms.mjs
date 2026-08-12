@@ -140,6 +140,10 @@ try {
   assert.equal(sitemap.response.status, 200);
   assert.doesNotMatch(sitemap.text, /published-after-release/);
   assert.doesNotMatch(sitemap.text, /draft-only/);
+  const formalHomeBeforePublish = await request(base, "/");
+  const formalFeedBeforePublish = await request(base, "/feed.xml");
+  assert.doesNotMatch(formalHomeBeforePublish.text, /仅草稿可见的官网 v2|这段内容在发布前不能影响正式官网/);
+  assert.doesNotMatch(formalFeedBeforePublish.text, /仅草稿可见的官网 v2|published-after-release|draft-only/);
 
   expectCmsError(
     () => cmsStore.saveDraft({ expectedRevision: bootstrapDraft.revision, cms: draftCms }, null, null, workspaceId),
@@ -150,6 +154,8 @@ try {
     { status: 409, code: "SITE_CMS_PUBLISH_CONFLICT" }
   );
 
+  cmsStore.submitReview({ reason: "提交 CMS 自动化测试审核" }, null, null, workspaceId);
+  cmsStore.approve({ reason: "CMS 自动化测试审核通过" }, null, null, workspaceId);
   const published = cmsStore.publish({ expectedDraftRevision: savedDraft.revision, note: "发布 CMS 自动化测试版本" }, null, null, workspaceId);
   assert.equal(published.version, 2);
   assert.equal(published.operation, "publish");
@@ -184,6 +190,14 @@ try {
     () => cmsStore.rollback({ releaseId: bootstrapPublication.releaseId, expectedCurrentVersion: 1 }, null, null, workspaceId),
     { status: 409, code: "SITE_CMS_ROLLBACK_CONFLICT" }
   );
+  expectCmsError(
+    () => cmsStore.rollback({ releaseId: published.releaseId, expectedCurrentVersion: published.version, note: "重复当前版本" }, null, null, workspaceId),
+    { status: 409, code: "SITE_CMS_ROLLBACK_CURRENT_RELEASE" }
+  );
+  expectCmsError(
+    () => cmsStore.rollback({ releaseId: bootstrapPublication.releaseId, expectedCurrentVersion: published.version }, null, null, workspaceId),
+    { status: 422, code: "SITE_CMS_ROLLBACK_REASON_REQUIRED" }
+  );
 
   const rolledBack = cmsStore.rollback({
     releaseId: bootstrapPublication.releaseId,
@@ -195,6 +209,8 @@ try {
   assert.notEqual(rolledBack.publication.releaseId, bootstrapPublication.releaseId, "rollback must create a new release instead of reusing history");
   assert.equal(rolledBack.publication.checksum, bootstrapPublication.checksum);
   assert.deepEqual(rolledBack.publication.snapshot, bootstrapPublication.snapshot);
+  assert.equal(rolledBack.publication.status, "published");
+  assert.equal(rolledBack.publication.workflow.reason, "回滚到官网初始正式版本");
   assert.equal(rolledBack.draft.revision, laterDraft.revision + 1);
   assert.equal(rolledBack.draft.checksum, bootstrapPublication.checksum);
 
@@ -211,6 +227,20 @@ try {
   assert.equal(sitemap.response.status, 200);
   assert.doesNotMatch(sitemap.text, /published-after-release/);
   assert.doesNotMatch(sitemap.text, /draft-only/);
+
+  const rollbackAudit = database.connection.prepare("SELECT actor_user_id, details_json, created_at FROM audit_logs WHERE action = 'site.cms.rollback' AND entity_id = ?").get(rolledBack.publication.releaseId);
+  assert.ok(rollbackAudit?.created_at);
+  const rollbackDetails = JSON.parse(rollbackAudit.details_json);
+  assert.deepEqual(rollbackDetails, {
+    previousReleaseId: published.releaseId,
+    previousVersion: published.version,
+    restoredReleaseId: bootstrapPublication.releaseId,
+    restoredVersion: bootstrapPublication.version,
+    newReleaseId: rolledBack.publication.releaseId,
+    newVersion: rolledBack.publication.version,
+    draftRevision: rolledBack.draft.revision,
+    reason: "回滚到官网初始正式版本"
+  });
 
   const auditActions = database.connection.prepare("SELECT action FROM audit_logs WHERE action LIKE 'site.cms.%' ORDER BY created_at, id").all().map((row) => row.action);
   assert.ok(auditActions.includes("site.cms.draft.save"));

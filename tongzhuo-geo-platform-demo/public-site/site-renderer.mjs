@@ -1,4 +1,5 @@
 import { applyPublicCitationVisibility } from "../citation-visibility.mjs";
+import { getSiteTemplate, resolveSiteTemplateKey, SITE_TEMPLATE_CSS } from "./templates/site-template-registry.mjs";
 
 const DEFAULT_DESCRIPTION = "企业公开信息、行业洞察与可验证的专业内容。";
 
@@ -463,6 +464,8 @@ function documentShell({ site, origin, pathname, title, description, active, sch
     description: description || site.description || DEFAULT_DESCRIPTION
   });
   const primary = /^#[0-9a-f]{6}$/i.test(site.theme?.primaryColor || "") ? site.theme.primaryColor : "#155eef";
+  const templateKey = resolveSiteTemplateKey(site.theme?.key || site.template?.key);
+  const template = getSiteTemplate(templateKey);
   const metaDescription = description || site.description || DEFAULT_DESCRIPTION;
   const resolvedTitle = pageTitle(site, title);
   const extraLinks = headLinks.filter((item) => item?.rel && item?.href).map((item) => `<link rel="${escapeHtml(item.rel)}" href="${escapeHtml(item.href)}">`).join("");
@@ -472,7 +475,7 @@ function documentShell({ site, origin, pathname, title, description, active, sch
   const renderedBody = renderDirectionalIcons(body);
   const runtimeAssetBase = preview ? String(assetBase || "/api/v1/site-cms/preview/assets").replace(/\/+$/, "") : "/site-assets-r9";
   const publicationIdentity = preview ? "" : `<link rel="canonical" href="${escapeHtml(canonical)}">${extraLinks}${feed ? `<link rel="alternate" type="application/rss+xml" title="${escapeHtml(publicBrandName(site))}行业资讯" href="/feed.xml">` : ""}<meta property="og:title" content="${escapeHtml(resolvedTitle)}"><meta property="og:description" content="${escapeHtml(metaDescription)}"><meta property="og:type" content="${escapeHtml(openGraphType)}"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:site_name" content="${escapeHtml(publicBrandName(site))}"><meta property="og:locale" content="zh_CN"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtml(resolvedTitle)}"><meta name="twitter:description" content="${escapeHtml(metaDescription)}">${extraMeta}<script type="application/ld+json">${safeJsonLd(schema)}</script>`;
-  return `<!doctype html><html lang="zh-CN" style="--brand:${escapeHtml(primary)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(preview ? `CMS 草稿预览 · ${resolvedTitle}` : resolvedTitle)}</title><meta name="description" content="${escapeHtml(metaDescription)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive,nosnippet,noimageindex" : robots)}"><meta name="author" content="${escapeHtml(publicCompanyName(site))}">${faviconLink}${publicationIdentity}<meta name="theme-color" content="#160f11"><link rel="stylesheet" href="${escapeHtml(runtimeAssetBase)}/site-v8.css?v=20260810-passport3"></head><body class="site-v8${bodyClass ? ` ${escapeHtml(bodyClass)}` : ""}${preview ? " is-preview" : ""}"><!--
+  return `<!doctype html><html lang="zh-CN" style="--brand:${escapeHtml(primary)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(preview ? `CMS 草稿预览 · ${resolvedTitle}` : resolvedTitle)}</title><meta name="description" content="${escapeHtml(metaDescription)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive,nosnippet,noimageindex" : robots)}"><meta name="author" content="${escapeHtml(publicCompanyName(site))}">${faviconLink}${publicationIdentity}<meta name="theme-color" content="${escapeHtml(template.color)}"><link rel="stylesheet" href="${escapeHtml(runtimeAssetBase)}/site-v8.css?v=20260812-templates1"><style id="site-template-styles">${SITE_TEMPLATE_CSS}</style></head><body class="site-v8 site-template-${escapeHtml(templateKey)}${bodyClass ? ` ${escapeHtml(bodyClass)}` : ""}${preview ? " is-preview" : ""}" data-site-template="${escapeHtml(templateKey)}" data-site-template-name="${escapeHtml(template.name)}"><!--
 THESIS: the website behaves like a living enterprise source passport; it refuses generic AI dashboards and decorative futurism.
 OWN-WORLD: oxblood leather, smoked black, warm ivory paper, old-gold rules, archival stamps and stitched records.
 STORY: visitors identify the enterprise, inspect its GEO method as signed source records, read verified content, then request a source-file review.

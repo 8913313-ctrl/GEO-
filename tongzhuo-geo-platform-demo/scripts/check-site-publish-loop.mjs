@@ -47,7 +47,10 @@ async function request(base, pathname, options = {}) {
 }
 
 async function ready() {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
+  // A cold start also verifies and indexes the pinned Citation Lab research
+  // snapshot. Keep the check bounded, but allow slower disks enough time to
+  // complete that integrity work before declaring the admin runtime unhealthy.
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     try {
       const result = await request(adminBase, "/health/ready");
       if (result.response.ok) return;
@@ -69,6 +72,30 @@ try {
   const csrf = result.body.data.csrfToken;
   const auth = headers(cookie, csrf);
 
+  result = await request(adminBase, "/api/v1/site-cms/approve", {
+    method: "POST", headers: auth, body: JSON.stringify({ reason: "非法跳过提交审核" })
+  });
+  assert.equal(result.response.status, 409, JSON.stringify(result.body));
+  assert.equal(result.body.code, "SITE_CMS_INVALID_TRANSITION");
+
+  result = await request(adminBase, "/api/v1/site-cms/preview?path=/");
+  assert.equal(result.response.status, 401, "CMS preview must require an authenticated session");
+  result = await request(adminBase, "/api/v1/site-cms/preview?path=/", { headers: headers(cookie, "") });
+  assert.equal(result.response.status, 200, result.text);
+  assert.match(result.text, /CMS 草稿预览/);
+  assert.match(result.text, /仅供已登录运营人员查看/);
+  assert.match(result.text, /<meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">/);
+  assert.doesNotMatch(result.text, /rel="canonical"|property="og:url"|application\/ld\+json|application\/rss\+xml/);
+  assert.match(result.text, /\/api\/v1\/site-cms\/preview\/assets\/site-v8\.css/);
+  assert.match(result.text, /\/api\/v1\/site-cms\/preview\/assets\/site-v8\.js/);
+  assert.equal(result.response.headers.get("x-robots-tag"), "noindex, nofollow, noarchive, nosnippet, noimageindex");
+  assert.equal(result.response.headers.get("cache-control"), "no-store");
+  assert.equal(result.response.headers.get("referrer-policy"), "no-referrer");
+  result = await request(adminBase, "/api/v1/site-cms/preview/assets/site-v8.css");
+  assert.equal(result.response.status, 401, "preview assets must use the same authenticated boundary");
+  result = await request(adminBase, "/api/v1/site-cms/preview/assets/site-v8.css", { headers: headers(cookie, "") });
+  assert.equal(result.response.status, 200);
+  assert.match(result.response.headers.get("content-type") || "", /text\/css/);
   result = await request(adminBase, "/api/v1/knowledge/libraries", {
     method: "POST", headers: auth,
     body: JSON.stringify({ name: "Official site evidence", kind: "document", scope: "enterprise" })

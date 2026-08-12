@@ -1,4 +1,5 @@
 import { ContentError } from "./content-store.mjs";
+import { requireIndustryTemplate } from "./industry-templates/index.mjs";
 
 function idFrom(body = {}) { return String(body.contentArticleId || body.articleId || body.article?.id || "").trim(); }
 function versionIdFrom(body = {}) { return String(body.contentVersionId || body.articleVersionId || body.versionId || "").trim(); }
@@ -54,8 +55,9 @@ function assessRisk(version, requested = {}) {
   return { status: severe.length ? "blocked" : all.length ? "warning" : "passed", findings: all, summary: { findingCount: all.length, severeCount: severe.length, contentLength: text.length }, policyVersion: "geo-risk-v1" };
 }
 
-export function createContentApi({ contentStore, requestJson, configured, onArticlePublished = null }) {
-  const workspaceId = "default";
+export function createContentApi({ contentStore, foundationAssetStore = null, industryTemplate = "", requestJson, configured, onArticlePublished = null }) {
+  const workspaceId = String(contentStore.workspaceId || "default");
+  const industryTemplateSnapshot = industryTemplate ? requireIndustryTemplate(industryTemplate) : null;
   async function handler(request, response, parts, principal) {
     const method = request.method || "GET";
     if (parts.length === 4 && parts[3] === "plans" && method === "GET") return response.json(200, { ok: true, data: { items: contentStore.listPlans({ workspaceId }) } });
@@ -65,8 +67,26 @@ export function createContentApi({ contentStore, requestJson, configured, onArti
       // retrying the request must reconcile the same row instead of creating a
       // second plan.
       const body = await requestJson(request, 100_000);
-      const plan = contentStore.upsertPlan({ workspaceId, ...body, actor: principal, request });
+      if (!foundationAssetStore) throw new ContentError("Foundation asset service is not configured.", 503, "FOUNDATION_SERVICE_UNAVAILABLE");
+      const foundationAssets = foundationAssetStore.selectPublishedPlanFoundation({ workspaceId, industryTemplate });
+      const metadata = { ...(body.metadata && typeof body.metadata === "object" ? body.metadata : {}), industryTemplateSnapshot };
+      const plan = contentStore.upsertPlan({ workspaceId, ...body, metadata, foundationAssets, actor: principal, request });
       return response.json(201, { ok: true, data: { plan } });
+    }
+    if (parts.length === 6 && parts[3] === "plans" && parts[5] === "foundation" && method === "POST") {
+      if (!foundationAssetStore) throw new ContentError("Foundation asset service is not configured.", 503, "FOUNDATION_SERVICE_UNAVAILABLE");
+      const planId = decodeURIComponent(parts[4]);
+      const body = await requestJson(request, 100_000);
+      const plan = foundationAssetStore.attachPlanFoundation({
+        workspaceId,
+        planId,
+        industryTemplate: body.industryTemplate || "",
+        methodologyVersionId: body.methodologyVersionId,
+        promptVersionId: body.promptVersionId,
+        qualityRulePackId: body.qualityRulePackId,
+        allowUnpublished: false
+      }, principal, request);
+      return response.json(200, { ok: true, data: { plan: contentStore.plan(workspaceId, plan.id) } });
     }
     if (parts.length === 4 && parts[3] === "tasks" && method === "GET") {
       const query = new URL(request.url || "/", "http://localhost").searchParams;

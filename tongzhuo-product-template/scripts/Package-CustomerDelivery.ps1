@@ -457,6 +457,9 @@ try {
         product = [string] $product.product
         version = [string] $product.version
         customer_slug = $safeSlug
+        project_id = [string] $customerManifest.project_id
+        tenant_id = [string] $customerManifest.tenant_id
+        industry_template = [string] $customerManifest.industry_template
         company_name = [string] $customerManifest.company_name
         site_url = $siteUrlNormalized
         geoflow_base_url = $geoflowBaseUrlNormalized
@@ -489,6 +492,9 @@ try {
         version = [string] $product.version
         customer = [ordered]@{
             slug = $safeSlug
+            project_id = [string] $customerManifest.project_id
+            tenant_id = [string] $customerManifest.tenant_id
+            industry_template = [string] $customerManifest.industry_template
             company_name = [string] $customerManifest.company_name
             short_name = [string] $customerManifest.short_name
             site_url = $siteUrlNormalized

@@ -4,6 +4,8 @@ import { ProductionDatabase } from "../production-database.mjs";
 import { SiteCmsStore } from "../site-cms-store.mjs";
 import { slugify, truncateText } from "./site-renderer.mjs";
 import { applyPublicCitationVisibility } from "../citation-visibility.mjs";
+import { resolveProjectSeed } from "../project-seeds/index.mjs";
+import { getSiteTemplate } from "./templates/site-template-registry.mjs";
 
 const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DATABASE_PATH = path.resolve(moduleRoot, "..", "data", "tongzhuo-production.sqlite");
@@ -51,11 +53,11 @@ function nested(object, ...paths) {
 
 function defaultSite() {
   return {
-    siteName: "桐灼科技",
-    companyName: "桐灼（淄博）网络科技有限公司",
-    description: "专注 GEO 优化、内容运营与企业 AI 落地，持续建设企业公开可信信源。",
+    siteName: "企业官网",
+    companyName: "企业",
+    description: "企业公开信息、产品服务与行业内容。",
     allowAiCrawl: true,
-    cta: "预约业务诊断",
+    cta: "预约业务咨询",
     updatedAt: null,
     pages: [
       { id: "home", title: "首页", path: "/", status: "published", sitemapEnabled: true },
@@ -80,14 +82,31 @@ function defaultSite() {
 
 export class PublicSiteStore {
   constructor(options = {}) {
-    this.workspaceId = text(options.workspaceId || process.env.TZ_SITE_WORKSPACE_ID, "default", 120);
+    this.workspaceId = text(options.workspaceId || process.env.TZ_TENANT_ID, "default", 120);
+    this.projectSeedKey = text(options.projectSeedKey || process.env.TZ_PROJECT_SEED, "", 120);
+    this.projectSeed = resolveProjectSeed(this.projectSeedKey);
     this.database = options.database || new ProductionDatabase({ databasePath: options.databasePath || process.env.TZ_DATABASE_PATH || DEFAULT_DATABASE_PATH });
     this.ownsDatabase = !options.database;
-    this.cmsStore = options.cmsStore || new SiteCmsStore(this.database, { workspaceId: this.workspaceId });
+    this.cmsStore = options.cmsStore || new SiteCmsStore(this.database, { workspaceId: this.workspaceId, projectSeedKey: this.projectSeedKey });
     // The admin editor stores authenticated knowledge-asset URLs. The public
     // runtime rewrites those URLs to its read-only media route at publication
     // time; draft preview leaves them untouched and continues using admin auth.
     this.publicKnowledgeAssetBase = String(options.publicKnowledgeAssetBase || "").trim().replace(/\/+$/, "");
+    this.publicSnapshotCache = null;
+    this.publicSnapshotCacheTtlMs = Math.max(100, Math.min(10_000, Number(options.publicSnapshotCacheTtlMs) || 1_000));
+  }
+
+  publicContentFingerprint() {
+    const row = this.database.connection.prepare(`
+      SELECT COUNT(*) AS article_count, COALESCE(MAX(a.updated_at), '') AS article_updated_at,
+        COALESCE(MAX(v.frozen_at), '') AS version_frozen_at
+      FROM content_articles a
+      JOIN content_article_versions v ON v.id = a.approved_version_id AND v.article_id = a.id
+      WHERE a.workspace_id = ? AND a.status = 'published'
+        AND v.review_status = 'approved' AND v.frozen_at IS NOT NULL
+        AND v.risk_status IN ('passed', 'warning')
+    `).get(this.workspaceId);
+    return `${Number(row?.article_count || 0)}:${row?.article_updated_at || ""}:${row?.version_frozen_at || ""}`;
   }
 
   workspace() {
@@ -102,13 +121,25 @@ export class PublicSiteStore {
     const cms = cmsSnapshot && typeof cmsSnapshot === "object" ? cmsSnapshot : parseJson(site.cms, {});
     const settings = parseJson(cms.settings, {});
     const theme = parseJson(cms.theme, {});
+    const template = getSiteTemplate(theme.key || theme.templateKey || theme.template);
     const pages = Array.isArray(cms.pages) ? cms.pages : defaults.pages;
     const navItems = Array.isArray(cms.navItems) ? cms.navItems : defaults.navItems;
     return {
+      projectSeedKey: this.projectSeedKey,
+      projectId: text(this.projectSeed?.projectId, this.projectSeedKey || this.workspaceId, 120),
+      tenantId: text(this.projectSeed?.tenantId, this.workspaceId, 120),
+      industryTemplate: text(this.projectSeed?.industryTemplate, "", 120),
+      demo: this.projectSeed?.demo === true,
       siteName: text(settings.siteName, defaults.siteName, 160),
       companyName: text(settings.companyName, defaults.companyName, 300),
       officialDomain: text(settings.officialDomain, "", 300),
       logoUrl: text(settings.logoUrl, "", 1_000),
+      brandLogoUrl: text(settings.brandLogoUrl, "", 1_000),
+      brandMarkUrl: text(settings.brandMarkUrl, "", 1_000),
+      brandMarkOnDarkUrl: text(settings.brandMarkOnDarkUrl, "", 1_000),
+      schemaLogoUrl: text(settings.schemaLogoUrl, "", 1_000),
+      footerIcp: text(settings.footerIcp, "", 120),
+      footerLabel: text(settings.footerLabel, "企业", 120),
       sameAs: Array.isArray(settings.sameAs) ? [...new Set(settings.sameAs.map((item) => text(item, "", 1_000)).filter(Boolean))].slice(0, 12) : [],
       description: text(settings.description, defaults.description, 500),
       allowAiCrawl: settings.allowAiCrawl !== false,
@@ -116,15 +147,17 @@ export class PublicSiteStore {
       // Local front-end walkthroughs may show clearly marked presentation
       // fallbacks. Production deployments disable them by default; the CMS
       // publication remains the only official content source.
-      frontendDemo: String(process.env.TZ_SITE_FRONTEND_DEMO ?? (process.env.NODE_ENV === "production" ? "false" : "true")).toLocaleLowerCase("en-US") !== "false",
+      frontendDemo: this.projectSeedKey === "tongzhuo-geo" && String(process.env.TZ_SITE_FRONTEND_DEMO ?? (process.env.NODE_ENV === "production" ? "false" : "true")).toLocaleLowerCase("en-US") !== "false",
       updatedAt: settings.updatedAt || workspace.updatedAt || null,
       revision: workspace.revision,
       cmsSchemaVersion: Number(cms.schemaVersion || 0),
       theme: {
+        key: template.key,
         name: text(theme.name, "企业官网 · 标准版", 160),
         primaryColor: /^#[0-9a-f]{6}$/i.test(theme.primaryColor || "") ? theme.primaryColor : "#155eef",
         version: Math.max(1, Number(theme.version) || 1)
       },
+      template: { key: template.key, category: template.category, variant: template.variant, name: template.name, description: template.description, color: template.color },
       modules: parseJson(cms.modules, {}),
       // Keep null distinct from an explicitly empty collection. Null means an
       // older publication did not contain this CMS capability and allows the
@@ -259,16 +292,31 @@ export class PublicSiteStore {
   }
 
   snapshot(options = {}) {
+    if (!options.draft) {
+      const publication = this.cmsStore.publication(this.workspaceId);
+      const workspace = this.workspace();
+      const cacheKey = `${publication.releaseId}:${workspace.revision}:${this.publicContentFingerprint()}:${this.publicKnowledgeAssetBase}`;
+      if (this.publicSnapshotCache?.key === cacheKey && Date.now() - this.publicSnapshotCache.createdAt < this.publicSnapshotCacheTtlMs) return this.publicSnapshotCache.value;
+      const site = this.siteConfig(workspace, publication.snapshot);
+      site.cmsReleaseId = publication.releaseId;
+      site.cmsReleaseVersion = publication.version;
+      site.cmsDraftRevision = publication.sourceDraftRevision;
+      site.updatedAt = publication.publishedAt;
+      const categories = this.categories(workspace, publication.snapshot);
+      const value = { workspaceId: this.workspaceId, workspaceRevision: workspace.revision, cms: { mode: "published", ...publication }, site, categories, articles: this.articles(workspace, categories) };
+      this.publicSnapshotCache = { key: cacheKey, value, createdAt: Date.now() };
+      return value;
+    }
     const workspace = this.workspace();
-    const cmsRecord = options.draft ? this.cmsStore.draft(this.workspaceId) : this.cmsStore.publication(this.workspaceId);
+    const cmsRecord = this.cmsStore.draft(this.workspaceId);
     const site = this.siteConfig(workspace, cmsRecord.snapshot);
-    site.cmsReleaseId = options.draft ? null : cmsRecord.releaseId;
-    site.cmsReleaseVersion = options.draft ? null : cmsRecord.version;
-    site.cmsDraftRevision = options.draft ? cmsRecord.revision : cmsRecord.sourceDraftRevision;
-    site.updatedAt = options.draft ? cmsRecord.updatedAt : cmsRecord.publishedAt;
+    site.cmsReleaseId = null;
+    site.cmsReleaseVersion = null;
+    site.cmsDraftRevision = cmsRecord.revision;
+    site.updatedAt = cmsRecord.updatedAt;
     const categories = this.categories(workspace, cmsRecord.snapshot);
     const articles = this.articles(workspace, categories);
-    return { workspaceId: this.workspaceId, workspaceRevision: workspace.revision, cms: { mode: options.draft ? "draft" : "published", ...cmsRecord }, site, categories, articles };
+    return { workspaceId: this.workspaceId, workspaceRevision: workspace.revision, cms: { mode: "draft", ...cmsRecord }, site, categories, articles };
   }
 
   close() { if (this.ownsDatabase) this.database.close(); }

@@ -28,4 +28,6 @@ assert.ok(blank.writingAgents.every((agent) => agent.builtIn && agent.preferredK
 assert.ok(!JSON.stringify(blank).includes("桐灼（淄博）网络科技有限公司"), "Customer-specific company data leaked into the blank seed.");
 
 assert.match(source, /source: "private-deployment-blank-seed"/, "Fresh-server hydration must use the neutral seed.");
+assert.match(source, /if \(!saved\) return migrateState\(cloneBlankState\(\)\)/, "Fresh local bootstrap must use the neutral seed.");
+assert.match(source, /state = migrateState\(cloneBlankState\(\)\);/, "Reset must return to a neutral customer workspace.");
 console.log("Blank private-deployment workspace bootstrap check passed.");

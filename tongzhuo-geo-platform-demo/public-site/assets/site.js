@@ -46,8 +46,14 @@
       service: String(data.get("service") || "").trim(),
       website: String(data.get("website") || "").trim(),
       message: String(data.get("message") || "").trim(),
-      source_url: sourceUrl
+      source_url: sourceUrl,
+      utm: Object.fromEntries(["source", "medium", "campaign", "term", "content"].map((key) => [key, new URLSearchParams(window.location.search).get(`utm_${key}`) || ""]).filter(([, value]) => value))
     };
+  }
+
+  function leadIdempotencyKey(form) {
+    if (!form.dataset.idempotencyKey) form.dataset.idempotencyKey = globalThis.crypto?.randomUUID?.() || `lead-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return form.dataset.idempotencyKey;
   }
 
   function setFormMessage(node, message, success = false) {
@@ -78,13 +84,14 @@
         const response = await fetch("/api/v1/leads", {
           method: "POST",
           credentials: "same-origin",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          headers: { "Content-Type": "application/json", Accept: "application/json", "Idempotency-Key": leadIdempotencyKey(form) },
           body: JSON.stringify(leadPayload(form))
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || result.ok !== true) throw new Error(result.message || "提交暂时失败，请稍后再试。");
         form.reset();
-        setFormMessage(messageNode, result.data?.message || "提交成功，企业运营人员会尽快与您联系。", true);
+        delete form.dataset.idempotencyKey;
+        setFormMessage(messageNode, result.data?.message || "提交成功，我们将在 1 个工作日内回复。", true);
       } catch (error) {
         setFormMessage(messageNode, error?.message || "网络连接异常，请稍后再试。");
       } finally {

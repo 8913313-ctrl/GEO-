@@ -66,6 +66,7 @@ try {
     Write-Json -Path $configReviewPath -Value ([ordered]@{
         review_type = 'tongzhuo_customer_config_review'
         status = 'ready'
+        production_readiness = [ordered]@{ ready = $true; blocking_warning_count = 0; blocking_warning_codes = @() }
         warnings = @()
     })
     Write-Json -Path $releaseNotesPath -Value ([ordered]@{
@@ -175,6 +176,8 @@ try {
     $dossier = Get-Content -LiteralPath $dossierPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-Condition ([string] $dossier.dossier_type -eq 'tongzhuo_customer_project_dossier') "Dossier type mismatch: $($dossier.dossier_type)"
     Assert-Condition ([string] $dossier.status -eq 'ready_for_launch') "Dossier status mismatch: $($dossier.status)"
+    Assert-Condition ([bool] $dossier.validation.config_production_ready) 'Dossier should record a production-ready config.'
+    Assert-Condition ([int] $dossier.validation.production_blocking_warning_count -eq 0) 'Dossier should not have config production blockers.'
     Assert-Condition ([string] $dossier.version -eq $expectedVersion) "Dossier version mismatch. Expected $expectedVersion, got $($dossier.version)"
     Assert-Condition (@($dossier.lifecycle).Count -ge 8) 'Dossier should include lifecycle stages, including the GEOFlow backend snapshot.'
     Assert-Condition (@($dossier.artifact_inventory).Count -ge 10) 'Dossier should include release, intake, and backend dossier artifacts.'
@@ -191,6 +194,32 @@ try {
     Assert-Condition ($markdown -like '*Artifact Inventory*') 'Dossier Markdown is missing artifact inventory.'
     Assert-Condition ($markdown -like '*GEOFlow Backend Snapshot*') 'Dossier Markdown is missing backend snapshot.'
     Assert-Condition ($markdown -like '*Management Next Actions*') 'Dossier Markdown is missing management next actions.'
+
+    $blockedReviewPath = Join-Path $testRoot "$releaseSlug-BLOCKED-CONFIG-REVIEW.json"
+    $blockedDossierPath = Join-Path $testRoot "$releaseSlug-BLOCKED-PROJECT-DOSSIER.json"
+    Write-Json -Path $blockedReviewPath -Value ([ordered]@{
+        review_type = 'tongzhuo_customer_config_review'
+        status = 'ready_with_warnings'
+        production_readiness = [ordered]@{ ready = $false; blocking_warning_count = 2; blocking_warning_codes = @('placeholder_site_url', 'missing_logo') }
+        warnings = @(
+            [ordered]@{ code = 'placeholder_site_url'; message = 'placeholder'; blocking_for_production = $true },
+            [ordered]@{ code = 'missing_logo'; message = 'missing logo'; blocking_for_production = $true }
+        )
+    })
+    $blockedManifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $blockedManifest.evidence.config_review_json = Split-Path $blockedReviewPath -Leaf
+    Write-Json -Path $manifestPath -Value $blockedManifest
+    $blockedResultJson = & (Join-Path $rootPath 'scripts\New-CustomerProjectDossier.ps1') `
+        -Root $rootPath `
+        -ReleaseManifestPath $manifestPath `
+        -IntakePath $intakePath `
+        -BackendDossierPath $backendDossierPath `
+        -OutputPath $blockedDossierPath
+    $blockedResult = $blockedResultJson | ConvertFrom-Json
+    Assert-Condition ([string] $blockedResult.dossier_status -eq 'needs_attention') 'Dossier must not be launch-ready when config production blockers remain.'
+    $blockedDossier = Get-Content -LiteralPath $blockedDossierPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-Condition (-not [bool] $blockedDossier.validation.config_production_ready) 'Blocked dossier must expose its config production gate.'
+    Assert-Condition ([int] $blockedDossier.validation.production_blocking_warning_count -eq 2) 'Blocked dossier must expose production blocker count.'
 } finally {
     if (Test-Path $testRoot) {
         Remove-Item -LiteralPath $testRoot -Recurse -Force

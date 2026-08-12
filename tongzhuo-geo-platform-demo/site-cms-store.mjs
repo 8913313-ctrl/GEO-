@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { appendAuditLog } from "./production-audit.mjs";
+import { resolveProjectSeed } from "./project-seeds/index.mjs";
+import { resolveSiteTemplateKey } from "./public-site/templates/site-template-registry.mjs";
 
 const CORE_PAGE_IDS = new Set(["home", "services", "about", "contact", "insights", "cases", "problem-map"]);
 const OPTIONAL_PATHS = new Set(["/cases/", "/faq/", "/team/", "/honors/", "/jobs/"]);
@@ -84,36 +86,15 @@ function defaultPages() {
 }
 
 function defaultServices() {
-  return [
-    { id: "geo", title: "GEO 服务", eyebrow: "AI SEARCH VISIBILITY", description: "围绕企业知识、官网信源、客户问题和持续内容运营，让企业信息更容易被客户与 AI 正确理解。", audience: "工业品、制造业及需要建设公开信源的中小企业", focus: "企业实体、官网页面、客户问题和公开内容结构", href: "/contact/", status: "published", order: 1 },
-    { id: "enterprise-ai", title: "企业 AI 落地", eyebrow: "ENTERPRISE AI", description: "把企业资料、业务规则和工作流程整理为可调用的知识与智能应用，帮助团队真正使用 AI。", audience: "希望建设知识库、智能体和业务工作流的企业", focus: "知识库、检索增强、智能体和业务流程协同", href: "/contact/", status: "published", order: 2 },
-    { id: "short-video", title: "短视频运营", eyebrow: "CONTENT GROWTH", description: "围绕真实业务场景建立选题、脚本、账号和发布节奏，持续沉淀可复用的内容资产。", audience: "需要长期获客和内容运营能力的企业", focus: "选题、脚本、账号内容与持续发布节奏", href: "/contact/", status: "published", order: 3 }
-  ];
+  return [];
 }
 
 function defaultCases() {
-  return [
-    { id: "case-industry-source", title: "工业设备企业公开信源建设", service: "GEO 服务", industry: "工业品", summary: "统一产品参数、应用场景和售后问答，让官网与公开内容使用同一套企业事实。", result: "企业知识、官网页面与内容生产形成统一来源", status: "published", order: 1 },
-    { id: "case-manufacturing-questions", title: "制造业客户问题体系梳理", service: "企业 AI 落地", industry: "制造业", summary: "按照采购、技术和使用人员的决策阶段拆分问题，形成知识库、问题地图和内容计划。", result: "客户问题能够被持续管理、回答和复用", status: "published", order: 2 },
-    { id: "case-content-operations", title: "中小企业内容运营流程建设", service: "短视频运营", industry: "中小企业", summary: "统一内容方向、审核标准和发布节奏，让短视频与图文内容不再依赖临时发挥。", result: "形成可执行、可复盘的长期内容机制", status: "published", order: 3 }
-  ];
+  return [];
 }
 
 function defaultProblemGroups() {
-  return [
-    { id: "geo", title: "GEO 服务问题", service: "GEO 服务", description: "从 AI 搜索认知、信源建设到效果判断。", status: "published", order: 1, questions: [
-      { id: "question-industrial-geo-start", slug: "industrial-geo-start", title: "工业品企业做 GEO 应该从哪里开始？", answer: "先统一企业主体、产品服务、应用场景、案例和常见问答，再围绕采购与技术人员真实会问的问题建设公开内容。", industries: ["工业品", "制造业"], status: "published", order: 1 },
-      { id: "question-geo-vs-seo", slug: "geo-vs-seo", title: "GEO 与传统 SEO 的目标和做法有什么不同？", answer: "SEO 更关注搜索结果中的网页可见性，GEO 更关注企业事实能否被 AI 理解、选择并组织进回答。两者可以协同，但内容结构和衡量方式不同。", industries: ["工业品", "制造业", "中小企业"], status: "published", order: 2 }
-    ] },
-    { id: "enterprise-ai", title: "企业 AI 落地问题", service: "企业 AI 落地", description: "从资料治理、知识库到业务智能体。", status: "published", order: 2, questions: [
-      { id: "question-ai-knowledge-base", slug: "ai-knowledge-base", title: "企业做 AI 应用前为什么要先建立知识库？", answer: "企业知识库为 AI 提供统一、经过审核且可追溯的事实来源，避免不同员工、文档和模型给出互相冲突的答案。", industries: ["工业品", "制造业", "中小企业"], status: "published", order: 1 },
-      { id: "question-ai-first-scenario", slug: "ai-first-scenario", title: "没有 AI 基础的企业应该先落地哪个场景？", answer: "优先选择资料相对完整、结果容易人工核对、能够节省重复劳动的场景，例如企业问答、内容辅助或内部资料检索。", industries: ["制造业", "中小企业"], status: "published", order: 2 }
-    ] },
-    { id: "short-video", title: "短视频运营问题", service: "短视频运营", description: "从选题、内容生产到账号持续运营。", status: "published", order: 3, questions: [
-      { id: "question-video-b2b-content", slug: "video-b2b-content", title: "工业品和制造业短视频应该拍什么内容？", answer: "优先展示客户真实关心的选型问题、使用场景、技术边界、实施流程和售后问题，而不是只做企业宣传片。", industries: ["工业品", "制造业"], status: "published", order: 1 },
-      { id: "question-video-sustainable", slug: "video-sustainable", title: "企业怎样建立可持续的短视频选题机制？", answer: "把销售、客服、技术和采购沟通中反复出现的问题沉淀为问题库，再按业务阶段持续转化为脚本和内容计划。", industries: ["工业品", "制造业", "中小企业"], status: "published", order: 2 }
-    ] }
-  ];
+  return [];
 }
 
 function normalizePublishedStatus(value, fallback = "draft") {
@@ -213,7 +194,7 @@ function defaultModules(pageId, context = {}) {
       ["articles", "文章列表", "按栏目展示正式文章。", "标题、摘要、作者、日期和正文结构均由正式内容版本生成。"]
     ],
     cases: [["hero", "服务案例", "展示允许公开的案例与实施方法。", "案例内容需经过脱敏和人工审核。"], ["proof", "案例与证据", "展示可核验结果。", "暂未发布公开案例。"], ["cta", "了解实施方式", "进入联系页面。", "提交您的业务场景。"]],
-    "problem-map": [["hero", "问题地图", "按服务方向和行业整理客户真实问题。", "从真实客户提问出发，连接直接回答、行业文章、服务案例和对应服务。"], ["problem-map", "客户正在问什么", "只展示已公开问题或已发布文章关联的问题。", "按 GEO 服务、企业 AI 落地和短视频运营组织问题。"], ["cta", "没有找到您的问题？", "提交企业现状和具体问题。", "我们会根据企业资料和业务目标给出下一步建议。"]],
+    "problem-map": [["hero", "问题地图", "按服务方向和行业整理客户真实问题。", "从真实客户提问出发，连接直接回答、行业文章、服务案例和对应服务。"], ["problem-map", "客户正在问什么", "只展示已公开问题或已发布文章关联的问题。", "按当前企业已经配置的产品、服务与行业组织问题。"], ["cta", "没有找到您的问题？", "提交企业现状和具体问题。", "我们会根据企业资料和业务目标给出下一步建议。"]],
     faq: [["hero", "常见问题", "直接回答客户高频问题。", "答案来自已审核企业知识。"], ["faq", "问题与答案", "结构化 FAQ。", "暂未发布公开问答。"]]
   };
   return (rows[pageId] || [["hero", context.pageTitle || "页面", "页面核心说明。", description], ["content", "主要内容", "结构化页面内容。", description], ["cta", "联系我们", "进入联系页面。", "提交您的业务问题。"]]).map(([type, title, moduleDescription, content], index) => ({
@@ -302,6 +283,12 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
     phone: cleanText(settingsSource.phone, profile.phone || profile.contactPhone || "", 80),
     email: cleanText(settingsSource.email, profile.email || "", 160), address: cleanText(settingsSource.address, profile.address || "", 300),
     logoUrl: cleanPublicUrl(settingsSource.logoUrl, { allowRelative: true }),
+    brandLogoUrl: cleanPublicUrl(settingsSource.brandLogoUrl, { allowRelative: true }),
+    brandMarkUrl: cleanPublicUrl(settingsSource.brandMarkUrl, { allowRelative: true }),
+    brandMarkOnDarkUrl: cleanPublicUrl(settingsSource.brandMarkOnDarkUrl, { allowRelative: true }),
+    schemaLogoUrl: cleanPublicUrl(settingsSource.schemaLogoUrl, { allowRelative: true }),
+    footerIcp: cleanText(settingsSource.footerIcp, "", 120),
+    footerLabel: cleanText(settingsSource.footerLabel, profile.brandName || "企业", 120),
     sameAs: cleanPublicUrlList(settingsSource.sameAs),
     allowAiCrawl: settingsSource.allowAiCrawl !== false, updatedAt: settingsSource.updatedAt || null
   };
@@ -354,7 +341,14 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   navItems.sort((a, b) => (navOrder.get(a.path) ?? 100) - (navOrder.get(b.path) ?? 100));
   const themeSource = cms.theme && typeof cms.theme === "object" ? cms.theme : {};
   const primaryColor = /^#[0-9a-f]{6}$/i.test(themeSource.primaryColor || "") ? themeSource.primaryColor : "#155eef";
-  const theme = { name: cleanText(themeSource.name, "企业官网 · 标准版", 120), primaryColor, cta: cleanText(themeSource.cta, "预约业务咨询", 80), version: Math.max(1, Number.parseInt(themeSource.version, 10) || 1), updatedAt: themeSource.updatedAt || null };
+  const theme = {
+    key: resolveSiteTemplateKey(themeSource.key || themeSource.templateKey || themeSource.template),
+    name: cleanText(themeSource.name, "企业官网 · 标准版", 120),
+    primaryColor,
+    cta: cleanText(themeSource.cta, "预约业务咨询", 80),
+    version: Math.max(1, Number.parseInt(themeSource.version, 10) || 1),
+    updatedAt: themeSource.updatedAt || null
+  };
   const redirects = (Array.isArray(cms.redirects) ? cms.redirects : []).filter((item) => item && typeof item === "object").slice(0, 500).map((item, index) => ({
     id: cleanId(item.id, `redirect-${index + 1}`), from: normalizeCmsPath(item.from, "/"), to: normalizeCmsPath(item.to, "/"),
     status: item.status === "disabled" ? "disabled" : "active", reason: cleanText(item.reason, "地址变更", 300), updatedAt: item.updatedAt || item.createdAt || null
@@ -387,12 +381,22 @@ function parseSnapshot(value) {
 
 function actorId(actor) { return actor?.userId || actor?.id || null; }
 
+const WORKFLOW_TRANSITIONS = Object.freeze({
+  draft: new Set(["pending_review"]),
+  pending_review: new Set(["approved", "rejected"]),
+  approved: new Set(["published"]),
+  published: new Set(["unpublished", "draft"]),
+  rejected: new Set(["draft"]),
+  unpublished: new Set(["draft"])
+});
+
 export class SiteCmsStore {
   constructor(database, options = {}) {
     if (!database?.connection) throw new TypeError("SiteCmsStore requires a ProductionDatabase instance.");
     this.database = database;
     this.connection = database.connection;
     this.workspaceId = cleanId(options.workspaceId, "default");
+    this.projectSeed = resolveProjectSeed(options.projectSeedKey ?? process.env.TZ_PROJECT_SEED);
     this.trustProxy = options.trustProxy ?? (String(process.env.TZ_TRUST_PROXY || "").toLowerCase() === "true");
   }
 
@@ -426,9 +430,11 @@ export class SiteCmsStore {
           });
         }
       }
+      const workflow = this.connection.prepare("SELECT workspace_id FROM site_cms_workflow_state WHERE workspace_id = ?").get(workspaceId);
+      if (!workflow) this.connection.prepare("INSERT OR IGNORE INTO site_cms_workflow_state (workspace_id, status, changed_at, reason) VALUES (?, 'published', ?, 'existing-publication-migration')").run(workspaceId, new Date().toISOString());
       return;
     }
-    const snapshot = normalizeSiteCmsSnapshot(state.site?.cms || {}, state);
+    const snapshot = normalizeSiteCmsSnapshot(state.site?.cms || this.projectSeed?.site?.cms || {}, state);
     const serialized = serializeSnapshot(snapshot);
     const now = new Date().toISOString();
     this.database.transaction(() => {
@@ -444,7 +450,34 @@ export class SiteCmsStore {
           .run(releaseId, workspaceId, serialized.json, serialized.checksum, "升级前官网自动保留版本", now);
         this.connection.prepare(`INSERT INTO site_cms_publications (workspace_id, release_id, version_number, published_at, published_by) VALUES (?, ?, 1, ?, NULL)`).run(workspaceId, releaseId, now);
       }
+      const workflow = this.connection.prepare("SELECT workspace_id FROM site_cms_workflow_state WHERE workspace_id = ?").get(workspaceId);
+      if (!workflow) this.connection.prepare("INSERT OR IGNORE INTO site_cms_workflow_state (workspace_id, status, changed_at, reason) VALUES (?, 'published', ?, 'bootstrap')").run(workspaceId, now);
     });
+  }
+
+  workflow(workspaceId = this.workspaceId) {
+    this.ensureInitialized(workspaceId);
+    return this.connection.prepare("SELECT workspace_id AS workspaceId, status, changed_at AS changedAt, changed_by AS changedBy, reason, review_at AS reviewAt, reviewed_by AS reviewedBy, review_reason AS reviewReason FROM site_cms_workflow_state WHERE workspace_id = ?").get(workspaceId);
+  }
+
+  _transitionStatus(targetStatus, { actor = null, request = null, workspaceId = this.workspaceId, reason = "" } = {}) {
+    const current = this.workflow(workspaceId);
+    const target = String(targetStatus || "").trim();
+    if (!WORKFLOW_TRANSITIONS[current.status]?.has(target)) throw new SiteCmsError(`官网状态不能从 ${current.status} 转为 ${target}。`, 409, "SITE_CMS_INVALID_TRANSITION", { from: current.status, to: target });
+    const now = new Date().toISOString();
+    const userId = actorId(actor);
+    const cleanReason = cleanText(reason, "", 500);
+    const isReview = target === "approved" || target === "rejected";
+    this.connection.prepare(`UPDATE site_cms_workflow_state SET status = ?, changed_at = ?, changed_by = ?, reason = ?, review_at = ?, reviewed_by = ?, review_reason = ? WHERE workspace_id = ?`)
+      .run(target, now, userId, cleanReason, isReview ? now : current.reviewAt, isReview ? userId : current.reviewedBy, isReview ? cleanReason : current.reviewReason, workspaceId);
+    appendAuditLog(this.connection, { actorUserId: userId, action: `site.cms.${target}`, entityType: "site_cms_workflow", entityId: workspaceId, details: { from: current.status, to: target, reason: cleanReason }, request, trustProxy: this.trustProxy, createdAt: now });
+    return this.workflow(workspaceId);
+  }
+
+  transitionStatus(targetStatus, options = {}) {
+    const workspaceId = options.workspaceId || this.workspaceId;
+    this.ensureInitialized(workspaceId);
+    return this.database.transaction(() => this._transitionStatus(targetStatus, { ...options, workspaceId }));
   }
 
   draft(workspaceId = this.workspaceId) {
@@ -457,8 +490,10 @@ export class SiteCmsStore {
 
   publication(workspaceId = this.workspaceId) {
     this.ensureInitialized(workspaceId);
-    const row = this.connection.prepare(`SELECT p.workspace_id, p.release_id, p.version_number, p.published_at, p.published_by, r.operation, r.note, r.checksum, r.source_draft_revision, r.snapshot_json FROM site_cms_publications p JOIN site_cms_releases r ON r.id = p.release_id WHERE p.workspace_id = ?`).get(workspaceId);
-    return { workspaceId, releaseId: row.release_id, version: Number(row.version_number), publishedAt: row.published_at, publishedBy: row.published_by || null, operation: row.operation, note: row.note, checksum: row.checksum, sourceDraftRevision: Number(row.source_draft_revision), snapshot: parseSnapshot(row.snapshot_json) };
+    const row = this.connection.prepare(`SELECT p.workspace_id, p.release_id, p.version_number, p.published_at, p.published_by, r.operation, r.note, r.checksum, r.source_draft_revision, r.snapshot_json FROM site_cms_publications p JOIN site_cms_releases r ON r.id = p.release_id AND r.workspace_id = p.workspace_id AND r.version_number = p.version_number WHERE p.workspace_id = ?`).get(workspaceId);
+    if (!row) throw new SiteCmsError("官网正式发布指针无效，请停止公开服务并检查发布记录。", 503, "SITE_CMS_PUBLICATION_INVALID");
+    const workflow = this.workflow(workspaceId);
+    return { workspaceId, releaseId: row.release_id, version: Number(row.version_number), publishedAt: row.published_at, publishedBy: row.published_by || null, operation: row.operation, note: row.note, checksum: row.checksum, sourceDraftRevision: Number(row.source_draft_revision), snapshot: parseSnapshot(row.snapshot_json), status: workflow.status, workflow };
   }
 
   releases(workspaceId = this.workspaceId, limit = 50) {
@@ -475,6 +510,8 @@ export class SiteCmsStore {
     const expectedRevision = Number(input.expectedRevision);
     if (!Number.isInteger(expectedRevision) || expectedRevision < 1) throw new SiteCmsError("保存官网草稿必须提供 expectedRevision。", 428, "SITE_CMS_EXPECTED_REVISION_REQUIRED");
     if (expectedRevision !== current.revision) throw new SiteCmsError("官网草稿已由其他成员更新，请刷新后重试。", 409, "SITE_CMS_DRAFT_CONFLICT", { expectedRevision, currentRevision: current.revision });
+    const workflow = this.workflow(workspaceId);
+    if (["pending_review", "approved"].includes(workflow.status)) throw new SiteCmsError("官网正在审核或已通过审核，不能继续修改；请先驳回或发布。", 409, "SITE_CMS_DRAFT_LOCKED", { status: workflow.status });
     const state = this.workspaceState(workspaceId);
     const source = input.cms || input.snapshot || state.site?.cms || {};
     const snapshot = normalizeSiteCmsSnapshot(source, state);
@@ -487,6 +524,7 @@ export class SiteCmsStore {
       const result = this.connection.prepare(`UPDATE site_cms_drafts SET revision = ?, snapshot_json = ?, checksum = ?, updated_at = ?, updated_by = ? WHERE workspace_id = ? AND revision = ?`).run(revision, serialized.json, serialized.checksum, now, userId, workspaceId, current.revision);
       if (Number(result.changes) !== 1) throw new SiteCmsError("官网草稿已由其他成员更新，请刷新后重试。", 409, "SITE_CMS_DRAFT_CONFLICT");
       appendAuditLog(this.connection, { actorUserId: userId, action: "site.cms.draft.save", entityType: "site_cms_draft", entityId: workspaceId, details: { previousRevision: current.revision, revision, checksum: serialized.checksum }, request, trustProxy: this.trustProxy, createdAt: now });
+      if (workflow.status !== "draft") this._transitionStatus("draft", { actor, request, workspaceId, reason: input.reason || "保存官网草稿" });
     });
     return { workspaceId, revision, snapshot, checksum: serialized.checksum, createdAt: current.createdAt, updatedAt: now, updatedBy: userId };
   }
@@ -496,6 +534,7 @@ export class SiteCmsStore {
     const expectedRevision = Number(input.expectedDraftRevision);
     if (!Number.isInteger(expectedRevision) || expectedRevision !== draft.revision) throw new SiteCmsError("发布前草稿版本已变化，请刷新预览后重新发布。", 409, "SITE_CMS_PUBLISH_CONFLICT", { expectedRevision, currentRevision: draft.revision });
     const current = this.publication(workspaceId);
+    if (current.status !== "approved") throw new SiteCmsError("官网必须先通过审核才能发布。", 409, "SITE_CMS_PUBLISH_REQUIRES_APPROVAL", { status: current.status });
     if (draft.checksum === current.checksum) throw new SiteCmsError("官网草稿与当前正式版本一致，无需重复发布。", 409, "SITE_CMS_NO_CHANGES");
     const version = current.version + 1;
     const id = `SITE-REL-${randomUUID()}`;
@@ -506,8 +545,25 @@ export class SiteCmsStore {
       this.connection.prepare(`INSERT INTO site_cms_releases (id, workspace_id, version_number, source_draft_revision, source_release_id, operation, snapshot_json, checksum, note, created_at, created_by) VALUES (?, ?, ?, ?, ?, 'publish', ?, ?, ?, ?, ?)`).run(id, workspaceId, version, draft.revision, current.releaseId, JSON.stringify(draft.snapshot), draft.checksum, note, now, userId);
       this.connection.prepare(`UPDATE site_cms_publications SET release_id = ?, version_number = ?, published_at = ?, published_by = ? WHERE workspace_id = ?`).run(id, version, now, userId, workspaceId);
       appendAuditLog(this.connection, { actorUserId: userId, action: "site.cms.publish", entityType: "site_cms_release", entityId: id, details: { version, draftRevision: draft.revision, previousReleaseId: current.releaseId, checksum: draft.checksum }, request, trustProxy: this.trustProxy, createdAt: now });
+      this._transitionStatus("published", { actor, request, workspaceId, reason: note });
     });
     return this.publication(workspaceId);
+  }
+
+  submitReview(input = {}, actor = null, request = null, workspaceId = this.workspaceId) {
+    return this.transitionStatus("pending_review", { actor, request, workspaceId, reason: input.reason || "提交官网审核" });
+  }
+
+  approve(input = {}, actor = null, request = null, workspaceId = this.workspaceId) {
+    return this.transitionStatus("approved", { actor, request, workspaceId, reason: input.reason || "审核通过" });
+  }
+
+  reject(input = {}, actor = null, request = null, workspaceId = this.workspaceId) {
+    return this.transitionStatus("rejected", { actor, request, workspaceId, reason: input.reason || "审核驳回" });
+  }
+
+  unpublish(input = {}, actor = null, request = null, workspaceId = this.workspaceId) {
+    return this.transitionStatus("unpublished", { actor, request, workspaceId, reason: input.reason || "下线官网" });
   }
 
   rollback(input = {}, actor = null, request = null, workspaceId = this.workspaceId) {
@@ -518,6 +574,9 @@ export class SiteCmsStore {
     const current = this.publication(workspaceId);
     const expectedVersion = Number(input.expectedCurrentVersion);
     if (!Number.isInteger(expectedVersion) || expectedVersion !== current.version) throw new SiteCmsError("官网正式版本已经变化，请刷新后重试。", 409, "SITE_CMS_ROLLBACK_CONFLICT", { expectedVersion, currentVersion: current.version });
+    if (releaseId === current.releaseId) throw new SiteCmsError("当前官网已经是该版本，不能重复回滚。", 409, "SITE_CMS_ROLLBACK_CURRENT_RELEASE", { releaseId, version: current.version });
+    const note = cleanText(input.note || input.reason, "", 500);
+    if (!note) throw new SiteCmsError("回滚官网必须填写原因。", 422, "SITE_CMS_ROLLBACK_REASON_REQUIRED");
     const draft = this.draft(workspaceId);
     const snapshot = parseSnapshot(target.snapshot_json);
     const serialized = serializeSnapshot(snapshot);
@@ -526,12 +585,12 @@ export class SiteCmsStore {
     const id = `SITE-REL-${randomUUID()}`;
     const now = new Date().toISOString();
     const userId = actorId(actor);
-    const note = cleanText(input.note, `回滚至 v${target.version_number}`, 500);
     this.database.transaction(() => {
       this.connection.prepare(`UPDATE site_cms_drafts SET revision = ?, snapshot_json = ?, checksum = ?, updated_at = ?, updated_by = ? WHERE workspace_id = ?`).run(draftRevision, serialized.json, serialized.checksum, now, userId, workspaceId);
       this.connection.prepare(`INSERT INTO site_cms_releases (id, workspace_id, version_number, source_draft_revision, source_release_id, operation, snapshot_json, checksum, note, created_at, created_by) VALUES (?, ?, ?, ?, ?, 'rollback', ?, ?, ?, ?, ?)`).run(id, workspaceId, version, draftRevision, releaseId, serialized.json, serialized.checksum, note, now, userId);
       this.connection.prepare(`UPDATE site_cms_publications SET release_id = ?, version_number = ?, published_at = ?, published_by = ? WHERE workspace_id = ?`).run(id, version, now, userId, workspaceId);
-      appendAuditLog(this.connection, { actorUserId: userId, action: "site.cms.rollback", entityType: "site_cms_release", entityId: id, details: { version, restoredReleaseId: releaseId, restoredVersion: Number(target.version_number), previousReleaseId: current.releaseId, draftRevision }, request, trustProxy: this.trustProxy, createdAt: now });
+      this.connection.prepare(`UPDATE site_cms_workflow_state SET status = 'published', changed_at = ?, changed_by = ?, reason = ? WHERE workspace_id = ?`).run(now, userId, note, workspaceId);
+      appendAuditLog(this.connection, { actorUserId: userId, action: "site.cms.rollback", entityType: "site_cms_release", entityId: id, details: { previousReleaseId: current.releaseId, previousVersion: current.version, restoredReleaseId: releaseId, restoredVersion: Number(target.version_number), newReleaseId: id, newVersion: version, draftRevision, reason: note }, request, trustProxy: this.trustProxy, createdAt: now });
     });
     return { publication: this.publication(workspaceId), draft: this.draft(workspaceId) };
   }

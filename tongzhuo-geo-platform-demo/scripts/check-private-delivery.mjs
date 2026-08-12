@@ -123,6 +123,12 @@ try {
   assert.equal(blankManifest.migration, null);
   const blankFiles = await walk(blankRoot);
   assert.ok(blankFiles.includes("app/package.json"));
+  for (const foundationFile of [
+    "app/foundation-asset-store.mjs",
+    "app/foundation-assets/bootstrap.mjs",
+    "app/industry-templates/index.mjs",
+    "app/project-seeds/index.mjs"
+  ]) assert.ok(blankFiles.includes(foundationFile), `delivery must include ${foundationFile}`);
   for (const runtimeFile of ["analysis-workbench-store.mjs", "analysis-workbench-engine.mjs", "analysis-workbench-api.mjs", "citation-document-update-store.mjs", "citation-document-update-api.mjs", "research-document-store.mjs"]) {
     assert.ok(blankFiles.includes(`app/${runtimeFile}`), `delivery must include ${runtimeFile}`);
   }

@@ -88,6 +88,23 @@ try {
     (error) => error?.code === "INVALID_CREDENTIALS" && error?.status === 401
   );
 
+  const limitedAuth = new AuthService(database, {
+    secureCookies: false,
+    loginAttemptWindowMs: 60_000,
+    loginAccountMaxAttempts: 3,
+    loginIpMaxAttempts: 5
+  });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await assert.rejects(
+      () => limitedAuth.login({ username: "admin", password: `${password}-wrong-${attempt}` }, request("POST")),
+      (error) => error?.code === "INVALID_CREDENTIALS" && error?.status === 401
+    );
+  }
+  await assert.rejects(
+    () => limitedAuth.login({ username: "admin", password }, request("POST")),
+    (error) => error?.code === "LOGIN_RATE_LIMITED" && error?.status === 429 && error?.details?.retryAfterSeconds >= 1
+  );
+
   const loginResponse = new MockResponse();
   const login = await auth.login({ username: "ADMIN", password }, request("POST", { "user-agent": "foundation-check" }), loginResponse);
   assert.equal(login.user.id, setup.user.id);

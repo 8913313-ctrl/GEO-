@@ -14,6 +14,7 @@
     "check:admin-session": "node scripts/check-relay-admin-session.mjs",
     "check:admin-rbac": "node --check scripts/check-relay-admin-rbac.mjs && node scripts/check-relay-admin-rbac.mjs",
     "check:http": "node --check scripts/check-relay-http.mjs && node scripts/check-relay-http.mjs",
+    "check:private-http": "node --check scripts/check-relay-private-http.mjs && node scripts/check-relay-private-http.mjs",
     "check:mcp": "node --check relay-mcp-server.mjs && node scripts/check-relay-mcp.mjs",
     "check:multitenant": "node --check scripts/check-relay-multitenant.mjs && node scripts/check-relay-multitenant.mjs",
     "check:backup-restore": "node --check scripts/check-relay-backup-restore.mjs && node scripts/check-relay-backup-restore.mjs",

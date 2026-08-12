@@ -9,6 +9,10 @@ Set-StrictMode -Version Latest
 if ([string]::IsNullOrWhiteSpace($Root)) {
     $Root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 }
+$PowerShellExecutable = (Get-Process -Id $PID -ErrorAction Stop).Path
+if ([string]::IsNullOrWhiteSpace($PowerShellExecutable) -or -not (Test-Path -LiteralPath $PowerShellExecutable)) {
+    throw 'Unable to resolve the current PowerShell executable.'
+}
 
 function Invoke-CheckedNpmScript {
     param(
@@ -18,14 +22,34 @@ function Invoke-CheckedNpmScript {
         [string]$ScriptName
     )
 
-    Push-Location $Path
+    $temporaryRoot = Join-Path ([System.IO.Path]::GetTempPath()) "tongzhuo-template-npm-$([guid]::NewGuid().ToString('N'))"
+    $temporaryComponent = Join-Path $temporaryRoot (Split-Path -Leaf $Path)
+    New-Item -ItemType Directory -Path $temporaryComponent -Force | Out-Null
     try {
+        Copy-Item -LiteralPath (Join-Path $Root 'product.json') -Destination $temporaryRoot -Force
+        foreach ($item in Get-ChildItem -LiteralPath $Path -Force) {
+            if ($item.Name -in @('node_modules', '.data', 'release', 'dist')) {
+                continue
+            }
+            Copy-Item -LiteralPath $item.FullName -Destination $temporaryComponent -Recurse -Force
+        }
+
+        Push-Location $temporaryComponent
+        npm.cmd ci --ignore-scripts --omit=dev --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) {
+            throw "npm ci failed in temporary copy of $Path with exit code $LASTEXITCODE"
+        }
         npm.cmd run $ScriptName
         if ($LASTEXITCODE -ne 0) {
             throw "npm run $ScriptName failed in $Path with exit code $LASTEXITCODE"
         }
     } finally {
-        Pop-Location
+        if ((Get-Location).Path -eq $temporaryComponent) {
+            Pop-Location
+        }
+        if (Test-Path -LiteralPath $temporaryRoot) {
+            Remove-Item -LiteralPath $temporaryRoot -Recurse -Force
+        }
     }
 }
 
@@ -58,142 +82,142 @@ if ($missing.Count -gt 0) {
 Invoke-CheckedNpmScript -Path $publisher -ScriptName 'check'
 Invoke-CheckedNpmScript -Path $desktopAgent -ScriptName 'check'
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-PowerShellSyntax.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-PowerShellSyntax.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "PowerShell syntax validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-TemplateSecrets.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-TemplateSecrets.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Template secret scan failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-PackageSecretsNegative.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-PackageSecretsNegative.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Package secret negative validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-TemplateCleanliness.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-TemplateCleanliness.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Template cleanliness validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-VersionConsistency.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-VersionConsistency.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Version consistency validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductVersionUpdater.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductVersionUpdater.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Product version updater validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductArchitecture.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductArchitecture.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Product architecture validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductReleaseNotes.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductReleaseNotes.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Product release notes validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductFirstTwoStagesPreview.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductFirstTwoStagesPreview.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Product first two stages preview validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-FirstTwoStagesPilotChecklist.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-FirstTwoStagesPilotChecklist.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "First two stages pilot checklist validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-AIVisibilityAudit.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-AIVisibilityAudit.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "AI visibility audit validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerDemoScript.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerDemoScript.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer demo script validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerProposalBrief.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerProposalBrief.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer proposal brief validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerEvidenceIndex.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerEvidenceIndex.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer evidence index validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerLaunchReadiness.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerLaunchReadiness.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer launch readiness validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerHealthScorecard.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerHealthScorecard.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer health scorecard validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerDeliveryReleaseNotes.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerDeliveryReleaseNotes.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer delivery release notes validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerConfigReview.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerConfigReview.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer config review validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerHandoffChecklist.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerHandoffChecklist.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer handoff checklist validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductDeliveryConsole.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ProductDeliveryConsole.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Product delivery console validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerOperationsBundle.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerOperationsBundle.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer operations bundle validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerDeliveryOperationsBundle.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerDeliveryOperationsBundle.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer delivery operations bundle validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerIntakeChecklist.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerIntakeChecklist.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer intake checklist validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerProjectDossier.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerProjectDossier.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer project dossier validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerPortfolioIndex.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerPortfolioIndex.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer portfolio index validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerDeliveryWizard.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerDeliveryWizard.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer delivery wizard validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerConfigNegative.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-CustomerConfigNegative.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Customer config negative validation failed with exit code $LASTEXITCODE"
 }
 
-powershell.exe -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ServerOverrides.ps1') -Root $Root
+& $PowerShellExecutable -ExecutionPolicy Bypass -File (Join-Path $Root 'scripts\Test-ServerOverrides.ps1') -Root $Root
 if ($LASTEXITCODE -ne 0) {
     throw "Server override validation failed with exit code $LASTEXITCODE"
 }

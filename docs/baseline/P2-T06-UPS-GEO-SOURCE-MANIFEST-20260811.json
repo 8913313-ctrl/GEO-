@@ -1,0 +1,231 @@
+{
+  "manifestVersion": 1,
+  "generatedAt": "2026-08-11T15:58:29.445Z",
+  "sourceRoot": "D:\\Backup\\Documents\\UPS_GEO",
+  "sourceRepository": {
+    "remote": "https://github.com/lake121380-source/UPS_GEO.git",
+    "head": "4f146793f258daeff0aa4f4a027e021235247c6f",
+    "license": "No root LICENSE file found; internal working materials, redistribution rights require owner confirmation."
+  },
+  "exclusions": [
+    {
+      "path": "projects/",
+      "reason": "customer-specific facts and evidence; never import into global geo-core"
+    },
+    {
+      "path": "references/",
+      "reason": "third-party repository snapshots; retain original license and notice files, do not copy prose/data into customer assets without review"
+    },
+    {
+      "path": "scripts/",
+      "reason": "research tooling requires separate security and dependency review"
+    }
+  ],
+  "relatedRepositorySnapshots": [
+    {
+      "name": "geo-citation-lab",
+      "commit": "81ba1566f70f114e9202b798f8d4525a9329ebd3",
+      "license": "MIT for software; CC BY 4.0 for original content; third-party terms remain"
+    },
+    {
+      "name": "GEOFlow",
+      "commit": "4786cab802055db3e81aa7ea388b6329ffb01d3f",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "yao-geo-skills",
+      "commit": "201c0c45ccaa2047530b2295679a9aa116f4d3e4",
+      "license": "MIT"
+    }
+  ],
+  "files": [
+    {
+      "path": "docs/PROJECT_BRIEF.md",
+      "bytes": 5183,
+      "modifiedAt": "2026-07-26T02:49:24.703Z",
+      "sha256": "0d8c2dcc5f3e41a4a181f46ff18480cf8902a6a8b883a330a0ff871e2e3c5cc8",
+      "git": {
+        "commit": "3fb4ea11cef5cf6f832e7cba97fefd5db4970a68",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T10:52:52+08:00",
+        "subject": "research: add paper and ecosystem due diligence"
+      },
+      "classification": "project-contract",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "docs/SOURCE_INDEX.md",
+      "bytes": 6364,
+      "modifiedAt": "2026-07-26T03:26:30.900Z",
+      "sha256": "8d53da17fd8ad48a0666bb767db4f68fc09413d0db744ae6c602116055bce737",
+      "git": {
+        "commit": "3ed956901752a9df909bedcc22f9a6d8052aa358",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T11:28:57+08:00",
+        "subject": "geo: add Shandong Jinfengchang implementation baseline"
+      },
+      "classification": "project-contract",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "docs/UPS_GEO_PROJECT_PLAN.md",
+      "bytes": 19925,
+      "modifiedAt": "2026-08-01T03:07:21.897Z",
+      "sha256": "cb42dc796e9da2a82ec842479a8648dae18e88711999f71c48cb51ae47c328b2",
+      "git": {
+        "commit": "",
+        "author": "",
+        "committedAt": "",
+        "subject": ""
+      },
+      "classification": "project-contract",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "README.md",
+      "bytes": 5165,
+      "modifiedAt": "2026-08-01T03:07:21.898Z",
+      "sha256": "72e5f92869ac88a89036c835d8ce90572ad15f479a0425abdf2aa6d331b0d62c",
+      "git": {
+        "commit": "4f146793f258daeff0aa4f4a027e021235247c6f",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-27T13:23:27+08:00",
+        "subject": "geo: add local UPS competitor content audit"
+      },
+      "classification": "project-readme",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/data/ecosystem_matrix.csv",
+      "bytes": 12726,
+      "modifiedAt": "2026-07-26T02:51:40.397Z",
+      "sha256": "aa3a69265bdc5ef8568570211e30d8605fadf4825d55a1841102f9be4f768cc1",
+      "git": {
+        "commit": "3fb4ea11cef5cf6f832e7cba97fefd5db4970a68",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T10:52:52+08:00",
+        "subject": "research: add paper and ecosystem due diligence"
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/data/paper_matrix.csv",
+      "bytes": 21387,
+      "modifiedAt": "2026-07-26T02:51:28.048Z",
+      "sha256": "137d6c4d3edd0e10f012df1cad69248c9410fca52be9da0194d1202dc1f3a51a",
+      "git": {
+        "commit": "3fb4ea11cef5cf6f832e7cba97fefd5db4970a68",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T10:52:52+08:00",
+        "subject": "research: add paper and ecosystem due diligence"
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/DEEP_DUE_DILIGENCE_SYNTHESIS.md",
+      "bytes": 13869,
+      "modifiedAt": "2026-07-26T02:51:28.050Z",
+      "sha256": "3c9b6e7f8da1aba42bdd2b8234e44ef32f497f8ffba477f3bca66aa63e84ee70",
+      "git": {
+        "commit": "3fb4ea11cef5cf6f832e7cba97fefd5db4970a68",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T10:52:52+08:00",
+        "subject": "research: add paper and ecosystem due diligence"
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/DOCUMENT_REVIEW.md",
+      "bytes": 10223,
+      "modifiedAt": "2026-07-26T01:47:07.953Z",
+      "sha256": "ed27a3880c90a1723acc05b83d425d18089e6c25614f6d1e27844af5c9ee8fb6",
+      "git": {
+        "commit": "0c01857d4abc046fcaa866d1e99d53661a0f988a",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T09:55:51+08:00",
+        "subject": "docs: establish UPS_GEO research workspace"
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/ECOSYSTEM_DUE_DILIGENCE.md",
+      "bytes": 18387,
+      "modifiedAt": "2026-07-26T02:52:36.640Z",
+      "sha256": "517f289d5fb9caaff556279a50ae4b301fd66054ca23dc2b6dc8195fdb480257",
+      "git": {
+        "commit": "3fb4ea11cef5cf6f832e7cba97fefd5db4970a68",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T10:52:52+08:00",
+        "subject": "research: add paper and ecosystem due diligence"
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/PAPER_EVIDENCE_MATRIX.md",
+      "bytes": 35979,
+      "modifiedAt": "2026-07-26T02:52:36.639Z",
+      "sha256": "e1ba32410f616fb0312dd76c9c8da5c01094e1cfcbde4c69565745a4aae11b38",
+      "git": {
+        "commit": "3fb4ea11cef5cf6f832e7cba97fefd5db4970a68",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T10:52:52+08:00",
+        "subject": "research: add paper and ecosystem due diligence"
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/REPOSITORIES_AND_DATASETS.md",
+      "bytes": 12036,
+      "modifiedAt": "2026-07-26T01:47:07.952Z",
+      "sha256": "bd48ffd1cc38c548573f77e4283a8de8e2f848cca15bf96e7330bfd17d95c35a",
+      "git": {
+        "commit": "0c01857d4abc046fcaa866d1e99d53661a0f988a",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T09:55:51+08:00",
+        "subject": "docs: establish UPS_GEO research workspace"
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/SYNTHESIS_AND_ROADMAP.md",
+      "bytes": 7257,
+      "modifiedAt": "2026-07-26T02:48:30.391Z",
+      "sha256": "fdde1b66c1e5cfc372c10f7d6377431aa09156a64ff1a49d05c41ee79296ed14",
+      "git": {
+        "commit": "3fb4ea11cef5cf6f832e7cba97fefd5db4970a68",
+        "author": "lake121380-source",
+        "committedAt": "2026-07-26T10:52:52+08:00",
+        "subject": "research: add paper and ecosystem due diligence"
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    },
+    {
+      "path": "research/THIRD_GEO_CLASS_LEARNING_2026-07-27.md",
+      "bytes": 19118,
+      "modifiedAt": "2026-07-27T10:01:21.023Z",
+      "sha256": "cd654dfd57da1d9b2f690b9afd7df753ddb815eba0c8be11af1fe70a8d856ab3",
+      "git": {
+        "commit": "",
+        "author": "",
+        "committedAt": "",
+        "subject": ""
+      },
+      "classification": "research-note",
+      "reuseDecision": "candidate-for-review-only"
+    }
+  ],
+  "nextReview": [
+    "owner/license confirmation",
+    "source-level citation locator",
+    "fact/opinion/evidence classification",
+    "six-theme method extraction"
+  ]
+}

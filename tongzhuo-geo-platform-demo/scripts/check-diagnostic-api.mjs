@@ -23,7 +23,7 @@ async function call(handler, response, method, url, body = undefined) {
 
 try {
   database = new ProductionDatabase({ databasePath: path.join(temporaryDirectory, "diagnostic-api.sqlite") });
-  const store = new DiagnosticStore(database);
+  const store = new DiagnosticStore(database, { workspaceId: "tenant-diagnostic-api" });
   const handler = createDiagnosticApi({ diagnosticStore: store, requestJson: async (request) => request.body || {}, configured: { requestBodyLimit: 1_000_000 } });
   const response = responseCapture();
 
@@ -169,8 +169,8 @@ try {
       async analyze(options) {
         analyzedOptions = options;
         return {
-          project: store.project("default", options.projectId),
-          questionSet: store.latestFrozenQuestionSet("default", options.projectId),
+          project: store.project(store.workspaceId, options.projectId),
+          questionSet: store.latestFrozenQuestionSet(store.workspaceId, options.projectId),
           run: { id: "RESEARCH-RUN", status: "completed" },
           persistedReport: { status: "final", title: "Citation Lab 研究报告" },
           persistedRecommendations: [],

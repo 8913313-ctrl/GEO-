@@ -65,6 +65,36 @@ function New-TextCheck {
     }
 }
 
+function New-PlatformReadyCheck {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Stage,
+        [Parameter(Mandatory = $true)] [string]$Id,
+        [Parameter(Mandatory = $true)] [string]$Name,
+        [Parameter(Mandatory = $true)] [string]$PlatformId,
+        [Parameter(Mandatory = $true)] [string]$Purpose
+    )
+    $path = 'desktop-agent/src/platforms.js'
+    $fullPath = Join-Path $rootPath $path
+    $exists = Test-Path -LiteralPath $fullPath
+    $ready = $false
+    if ($exists) {
+        $moduleUri = ([uri] $fullPath).AbsoluteUri
+        $probe = "import { platformSupport } from '$moduleUri'; if (platformSupport('$PlatformId') !== 'ready') process.exit(1);"
+        & node --input-type=module -e $probe
+        $ready = $LASTEXITCODE -eq 0
+    }
+    [pscustomobject][ordered]@{
+        stage = $Stage
+        id = $Id
+        name = $Name
+        path = $path
+        required = $true
+        passed = $exists -and $ready
+        status = if ($exists -and $ready) { 'ready' } elseif ($exists) { 'not_ready' } else { 'missing' }
+        purpose = $Purpose
+    }
+}
+
 $checks = @(
     New-FileCheck -Stage 'stage_1_cloud_workbench_ai_website' -Id 'website_home' -Name 'Website home' -Path 'website/index.html' -Purpose 'Company homepage for human visitors and AI discovery.'
     New-FileCheck -Stage 'stage_1_cloud_workbench_ai_website' -Id 'website_products' -Name 'Service product pages' -Path 'website/products.html' -Purpose 'Service overview for GEO optimization, short video operation, and enterprise AI landing.'
@@ -95,9 +125,9 @@ $checks = @(
     New-FileCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'distribution_admin_view' -Name 'Distribution admin view' -Path 'geoflow-integration/server-overrides/resources/views/admin/distribution/index.blade.php' -Purpose 'Admin-side distribution channel and task surface.'
     New-FileCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'publisher_devices_view' -Name 'Publisher devices view' -Path 'geoflow-integration/server-overrides/resources/views/admin/publisher-devices/index.blade.php' -Purpose 'Admin-side local device status surface.'
     New-FileCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'device_protocol_doc' -Name 'Publisher device protocol' -Path 'docs/PUBLISHER-DEVICE-PROTOCOL.md' -Purpose 'Cloud workbench and desktop agent protocol boundary.'
-    New-TextCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'wechat_ready' -Name 'WeChat MP ready platform' -Path 'desktop-agent/src/platforms.js' -Pattern "id:\s*'wechat_mp'[\s\S]*?support:\s*'ready'" -Purpose 'WeChat MP is included in the first ready platform batch.'
-    New-TextCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'zhihu_ready' -Name 'Zhihu ready platform' -Path 'desktop-agent/src/platforms.js' -Pattern "id:\s*'zhihu'[\s\S]*?support:\s*'ready'" -Purpose 'Zhihu is included in the first ready platform batch.'
-    New-TextCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'toutiao_ready' -Name 'Toutiao ready platform' -Path 'desktop-agent/src/platforms.js' -Pattern "id:\s*'toutiao'[\s\S]*?support:\s*'ready'" -Purpose 'Toutiao is included in the first ready platform batch.'
+    New-PlatformReadyCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'wechat_ready' -Name 'WeChat MP ready platform' -PlatformId 'wechat_mp' -Purpose 'WeChat MP is included in the first ready platform batch.'
+    New-PlatformReadyCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'zhihu_ready' -Name 'Zhihu ready platform' -PlatformId 'zhihu' -Purpose 'Zhihu is included in the first ready platform batch.'
+    New-PlatformReadyCheck -Stage 'stage_2_distribution_desktop_agent' -Id 'toutiao_ready' -Name 'Toutiao ready platform' -PlatformId 'toutiao' -Purpose 'Toutiao is included in the first ready platform batch.'
 )
 
 $stage1Checks = @($checks | Where-Object { [string] $_.stage -eq 'stage_1_cloud_workbench_ai_website' })

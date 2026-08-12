@@ -4,11 +4,13 @@ import { appendAuditLog } from "./production-audit.mjs";
 const DEFAULT_WORKSPACE_ID = "default";
 const PROJECT_TYPES = new Set(["industry_strategy", "source_ecosystem", "site_content", "comprehensive"]);
 const EVIDENCE_TYPES = new Set(["research", "enterprise", "live"]);
+const DATA_ORIGINS = new Set(["research_baseline", "enterprise_measured", "realtime_sampling", "mock_demo"]);
 const REPORT_STATUSES = new Set(["draft", "final"]);
 const RECOMMENDATION_CATEGORIES = new Set(["question_map", "source_ecosystem", "knowledge_gap", "site_cms", "content_plan", "publishing"]);
 const ACTION_TYPES = new Set(["question_library_candidate", "knowledge_gap", "topic_candidate", "content_plan", "cms_task", "publishing_strategy"]);
 
 export const DIAGNOSTIC_EVIDENCE_TYPES = Object.freeze(["research", "enterprise", "live"]);
+export const DIAGNOSTIC_DATA_ORIGINS = Object.freeze(["research_baseline", "enterprise_measured", "realtime_sampling", "mock_demo"]);
 
 export const CITATION_LAB_RESEARCH_PACKAGE = Object.freeze({
   id: "RP-CITATION-LAB-CN-GEO-2.0.1",
@@ -238,7 +240,7 @@ function unsupportedRealtimeClaims(value, path = "$") {
   }
   if (typeof value === "string") {
     const affirmative = [
-      /(?:当前|实时|最新).{0,18}(?:品牌)?排名\s*(?:为|是|[:：])?\s*(?:第\s*)?\d+/i,
+      /(?:当前|实时|最新).{0,18}(?:品牌)?排名\s*(?:为|是|[:：])?\s*(?:第\s*)?(?:\d+|[一二三四五六七八九十百千万]+)(?:名|位|名次)?/i,
       /(?:当前|实时|最新).{0,18}(?:推荐率|引用率|提及率)\s*(?:为|是|[:：])?\s*\d+(?:\.\d+)?\s*%?/i,
       /(?:current|real[- ]?time|latest).{0,24}(?:brand )?rank(?:ing)?\s*(?:is|=|:)?\s*#?\d+/i,
       /(?:current|real[- ]?time|latest).{0,24}(?:recommendation|citation|mention) rate\s*(?:is|=|:)?\s*\d+(?:\.\d+)?\s*%?/i
@@ -560,11 +562,14 @@ export class DiagnosticStore {
 
   evidenceRow(row) {
     if (!row) return null;
+    const provenance = parseJson(row.provenance_json);
+    const payload = parseJson(row.payload_json);
+    const dataOrigin = DATA_ORIGINS.has(payload.dataOrigin) ? payload.dataOrigin : DATA_ORIGINS.has(provenance.dataOrigin) ? provenance.dataOrigin : row.evidence_type === "research" ? "research_baseline" : row.evidence_type === "enterprise" ? "enterprise_measured" : "realtime_sampling";
     return {
       id: row.id, runId: row.run_id, evidenceType: row.evidence_type, sourceKind: row.source_kind,
       sourceId: row.source_id, title: row.title, sourceUrl: row.source_url, claim: row.claim, excerpt: row.excerpt,
       verificationStatus: row.verification_status, observedAt: row.observed_at || null,
-      provenance: parseJson(row.provenance_json), payload: parseJson(row.payload_json), createdAt: row.created_at, createdBy: row.created_by || null
+      dataOrigin, provenance, payload, createdAt: row.created_at, createdBy: row.created_by || null
     };
   }
 
@@ -577,6 +582,10 @@ export class DiagnosticStore {
     const verification = enumValue(verificationStatus, new Set(["supplied", "verified", "rejected", "not_available"]), "verificationStatus", "supplied");
     const observed = observedAt ? new Date(observedAt).toISOString() : null;
     const normalizedProvenance = parseJson(provenance, {});
+    const normalizedPayload = parseJson(payload, {});
+    const explicitOrigin = normalizedPayload.dataOrigin || normalizedProvenance.dataOrigin;
+    if (explicitOrigin !== undefined && !DATA_ORIGINS.has(explicitOrigin)) throw new DiagnosticError("dataOrigin must be research_baseline, enterprise_measured, realtime_sampling or mock_demo.", 422, "DIAGNOSTIC_DATA_ORIGIN_INVALID");
+    if (explicitOrigin === "mock_demo" && normalizedProvenance.environment !== "mock") throw new DiagnosticError("Mock/演示 evidence must declare provenance.environment=mock.", 422, "DIAGNOSTIC_MOCK_PROVENANCE_REQUIRED");
     const lateRelayEvidence = type === "live"
       && normalizedProvenance.collectionMethod === "relay_pull"
       && ["completed", "failed"].includes(run.status);
@@ -595,7 +604,7 @@ export class DiagnosticStore {
       ).run(
         evidenceId, runId, type, stringValue(sourceKind, "sourceKind", 200, true), stringValue(sourceId, "sourceId", 500),
         stringValue(title, "evidence title", 500, true), optionalUrl(sourceUrl, "sourceUrl"), stringValue(claim, "claim", 5000),
-        stringValue(excerpt, "excerpt", 20000), verification, observed, JSON.stringify(normalizedProvenance), jsonText(payload), timestamp, actorId(actor)
+        stringValue(excerpt, "excerpt", 20000), verification, observed, JSON.stringify(normalizedProvenance), jsonText(normalizedPayload), timestamp, actorId(actor)
       );
       if (run.status === "queued") this.connection.prepare("UPDATE diagnostic_runs SET status = 'running', started_at = ? WHERE id = ?").run(timestamp, runId);
       this.refreshEvidenceSummary(runId);
@@ -731,16 +740,28 @@ export class DiagnosticStore {
     const metrics = this.listMetrics({ workspaceId, runId: run.id, limit: 1000 });
     const counts = { research: 0, enterprise: 0, live: 0 };
     const verified = { research: 0, enterprise: 0, live: 0 };
-    for (const item of evidence) { counts[item.evidenceType] += 1; if (item.verificationStatus === "verified") verified[item.evidenceType] += 1; }
-    const verifiedLiveMetrics = metrics.filter((item) => item.evidenceType === "live" && item.status !== "not_available" && evidence.some((source) => source.id === item.evidenceId && source.verificationStatus === "verified" && source.observedAt)).length;
+    const dataClasses = { researchBaseline: 0, enterpriseMeasured: 0, realtimeSampling: 0, mockDemo: 0 };
+    const dataClassVerified = { researchBaseline: 0, enterpriseMeasured: 0, realtimeSampling: 0, mockDemo: 0 };
+    const originFor = (item) => {
+      const explicit = item?.payload?.dataOrigin || item?.provenance?.dataOrigin;
+      if (DATA_ORIGINS.has(explicit)) return explicit;
+      return item.evidenceType === "research" ? "research_baseline" : item.evidenceType === "enterprise" ? "enterprise_measured" : "realtime_sampling";
+    };
+    const classKey = { research_baseline: "researchBaseline", enterprise_measured: "enterpriseMeasured", realtime_sampling: "realtimeSampling", mock_demo: "mockDemo" };
+    for (const item of evidence) {
+      counts[item.evidenceType] += 1;
+      const key = classKey[originFor(item)]; dataClasses[key] += 1;
+      if (item.verificationStatus === "verified") { verified[item.evidenceType] += 1; dataClassVerified[key] += 1; }
+    }
+    const verifiedLiveMetrics = metrics.filter((item) => item.evidenceType === "live" && item.status !== "not_available" && evidence.some((source) => source.id === item.evidenceId && source.verificationStatus === "verified" && source.observedAt && originFor(source) === "realtime_sampling")).length;
     return {
       evidenceTypes: { research: "historical research baseline", enterprise: "customer-owned operational evidence", live: "timestamped AI-platform sampling" },
-      evidenceCounts: counts, verifiedEvidenceCounts: verified, metricCount: metrics.length, verifiedLiveMetricCount: verifiedLiveMetrics,
+      evidenceCounts: counts, verifiedEvidenceCounts: verified, dataClasses, dataClassVerified, metricCount: metrics.length, verifiedLiveMetricCount: verifiedLiveMetrics,
       researchPackage: research ? { id: research.id, datasetVersion: research.datasetVersion, releasedAt: research.releasedAt, installState: research.installState, verificationStatus: research.verificationStatus, sourceUrl: research.sourceUrl } : null,
       supportsCurrentAiRanking: verifiedLiveMetrics > 0,
       boundary: verifiedLiveMetrics > 0
-        ? "Current AI-platform metrics are limited to the explicitly timestamped and verified live samples listed as evidence."
-        : "No verified live AI-platform sample is present. This report must not claim a current brand ranking, recommendation rate or real-time citation result."
+        ? "数据分别标记为研究基线、企业实测、实时采样或 Mock/演示；当前 AI 指标仅限明确标记为 realtime_sampling 且带时间戳、已验证的样本。"
+        : "No verified live AI-platform sample is present. This report must not claim a current brand ranking, recommendation rate or real-time citation result. 数据分别标记为研究基线、企业实测、实时采样或 Mock/演示。"
     };
   }
 

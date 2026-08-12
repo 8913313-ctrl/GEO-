@@ -32,7 +32,7 @@ const TOP_LEVEL_APP_FILES = new Set([
   "package.json",
   "README.md"
 ]);
-const APP_DIRECTORIES = ["deploy", "docs", "public", "public-site", "research-packages", "scripts"];
+const APP_DIRECTORIES = ["deploy", "docs", "foundation-assets", "industry-templates", "project-seeds", "public", "public-site", "research-packages", "scripts"];
 const BLOCKED_DIRECTORY_NAMES = new Set([
   ".git",
   "backups",
@@ -371,7 +371,13 @@ async function createArchive(outputRoot, bundleName, overwrite) {
   for (const staged of [stagedArchive, stagedChecksum]) {
     if (await exists(staged)) await rm(staged, { force: true });
   }
-  const result = spawnSync("tar", ["-czf", stagedArchive, "-C", outputRoot, bundleName], {
+  // GNU tar on Windows treats an absolute `D:\\...` archive name as a
+  // remote-host target because of the drive-letter colon. Run tar inside the
+  // output directory and pass only relative names; this is portable on Linux
+  // as well and still resolves to the same staged file.
+  const stagedArchiveName = path.basename(stagedArchive);
+  const result = spawnSync("tar", ["-czf", stagedArchiveName, bundleName], {
+    cwd: outputRoot,
     encoding: "utf8",
     windowsHide: true
   });

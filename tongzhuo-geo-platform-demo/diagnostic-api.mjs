@@ -7,7 +7,7 @@ function bodyObject(value) { return value && typeof value === "object" && !Array
 export function createDiagnosticApi({ diagnosticStore, requestJson, configured = {}, actionExecutor = null, enterpriseSnapshotProvider = null, analysisEngine = null, requireAnalysisEngine = false, liveEffectReportEngine = null, relayService = null, adHocDiagnosticService = null, monitoringPlanService = null } = {}) {
   if (!diagnosticStore || typeof diagnosticStore.createProject !== "function") throw new TypeError("createDiagnosticApi requires a DiagnosticStore instance.");
   if (typeof requestJson !== "function") throw new TypeError("createDiagnosticApi requires requestJson.");
-  const workspaceId = "default";
+  const workspaceId = String(diagnosticStore.workspaceId || "default");
   const bodyLimit = Math.max(Number(configured.requestBodyLimit) || 1_000_000, 5_000_000);
 
   return async function handleDiagnosticApi(request, response, parts, principal = null) {

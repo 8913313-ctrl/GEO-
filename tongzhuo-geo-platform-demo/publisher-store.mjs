@@ -289,6 +289,20 @@ function publicJob(job, { forWorker = false } = {}) {
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
     scheduledAt: job.scheduledAt || null
+    ,attempts: Number(job.attempts || 0)
+    ,maxAttempts: Number(job.maxAttempts || 3)
+    ,nextAttemptAt: job.nextAttemptAt || null
+  };
+}
+
+function safeWorkerResult(value = {}) {
+  const state = ["queued", "running", "draft_saved", "published", "failed"].includes(String(value.state || "")) ? String(value.state) : "failed";
+  return {
+    state,
+    remote_url: String(value.remote_url || value.remoteUrl || "").slice(0, 2_000),
+    code: String(value.code || value.error_code || "").slice(0, 160),
+    message: String(value.message || value.error || "").slice(0, 2_000),
+    updated_at: now()
   };
 }
 
@@ -442,6 +456,9 @@ export class PublisherStore {
     const platformId = canonicalPlatformId(body.platform_id);
     if (!selectablePlatformIds.has(platformId)) throw new Error("该平台当前不在本地发布器可用目录中。");
     const key = `${platformId}:${body.profile_key || platformId}`;
+    const forbidden = ["cookie", "cookies", "storageState", "storage_state", "localStorage", "sessionStorage", "browserProfile", "profilePath", "profile_path"];
+    if (forbidden.some((key) => Object.prototype.hasOwnProperty.call(body, key) || Object.prototype.hasOwnProperty.call(body.meta || {}, key))) throw new PublisherError("服务端只接收登录状态摘要，不接收 Cookie、浏览器存储或 Profile 内容。", 422, "PUBLISHER_SESSION_SECRET_REJECTED");
+    const safeMeta = { group_id: String(body.meta?.group_id || "").slice(0, 160) };
     const session = {
       id: key,
       platform_id: platformId,
@@ -451,7 +468,7 @@ export class PublisherStore {
       last_verified_at: body.last_verified_at || null,
       last_error_message: String(body.last_error_message || ""),
       auto_allowed: Boolean(body.auto_allowed),
-      meta: body.meta || {},
+      meta: safeMeta,
       updated_at: now()
     };
     device.sessions = device.sessions || {};
@@ -481,7 +498,7 @@ export class PublisherStore {
     await this.load();
     await this.processDueJobs();
     return this.state.jobs
-      .filter((job) => (job.workerPlatforms || job.platforms || []).length && ["queued", "running"].includes(job.status) && (!job.claimedBy || job.claimedBy === device.id))
+      .filter((job) => (job.workerPlatforms || job.platforms || []).length && ["queued", "claimed", "running"].includes(job.status) && (!job.nextAttemptAt || Date.parse(job.nextAttemptAt) <= Date.now()) && (!job.claimedBy || job.claimedBy === device.id))
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
       .slice(0, Math.max(1, Math.min(100, Number(limit) || 30)))
       .map((job) => publicJob(job, { forWorker: true }));
@@ -649,6 +666,9 @@ export class PublisherStore {
         requestMetadata: context.requestMetadata || null
       } : null,
       claimedBy: null,
+      attempts: 0,
+      maxAttempts: Math.max(1, Math.min(5, Number(body.maxAttempts) || 3)),
+      nextAttemptAt: null,
       results: hasWeb ? { web: scheduled ? { state: "queued", message: "官网服务器发布已排期", remote_url: "" } : { state: "publishing", message: "正在发布到官网", remote_url: "", updated_at: now() } } : {}
     };
     this.state.jobs.push(job);
@@ -683,11 +703,24 @@ export class PublisherStore {
     await this.load();
     const job = this.state.jobs.find((item) => Number(item.id) === Number(id));
     if (!job) throw new Error("发布任务不存在。");
+    if (["success", "published", "draft_saved", "cancelled"].includes(job.status)) return publicJob(job, { forWorker: true });
+    if (job.nextAttemptAt && Date.parse(job.nextAttemptAt) > Date.now()) throw new Error("发布任务仍在重试退避期内。");
     if (job.claimedBy && job.claimedBy !== device.id && job.status === "running") throw new Error("发布任务正在由其他发布器执行。");
     job.claimedBy = device.id;
-    job.status = "running";
+    job.status = "claimed";
+    job.nextAttemptAt = null;
     job.updatedAt = now();
     await this.save();
+    return publicJob(job, { forWorker: true });
+  }
+
+  async startJob(device, id) {
+    await this.load();
+    const job = this.state.jobs.find((item) => Number(item.id) === Number(id));
+    if (!job) throw new Error("发布任务不存在。");
+    if (job.claimedBy !== device.id) throw new Error("请先由当前发布器领取任务。");
+    if (["success", "published", "draft_saved", "cancelled"].includes(job.status)) return publicJob(job, { forWorker: true });
+    job.status = "running"; job.attempts = Number(job.attempts || 0) + 1; job.updatedAt = now(); await this.save();
     return publicJob(job, { forWorker: true });
   }
 
@@ -695,16 +728,31 @@ export class PublisherStore {
     await this.load();
     const job = this.state.jobs.find((item) => Number(item.id) === Number(id));
     if (!job) throw new Error("发布任务不存在。");
+    if (job.claimedBy && job.claimedBy !== device.id) throw new Error("发布结果设备与任务领取设备不一致。");
+    if (["success", "published", "draft_saved"].includes(job.status)) return publicJob(job);
     job.claimedBy = device.id;
     const workerState = String(body.state || "result_unknown");
     const incomingResults = body.platform_results || body.results;
     if (incomingResults && typeof incomingResults === "object" && !Array.isArray(incomingResults)) {
-      const workerResults = { ...incomingResults };
+      const workerResults = Object.fromEntries(Object.entries(incomingResults).map(([platform, value]) => [canonicalPlatformId(platform), safeWorkerResult(value)]));
       if ((job.targetPlatforms || []).includes("web")) delete workerResults.web;
       job.results = { ...(job.results || {}), ...workerResults };
     }
     const webFailed = (job.targetPlatforms || []).includes("web") && job.results?.web?.state === "failed";
-    job.status = webFailed && ["success", "published"].includes(workerState) ? "partial_failed" : workerState;
+    const published = Object.values(job.results || {}).filter((item) => item?.state === "published");
+    const draftSaved = Object.values(job.results || {}).filter((item) => item?.state === "draft_saved");
+    const failed = Object.values(job.results || {}).filter((item) => item?.state === "failed");
+    const retryableFailure = (workerState === "failed" || failed.length > 0) && published.length === 0 && draftSaved.length === 0 && Number(job.attempts || 0) < Number(job.maxAttempts || 3);
+    if (retryableFailure) {
+      const retryBaseMs = Math.max(100, Math.min(10 * 60_000, Number(process.env.TZ_PUBLISHER_RETRY_BASE_MS) || 30_000));
+      const delayMs = Math.min(30 * 60_000, retryBaseMs * (2 ** Math.max(0, Number(job.attempts || 1) - 1)));
+      job.status = "queued";
+      job.claimedBy = null;
+      job.nextAttemptAt = new Date(Date.now() + delayMs).toISOString();
+    } else if (webFailed && ["success", "published"].includes(workerState)) job.status = "partial_failed";
+    else if (published.length && !failed.length && !draftSaved.length) job.status = "published";
+    else if (draftSaved.length && !failed.length) job.status = "draft_saved";
+    else job.status = workerState === "success" ? "published" : workerState;
     job.message = String(body.message || "");
     job.stateSummary = body.state_summary || {};
     job.updatedAt = now();

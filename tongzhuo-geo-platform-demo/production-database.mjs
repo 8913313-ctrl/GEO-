@@ -1320,6 +1320,462 @@ const MIGRATIONS = Object.freeze([
       CREATE INDEX content_asset_alerts_asset_idx
         ON content_asset_alerts (workspace_id, asset_id, updated_at DESC);
     `
+  },
+  {
+    version: 18,
+    name: "geo_foundation_assets",
+    sql: `
+      CREATE TABLE methodology_packs (
+        id TEXT PRIMARY KEY,
+        key TEXT NOT NULL,
+        scope TEXT NOT NULL CHECK (scope IN ('global', 'industry', 'project')),
+        industry_template TEXT NOT NULL DEFAULT '',
+        tenant_id TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        CHECK (
+          (scope = 'global' AND industry_template = '' AND tenant_id = '') OR
+          (scope = 'industry' AND industry_template <> '' AND tenant_id = '') OR
+          (scope = 'project' AND industry_template = '' AND tenant_id <> '')
+        ),
+        UNIQUE (key, scope, industry_template, tenant_id)
+      ) STRICT;
+
+      CREATE TABLE methodology_versions (
+        id TEXT PRIMARY KEY,
+        pack_id TEXT NOT NULL REFERENCES methodology_packs(id) ON DELETE CASCADE,
+        version INTEGER NOT NULL CHECK (version >= 1),
+        content TEXT NOT NULL,
+        sources_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(sources_json) AND json_type(sources_json) = 'array'),
+        checksum TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'review', 'published', 'retired')),
+        created_at TEXT NOT NULL,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        published_at TEXT,
+        published_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        UNIQUE (pack_id, version),
+        UNIQUE (checksum)
+      ) STRICT;
+
+      CREATE INDEX methodology_versions_pack_idx ON methodology_versions (pack_id, status, version DESC);
+
+      CREATE TABLE prompt_templates (
+        id TEXT PRIMARY KEY,
+        key TEXT NOT NULL,
+        scope TEXT NOT NULL CHECK (scope IN ('global', 'industry', 'project')),
+        industry_template TEXT NOT NULL DEFAULT '',
+        tenant_id TEXT NOT NULL DEFAULT '',
+        operation TEXT NOT NULL,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'archived')),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        CHECK (
+          (scope = 'global' AND industry_template = '' AND tenant_id = '') OR
+          (scope = 'industry' AND industry_template <> '' AND tenant_id = '') OR
+          (scope = 'project' AND industry_template = '' AND tenant_id <> '')
+        ),
+        UNIQUE (key, scope, industry_template, tenant_id)
+      ) STRICT;
+
+      CREATE TABLE prompt_versions (
+        id TEXT PRIMARY KEY,
+        template_id TEXT NOT NULL REFERENCES prompt_templates(id) ON DELETE CASCADE,
+        version INTEGER NOT NULL CHECK (version >= 1),
+        system_prompt TEXT NOT NULL,
+        user_template TEXT NOT NULL,
+        variables_schema_json TEXT NOT NULL CHECK (json_valid(variables_schema_json) AND json_type(variables_schema_json) = 'object'),
+        output_schema_json TEXT NOT NULL CHECK (json_valid(output_schema_json) AND json_type(output_schema_json) = 'object'),
+        quality_rules_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(quality_rules_json) AND json_type(quality_rules_json) = 'array'),
+        checksum TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'review', 'published', 'retired')),
+        created_at TEXT NOT NULL,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        published_at TEXT,
+        published_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        UNIQUE (template_id, version),
+        UNIQUE (checksum)
+      ) STRICT;
+
+      CREATE INDEX prompt_versions_template_idx ON prompt_versions (template_id, status, version DESC);
+
+      CREATE TABLE quality_rule_packs (
+        id TEXT PRIMARY KEY,
+        key TEXT NOT NULL,
+        scope TEXT NOT NULL CHECK (scope IN ('global', 'industry', 'project')),
+        industry_template TEXT NOT NULL DEFAULT '',
+        tenant_id TEXT NOT NULL DEFAULT '',
+        title TEXT NOT NULL,
+        version INTEGER NOT NULL CHECK (version >= 1),
+        rules_json TEXT NOT NULL CHECK (json_valid(rules_json) AND json_type(rules_json) = 'array'),
+        checksum TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'review', 'published', 'retired')),
+        created_at TEXT NOT NULL,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        published_at TEXT,
+        published_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        CHECK (
+          (scope = 'global' AND industry_template = '' AND tenant_id = '') OR
+          (scope = 'industry' AND industry_template <> '' AND tenant_id = '') OR
+          (scope = 'project' AND industry_template = '' AND tenant_id <> '')
+        ),
+        UNIQUE (key, scope, industry_template, tenant_id, version),
+        UNIQUE (checksum)
+      ) STRICT;
+
+      CREATE TABLE prompt_test_cases (
+        id TEXT PRIMARY KEY,
+        prompt_version_id TEXT NOT NULL REFERENCES prompt_versions(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        input_fixture_json TEXT NOT NULL CHECK (json_valid(input_fixture_json) AND json_type(input_fixture_json) = 'object'),
+        expected_rules_json TEXT NOT NULL CHECK (json_valid(expected_rules_json) AND json_type(expected_rules_json) = 'array'),
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+        created_at TEXT NOT NULL,
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        UNIQUE (prompt_version_id, name)
+      ) STRICT;
+
+      ALTER TABLE content_plans ADD COLUMN methodology_version_id TEXT REFERENCES methodology_versions(id) ON DELETE RESTRICT;
+      ALTER TABLE content_plans ADD COLUMN prompt_version_id TEXT REFERENCES prompt_versions(id) ON DELETE RESTRICT;
+      ALTER TABLE content_plans ADD COLUMN quality_rule_pack_id TEXT REFERENCES quality_rule_packs(id) ON DELETE RESTRICT;
+
+      CREATE INDEX content_plans_foundation_idx ON content_plans (workspace_id, methodology_version_id, prompt_version_id);
+
+      CREATE TRIGGER methodology_versions_published_immutable
+      BEFORE UPDATE ON methodology_versions
+      WHEN OLD.status = 'published'
+      BEGIN SELECT RAISE(ABORT, 'published methodology version is immutable'); END;
+      CREATE TRIGGER methodology_versions_published_no_delete
+      BEFORE DELETE ON methodology_versions
+      WHEN OLD.status = 'published'
+      BEGIN SELECT RAISE(ABORT, 'published methodology version cannot be deleted'); END;
+      CREATE TRIGGER prompt_versions_published_immutable
+      BEFORE UPDATE ON prompt_versions
+      WHEN OLD.status = 'published'
+      BEGIN SELECT RAISE(ABORT, 'published prompt version is immutable'); END;
+      CREATE TRIGGER prompt_versions_published_no_delete
+      BEFORE DELETE ON prompt_versions
+      WHEN OLD.status = 'published'
+      BEGIN SELECT RAISE(ABORT, 'published prompt version cannot be deleted'); END;
+      CREATE TRIGGER quality_rule_packs_published_immutable
+      BEFORE UPDATE ON quality_rule_packs
+      WHEN OLD.status = 'published'
+      BEGIN SELECT RAISE(ABORT, 'published quality rule pack is immutable'); END;
+      CREATE TRIGGER quality_rule_packs_published_no_delete
+      BEFORE DELETE ON quality_rule_packs
+      WHEN OLD.status = 'published'
+      BEGIN SELECT RAISE(ABORT, 'published quality rule pack cannot be deleted'); END;
+    `
+  },
+  {
+    version: 19,
+    name: "methodology_source_reviews",
+    sql: `
+      CREATE TABLE methodology_source_reviews (
+        id TEXT PRIMARY KEY,
+        methodology_version_id TEXT NOT NULL REFERENCES methodology_versions(id) ON DELETE CASCADE,
+        rule_id TEXT NOT NULL,
+        theme TEXT NOT NULL,
+        rule_text TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        source_locator TEXT NOT NULL,
+        source_excerpt TEXT NOT NULL DEFAULT '',
+        source_sha256 TEXT NOT NULL CHECK (length(source_sha256) = 64 AND source_sha256 NOT GLOB '*[^0-9a-f]*'),
+        classification TEXT NOT NULL,
+        applicability TEXT NOT NULL DEFAULT '',
+        license_status TEXT NOT NULL DEFAULT '',
+        reuse_decision TEXT NOT NULL CHECK (reuse_decision IN ('candidate-global-after-approval', 'approved-global', 'review-only', 'rejected')),
+        review_status TEXT NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending', 'approved', 'rejected')),
+        review_note TEXT NOT NULL DEFAULT '',
+        reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        reviewed_at TEXT,
+        created_at TEXT NOT NULL,
+        UNIQUE (methodology_version_id, rule_id)
+      ) STRICT;
+
+      CREATE INDEX methodology_source_reviews_version_idx
+        ON methodology_source_reviews (methodology_version_id, review_status, reuse_decision);
+
+      CREATE TRIGGER methodology_source_reviews_published_no_insert
+      BEFORE INSERT ON methodology_source_reviews
+      WHEN EXISTS (SELECT 1 FROM methodology_versions WHERE id = NEW.methodology_version_id AND status = 'published')
+      BEGIN SELECT RAISE(ABORT, 'published methodology source reviews are immutable'); END;
+      CREATE TRIGGER methodology_source_reviews_published_immutable
+      BEFORE UPDATE ON methodology_source_reviews
+      WHEN EXISTS (SELECT 1 FROM methodology_versions WHERE id = OLD.methodology_version_id AND status = 'published')
+      BEGIN SELECT RAISE(ABORT, 'published methodology source reviews are immutable'); END;
+      CREATE TRIGGER methodology_source_reviews_published_no_delete
+      BEFORE DELETE ON methodology_source_reviews
+      WHEN EXISTS (SELECT 1 FROM methodology_versions WHERE id = OLD.methodology_version_id AND status = 'published')
+      BEGIN SELECT RAISE(ABORT, 'published methodology source reviews are immutable'); END;
+    `
+  },
+  {
+    version: 20,
+    name: "official_site_release_tenant_boundary",
+    sql: `
+      CREATE TRIGGER site_cms_publications_release_boundary_insert
+      BEFORE INSERT ON site_cms_publications
+      WHEN NOT EXISTS (
+        SELECT 1 FROM site_cms_releases r
+        WHERE r.id = NEW.release_id
+          AND r.workspace_id = NEW.workspace_id
+          AND r.version_number = NEW.version_number
+      )
+      BEGIN SELECT RAISE(ABORT, 'site publication release boundary mismatch'); END;
+
+      CREATE TRIGGER site_cms_publications_release_boundary_update
+      BEFORE UPDATE OF workspace_id, release_id, version_number ON site_cms_publications
+      WHEN NOT EXISTS (
+        SELECT 1 FROM site_cms_releases r
+        WHERE r.id = NEW.release_id
+          AND r.workspace_id = NEW.workspace_id
+          AND r.version_number = NEW.version_number
+      )
+      BEGIN SELECT RAISE(ABORT, 'site publication release boundary mismatch'); END;
+
+      CREATE TRIGGER site_cms_releases_source_boundary_insert
+      BEFORE INSERT ON site_cms_releases
+      WHEN NEW.source_release_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM site_cms_releases source
+        WHERE source.id = NEW.source_release_id
+          AND source.workspace_id = NEW.workspace_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'site release source boundary mismatch'); END;
+
+      CREATE TRIGGER site_cms_releases_immutable
+      BEFORE UPDATE ON site_cms_releases
+      BEGIN SELECT RAISE(ABORT, 'site CMS release is immutable'); END;
+
+      CREATE TRIGGER site_cms_releases_no_delete
+      BEFORE DELETE ON site_cms_releases
+      BEGIN SELECT RAISE(ABORT, 'site CMS release cannot be deleted'); END;
+    `
+  },
+  {
+    version: 21,
+    name: "official_site_cms_workflow_state",
+    sql: `
+      CREATE TABLE site_cms_workflow_state (
+        workspace_id TEXT PRIMARY KEY,
+        status TEXT NOT NULL CHECK (status IN ('draft', 'pending_review', 'approved', 'published', 'rejected', 'unpublished')),
+        changed_at TEXT NOT NULL,
+        changed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        reason TEXT NOT NULL DEFAULT '',
+        review_at TEXT,
+        reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        review_reason TEXT NOT NULL DEFAULT ''
+      ) STRICT;
+    `
+  },
+  {
+    version: 22,
+    name: "official_site_lead_contract",
+    sql: `
+      ALTER TABLE site_contact_leads RENAME TO site_contact_leads_legacy;
+
+      CREATE TABLE site_contact_leads (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        tenant_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        company TEXT NOT NULL DEFAULT '',
+        phone_or_email TEXT NOT NULL,
+        need TEXT NOT NULL DEFAULT '',
+        source_page TEXT NOT NULL DEFAULT '',
+        utm_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(utm_json)),
+        status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')),
+        follow_up_at TEXT,
+        owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        phone TEXT NOT NULL DEFAULT '',
+        service TEXT NOT NULL DEFAULT '',
+        website TEXT NOT NULL DEFAULT '',
+        message TEXT NOT NULL DEFAULT '',
+        source_url TEXT NOT NULL DEFAULT '',
+        user_agent TEXT NOT NULL DEFAULT '',
+        metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        CHECK (workspace_id = tenant_id)
+      ) STRICT;
+
+      INSERT INTO site_contact_leads (
+        id, workspace_id, tenant_id, project_id, name, company, phone_or_email,
+        need, source_page, status, phone, service, website, message, source_url,
+        user_agent, metadata_json, created_at, updated_at
+      )
+      SELECT
+        id, workspace_id, workspace_id, workspace_id, name, company, phone,
+        message, source_url,
+        CASE status WHEN 'contacted' THEN 'contacting' WHEN 'closed' THEN 'lost' ELSE status END,
+        phone, service, website, message, source_url, user_agent, metadata_json,
+        created_at, updated_at
+      FROM site_contact_leads_legacy;
+
+      DROP TABLE site_contact_leads_legacy;
+
+      CREATE INDEX site_contact_leads_workspace_idx
+        ON site_contact_leads (workspace_id, status, created_at DESC);
+
+      CREATE INDEX site_contact_leads_tenant_project_idx
+        ON site_contact_leads (tenant_id, project_id, status, created_at DESC);
+      CREATE INDEX site_contact_leads_owner_follow_up_idx
+        ON site_contact_leads (tenant_id, project_id, owner_id, follow_up_at);
+
+      CREATE TRIGGER site_contact_leads_contract_insert
+      BEFORE INSERT ON site_contact_leads
+      WHEN NEW.tenant_id = '' OR NEW.project_id = '' OR NEW.phone_or_email = ''
+        OR NEW.workspace_id != NEW.tenant_id
+        OR NEW.status NOT IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')
+      BEGIN SELECT RAISE(ABORT, 'site lead contract violation'); END;
+
+      CREATE TRIGGER site_contact_leads_contract_update
+      BEFORE UPDATE OF workspace_id, tenant_id, project_id, phone_or_email, status ON site_contact_leads
+      WHEN NEW.tenant_id = '' OR NEW.project_id = '' OR NEW.phone_or_email = ''
+        OR NEW.workspace_id != NEW.tenant_id
+        OR NEW.status NOT IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')
+      BEGIN SELECT RAISE(ABORT, 'site lead contract violation'); END;
+    `
+  },
+  {
+    version: 23,
+    name: "official_site_lead_idempotency",
+    sql: `
+      ALTER TABLE site_contact_leads ADD COLUMN idempotency_key TEXT NOT NULL DEFAULT '';
+      ALTER TABLE site_contact_leads ADD COLUMN submission_hash TEXT NOT NULL DEFAULT '';
+
+      CREATE UNIQUE INDEX site_contact_leads_idempotency_idx
+        ON site_contact_leads (tenant_id, project_id, idempotency_key)
+        WHERE idempotency_key <> '';
+
+      CREATE TRIGGER site_contact_leads_idempotency_immutable
+      BEFORE UPDATE OF idempotency_key, submission_hash ON site_contact_leads
+      WHEN NEW.idempotency_key != OLD.idempotency_key OR NEW.submission_hash != OLD.submission_hash
+      BEGIN SELECT RAISE(ABORT, 'site lead idempotency identity is immutable'); END;
+    `
+  },
+  {
+    version: 24,
+    name: "official_site_lead_follow_up",
+    sql: `
+      CREATE TABLE site_lead_follow_ups (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        lead_id TEXT NOT NULL REFERENCES site_contact_leads(id) ON DELETE RESTRICT,
+        event_type TEXT NOT NULL CHECK (event_type IN ('claimed', 'follow_up', 'status_changed')),
+        status_from TEXT NOT NULL CHECK (status_from IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')),
+        status_to TEXT NOT NULL CHECK (status_to IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')),
+        owner_from TEXT REFERENCES users(id) ON DELETE SET NULL,
+        owner_to TEXT REFERENCES users(id) ON DELETE SET NULL,
+        note TEXT NOT NULL DEFAULT '',
+        follow_up_at TEXT,
+        created_by TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        created_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE INDEX site_lead_follow_ups_lead_idx
+        ON site_lead_follow_ups (tenant_id, project_id, lead_id, created_at DESC);
+      CREATE INDEX site_lead_follow_ups_actor_idx
+        ON site_lead_follow_ups (tenant_id, project_id, created_by, created_at DESC);
+
+      CREATE TRIGGER site_lead_follow_ups_boundary_insert
+      BEFORE INSERT ON site_lead_follow_ups
+      WHEN NOT EXISTS (
+        SELECT 1 FROM site_contact_leads lead
+        WHERE lead.id = NEW.lead_id
+          AND lead.tenant_id = NEW.tenant_id
+          AND lead.project_id = NEW.project_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'site lead follow-up boundary mismatch'); END;
+
+      CREATE TRIGGER site_lead_follow_ups_immutable
+      BEFORE UPDATE ON site_lead_follow_ups
+      BEGIN SELECT RAISE(ABORT, 'site lead follow-up is immutable'); END;
+      CREATE TRIGGER site_lead_follow_ups_no_delete
+      BEFORE DELETE ON site_lead_follow_ups
+      BEGIN SELECT RAISE(ABORT, 'site lead follow-up cannot be deleted'); END;
+    `
+  },
+  {
+    version: 25,
+    name: "idempotent_publication_tasks",
+    sql: `
+      CREATE TABLE publication_tasks (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        content_id TEXT NOT NULL REFERENCES content_articles(id) ON DELETE RESTRICT,
+        content_version_id TEXT NOT NULL REFERENCES content_article_versions(id) ON DELETE RESTRICT,
+        channel TEXT NOT NULL,
+        payload_hash TEXT NOT NULL CHECK (length(payload_hash) = 64 AND payload_hash NOT GLOB '*[^0-9a-f]*'),
+        status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'claimed', 'running', 'draft_saved', 'published', 'failed', 'expired')),
+        attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+        external_job_id TEXT,
+        payload_json TEXT NOT NULL CHECK (json_valid(payload_json) AND json_type(payload_json) = 'object'),
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE (tenant_id, content_version_id, channel)
+      ) STRICT;
+
+      CREATE INDEX publication_tasks_queue_idx
+        ON publication_tasks (tenant_id, status, expires_at, created_at);
+      CREATE INDEX publication_tasks_content_idx
+        ON publication_tasks (tenant_id, content_id, content_version_id, created_at DESC);
+
+      CREATE TRIGGER publication_tasks_content_boundary_insert
+      BEFORE INSERT ON publication_tasks
+      WHEN NOT EXISTS (
+        SELECT 1 FROM content_articles article
+        JOIN content_article_versions version ON version.article_id = article.id
+        WHERE article.id = NEW.content_id
+          AND article.workspace_id = NEW.tenant_id
+          AND version.id = NEW.content_version_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'publication task content boundary mismatch'); END;
+
+      CREATE TRIGGER publication_tasks_identity_immutable
+      BEFORE UPDATE OF tenant_id, content_id, content_version_id, channel, payload_hash, payload_json, created_at, created_by ON publication_tasks
+      BEGIN SELECT RAISE(ABORT, 'publication task identity is immutable'); END;
+      CREATE TRIGGER publication_tasks_no_delete_after_dispatch
+      BEFORE DELETE ON publication_tasks
+      WHEN OLD.external_job_id IS NOT NULL OR OLD.status != 'queued'
+      BEGIN SELECT RAISE(ABORT, 'dispatched publication task cannot be deleted'); END;
+    `
+  },
+  {
+    version: 26,
+    name: "publication_task_execution_state",
+    sql: `
+      ALTER TABLE publication_tasks ADD COLUMN claimed_by_device_id TEXT;
+      ALTER TABLE publication_tasks ADD COLUMN claimed_at TEXT;
+      ALTER TABLE publication_tasks ADD COLUMN next_attempt_at TEXT;
+      ALTER TABLE publication_tasks ADD COLUMN remote_url TEXT NOT NULL DEFAULT '';
+      ALTER TABLE publication_tasks ADD COLUMN error_code TEXT;
+      ALTER TABLE publication_tasks ADD COLUMN error_message TEXT;
+      ALTER TABLE publication_tasks ADD COLUMN result_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(result_json) AND json_type(result_json) = 'object');
+      ALTER TABLE publication_tasks ADD COLUMN completed_at TEXT;
+
+      CREATE INDEX publication_tasks_retry_idx
+        ON publication_tasks (tenant_id, status, next_attempt_at, attempts);
+    `
+  },
+  {
+    version: 27,
+    name: "publication_task_worker_lookup",
+    sql: `
+      CREATE INDEX publication_tasks_worker_job_idx
+        ON publication_tasks (tenant_id, external_job_id, status, expires_at);
+      CREATE INDEX publication_tasks_due_queue_idx
+        ON publication_tasks (tenant_id, status, next_attempt_at, created_at, id);
+    `
   }
 ]);
 

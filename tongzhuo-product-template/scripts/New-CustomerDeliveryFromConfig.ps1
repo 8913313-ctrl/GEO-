@@ -47,6 +47,9 @@ function Get-OptionalPropertyValue {
 }
 
 $customerSlug = [string] $validatedConfig.customer_slug
+$projectId = [string] $validatedConfig.project_id
+$tenantId = [string] $validatedConfig.tenant_id
+$industryTemplate = [string] $validatedConfig.industry_template
 $companyName = Get-RequiredValue -Value $config.company.legal_name -Name 'company.legal_name'
 $shortName = Get-RequiredValue -Value $config.company.brand_name -Name 'company.brand_name'
 $siteUrl = [uri](Get-RequiredValue -Value $config.website.site_url -Name 'website.site_url')
@@ -80,6 +83,9 @@ if (Test-Path $customerRoot) {
 
 $newCustomerArgs = @{
     CustomerSlug = $customerSlug
+    ProjectId = $projectId
+    TenantId = $tenantId
+    IndustryTemplate = $industryTemplate
     CompanyName = $companyName
     ShortName = $shortName
     SiteUrl = $siteUrl

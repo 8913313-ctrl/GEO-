@@ -1,6 +1,6 @@
 import http from "node:http";
 import { createReadStream } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,8 @@ import { aiProviderStore, AiProviderError } from "./ai-provider-store.mjs";
 import { aiGenerationService, AiGenerationError } from "./ai-generation-service.mjs";
 import { KnowledgeError, KnowledgeStore } from "./knowledge-store.mjs";
 import { ContentError, ContentStateError, ContentStore } from "./content-store.mjs";
+import { FoundationMethodologyResolver } from "./foundation-methodology-resolver.mjs";
+import { FoundationAssetStore } from "./foundation-asset-store.mjs";
 import { applyPublicCitationVisibility, publicCitationMarkersVisible } from "./citation-visibility.mjs";
 import { createContentApi } from "./content-api.mjs";
 import { ContentAssetError, ContentAssetStore } from "./content-asset-store.mjs";
@@ -40,13 +42,32 @@ import { renderFixedPage, renderNotFound } from "./public-site/site-renderer.mjs
 import { createSiteRuntime } from "./site-server.mjs";
 import { assertProductionConfiguration, productionConfig } from "./production-config.mjs";
 import { productionLogger } from "./production-logger.mjs";
-import { requestMetadata } from "./production-audit.mjs";
+import { appendAuditLog, requestMetadata } from "./production-audit.mjs";
+import { resolveProjectSeed } from "./project-seeds/index.mjs";
+import { requireIndustryTemplate } from "./industry-templates/index.mjs";
 import { AuthError, AuthService, openProductionDatabase, PERMISSIONS, WorkspaceConflictError, WorkspaceStore } from "./production-foundation.mjs";
 
 const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
+const packageMetadata = JSON.parse(await readFile(path.join(moduleRoot, "package.json"), "utf8"));
+const runtimeBuild = Object.freeze({
+  version: String(packageMetadata.version || "unknown"),
+  buildId: String(process.env.TZ_BUILD_ID || process.env.SOURCE_VERSION || "development").slice(0, 120),
+  startedAt: new Date().toISOString()
+});
 const root = path.join(moduleRoot, "public");
 const siteAssetRoot = path.join(moduleRoot, "public-site", "assets");
 const configured = assertProductionConfiguration(productionConfig);
+const projectWorkspaceId = configured.workspaceId;
+const projectId = configured.projectId;
+const projectSeed = resolveProjectSeed(configured.projectSeedKey);
+const projectIndustryTemplate = configured.industryTemplate || projectSeed?.industryTemplate || "";
+const projectIndustryTemplateSnapshot = projectIndustryTemplate ? requireIndustryTemplate(projectIndustryTemplate) : null;
+if (projectSeed && projectSeed.projectId !== projectId) {
+  throw new Error(`项目种子 ${projectSeed.key} 的 projectId 与 TZ_PROJECT_ID 不一致。`);
+}
+if (projectSeed && projectSeed.tenantId !== configured.tenantId) {
+  throw new Error(`项目种子 ${projectSeed.key} 的 tenantId 与 TZ_TENANT_ID 不一致。`);
+}
 const port = Number(process.argv[2] || configured.port);
 const database = openProductionDatabase({ databasePath: configured.databasePath });
 const authService = new AuthService(database, {
@@ -56,20 +77,24 @@ const authService = new AuthService(database, {
 });
 const workspaceStore = new WorkspaceStore(database, { trustProxy: configured.trustProxy });
 const knowledgeStore = new KnowledgeStore(database);
+const foundationMethodologyResolver = new FoundationMethodologyResolver(database);
+const foundationAssetStore = new FoundationAssetStore(database);
 const contentStore = new ContentStore(database, {
-  workspaceId: "default",
+  workspaceId: projectWorkspaceId,
   requireEvidence: true,
   evidenceValidator: (evidence, context = {}) => {
-    const result = knowledgeStore.validateEvidenceReferences({ workspaceId: context.workspaceId || "default", evidence, allowInternal: false });
+    const result = knowledgeStore.validateEvidenceReferences({ workspaceId: context.workspaceId || projectWorkspaceId, evidence, allowInternal: false });
     if (evidence?.length && !result.items.some((item) => item.referenceType === "knowledge")) {
       throw new KnowledgeError("At least one traceable enterprise knowledge citation is required.", 422, "KNOWLEDGE_EVIDENCE_REQUIRED");
     }
     return result;
   }
 });
-const contentAssetStore = new ContentAssetStore(database, { workspaceId: "default" });
+const recoveredContentGenerationJobs = contentStore.recoverInterruptedGenerationJobs({ workspaceId: projectWorkspaceId });
+if (recoveredContentGenerationJobs) productionLogger.warn("content.generation_interrupted_recovered", { count: recoveredContentGenerationJobs });
+const contentAssetStore = new ContentAssetStore(database, { workspaceId: projectWorkspaceId });
 publisherStore.setWebPublisher((target) => contentStore.publish({
-  workspaceId: "default",
+  workspaceId: projectWorkspaceId,
   articleId: target.articleId,
   versionId: target.versionId,
   expectedRevision: target.expectedRevision,
@@ -82,20 +107,22 @@ publisherStore.setWebPublisher((target) => contentStore.publish({
   } : null
 }));
 const contentApi = createContentApi({
-  contentStore, requestJson, configured,
+  contentStore, foundationAssetStore, industryTemplate: projectIndustryTemplate, requestJson, configured,
   onArticlePublished: async ({ principal, request }) => {
-    const draft = siteCmsStore.draft("default");
-    const publication = siteCmsStore.publication("default");
+    const draft = siteCmsStore.draft(projectWorkspaceId);
+    const publication = siteCmsStore.publication(projectWorkspaceId);
     const draftInsights = Array.isArray(draft.snapshot?.pages) ? draft.snapshot.pages.find((page) => page?.id === "insights") : null;
     const publishedInsights = Array.isArray(publication.snapshot?.pages) ? publication.snapshot.pages.find((page) => page?.id === "insights") : null;
     if (publishedInsights?.status === "published" || draftInsights?.status !== "published") return { status: "already-synced", cmsVersion: publication.version };
-    const released = siteCmsStore.publish({ expectedDraftRevision: draft.revision, note: "文章发布后自动同步官网行业资讯" }, principal, request, "default");
+    siteCmsStore.submitReview({ reason: "文章发布后自动提交官网行业资讯审核" }, principal, request, projectWorkspaceId);
+    siteCmsStore.approve({ reason: "文章已通过内容审核，允许同步官网行业资讯" }, principal, request, projectWorkspaceId);
+    const released = siteCmsStore.publish({ expectedDraftRevision: draft.revision, note: "文章发布后自动同步官网行业资讯" }, principal, request, projectWorkspaceId);
     return { status: "published", cmsVersion: released.version, releaseId: released.releaseId };
   }
 });
 const contentAssetApi = createContentAssetApi({ contentAssetStore, requestJson, configured });
-publisherStore.setPublicationObserver((job) => contentAssetStore.syncPublisherJob(job, { workspaceId: "default" }));
-const diagnosticStore = new DiagnosticStore(database, { workspaceId: "default" });
+publisherStore.setPublicationObserver((job) => contentAssetStore.syncPublisherJob(job, { workspaceId: projectWorkspaceId }));
+const diagnosticStore = new DiagnosticStore(database, { workspaceId: projectWorkspaceId });
 let diagnosticRelayClient = null;
 try {
   diagnosticRelayClient = createDiagnosticRelayClient({ config: configured });
@@ -107,11 +134,11 @@ const diagnosticRelayService = new DiagnosticRelayService({
   diagnosticStore,
   contentAssetStore,
   client: diagnosticRelayClient,
-  workspaceId: "default",
+  workspaceId: projectWorkspaceId,
   pullBatchSize: configured.relayPullBatchSize
 });
 try {
-  const backfill = contentAssetStore.syncEvidence({ workspaceId: "default", limit: 20_000 });
+  const backfill = contentAssetStore.syncEvidence({ workspaceId: projectWorkspaceId, limit: 20_000 });
   if (backfill.created) productionLogger.info("content_asset.citation_backfill_completed", backfill);
 } catch (error) {
   productionLogger.error("content_asset.citation_backfill_failed", { code: error.code || "CONTENT_ASSET_CITATION_BACKFILL_FAILED", error: error.message });
@@ -120,7 +147,7 @@ const brandMonitoringService = new BrandMonitoringService({
   database,
   diagnosticStore,
   relayService: diagnosticRelayService,
-  workspaceId: "default",
+  workspaceId: projectWorkspaceId,
   trustProxy: configured.trustProxy,
   schedulerBatchSize: configured.brandMonitoringSchedulerBatchSize
 });
@@ -128,7 +155,7 @@ const adHocDiagnosticService = new AdHocDiagnosticService({
   database,
   diagnosticStore,
   relayService: diagnosticRelayService,
-  workspaceId: "default",
+  workspaceId: projectWorkspaceId,
   trustProxy: configured.trustProxy
 });
 const diagnosticActionService = new DiagnosticActionService({ diagnosticStore, workspaceStore, contentStore });
@@ -148,7 +175,7 @@ try {
   const researchHealth = citationResearchStore.health();
   const pin = citationResearchStore.summary().package;
   diagnosticStore.updateResearchPackageInstallation({
-    workspaceId: "default",
+    workspaceId: projectWorkspaceId,
     installState: "ready",
     verificationStatus: "verified",
     sourceCommit: researchHealth.sourceCommit,
@@ -160,7 +187,7 @@ try {
       "Question matching is lexical and taxonomy-assisted. Low-confidence matches are treated as evidence gaps rather than forced conclusions."
     ],
     coverage: {
-      ...diagnosticStore.activeResearchPackage("default").coverage,
+      ...diagnosticStore.activeResearchPackage(projectWorkspaceId).coverage,
       rawDataBundled: true,
       queryDatabaseReady: true,
       derivedDatabaseBytes: researchHealth.databaseBytes,
@@ -169,7 +196,7 @@ try {
       supportsRealtimeCitationMonitoring: false
     },
     manifest: {
-      ...diagnosticStore.activeResearchPackage("default").manifest,
+      ...diagnosticStore.activeResearchPackage(projectWorkspaceId).manifest,
       deploymentMode: "verified_read_only_sqlite",
       sourceCommit: researchHealth.sourceCommit,
       upstreamDuckdbSha256: pin.upstreamDuckdbSha256,
@@ -184,7 +211,7 @@ try {
   });
 } catch (error) {
   productionLogger.error("citation_research.not_ready", { error: error.message, code: error.code || "CITATION_RESEARCH_INIT_FAILED" });
-  try { diagnosticStore.updateResearchPackageInstallation({ workspaceId: "default", installState: "failed", verificationStatus: "unverified" }); } catch { /* health remains visible through server logs */ }
+  try { diagnosticStore.updateResearchPackageInstallation({ workspaceId: projectWorkspaceId, installState: "failed", verificationStatus: "unverified" }); } catch { /* health remains visible through server logs */ }
 }
 try {
   liveEffectReportEngine = new LiveEffectReportEngine({ diagnosticStore, aiGenerationService });
@@ -230,7 +257,7 @@ const diagnosticApi = createDiagnosticApi({
   requireAnalysisEngine: true,
   liveEffectReportEngine,
   actionExecutor: (action, { principal, request }) => diagnosticActionService.executeAccepted({
-    workspaceId: "default",
+    workspaceId: projectWorkspaceId,
     action,
     actor: principal,
     request
@@ -284,23 +311,27 @@ const monitoringRemotePorts = String(process.env.TZ_MONITORING_REMOTE_PORTS || "
   .map((value) => Number(value.trim()))
   .filter((value) => Number.isInteger(value) && value > 0 && value <= 65_535);
 const monitoringStore = new MonitoringStore(database, {
-  workspaceId: "default",
+  workspaceId: projectWorkspaceId,
   publisherStore,
   remotePorts: monitoringRemotePorts.length ? monitoringRemotePorts : [80, 443],
   recommendationGenerator: createMonitoringSuggestionGenerator({ aiGenerationService })
 });
-const recoveredMonitoringReports = monitoringStore.recoverInterruptedDiagnostics({ workspaceId: "default" });
+const recoveredMonitoringReports = monitoringStore.recoverInterruptedDiagnostics({ workspaceId: projectWorkspaceId });
 if (recoveredMonitoringReports) productionLogger.info("monitoring.diagnostics_interrupted_recovered", { count: recoveredMonitoringReports });
-const siteCmsStore = new SiteCmsStore(database, { workspaceId: "default", trustProxy: configured.trustProxy });
-const sitePreviewStore = new PublicSiteStore({ database, cmsStore: siteCmsStore, workspaceId: "default" });
-const analysisWorkbenchStore = new AnalysisWorkbenchStore(database, { workspaceId: "default" });
+const siteCmsStore = new SiteCmsStore(database, {
+  workspaceId: projectWorkspaceId,
+  projectSeedKey: configured.projectSeedKey,
+  trustProxy: configured.trustProxy
+});
+const sitePreviewStore = new PublicSiteStore({ database, cmsStore: siteCmsStore, workspaceId: projectWorkspaceId });
+const analysisWorkbenchStore = new AnalysisWorkbenchStore(database, { workspaceId: projectWorkspaceId });
 const analysisWorkbenchEngine = new AnalysisWorkbenchEngine({
   store: analysisWorkbenchStore,
   citationResearchStore,
   researchDocumentStore,
   knowledgeStore,
   aiGenerationService,
-  siteOperationsProvider: async ({ workspaceId = "default" } = {}) => {
+  siteOperationsProvider: async ({ workspaceId = projectWorkspaceId } = {}) => {
     const workspace = workspaceStore.get(workspaceId).state || {};
     const [overview, operations, traffic] = await Promise.all([
       monitoringStore.overview({ workspaceId }),
@@ -399,8 +430,8 @@ const knowledgeWorkerTimer = setInterval(() => {
   if (knowledgeWorkerRunning) return;
   knowledgeWorkerRunning = true;
   Promise.all([
-    knowledgeStore.processOcrQueue({ workspaceId: "default", limit: 1 }),
-    knowledgeStore.processIndexQueue({ workspaceId: "default", limit: 1 })
+    knowledgeStore.processOcrQueue({ workspaceId: projectWorkspaceId, limit: 1 }),
+    knowledgeStore.processIndexQueue({ workspaceId: projectWorkspaceId, limit: 1 })
   ]).catch((error) => productionLogger.error("knowledge.worker_failed", { error: error.message })).finally(() => { knowledgeWorkerRunning = false; });
 }, 15_000);
 const publisherSchedulerIntervalMs = Math.max(250, Math.min(60_000, Number(process.env.TZ_PUBLISHER_SCHEDULER_INTERVAL_MS) || 5_000));
@@ -471,7 +502,7 @@ async function runContentAssetPatrol() {
   if (contentAssetPatrolRunning) return;
   contentAssetPatrolRunning = true;
   try {
-    const result = await contentAssetStore.patrolDue({ workspaceId: "default", limit: configured.contentAssetPatrolBatchSize, citationStaleDays: configured.contentAssetCitationStaleDays });
+    const result = await contentAssetStore.patrolDue({ workspaceId: projectWorkspaceId, limit: configured.contentAssetPatrolBatchSize, citationStaleDays: configured.contentAssetCitationStaleDays });
     if (result.checked || result.staleCitations) productionLogger.info("content_asset.patrol_completed", { checked: result.checked, succeeded: result.succeeded, failed: result.failed, staleCitations: result.staleCitations });
   } catch (error) {
     productionLogger.error("content_asset.patrol_failed", { code: error.code || "CONTENT_ASSET_PATROL_FAILED", error: error.message });
@@ -502,13 +533,15 @@ function requestId(request) {
   return /^[A-Za-z0-9._:-]{8,128}$/.test(supplied) ? supplied : randomUUID();
 }
 
-function applySecurityHeaders(response, id) {
+function applySecurityHeaders(response, id, request = null) {
   response.setHeader("X-Request-Id", id);
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("X-Frame-Options", "DENY");
   response.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   response.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+  const forwardedProto = configured.trustProxy ? String(request?.headers?.["x-forwarded-proto"] || "").split(",")[0].trim().toLowerCase() : "";
+  if (request?.socket?.encrypted || forwardedProto === "https") response.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
 }
 
 function escapeHtmlAttribute(value) {
@@ -732,13 +765,13 @@ async function handleWorkspaceApi(request, response, parts) {
   if (parts.length === 3) {
     if (method === "GET") {
       await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
-      const workspace = workspaceStore.get("default");
+      const workspace = workspaceStore.get(projectWorkspaceId);
       return jsonResponse(response, 200, { ok: true, data: { ...workspace, initialized: Boolean(workspace.state) } });
     }
     if (method === "PUT") {
       const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_WRITE);
       const body = await requestJson(request, Math.max(configured.requestBodyLimit, 20_000_000));
-      const workspace = workspaceStore.save("default", body.state, {
+      const workspace = workspaceStore.save(projectWorkspaceId, body.state, {
         expectedRevision: body.expectedRevision,
         actor: principal,
         request,
@@ -746,7 +779,7 @@ async function handleWorkspaceApi(request, response, parts) {
       });
       let knowledgeSync = null;
       try {
-        knowledgeSync = await knowledgeStore.syncWorkspaceState(body.state, principal, request, "default");
+        knowledgeSync = await knowledgeStore.syncWorkspaceState(body.state, principal, request, projectWorkspaceId);
       } catch (error) {
         productionLogger.error("knowledge.workspace_sync_failed", { requestId: response.getHeader("X-Request-Id"), error: error.message, code: error.code || "KNOWLEDGE_SYNC_FAILED" });
         knowledgeSync = { error: "知识索引同步失败，工作区数据已保存；请在企业知识页面重试索引。" };
@@ -757,33 +790,61 @@ async function handleWorkspaceApi(request, response, parts) {
   if (parts[3] === "revisions" && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.AUDIT_READ, { requireCsrf: false });
     const query = new URL(request.url || "/", "http://localhost").searchParams;
-    return jsonResponse(response, 200, { ok: true, data: { items: workspaceStore.listRevisions("default", query.get("limit")) } });
+    return jsonResponse(response, 200, { ok: true, data: { items: workspaceStore.listRevisions(projectWorkspaceId, query.get("limit")) } });
   }
   if (parts[3] === "records" && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const query = new URL(request.url || "/", "http://localhost").searchParams;
-    return jsonResponse(response, 200, { ok: true, data: { items: workspaceStore.listBusinessRecords("default", query.get("type"), query.get("limit")) } });
+    return jsonResponse(response, 200, { ok: true, data: { items: workspaceStore.listBusinessRecords(projectWorkspaceId, query.get("type"), query.get("limit")) } });
   }
   return jsonResponse(response, 404, { ok: false, code: "WORKSPACE_ROUTE_NOT_FOUND", message: "工作区接口不存在。" });
 }
 
-function siteLeadRows() {
+function maskContact(value = "") {
+  const contact = String(value || "").trim();
+  if (!contact) return "";
+  if (contact.includes("@")) {
+    const [local, domain] = contact.split("@", 2);
+    return `${local.slice(0, 1)}***@${domain || "***"}`;
+  }
+  const compact = contact.replace(/\s+/g, "");
+  return compact.length <= 4 ? `${compact.slice(0, 1)}***` : `${compact.slice(0, 3)}****${compact.slice(-4)}`;
+}
+
+function siteLeadRows({ canReadContact = false, status = "", ownerId = "", source = "", query = "" } = {}) {
+  const clauses = ["site_contact_leads.tenant_id = ?", "site_contact_leads.project_id = ?"];
+  const values = [projectWorkspaceId, projectId];
+  if (status) { clauses.push("site_contact_leads.status = ?"); values.push(status); }
+  if (ownerId === "unassigned") clauses.push("site_contact_leads.owner_id IS NULL");
+  else if (ownerId) { clauses.push("site_contact_leads.owner_id = ?"); values.push(ownerId); }
+  if (source) { clauses.push("site_contact_leads.source_page LIKE ?"); values.push(`%${source}%`); }
+  if (query) { clauses.push("(site_contact_leads.name LIKE ? OR site_contact_leads.company LIKE ? OR site_contact_leads.need LIKE ?)"); values.push(`%${query}%`, `%${query}%`, `%${query}%`); }
   return database.connection.prepare(`
-    SELECT id, name, phone, company, service, website, message, source_url,
-      status, metadata_json, created_at, updated_at
+    SELECT site_contact_leads.id, site_contact_leads.tenant_id, site_contact_leads.project_id,
+      site_contact_leads.name, site_contact_leads.company, site_contact_leads.phone_or_email, site_contact_leads.need,
+      site_contact_leads.source_page, site_contact_leads.utm_json, site_contact_leads.status,
+      site_contact_leads.follow_up_at, site_contact_leads.owner_id,
+      site_contact_leads.phone, site_contact_leads.service, site_contact_leads.website,
+      site_contact_leads.message, site_contact_leads.source_url, site_contact_leads.metadata_json,
+      site_contact_leads.created_at, site_contact_leads.updated_at,
+      users.display_name AS owner_display_name
     FROM site_contact_leads
-    WHERE workspace_id = ?
-    ORDER BY created_at DESC
+    LEFT JOIN users ON users.id = site_contact_leads.owner_id
+    WHERE ${clauses.join(" AND ")}
+    ORDER BY site_contact_leads.created_at DESC
     LIMIT 1000
-  `).all("default").map((row) => {
+  `).all(...values).map((row) => {
     const metadata = parseObject(row.metadata_json);
     return {
-      id: row.id, name: row.name, phone: row.phone, company: row.company,
+      id: row.id, tenantId: row.tenant_id, projectId: row.project_id, name: row.name,
+      company: row.company, phoneOrEmail: canReadContact ? row.phone_or_email : maskContact(row.phone_or_email),
+      phone: canReadContact ? row.phone_or_email : maskContact(row.phone_or_email), contactMasked: !canReadContact,
+      need: row.need, sourcePage: row.source_page, utm: parseObject(row.utm_json), followUpAt: row.follow_up_at || null, ownerId: row.owner_id || null,
       service: row.service, website: row.website, message: row.message,
-      sourceUrl: row.source_url, sourcePage: row.source_url || "官网",
-      status: row.status, owner: metadata.owner || "未分配",
-      nextFollowAt: metadata.nextFollowAt || "", notes: metadata.notes || "",
-      history: Array.isArray(metadata.history) ? metadata.history : [],
+      sourceUrl: row.source_page, sourcePage: row.source_page || "官网",
+      status: row.status, owner: row.owner_display_name || metadata.owner || "未分配",
+      nextFollowAt: row.follow_up_at || metadata.nextFollowAt || "", notes: metadata.notes || "",
+      history: database.connection.prepare(`SELECT f.id, f.event_type, f.status_from, f.status_to, f.note, f.follow_up_at, f.created_at, actor.display_name AS actor_name, owner.display_name AS owner_name FROM site_lead_follow_ups f LEFT JOIN users actor ON actor.id = f.created_by LEFT JOIN users owner ON owner.id = f.owner_to WHERE f.tenant_id = ? AND f.project_id = ? AND f.lead_id = ? ORDER BY f.created_at DESC, f.id DESC LIMIT 100`).all(row.tenant_id, row.project_id, row.id).map((item) => ({ id: item.id, eventType: item.event_type, statusFrom: item.status_from, status: item.status_to, note: item.note, nextFollowAt: item.follow_up_at || "", at: item.created_at, actor: item.actor_name || "系统", owner: item.owner_name || "未分配" })),
       createdAt: row.created_at, updatedAt: row.updated_at
     };
   });
@@ -793,47 +854,110 @@ async function handleSiteCmsApi(request, response, parts) {
   const method = request.method || "GET";
   const operation = parts[3] || "snapshot";
   if (operation === "snapshot" && method === "GET") {
-    await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
-    const draft = siteCmsStore.draft("default");
-    const publication = siteCmsStore.publication("default");
-    return jsonResponse(response, 200, { ok: true, data: { draft, publication, releases: { items: siteCmsStore.releases("default", 100) }, leads: { items: siteLeadRows() } } });
+    const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
+    const draft = siteCmsStore.draft(projectWorkspaceId);
+    const publication = siteCmsStore.publication(projectWorkspaceId);
+    return jsonResponse(response, 200, { ok: true, data: { draft, publication, releases: { items: siteCmsStore.releases(projectWorkspaceId, 100) }, leads: { items: siteLeadRows({ canReadContact: (principal.permissions || []).includes(PERMISSIONS.LEADS_CONTACT_READ) }) } } });
+  }
+  if (operation === "leads" && parts.length === 4 && method === "GET") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
+    const queryParams = new URL(request.url || "/", "http://localhost").searchParams;
+    const status = String(queryParams.get("status") || "").trim();
+    if (status && !["new", "contacting", "qualified", "won", "lost", "spam"].includes(status)) return jsonResponse(response, 422, { ok: false, code: "SITE_LEAD_FILTER_INVALID", message: "线索状态筛选无效。" });
+    const items = siteLeadRows({ canReadContact: (principal.permissions || []).includes(PERMISSIONS.LEADS_CONTACT_READ), status, ownerId: String(queryParams.get("ownerId") || "").slice(0, 160), source: String(queryParams.get("source") || "").slice(0, 300), query: String(queryParams.get("q") || "").slice(0, 300) });
+    return jsonResponse(response, 200, { ok: true, data: { items } });
+  }
+  if (operation === "leads" && parts[4] === "export" && method === "GET") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.LEADS_EXPORT, { requireCsrf: false });
+    const rows = siteLeadRows({ canReadContact: false });
+    const csvCell = (value) => { const safe = String(value ?? "").replaceAll('"', '""').replace(/^[=+\-@]/, "'$&"); return `"${safe}"`; };
+    const labels = { new: "new", contacting: "contacting", qualified: "qualified", won: "won", lost: "lost", spam: "spam" };
+    const table = [["lead_id", "name", "company", "masked_contact", "need", "source_page", "status", "owner", "follow_up_at", "created_at"], ...rows.map((lead) => [lead.id, lead.name, lead.company, lead.phoneOrEmail, lead.need, lead.sourcePage, labels[lead.status] || lead.status, lead.owner, lead.followUpAt || "", lead.createdAt])];
+    appendAuditLog(database.connection, { actorUserId: principal.userId, action: "site.lead.export", entityType: "site_lead", entityId: projectWorkspaceId, details: { tenantId: projectWorkspaceId, projectId, count: rows.length, masked: true }, request });
+    return rawResponse(response, 200, `\uFEFF${table.map((row) => row.map(csvCell).join(",")).join("\r\n")}`, "text/csv; charset=utf-8", { "Content-Disposition": `attachment; filename="site-leads-${new Date().toISOString().slice(0, 10)}.csv"` });
+  }
+  if (operation === "leads" && parts.length === 6 && parts[5] === "claim" && method === "POST") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.LEADS_MANAGE);
+    const leadId = decodeURIComponent(parts[4]);
+    const now = new Date().toISOString();
+    const result = database.transaction(() => {
+      const row = database.connection.prepare("SELECT id, status, owner_id FROM site_contact_leads WHERE id = ? AND tenant_id = ? AND project_id = ?").get(leadId, projectWorkspaceId, projectId);
+      if (!row) return null;
+      if (row.owner_id && row.owner_id !== principal.userId) return { conflict: true };
+      if (row.owner_id === principal.userId) return { replayed: true };
+      database.connection.prepare("UPDATE site_contact_leads SET owner_id = ?, updated_at = ? WHERE id = ? AND tenant_id = ? AND project_id = ?").run(principal.userId, now, leadId, projectWorkspaceId, projectId);
+      database.connection.prepare("INSERT INTO site_lead_follow_ups (id, tenant_id, project_id, lead_id, event_type, status_from, status_to, owner_from, owner_to, note, follow_up_at, created_by, created_at) VALUES (?, ?, ?, ?, 'claimed', ?, ?, NULL, ?, '', NULL, ?, ?)").run(`LFU-${randomUUID()}`, projectWorkspaceId, projectId, leadId, row.status, row.status, principal.userId, principal.userId, now);
+      appendAuditLog(database.connection, { actorUserId: principal.userId, action: "site.lead.claim", entityType: "site_lead", entityId: leadId, details: { tenantId: projectWorkspaceId, projectId, ownerId: principal.userId }, request });
+      return { replayed: false };
+    });
+    if (!result) return jsonResponse(response, 404, { ok: false, code: "SITE_LEAD_NOT_FOUND", message: "线索不存在。" });
+    if (result.conflict) return jsonResponse(response, 409, { ok: false, code: "SITE_LEAD_ALREADY_CLAIMED", message: "该线索已由其他成员认领。" });
+    return jsonResponse(response, 200, { ok: true, data: { lead: siteLeadRows({ canReadContact: true }).find((item) => item.id === leadId), duplicate: result.replayed } });
   }
   if (operation === "draft" && method === "PUT") {
     const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_WRITE);
     const body = await requestJson(request, Math.max(configured.requestBodyLimit, 4_000_000));
-    const draft = siteCmsStore.saveDraft({ expectedRevision: body.expectedRevision, cms: body.cms || body.snapshot }, principal, request, "default");
+    const draft = siteCmsStore.saveDraft({ expectedRevision: body.expectedRevision, cms: body.cms || body.snapshot }, principal, request, projectWorkspaceId);
     return jsonResponse(response, 200, { ok: true, data: { draft } });
   }
   if (operation === "publish" && method === "POST") {
     const principal = await authService.requirePermission(request, PERMISSIONS.CONTENT_PUBLISH);
     const body = await requestJson(request, 100_000);
-    const publication = siteCmsStore.publish({ expectedDraftRevision: body.expectedDraftRevision, note: body.note }, principal, request, "default");
-    return jsonResponse(response, 200, { ok: true, data: { publication, releases: { items: siteCmsStore.releases("default", 100) } } });
+    const publication = siteCmsStore.publish({ expectedDraftRevision: body.expectedDraftRevision, note: body.note }, principal, request, projectWorkspaceId);
+    return jsonResponse(response, 200, { ok: true, data: { publication, releases: { items: siteCmsStore.releases(projectWorkspaceId, 100) } } });
+  }
+  if (operation === "submit-review" && method === "POST") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_WRITE);
+    const body = await requestJson(request, 100_000);
+    const workflow = siteCmsStore.submitReview({ reason: body.reason }, principal, request, projectWorkspaceId);
+    return jsonResponse(response, 200, { ok: true, data: { workflow } });
+  }
+  if (operation === "approve" && method === "POST") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.CONTENT_PUBLISH);
+    const body = await requestJson(request, 100_000);
+    const workflow = siteCmsStore.approve({ reason: body.reason }, principal, request, projectWorkspaceId);
+    return jsonResponse(response, 200, { ok: true, data: { workflow } });
+  }
+  if (operation === "reject" && method === "POST") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.CONTENT_PUBLISH);
+    const body = await requestJson(request, 100_000);
+    const workflow = siteCmsStore.reject({ reason: body.reason }, principal, request, projectWorkspaceId);
+    return jsonResponse(response, 200, { ok: true, data: { workflow } });
+  }
+  if (operation === "unpublish" && method === "POST") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.CONTENT_PUBLISH);
+    const body = await requestJson(request, 100_000);
+    const workflow = siteCmsStore.unpublish({ reason: body.reason }, principal, request, projectWorkspaceId);
+    return jsonResponse(response, 200, { ok: true, data: { workflow } });
   }
   if (operation === "rollback" && method === "POST") {
     const principal = await authService.requirePermission(request, PERMISSIONS.CONTENT_PUBLISH);
     const body = await requestJson(request, 100_000);
-    const result = siteCmsStore.rollback({ releaseId: body.releaseId, expectedCurrentVersion: body.expectedCurrentVersion, note: body.note }, principal, request, "default");
-    return jsonResponse(response, 200, { ok: true, data: { ...result, releases: { items: siteCmsStore.releases("default", 100) } } });
+    const result = siteCmsStore.rollback({ releaseId: body.releaseId, expectedCurrentVersion: body.expectedCurrentVersion, note: body.note || body.reason }, principal, request, projectWorkspaceId);
+    return jsonResponse(response, 200, { ok: true, data: { ...result, releases: { items: siteCmsStore.releases(projectWorkspaceId, 100) } } });
   }
   if (operation === "leads" && parts.length === 5 && method === "PATCH") {
-    const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_WRITE);
+    const principal = await authService.requirePermission(request, PERMISSIONS.LEADS_MANAGE);
     const leadId = decodeURIComponent(parts[4]);
-    const row = database.connection.prepare("SELECT id, status, metadata_json FROM site_contact_leads WHERE id = ? AND workspace_id = ?").get(leadId, "default");
+    const row = database.connection.prepare("SELECT id, status, owner_id FROM site_contact_leads WHERE id = ? AND tenant_id = ? AND project_id = ?").get(leadId, projectWorkspaceId, projectId);
     if (!row) return jsonResponse(response, 404, { ok: false, code: "SITE_LEAD_NOT_FOUND", message: "线索不存在。" });
     const body = await requestJson(request, 100_000);
-    const allowedStatuses = new Set(["new", "contacted", "qualified", "closed", "spam"]);
-    const status = allowedStatuses.has(String(body.status || "")) ? String(body.status) : row.status;
-    const metadata = parseObject(row.metadata_json);
-    const owner = String(body.owner || metadata.owner || "未分配").trim().slice(0, 160);
+    const allowedStatuses = new Set(["new", "contacting", "qualified", "won", "lost", "spam"]);
+    const requestedStatus = String(body.status || "");
+    if (requestedStatus && !allowedStatuses.has(requestedStatus)) return jsonResponse(response, 422, { ok: false, code: "SITE_LEAD_STATUS_INVALID", message: "线索状态无效。" });
+    const status = requestedStatus || row.status;
     const nextFollowAt = String(body.nextFollowAt || "").trim().slice(0, 160);
     const note = String(body.note || body.notes || "").trim().slice(0, 4_000);
-    const history = Array.isArray(metadata.history) ? metadata.history : [];
-    if (note) history.unshift({ id: randomUUID(), at: new Date().toISOString(), note, status, owner });
-    const nextMetadata = JSON.stringify({ ...metadata, owner, nextFollowAt, notes: note || metadata.notes || "", history: history.slice(0, 100), updatedBy: principal.userId || principal.id || null });
+    if (nextFollowAt && Number.isNaN(Date.parse(nextFollowAt))) return jsonResponse(response, 422, { ok: false, code: "SITE_LEAD_FOLLOW_UP_AT_INVALID", message: "下次跟进时间格式无效。" });
+    if (!note) return jsonResponse(response, 422, { ok: false, code: "SITE_LEAD_FOLLOW_UP_NOTE_REQUIRED", message: "请填写本次跟进记录。" });
+    if (row.owner_id !== principal.userId) return jsonResponse(response, 409, { ok: false, code: "SITE_LEAD_CLAIM_REQUIRED", message: "请先认领该线索再记录跟进。" });
     const now = new Date().toISOString();
-    database.connection.prepare("UPDATE site_contact_leads SET status = ?, metadata_json = ?, updated_at = ? WHERE id = ? AND workspace_id = ?").run(status, nextMetadata, now, leadId, "default");
-    return jsonResponse(response, 200, { ok: true, data: { lead: siteLeadRows().find((item) => item.id === leadId) } });
+    database.transaction(() => {
+      database.connection.prepare("UPDATE site_contact_leads SET status = ?, follow_up_at = ?, updated_at = ? WHERE id = ? AND tenant_id = ? AND project_id = ?").run(status, nextFollowAt || null, now, leadId, projectWorkspaceId, projectId);
+      database.connection.prepare("INSERT INTO site_lead_follow_ups (id, tenant_id, project_id, lead_id, event_type, status_from, status_to, owner_from, owner_to, note, follow_up_at, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(`LFU-${randomUUID()}`, projectWorkspaceId, projectId, leadId, status === row.status ? "follow_up" : "status_changed", row.status, status, row.owner_id, row.owner_id, note, nextFollowAt || null, principal.userId, now);
+      appendAuditLog(database.connection, { actorUserId: principal.userId, action: status === row.status ? "site.lead.follow_up" : "site.lead.status_change", entityType: "site_lead", entityId: leadId, details: { tenantId: projectWorkspaceId, projectId, statusFrom: row.status, statusTo: status, followUpAt: nextFollowAt || null }, request });
+    });
+    return jsonResponse(response, 200, { ok: true, data: { lead: siteLeadRows({ canReadContact: true }).find((item) => item.id === leadId) } });
   }
   if (operation === "preview" && parts.length === 4 && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
@@ -853,14 +977,16 @@ async function handleSiteCmsApi(request, response, parts) {
       ? renderFixedPage({ site: snapshot.site, page, articles: snapshot.articles, categories: snapshot.categories, origin, preview: true, assetBase: "/api/v1/site-cms/preview/assets" })
       : renderNotFound({ site: snapshot.site, origin, pathname });
     response.setHeader("X-Frame-Options", "SAMEORIGIN");
-    response.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
+    response.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noimageindex");
+    response.setHeader("Referrer-Policy", "no-referrer");
+    response.setHeader("Pragma", "no-cache");
     response.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'");
     return rawResponse(response, page ? 200 : 404, body, "text/html; charset=utf-8");
   }
   if (operation === "preview" && parts[4] === "assets" && parts[5] && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const fileName = path.basename(decodeURIComponent(parts[5]));
-    const previewAssets = new Set(["site.css", "site.js", "geo-signal-hero.svg", "geo-answer-hero.svg", "geo-network-hero.svg"]);
+    const previewAssets = new Set(["site-v8.css", "site-v8.js", "gsap.min.js", "geo-signal-hero.svg", "geo-answer-hero.svg", "geo-network-hero.svg"]);
     if (!previewAssets.has(fileName)) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
     const body = await readFile(path.join(siteAssetRoot, fileName));
     const contentType = fileName.endsWith(".css")
@@ -955,7 +1081,7 @@ function monitoringReportPayload(report) {
 
 async function handleMonitoringApi(request, response, parts) {
   const method = request.method || "GET";
-  const workspaceId = "default";
+  const workspaceId = projectWorkspaceId;
   const operation = parts[3] || "overview";
   const range = monitoringRangeFromQuery(request);
 
@@ -1051,7 +1177,7 @@ async function handleMonitoringApi(request, response, parts) {
 
 async function handleKnowledgeApi(request, response, parts) {
   const method = request.method || "GET";
-  const workspaceId = "default";
+  const workspaceId = projectWorkspaceId;
   if (parts.length === 4 && parts[3] === "assets" && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const query = new URL(request.url || "/", "http://localhost").searchParams;
@@ -1079,7 +1205,11 @@ async function handleKnowledgeApi(request, response, parts) {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const asset = knowledgeStore.assetContent({ workspaceId, assetId: decodeURIComponent(parts[4]) });
     const encodedName = encodeURIComponent(asset.sourceName || asset.id);
-    return rawResponse(response, 200, asset.buffer, asset.mimeType, { "Content-Disposition": `inline; filename*=UTF-8''${encodedName}`, ETag: `"${asset.id}"` });
+    return rawResponse(response, 200, asset.buffer, "application/octet-stream", {
+      "Content-Disposition": `attachment; filename*=UTF-8''${encodedName}`,
+      "Content-Security-Policy": "default-src 'none'; sandbox",
+      ETag: `"${asset.id}"`
+    });
   }
   if (parts.length === 6 && parts[3] === "assets" && parts[5] === "approve" && method === "POST") {
     const principal = await authService.requirePermission(request, PERMISSIONS.KNOWLEDGE_REVIEW);
@@ -1199,7 +1329,7 @@ async function handlePublisherApi(request, response, parts, principal = null) {
   await publisherStore.load();
   if (request.method === "GET" && parts.length === 2 && parts[1] === "overview") {
     for (const job of publisherStore.state.jobs || []) {
-      try { contentAssetStore.syncPublisherJob(job, { workspaceId: "default" }); }
+      try { contentAssetStore.syncPublisherJob(job, { workspaceId: projectWorkspaceId }); }
       catch (error) { productionLogger.error("content_asset.publisher_backfill_failed", { jobId: job?.id, code: error.code || "CONTENT_ASSET_SYNC_FAILED", error: error.message }); }
     }
     return jsonResponse(response, 200, { ok: true, data: await publisherStore.overview() });
@@ -1209,13 +1339,45 @@ async function handlePublisherApi(request, response, parts, principal = null) {
     const articleId = String(body.contentArticleId || body.articleId || body.article?.contentArticleId || body.article?.id || "").trim();
     if (!articleId) throw new ContentError("发布前必须关联正式内容文章。", 422, "CONTENT_ARTICLE_REQUIRED");
     const versionId = String(body.contentVersionId || body.articleVersionId || body.versionId || "").trim() || null;
-    const gate = contentStore.assertCanPublish(articleId, versionId, { workspaceId: "default" });
+    const gate = contentStore.assertCanPublish(articleId, versionId, { workspaceId: projectWorkspaceId });
     const publicationMetadata = gate.article.metadata || {};
     const siteMetadata = publicationMetadata.site || {};
     const showPublicCitationMarkers = publicCitationMarkersVisible(gate.version.metadata);
     const publicContent = applyPublicCitationVisibility(gate.version.contentHtml, { showPublicCitationMarkers });
-    const job = await publisherStore.createJobs({
+    const channels = [...new Set((body.platformOrder || body.platforms || []).map((channel) => String(channel || "").trim().toLocaleLowerCase("en-US")).filter(Boolean))];
+    if (!channels.length) throw new ContentError("至少选择一个发布渠道。", 422, "PUBLICATION_CHANNEL_REQUIRED");
+    const createdAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + Math.max(60_000, Math.min(30 * 24 * 60 * 60_000, Number(body.expiresInMs) || 7 * 24 * 60 * 60_000))).toISOString();
+    const accountGroupId = String(body.accountGroupId || body.groupId || "group-default");
+    const taskInputs = channels.map((channel) => {
+      const payload = { tenantId: projectWorkspaceId, contentId: gate.articleId, contentVersionId: gate.versionId, channel, contentHash: gate.version.contentHash, title: gate.version.title, content: publicContent, excerpt: gate.version.excerpt || "", accountGroupId, mode: body.mode === "scheduled" ? "scheduled" : "immediate", scheduledAt: body.scheduledAt || null };
+      const payloadJson = JSON.stringify(payload);
+      return { id: `PUBTASK-${randomUUID()}`, channel, payload, payloadJson, payloadHash: createHash("sha256").update(payloadJson).digest("hex") };
+    });
+    const reservation = database.transaction(() => {
+      const existing = [];
+      const created = [];
+      for (const item of taskInputs) {
+        const row = database.connection.prepare("SELECT * FROM publication_tasks WHERE tenant_id = ? AND content_version_id = ? AND channel = ?").get(projectWorkspaceId, gate.versionId, item.channel);
+        if (row) {
+          if (row.payload_hash !== item.payloadHash) throw new ContentError("同一文章版本和渠道的发布载荷与已冻结任务不一致。", 409, "PUBLICATION_TASK_PAYLOAD_CONFLICT");
+          existing.push(row); continue;
+        }
+        database.connection.prepare("INSERT INTO publication_tasks (id, tenant_id, content_id, content_version_id, channel, payload_hash, status, attempts, payload_json, created_by, created_at, expires_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', 0, ?, ?, ?, ?, ?)").run(item.id, projectWorkspaceId, gate.articleId, gate.versionId, item.channel, item.payloadHash, item.payloadJson, principal?.userId || null, createdAt, expiresAt, createdAt);
+        appendAuditLog(database.connection, { actorUserId: principal?.userId || null, action: "publication.task.create", entityType: "publication_task", entityId: item.id, details: { tenantId: projectWorkspaceId, contentId: gate.articleId, contentVersionId: gate.versionId, channel: item.channel, payloadHash: item.payloadHash }, request });
+        created.push(database.connection.prepare("SELECT * FROM publication_tasks WHERE id = ?").get(item.id));
+      }
+      return { existing, created };
+    });
+    const taskRows = [...reservation.existing, ...reservation.created];
+    const taskView = (row) => ({ id: row.id, tenantId: row.tenant_id, contentId: row.content_id, contentVersionId: row.content_version_id, channel: row.channel, payloadHash: row.payload_hash, status: row.status, attempts: Number(row.attempts), createdAt: row.created_at, expiresAt: row.expires_at, externalJobId: row.external_job_id || null });
+    if (!reservation.created.length) return jsonResponse(response, 200, { ok: true, duplicate: true, publicationTasks: taskRows.map(taskView), contentGate: { ok: true, versionId: gate.versionId } });
+    const newChannels = reservation.created.map((row) => row.channel);
+    let job;
+    try { job = await publisherStore.createJobs({
       ...body,
+      platforms: newChannels,
+      platformOrder: newChannels,
       articleId: gate.articleId,
       versionId: gate.versionId,
       contentArticleId: gate.articleId,
@@ -1243,8 +1405,16 @@ async function handlePublisherApi(request, response, parts, principal = null) {
         siteAuthor: body.siteAuthor || publicationMetadata.siteAuthor || siteMetadata.author || "",
         siteExcerpt: body.siteExcerpt || publicationMetadata.siteExcerpt || siteMetadata.excerpt || gate.version.excerpt || ""
       }
-    }, { actor: principal, requestMetadata: requestMetadata(request, { trustProxy: configured.trustProxy }) });
-    return jsonResponse(response, 201, { ok: true, job, contentGate: { ok: true, versionId: gate.versionId } });
+    }, { actor: principal, requestMetadata: requestMetadata(request, { trustProxy: configured.trustProxy }) }); }
+    catch (error) {
+      database.transaction(() => { for (const row of reservation.created) database.connection.prepare("DELETE FROM publication_tasks WHERE id = ? AND status = 'queued' AND external_job_id IS NULL").run(row.id); });
+      throw error;
+    }
+    const externalJobId = String(job.id);
+    database.transaction(() => {
+      for (const row of reservation.created) database.connection.prepare("UPDATE publication_tasks SET external_job_id = ?, updated_at = ? WHERE id = ?").run(externalJobId, new Date().toISOString(), row.id);
+    });
+    return jsonResponse(response, 201, { ok: true, duplicate: false, job, publicationTasks: taskRows.map((row) => taskView({ ...row, external_job_id: externalJobId })), contentGate: { ok: true, versionId: gate.versionId } });
   }
   if (request.method === "POST" && parts.length === 4 && parts[1] === "jobs" && parts[3] === "cancel") {
     return jsonResponse(response, 200, { ok: true, job: await publisherStore.cancelJob(parts[2]) });
@@ -1280,16 +1450,88 @@ async function handlePublisherApi(request, response, parts, principal = null) {
 
 async function handlePublisherWorkerApi(request, response, parts) {
   await publisherStore.load();
+  const requestedProjectId = String(request.headers["x-tz-project-id"] || "").trim();
+  if (requestedProjectId && requestedProjectId !== projectId) {
+    throw new ContentError("发布器连接的项目标识与当前私有化部署不一致。", 403, "PUBLISHER_PROJECT_MISMATCH");
+  }
   const device = publisherStore.authenticate(request.headers);
   if (request.method === "GET" && parts[1] === "jobs") {
     const query = new URL(request.url || "/", "http://localhost").searchParams;
     return jsonResponse(response, 200, { ok: true, data: { items: await publisherStore.jobs(device, query.get("limit")) } });
   }
   if (parts[1] === "jobs" && parts[2] && parts[3] === "claim" && request.method === "POST") {
-    return jsonResponse(response, 200, { ok: true, data: await publisherStore.claimJob(device, parts[2]) });
+    const claimTasks = database.connection.prepare("SELECT id, status, expires_at FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
+    if (!claimTasks.length) throw new ContentError("正式发布任务不存在。", 404, "PUBLICATION_TASK_NOT_FOUND");
+    if (claimTasks.every((task) => ["published", "draft_saved"].includes(task.status))) return jsonResponse(response, 200, { ok: true, data: await publisherStore.claimJob(device, parts[2]), duplicate: true });
+    if (claimTasks.some((task) => task.status === "expired" || Date.parse(task.expires_at) <= Date.now())) {
+      const now = new Date().toISOString();
+      database.connection.prepare("UPDATE publication_tasks SET status = 'expired', completed_at = COALESCE(completed_at, ?), updated_at = ? WHERE tenant_id = ? AND external_job_id = ? AND status NOT IN ('published', 'draft_saved')").run(now, now, projectWorkspaceId, String(parts[2]));
+      throw new ContentError("发布任务已过期。", 409, "PUBLICATION_TASK_EXPIRED");
+    }
+    const job = await publisherStore.claimJob(device, parts[2]);
+    const now = new Date().toISOString();
+    database.transaction(() => {
+      const tasks = database.connection.prepare("SELECT id, status, attempts, expires_at FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
+      if (!tasks.length) throw new ContentError("正式发布任务不存在。", 404, "PUBLICATION_TASK_NOT_FOUND");
+      for (const task of tasks) {
+        if (["published", "draft_saved"].includes(task.status)) continue;
+        if (Date.parse(task.expires_at) <= Date.now()) { database.connection.prepare("UPDATE publication_tasks SET status = 'expired', completed_at = ?, updated_at = ? WHERE id = ?").run(now, now, task.id); continue; }
+        database.connection.prepare("UPDATE publication_tasks SET status = 'claimed', claimed_by_device_id = ?, claimed_at = COALESCE(claimed_at, ?), updated_at = ? WHERE id = ?").run(device.id, now, now, task.id);
+        appendAuditLog(database.connection, { action: "publication.task.claim", entityType: "publication_task", entityId: task.id, details: { tenantId: projectWorkspaceId, externalJobId: String(parts[2]), deviceId: device.id, attempt: Number(task.attempts) + 1 }, request });
+      }
+    });
+    return jsonResponse(response, 200, { ok: true, data: job });
+  }
+  if (parts[1] === "jobs" && parts[2] && parts[3] === "start" && request.method === "POST") {
+    const job = await publisherStore.startJob(device, parts[2]);
+    const now = new Date().toISOString();
+    database.transaction(() => {
+      const tasks = database.connection.prepare("SELECT id, status, attempts, expires_at, claimed_by_device_id FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
+      if (!tasks.length) throw new ContentError("正式发布任务不存在。", 404, "PUBLICATION_TASK_NOT_FOUND");
+      for (const task of tasks) {
+        if (task.claimed_by_device_id !== device.id) throw new ContentError("任务未由当前设备领取。", 409, "PUBLICATION_TASK_DEVICE_MISMATCH");
+        if (["published", "draft_saved"].includes(task.status)) continue;
+        if (Date.parse(task.expires_at) <= Date.now()) { database.connection.prepare("UPDATE publication_tasks SET status = 'expired', completed_at = ?, updated_at = ? WHERE id = ?").run(now, now, task.id); continue; }
+        database.connection.prepare("UPDATE publication_tasks SET status = 'running', attempts = attempts + 1, next_attempt_at = NULL, updated_at = ? WHERE id = ? AND status IN ('claimed', 'queued')").run(now, task.id);
+        appendAuditLog(database.connection, { action: "publication.task.start", entityType: "publication_task", entityId: task.id, details: { tenantId: projectWorkspaceId, externalJobId: String(parts[2]), deviceId: device.id, attempt: Number(task.attempts) + 1 }, request });
+      }
+    });
+    return jsonResponse(response, 200, { ok: true, data: job });
   }
   if (parts[1] === "jobs" && parts[2] && parts[3] === "result" && request.method === "POST") {
-    return jsonResponse(response, 200, { ok: true, data: await publisherStore.result(device, parts[2], await requestJson(request)) });
+    const body = await requestJson(request);
+    const submittedResults = body.platform_results || body.results || {};
+    for (const value of Object.values(submittedResults)) if (String(value?.state || "") === "published" && !/^https?:\/\//i.test(String(value?.remote_url || value?.remoteUrl || ""))) throw new ContentError("正式发布结果必须包含 HTTP/HTTPS URL。", 422, "PUBLICATION_REMOTE_URL_REQUIRED");
+    const job = await publisherStore.result(device, parts[2], body);
+    const now = new Date().toISOString();
+    const results = submittedResults;
+    database.transaction(() => {
+      const tasks = database.connection.prepare("SELECT * FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
+      if (!tasks.length) throw new ContentError("正式发布任务不存在。", 404, "PUBLICATION_TASK_NOT_FOUND");
+      for (const task of tasks) {
+        if (["published", "draft_saved"].includes(task.status)) continue;
+        if (task.claimed_by_device_id && task.claimed_by_device_id !== device.id) throw new ContentError("发布结果设备与正式任务领取设备不一致。", 409, "PUBLICATION_TASK_DEVICE_MISMATCH");
+        const channelResult = results[task.channel] || {};
+        const reportedState = String(channelResult.state || body.state || "failed");
+        const remoteUrl = String(channelResult.remote_url || channelResult.remoteUrl || body.remote_url || body.remoteUrl || "").slice(0, 2_000);
+        let dataOrigin = String(channelResult.data_origin || channelResult.dataOrigin || body.data_origin || body.dataOrigin || "").trim();
+        let isMockUrl = false;
+        try { isMockUrl = new URL(remoteUrl).hostname.toLocaleLowerCase("en-US") === "mock.example"; } catch {}
+        if (isMockUrl) dataOrigin = "mock_demo";
+        if (!dataOrigin) dataOrigin = "enterprise_measured";
+        if (!["enterprise_measured", "realtime_sampling", "mock_demo"].includes(dataOrigin)) throw new ContentError("发布结果的数据边界无效。", 422, "PUBLICATION_DATA_ORIGIN_INVALID");
+        if (dataOrigin === "mock_demo" && !isMockUrl) throw new ContentError("Mock/演示发布结果只能使用明确的 mock.example URL。", 422, "PUBLICATION_MOCK_URL_REQUIRED");
+        const errorCode = String(channelResult.code || channelResult.error_code || body.error_code || "").slice(0, 160) || null;
+        const errorMessage = String(channelResult.message || channelResult.error || body.message || "").slice(0, 2_000) || null;
+        let status = reportedState === "published" ? "published" : reportedState === "draft_saved" ? "draft_saved" : "failed";
+        let nextAttemptAt = null;
+        if (status === "published" && !/^https?:\/\//i.test(remoteUrl)) throw new ContentError("正式发布结果必须包含 HTTP/HTTPS URL。", 422, "PUBLICATION_REMOTE_URL_REQUIRED");
+        if (status === "failed" && Number(task.attempts) < 3) { const retryBaseMs = Math.max(100, Math.min(10 * 60_000, Number(process.env.TZ_PUBLISHER_RETRY_BASE_MS) || 30_000)); status = "queued"; nextAttemptAt = new Date(Date.now() + Math.min(30 * 60_000, retryBaseMs * (2 ** Math.max(0, Number(task.attempts) - 1)))).toISOString(); }
+        database.connection.prepare("UPDATE publication_tasks SET status = ?, remote_url = ?, error_code = ?, error_message = ?, result_json = ?, next_attempt_at = ?, completed_at = ?, updated_at = ? WHERE id = ?").run(status, remoteUrl, errorCode, errorMessage, JSON.stringify({ state: reportedState, remoteUrl, errorCode, errorMessage, dataOrigin }), nextAttemptAt, ["published", "draft_saved", "failed"].includes(status) ? now : null, now, task.id);
+        appendAuditLog(database.connection, { action: "publication.task.result", entityType: "publication_task", entityId: task.id, details: { tenantId: projectWorkspaceId, deviceId: device.id, status, reportedState, attempt: Number(task.attempts), remoteUrl: status === "published" ? remoteUrl : "", dataOrigin, errorCode, nextAttemptAt }, request });
+      }
+    });
+    return jsonResponse(response, 200, { ok: true, data: job });
   }
   return jsonResponse(response, 404, { ok: false, message: "发布器任务接口不存在。" });
 }
@@ -1323,7 +1565,7 @@ async function handleAiProviderApi(request, response, parts) {
 }
 
 async function persistGeneratedArticle(payload, generated, ragResult, principal, request) {
-  const workspaceId = "default";
+  const workspaceId = projectWorkspaceId;
   const requestedArticleId = String(payload.contentArticleId || payload.articleId || payload.article?.id || "").trim();
   const requestedTaskId = String(payload.contentTaskId || payload.taskId || "").trim();
   const title = String(generated.article?.title || payload.topic?.coreQuestion || payload.topic?.title || "未命名文章").trim();
@@ -1344,7 +1586,21 @@ async function persistGeneratedArticle(payload, generated, ragResult, principal,
     else article = contentStore.upsertArticle({ workspaceId, id: article.id, taskId: task.id, planId: payload.planId || payload.contentPlanId || undefined, topicId: payload.topic?.id || payload.topicId || undefined, businessLineId: payload.businessLine?.id || payload.businessLineId || undefined, title, actor: principal, request });
   }
   const existingJob = payload.idempotencyKey ? contentStore.generationJobByIdempotency(workspaceId, payload.idempotencyKey) : null;
-  const job = existingJob || contentStore.createGenerationJob({ workspaceId, articleId: article.id, taskId: task.id, operation: "article", idempotencyKey: payload.idempotencyKey || null, providerId: payload.providerId || null, model: payload.model || null, promptVersion: "geo-article-v1", retrievalRunId: ragResult?.runId || null, requestPayload: { topic: payload.topic || null, contentType: payload.contentType || "", agentId: payload.agentId || payload.writerAgentId || null, useRag: payload.useRag === true || payload.rag?.enabled === true }, actor: principal, request });
+  const methodologySnapshot = payload.methodologyContext ? { versionId: payload.methodologyContext.versionId, version: payload.methodologyContext.version, checksum: payload.methodologyContext.checksum, fragmentIds: payload.methodologyContext.fragments.map((fragment) => fragment.id) } : null;
+  const promptFoundationSnapshot = payload.promptFoundationContext ? { templateId: payload.promptFoundationContext.templateId, templateKey: payload.promptFoundationContext.templateKey, version: payload.promptFoundationContext.version, checksum: payload.promptFoundationContext.checksum, variables: payload.promptFoundationContext.variables, renderedPrompt: payload.promptFoundationContext.renderedPrompt, quality: payload.promptFoundationContext.quality, frozenAt: payload.promptFoundationContext.frozenAt } : null;
+  const suppliedAgent = payload.writingAgent && typeof payload.writingAgent === "object" ? payload.writingAgent : payload.agentSnapshot && typeof payload.agentSnapshot === "object" ? payload.agentSnapshot : {};
+  const writingAgentSnapshot = {
+    id: String(suppliedAgent.agentId || suppliedAgent.id || "").slice(0, 100),
+    name: String(suppliedAgent.nameSnapshot || suppliedAgent.name || "").slice(0, 120),
+    version: Number(suppliedAgent.version || 0) || null,
+    role: String(suppliedAgent.role || "").slice(0, 200),
+    style: String(suppliedAgent.style || "").slice(0, 300),
+    strictKnowledge: suppliedAgent.strictKnowledge !== false,
+    citationsRequired: suppliedAgent.citationsRequired !== false,
+    missingEvidenceAction: ["block", "omit", "mark"].includes(suppliedAgent.missingEvidenceAction) ? suppliedAgent.missingEvidenceAction : "omit"
+  };
+  const resolvedModel = generated.article?.model || generated.model || payload.model || null;
+  const job = existingJob || contentStore.createGenerationJob({ workspaceId, articleId: article.id, taskId: task.id, operation: "article", idempotencyKey: payload.idempotencyKey || null, providerId: payload.providerId || null, model: resolvedModel, promptVersion: promptFoundationSnapshot ? `${promptFoundationSnapshot.templateId}:v${promptFoundationSnapshot.version}` : "geo-article-v1", retrievalRunId: ragResult?.runId || null, requestPayload: { topic: payload.topic || null, contentType: payload.contentType || "", writingAgentSnapshot, industryTemplate: payload.industryTemplateContext || null, useRag: payload.useRag === true || payload.rag?.enabled === true, methodology: methodologySnapshot, promptFoundation: promptFoundationSnapshot }, actor: principal, request });
   // A browser retry can receive the same idempotent job after the response was
   // interrupted. Do not append another immutable article version in that case.
   if (job.status === "succeeded" && job.result?.versionId) {
@@ -1360,7 +1616,7 @@ async function persistGeneratedArticle(payload, generated, ragResult, principal,
   try {
     const generatedResult = generated;
     const evidence = generatedResult.article?.citations?.length ? generatedResult.article.citations : (Array.isArray(payload.approvedEvidence) ? payload.approvedEvidence : []);
-    const version = contentStore.createVersion({ workspaceId, articleId: article.id, expectedRevision: article.revision, baseVersionId: article.currentVersionId || null, title: generatedResult.article?.title || title, contentHtml: generatedResult.article?.html || generatedResult.article?.content || generatedResult.content || "", contentText: generatedResult.article?.contentText || "", excerpt: generatedResult.article?.summary || "", source: "ai", generationJobId: job.id, metadata: { model: generatedResult.article?.model || generatedResult.model || payload.model || null, generationRunId: generatedResult.generationRunId || generatedResult.runId || null, rag: ragResult ? { runId: ragResult.runId, resultCount: ragResult.results?.length || 0, libraryIds: Array.isArray(payload.rag?.libraryIds) ? payload.rag.libraryIds : [], businessLineId: payload.rag?.businessLineId || payload.businessLine?.id || null, embeddingModel: ragResult.embeddingModel || null, embeddingProviderId: ragResult.embeddingProviderId || null, embeddingSource: ragResult.embeddingSource || null } : null }, evidence, actor: principal, request });
+    const version = contentStore.createVersion({ workspaceId, articleId: article.id, expectedRevision: article.revision, baseVersionId: article.currentVersionId || null, title: generatedResult.article?.title || title, contentHtml: generatedResult.article?.html || generatedResult.article?.content || generatedResult.content || "", contentText: generatedResult.article?.contentText || "", excerpt: generatedResult.article?.summary || "", source: "ai", generationJobId: job.id, metadata: { model: resolvedModel, generationRunId: generatedResult.generationRunId || generatedResult.runId || null, writingAgentSnapshot, industryTemplate: generatedResult.article?.industryTemplate || payload.industryTemplateContext || null, methodology: generatedResult.article?.methodology || methodologySnapshot, promptFoundation: promptFoundationSnapshot ? { ...promptFoundationSnapshot, ...(generatedResult.article?.promptFoundation || {}) } : null, rag: ragResult ? { runId: ragResult.runId, resultCount: ragResult.results?.length || 0, libraryIds: Array.isArray(payload.rag?.libraryIds) ? payload.rag.libraryIds : [], businessLineId: payload.rag?.businessLineId || payload.businessLine?.id || null, embeddingModel: ragResult.embeddingModel || null, embeddingProviderId: ragResult.embeddingProviderId || null, embeddingSource: ragResult.embeddingSource || null } : null }, evidence, actor: principal, request });
     const updatedJob = contentStore.updateGenerationJob({ workspaceId, jobId: job.id, status: "succeeded", result: { versionId: version.id, title: version.title }, inputTokens: generatedResult.usage?.promptTokens || generatedResult.article?.usage?.promptTokens || 0, outputTokens: generatedResult.usage?.completionTokens || generatedResult.article?.usage?.completionTokens || 0, actor: principal, request });
     const currentArticle = contentStore.article(workspaceId, article.id, { includeVersion: true, includeEvidence: true });
     return { task: contentStore.task(workspaceId, task.id), article: currentArticle, version, generationJob: updatedJob };
@@ -1378,13 +1634,17 @@ async function handleAiGenerationApi(request, response, parts, principal) {
     return jsonResponse(response, 405, { ok: false, code: "METHOD_NOT_ALLOWED", message: "AI 生成接口只接受 POST 请求。" });
   }
   const payload = await requestJson(request);
+  // Methodology context is always resolved from the current tenant's content
+  // plan. Browser-supplied fragments are discarded to prevent rule injection.
+  delete payload.methodologyContext;
+  delete payload.promptFoundationContext;
   const operation = parts[3];
   let ragResult = null;
   if ((payload.useRag === true || payload.rag?.enabled === true) && ["article", "topics"].includes(operation)) {
     const query = payload.rag?.query || payload.topic?.coreQuestion || payload.topic?.title || payload.topicBrief?.coreQuestion || "";
     if (String(query).trim()) {
       ragResult = await knowledgeStore.retrieve({
-        workspaceId: "default",
+        workspaceId: projectWorkspaceId,
         query,
         businessLineId: payload.rag?.businessLineId || payload.businessLine?.id || "",
         libraryIds: payload.rag?.libraryIds || [],
@@ -1403,12 +1663,37 @@ async function handleAiGenerationApi(request, response, parts, principal) {
     }
   }
   if (operation === "article") {
+    payload.industryTemplateContext = projectIndustryTemplateSnapshot;
     const suppliedEvidence = Array.isArray(payload.approvedEvidence) ? payload.approvedEvidence : Array.isArray(payload.evidence) ? payload.evidence : [];
     if (suppliedEvidence.length) {
-      const validated = knowledgeStore.validateEvidenceReferences({ workspaceId: "default", evidence: suppliedEvidence, allowInternal: false });
+      const validated = knowledgeStore.validateEvidenceReferences({ workspaceId: projectWorkspaceId, evidence: suppliedEvidence, allowInternal: false });
       payload.approvedEvidence = validated.items.filter((item) => item.referenceType === "knowledge");
       if (!payload.approvedEvidence.length) throw new KnowledgeError("Article generation requires at least one traceable public enterprise knowledge citation.", 422, "KNOWLEDGE_EVIDENCE_REQUIRED");
       delete payload.evidence;
+    }
+    const planId = String(payload.planId || payload.contentPlanId || "").trim();
+    if (planId) {
+      payload.methodologyContext = foundationMethodologyResolver.resolveArticleContext({
+        workspaceId: projectWorkspaceId,
+        planId,
+        customerQuestion: payload.topic?.coreQuestion || payload.topic?.title || payload.topicBrief?.coreQuestion || "",
+        topicTitle: payload.topic?.title || "",
+        contentType: payload.contentType || payload.outputContract?.contentType || "",
+        intent: payload.topic?.intent || payload.topic?.geoBrief?.searchIntent || "",
+        stage: payload.topic?.stage || payload.topic?.geoBrief?.decisionStage || ""
+      });
+      payload.promptFoundationContext = foundationMethodologyResolver.resolveArticlePromptContext({
+        workspaceId: projectWorkspaceId,
+        planId,
+        companyProfile: payload.companyProfile || payload.company_profile || {},
+        businessLine: payload.businessLine || {},
+        topic: payload.topic || {},
+        customerQuestion: payload.topic?.coreQuestion || payload.topic?.title || payload.topicBrief?.coreQuestion || "",
+        contentType: payload.contentType || payload.outputContract?.contentType || "",
+        knowledgeScope: { libraryIds: Array.isArray(payload.rag?.libraryIds) ? payload.rag.libraryIds : [] },
+        retrievedEvidence: payload.approvedEvidence || [],
+        methodology: payload.methodologyContext
+      });
     }
   }
   if (operation === "questions") {
@@ -1443,7 +1728,7 @@ function safePath(urlPath) {
 const server = http.createServer(async (request, response) => {
   const id = requestId(request);
   const startedAt = Date.now();
-  applySecurityHeaders(response, id);
+  applySecurityHeaders(response, id, request);
   response.on("finish", () => productionLogger.info("http.request", {
     requestId: id,
     method: request.method,
@@ -1456,13 +1741,14 @@ const server = http.createServer(async (request, response) => {
     const method = request.method || "GET";
 
     if ((parts[0] === "health" && ["live", "ready"].includes(parts[1])) || (parts[0] === "api" && parts[1] === "health")) {
-      if (parts[1] === "live") return jsonResponse(response, 200, { ok: true, status: "alive", timestamp: new Date().toISOString() });
+        if (parts[1] === "live") return jsonResponse(response, 200, { ok: true, status: "alive", runtime: runtimeBuild, timestamp: new Date().toISOString() });
       try {
         database.connection.prepare("SELECT 1 AS ready").get();
         await Promise.all([aiProviderStore.load(), publisherStore.load()]);
-        return jsonResponse(response, 200, {
-          ok: true,
-          status: "ready",
+          return jsonResponse(response, 200, {
+            ok: true,
+            status: "ready",
+            runtime: runtimeBuild,
           database: "ready",
           citationResearch: citationResearchStore ? citationResearchStore.health() : { ok: false, state: "not_ready" },
           citationResearchDocuments: researchDocumentStore ? researchDocumentStore.health() : { ok: false, state: "not_ready" },
@@ -1629,14 +1915,19 @@ const server = http.createServer(async (request, response) => {
     const code = error.code || (error instanceof WorkspaceConflictError ? "WORKSPACE_CONFLICT" : status === 413 ? "REQUEST_TOO_LARGE" : "INTERNAL_ERROR");
     productionLogger.error("http.error", { requestId: id, status, code, error: error.message, method: request.method, path: request.url });
     if (response.headersSent) return response.end();
-    if (isApi) return jsonResponse(response, status, { ok: false, code, message: status >= 500 && !(error instanceof AiGenerationError) ? "服务器处理请求失败，请查看服务日志。" : error.message, ...(error.details ? { details: error.details } : {}) });
+    if (isApi) {
+      if (status === 429 && Number(error?.details?.retryAfterSeconds) > 0) {
+        response.setHeader("Retry-After", String(Math.ceil(Number(error.details.retryAfterSeconds))));
+      }
+      return jsonResponse(response, status, { ok: false, code, message: status >= 500 && !(error instanceof AiGenerationError) ? "服务器处理请求失败，请查看服务日志。" : error.message, ...(error.details ? { details: error.details } : {}) });
+    }
     response.writeHead(status, { "Content-Type": "text/plain; charset=utf-8" });
     response.end(status >= 500 ? "Server error" : error.message);
   }
 });
 
 const embeddedSiteRuntime = configured.environment === "development" && process.env.TZ_SITE_EMBED !== "false"
-  ? createSiteRuntime({ database, host: configured.host, port: Number(process.env.TZ_SITE_PORT) || 18080, workspaceId: "default" })
+  ? createSiteRuntime({ database, host: configured.host, port: Number(process.env.TZ_SITE_PORT) || 18080, workspaceId: projectWorkspaceId })
   : null;
 if (embeddedSiteRuntime) {
   embeddedSiteRuntime.listen().then((address) => {

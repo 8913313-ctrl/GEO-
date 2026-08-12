@@ -55,7 +55,7 @@ function reportPayload(report) {
 export function createMonitoringApi({ monitoringStore, requestJson, configured = {} } = {}) {
   if (!monitoringStore || typeof monitoringStore.diagnose !== "function") throw new TypeError("createMonitoringApi requires a MonitoringStore instance.");
   if (typeof requestJson !== "function") throw new TypeError("createMonitoringApi requires requestJson.");
-  const workspaceId = "default";
+  const workspaceId = String(monitoringStore.workspaceId || "default");
   return async function handleMonitoringApi(request, response, parts, principal = null) {
     const method = request.method || "GET";
     if (parts.length === 4 && parts[3] === "overview" && method === "GET") {
