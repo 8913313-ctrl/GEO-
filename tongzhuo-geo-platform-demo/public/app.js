@@ -2244,6 +2244,131 @@ async function syncContentPlan(plan) {
 
 let formalContentMigrationPromise = null;
 
+const contentGenerationScheduleRuntime = {
+  loaded: false,
+  loading: false,
+  items: [],
+  runsByPlanId: {},
+  error: ""
+};
+
+function contentGenerationScheduleForPlan(plan) {
+  const formalPlanId = plan?.contentPlanId || plan?.id;
+  return contentGenerationScheduleRuntime.items.find((item) => item.planId === formalPlanId) || null;
+}
+
+async function refreshContentGenerationSchedules({ renderAfter = false } = {}) {
+  if (contentGenerationScheduleRuntime.loading || !currentUserCan("workspace.read")) return contentGenerationScheduleRuntime;
+  contentGenerationScheduleRuntime.loading = true;
+  try {
+    const payload = await productionApi("/api/v1/content-generation-schedules");
+    contentGenerationScheduleRuntime.items = Array.isArray(payload?.data?.items) ? payload.data.items : [];
+    contentGenerationScheduleRuntime.loaded = true;
+    contentGenerationScheduleRuntime.error = "";
+    if (renderAfter && currentRoute() === "planning" && ui.planningTab === "plans") render();
+  } catch (error) {
+    contentGenerationScheduleRuntime.error = error.message || "自动草稿计划加载失败";
+    throw error;
+  } finally {
+    contentGenerationScheduleRuntime.loading = false;
+  }
+  return contentGenerationScheduleRuntime;
+}
+
+async function refreshContentGenerationScheduleRuns(plan) {
+  const formalPlanId = plan?.contentPlanId || plan?.id;
+  if (!formalPlanId) return [];
+  try {
+    const payload = await productionApi(`/api/v1/content-generation-schedules/${encodeURIComponent(formalPlanId)}/runs?limit=20`);
+    const items = Array.isArray(payload?.data?.items) ? payload.data.items : [];
+    contentGenerationScheduleRuntime.runsByPlanId[formalPlanId] = items;
+    return items;
+  } catch (error) {
+    if (error.status === 404) return [];
+    throw error;
+  }
+}
+
+async function openContentGenerationSchedule(planId) {
+  const plan = state.contentPlans.find((item) => item.id === planId);
+  if (!plan) return showToast("内容计划不存在", "请刷新页面后重试。", "error");
+  try {
+    if (!plan.contentPlanId) await syncContentPlan(plan);
+    await refreshContentGenerationSchedules();
+    if (contentGenerationScheduleForPlan(plan)) await refreshContentGenerationScheduleRuns(plan);
+    ui.modal = { type: "contentGenerationSchedule", planId: plan.id };
+    renderModal();
+  } catch (error) {
+    showToast("自动草稿配置加载失败", error.message || "请稍后重试。", "error");
+  }
+}
+
+async function saveContentGenerationSchedule(planId) {
+  const plan = state.contentPlans.find((item) => item.id === planId);
+  if (!plan) return showToast("内容计划不存在", "请刷新页面后重试。", "error");
+  const cadence = document.getElementById("content-generation-cadence")?.value || "weekly";
+  const timeZone = document.getElementById("content-generation-timezone")?.value.trim() || "Asia/Shanghai";
+  const startRaw = document.getElementById("content-generation-start-at")?.value;
+  const intervalHours = Math.max(24, Number(document.getElementById("content-generation-interval-hours")?.value) || 24);
+  if (!startRaw) return showToast("请选择首次运行时间", "自动草稿必须有明确的首次运行时间。", "warning");
+  try {
+    if (!plan.contentPlanId) await syncContentPlan(plan);
+    await productionApi(`/api/v1/content-generation-schedules/${encodeURIComponent(plan.contentPlanId)}`, {
+      method: "PUT",
+      body: {
+        status: contentGenerationScheduleForPlan(plan)?.status === "active" ? "active" : "paused",
+        schedule: { cadence, timeZone, startAt: new Date(startRaw).toISOString(), ...(cadence === "interval" ? { intervalHours } : {}) },
+        generationPayload: contentGenerationPayloadForPlan(plan)
+      }
+    });
+    await refreshContentGenerationSchedules();
+    await refreshContentGenerationScheduleRuns(plan);
+    closeModal();
+    render();
+    showToast("自动草稿配置已保存", "当前仍保持人工审核与人工发布边界。", "success");
+  } catch (error) {
+    showToast("保存失败", error.message || "请检查周期、时区和计划资料。", "error");
+  }
+}
+
+async function setContentGenerationScheduleStatus(planId, status) {
+  const plan = state.contentPlans.find((item) => item.id === planId);
+  if (!plan?.contentPlanId) return showToast("请先配置自动草稿", "计划同步完成后才能启用周期生成。", "warning");
+  if (status === "active" && !window.confirm("确认启用自动草稿？系统只会创建待审核草稿，不会自动审核或发布。")) return;
+  try {
+    const action = status === "active" ? "resume" : "pause";
+    await productionApi(`/api/v1/content-generation-schedules/${encodeURIComponent(plan.contentPlanId)}/${action}`, { method: "POST", body: status === "active" ? { confirmDraftGeneration: true } : {} });
+    await refreshContentGenerationSchedules();
+    render();
+    showToast(status === "active" ? "自动草稿已启用" : "自动草稿已暂停", status === "active" ? "到期后只生成草稿，仍需人工审核和发布。" : "后续到期点不会再自动生成。", "success");
+  } catch (error) {
+    showToast("操作失败", error.message || "请稍后重试。", "error");
+  }
+}
+
+function contentGenerationPayloadForPlan(plan) {
+  const topicIds = contentPlanTopicIds(plan);
+  const topic = (plan.topicSnapshots || []).find((item) => item && topicIds.includes(item.id))
+    || state.topics.find((item) => topicIds.includes(item.id))
+    || { id: topicIds[0] || "", title: plan.name, coreQuestion: plan.name };
+  const line = state.businessLines.find((item) => item.id === plan.businessLineId) || {};
+  const scope = normalizeKnowledgeScope(plan);
+  return {
+    topic: cloneData(topic),
+    contentType: plan.contentType || "深度文章",
+    companyProfile: cloneData(state.enterpriseProfile || state.companyProfile || {}),
+    businessLine: { id: line.id || plan.businessLineId || "", name: line.name || "" },
+    rag: { enabled: true, businessLineId: line.id || plan.businessLineId || "", libraryIds: scope.resolvedBaseIds || [] },
+    writingAgent: cloneData(plan.writingAgentSnapshot || {})
+  };
+}
+
+function contentGenerationCadenceLabel(schedule) {
+  if (!schedule) return "未配置";
+  if (schedule.cadence === "interval") return `每 ${schedule.intervalHours} 小时`;
+  return ({ daily: "每天", weekly: "每周", monthly: "每月" })[schedule.cadence] || schedule.cadence || "未配置";
+}
+
 async function migrateFormalContentRecords() {
   if (formalContentMigrationPromise) return formalContentMigrationPromise;
   if (!currentUserCan("content.generate")) return null;
@@ -4616,6 +4741,7 @@ function planStatusBadge(status) {
 }
 
 function renderContentPlans() {
+  if (!contentGenerationScheduleRuntime.loaded && !contentGenerationScheduleRuntime.loading) queueMicrotask(() => refreshContentGenerationSchedules({ renderAfter: true }).catch(() => {}));
   const line = activeBusinessLine();
   const plans = state.contentPlans.filter((plan) => plan.businessLineId === line?.id);
   const rows = plans.map((plan) => {
@@ -4625,7 +4751,11 @@ function renderContentPlans() {
     const agentCurrent = writingAgentById(agentSnapshot?.agentId || plan.writingAgentId);
     const versionHint = agentCurrent && Number(agentCurrent.version) > Number(agentSnapshot?.version || 0) ? " · 有新版" : "";
     const agentCell = agentSnapshot ? `<b>${escapeHtml(agentSnapshot.nameSnapshot)}</b><small style="display:block;color:var(--muted-2);margin-top:4px">v${escapeHtml(agentSnapshot.version)}${versionHint}</small>` : '<span class="status-badge status-review">未选择</span>';
-    return `<tr><td class="article-title-cell"><b>${escapeHtml(plan.name)}</b><small>${plan.id} · 创建于 ${formatRelative(plan.createdAt)}</small></td><td><b>${plan.topicIds.length}</b> 个选题</td><td>${agentCell}</td><td><button class="knowledge-count-button" type="button" data-action="preview-plan-knowledge" data-plan-id="${plan.id}"><b>${scope.resolvedBaseIds.length}</b> 库 · <b>${approved}</b> 条</button><small style="display:block;color:var(--muted-2);margin-top:4px">${changes}</small></td><td>${escapeHtml(plan.scheduledFor)}</td><td>${escapeHtml(plan.owner)}</td><td>${escapeHtml(plan.contentType)}</td><td>${planStatusBadge(plan.status)}</td><td><button class="link-button" type="button" data-action="${plan.status === "produced" ? "view-plan-content" : "execute-plan"}" data-plan-id="${plan.id}">${plan.status === "produced" ? "查看内容" : "创建内容任务"}</button></td></tr>`;
+    const schedule = contentGenerationScheduleForPlan(plan);
+    const scheduleLabel = schedule?.status === "active" ? "自动草稿已启用" : schedule?.status === "attention" ? "自动草稿需处理" : schedule ? "自动草稿已暂停" : "自动草稿未配置";
+    const scheduleClass = schedule?.status === "active" ? "status-approved" : schedule?.status === "attention" ? "status-risk" : "status-draft";
+    const scheduleMeta = schedule ? `${contentGenerationCadenceLabel(schedule.schedule)} · 下次 ${formatDateTime(schedule.retryAt || schedule.nextRunAt)}` : "配置后仍需人工审核和发布";
+    return `<tr><td class="article-title-cell"><b>${escapeHtml(plan.name)}</b><small>${plan.id} · 创建于 ${formatRelative(plan.createdAt)}</small></td><td><b>${plan.topicIds.length}</b> 个选题</td><td>${agentCell}</td><td><button class="knowledge-count-button" type="button" data-action="preview-plan-knowledge" data-plan-id="${plan.id}"><b>${scope.resolvedBaseIds.length}</b> 库 · <b>${approved}</b> 条</button><small style="display:block;color:var(--muted-2);margin-top:4px">${changes}</small></td><td>${escapeHtml(plan.scheduledFor)}</td><td>${escapeHtml(plan.owner)}</td><td>${escapeHtml(plan.contentType)}</td><td>${planStatusBadge(plan.status)}<span class="status-badge ${scheduleClass}" style="margin-top:6px">${escapeHtml(scheduleLabel)}</span><small style="display:block;color:var(--muted-2);margin-top:4px">${escapeHtml(scheduleMeta)}</small></td><td><div class="table-actions"><button class="link-button" type="button" data-action="${plan.status === "produced" ? "view-plan-content" : "execute-plan"}" data-plan-id="${plan.id}">${plan.status === "produced" ? "查看内容" : "创建内容任务"}</button><button class="link-button" type="button" data-action="configure-content-generation-schedule" data-plan-id="${plan.id}">${schedule ? "管理自动草稿" : "配置自动草稿"}</button>${schedule?.status === "active" ? `<button class="link-button" type="button" data-action="pause-content-generation-schedule" data-plan-id="${plan.id}">暂停</button>` : schedule ? `<button class="link-button" type="button" data-action="resume-content-generation-schedule" data-plan-id="${plan.id}">启用</button>` : ""}</div></td></tr>`;
   }).join("");
   const planned = plans.filter((plan) => ["draft", "planned"].includes(plan.status)).length;
   const produced = plans.filter((plan) => plan.status === "produced").length;
@@ -10813,7 +10943,8 @@ function renderSiteSettings() {
 
 function renderSiteContactSettings() {
   const settings = siteCms().settings || {};
-  return `<section class="card site-contact-settings-card"><div class="card-header"><div><h2>公开联系方式</h2><p>统一应用到联系我们、页脚、咨询表单和企业结构化数据。</p></div><button class="primary-button button-small" type="button" data-action="save-site-contact"><span data-icon="check"></span>保存联系方式</button></div><div class="card-body"><div class="field-row"><div class="field"><label for="site-setting-phone">联系电话</label><input class="input" id="site-setting-phone" value="${escapeHtml(settings.phone || "")}" /></div><div class="field"><label for="site-setting-email">企业邮箱</label><input class="input" id="site-setting-email" type="email" value="${escapeHtml(settings.email || "")}" /></div></div><div class="field"><label for="site-setting-address">企业地址</label><input class="input" id="site-setting-address" value="${escapeHtml(settings.address || "")}" /></div><div class="field-row"><div class="field"><label for="site-setting-region">所在区域 / 行业区域</label><input class="input" id="site-setting-region" value="${escapeHtml(settings.industryRegion || "")}" /></div><div class="field"><label for="site-setting-area">服务区域</label><input class="input" id="site-setting-area" value="${escapeHtml(settings.serviceArea || "")}" /></div></div><div class="site-settings-footnote"><span data-icon="info"></span><span>这些信息属于公开资料，请填写经过企业确认、允许对外展示的联系方式。</span></div></div></section>`;
+  const f = settings.leadForm || {};
+  return `<section class="card site-contact-settings-card"><div class="card-header"><div><h2>公开联系方式</h2><p>统一应用到联系我们、页脚、咨询表单和企业结构化数据。</p></div><button class="primary-button button-small" type="button" data-action="save-site-contact"><span data-icon="check"></span>保存联系方式与表单</button></div><div class="card-body"><div class="field-row"><div class="field"><label for="site-setting-phone">联系电话</label><input class="input" id="site-setting-phone" value="${escapeHtml(settings.phone || "")}" /></div><div class="field"><label for="site-setting-email">企业邮箱</label><input class="input" id="site-setting-email" type="email" value="${escapeHtml(settings.email || "")}" /></div></div><div class="field"><label for="site-setting-address">企业地址</label><input class="input" id="site-setting-address" value="${escapeHtml(settings.address || "")}" /></div><div class="field-row"><div class="field"><label for="site-setting-region">所在区域 / 行业区域</label><input class="input" id="site-setting-region" value="${escapeHtml(settings.industryRegion || "")}" /></div><div class="field"><label for="site-setting-area">服务区域</label><input class="input" id="site-setting-area" value="${escapeHtml(settings.serviceArea || "")}" /></div></div><hr><h3>官网咨询表单</h3><div class="field-row"><label class="field"><span>启用在线表单</span><input type="checkbox" id="site-lead-enabled" ${f.enabled === false ? "" : "checked"}></label><label class="field"><span>显示企业官网字段</span><input type="checkbox" id="site-lead-website" ${f.showWebsite === true ? "checked" : ""}></label></div><div class="field-row"><div class="field"><label for="site-lead-submit">提交按钮文案</label><input class="input" id="site-lead-submit" value="${escapeHtml(f.submitLabel || "提交咨询")}" maxlength="40"></div><div class="field"><label for="site-lead-response">回复承诺</label><input class="input" id="site-lead-response" value="${escapeHtml(f.responsePromise || "提交后 1 个工作日内回复")}" maxlength="160"></div></div><div class="field"><label for="site-lead-privacy">隐私提示</label><input class="input" id="site-lead-privacy" value="${escapeHtml(f.privacyNotice || "填写内容仅用于本次业务联系")}" maxlength="240"></div><div class="site-settings-footnote"><span data-icon="info"></span><span>姓名和联系方式始终保留为必填字段；可选字段由系统按企业行业需要展示。</span></div></div></section>`;
 }
 
 function renderSiteDiagnosticTargetSettings() {
@@ -11443,7 +11574,8 @@ function saveSiteDiagnosticUrl() {
 function saveSiteContactSettings() {
   const email = siteValue("site-setting-email");
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast("企业邮箱格式不正确", "请检查邮箱地址后重试。", "error");
-  Object.assign(siteCms().settings, { phone: siteValue("site-setting-phone"), email, address: siteValue("site-setting-address"), industryRegion: siteValue("site-setting-region"), serviceArea: siteValue("site-setting-area"), updatedAt: siteNow() });
+  const existing = siteCms().settings.leadForm || {};
+  Object.assign(siteCms().settings, { phone: siteValue("site-setting-phone"), email, address: siteValue("site-setting-address"), industryRegion: siteValue("site-setting-region"), serviceArea: siteValue("site-setting-area"), leadForm: { ...existing, enabled: document.getElementById("site-lead-enabled")?.checked !== false, showWebsite: document.getElementById("site-lead-website")?.checked === true, submitLabel: siteValue("site-lead-submit") || "提交咨询", responsePromise: siteValue("site-lead-response") || "提交后 1 个工作日内回复", privacyNotice: siteValue("site-lead-privacy") || "填写内容仅用于本次业务联系" }, updatedAt: siteNow() });
   saveState(); render(); showToast("公开联系方式已保存", "联系我们页面、页脚和结构化数据会在发布后同步更新。", "success");
 }
 
@@ -12073,6 +12205,7 @@ function renderModal() {
     businessLineManager: renderBusinessLineManagerModal,
     deleteBusinessLine: renderDeleteBusinessLineModal,
     contentPlan: renderContentPlanModal,
+    contentGenerationSchedule: renderContentGenerationScheduleModal,
     topicPlanPicker: renderTopicPlanPickerModal,
     writingAgent: renderWritingAgentModal,
     regenerateArticle: renderRegenerateArticleModal,
@@ -12109,6 +12242,17 @@ function renderModal() {
   if (!renderer) return closeModal();
   mountModal(renderer());
   if (ui.modal.type === "importKnowledge") document.getElementById("knowledge-import-file")?.setAttribute("accept", ".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml,image/*");
+}
+
+function renderContentGenerationScheduleModal() {
+  const plan = state.contentPlans.find((item) => item.id === ui.modal?.planId);
+  if (!plan) return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">内容计划不存在</h2></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><p>请关闭后刷新计划列表。</p></div>`, { wide: true });
+  const schedule = contentGenerationScheduleForPlan(plan);
+  const config = schedule?.schedule || { cadence: "weekly", timeZone: "Asia/Shanghai", startAt: new Date(Date.now() + 5 * 60_000).toISOString(), intervalHours: 24 };
+  const runs = contentGenerationScheduleRuntime.runsByPlanId[plan.contentPlanId || plan.id] || [];
+  const startAt = String(config.startAt || "").slice(0, 16);
+  const runRows = runs.slice(0, 5).map((run) => `<tr><td>${escapeHtml(formatDateTime(run.scheduledFor))}</td><td>${escapeHtml(run.status)}</td><td>${escapeHtml(run.errorMessage || run.articleVersionId || "—")}</td></tr>`).join("");
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">自动草稿周期</h2><p>${escapeHtml(plan.name)} · 仅创建待审核草稿，不会自动送审、审核或发布。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="site-source-note"><span class="site-source-note-icon" data-icon="shield"></span><div><b>人工发布边界</b><p>自动运行只会生成 draft。风险扫描、提交审核、批准冻结、官网/外部站发布都必须由人工单独操作。</p></div></div><div class="field-row"><label class="field"><span>周期</span><select class="select" id="content-generation-cadence"><option value="daily" ${config.cadence === "daily" ? "selected" : ""}>每天</option><option value="weekly" ${config.cadence === "weekly" ? "selected" : ""}>每周</option><option value="monthly" ${config.cadence === "monthly" ? "selected" : ""}>每月</option><option value="interval" ${config.cadence === "interval" ? "selected" : ""}>按间隔</option></select></label><label class="field"><span>IANA 时区</span><input class="input" id="content-generation-timezone" value="${escapeHtml(config.timeZone || "Asia/Shanghai")}" placeholder="Asia/Shanghai" /></label><label class="field"><span>首次运行</span><input class="input" id="content-generation-start-at" type="datetime-local" value="${escapeHtml(startAt)}" /></label></div><label class="field" id="content-generation-interval-field" ${config.cadence === "interval" ? "" : "style=\"display:none\""}><span>间隔（小时，至少 24）</span><input class="input" id="content-generation-interval-hours" type="number" min="24" max="8784" value="${escapeHtml(config.intervalHours || 24)}" /></label>${schedule?.lastErrorMessage ? `<div class="archive-impact-note"><span data-icon="alert"></span><span>${escapeHtml(schedule.lastErrorMessage)}</span></div>` : ""}${runs.length ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>计划时间</th><th>状态</th><th>结果 / 原因</th></tr></thead><tbody>${runRows}</tbody></table></div>` : ""}</div><div class="modal-foot"><span>${schedule?.status === "active" ? `已启用 · 下次 ${escapeHtml(formatDateTime(schedule.retryAt || schedule.nextRunAt))}` : "保存后默认暂停；确认后再启用"}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-content-generation-schedule" data-plan-id="${escapeHtml(plan.id)}"><span data-icon="check"></span>保存自动草稿配置</button></div></div>`, { wide: true });
 }
 
 function modalChrome(content, options = {}) {
@@ -18192,6 +18336,10 @@ document.addEventListener("click", async (event) => {
   if (action === "create-plan-from-topic-picker") return createPlanFromTopicPicker(actionElement.dataset.topicId);
   if (action === "open-plan") return openContentPlan();
   if (action === "submit-content-plan") return submitContentPlan();
+  if (action === "configure-content-generation-schedule") return openContentGenerationSchedule(actionElement.dataset.planId);
+  if (action === "save-content-generation-schedule") return saveContentGenerationSchedule(actionElement.dataset.planId);
+  if (action === "pause-content-generation-schedule") return setContentGenerationScheduleStatus(actionElement.dataset.planId, "paused");
+  if (action === "resume-content-generation-schedule") return setContentGenerationScheduleStatus(actionElement.dataset.planId, "active");
   if (action === "execute-plan" || action === "preview-plan-knowledge") return openGenerationPreview(actionElement.dataset.planId);
   if (action === "upgrade-plan-agent") return upgradePlanWritingAgent(actionElement.dataset.planId);
   if (action === "confirm-generate-plan") return executeContentPlan(actionElement.dataset.planId);
@@ -19200,6 +19348,11 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches("#content-generation-cadence")) {
+    const interval = document.getElementById("content-generation-interval-field");
+    if (interval) interval.style.display = event.target.value === "interval" ? "" : "none";
+    return;
+  }
   if (event.target.matches("#article-show-public-citations")) {
     const article = saveArticleEditor({ silent: true });
     if (article) {
@@ -19913,6 +20066,7 @@ async function startPrivateDeploymentApplication() {
   refreshAiProviders({ renderAfter: false }).catch(() => {});
   refreshProductionMembers({ renderAfter: false }).catch(() => {});
   refreshProductionAudit({ renderAfter: false }).catch(() => {});
+  refreshContentGenerationSchedules({ renderAfter: false }).catch(() => {});
   refreshPublisherSnapshot({ renderAfter: true }).catch(() => {});
   window.setInterval(() => refreshPublisherSnapshot({ renderAfter: ["publish", "assistant"].includes(currentRoute()) }), 15000);
   window.setInterval(() => { if (currentRoute() === "monitoring" && !monitoringSnapshot.loading) refreshRealMonitoring({ silent: true }); }, 60000);
