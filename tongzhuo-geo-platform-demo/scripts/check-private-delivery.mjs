@@ -118,11 +118,15 @@ try {
   const blankRoot = path.join(blankOutput, `tongzhuo-geo-private-${packageJson.version}-blank`);
   const blankManifest = JSON.parse(await readFile(path.join(blankRoot, "manifest.json"), "utf8"));
   assert.equal(blankManifest.deliveryMode, "blank");
+  assert.match(blankManifest.sourceCommit, /^[a-f0-9]{40}$/);
+  assert.equal(typeof blankManifest.sourceDirty, "boolean");
   assert.equal(blankManifest.security.containsCustomerData, false);
   assert.equal(blankManifest.security.containsRecoverySecrets, false);
   assert.equal(blankManifest.migration, null);
   const blankFiles = await walk(blankRoot);
   assert.ok(blankFiles.includes("app/package.json"));
+  assert.ok(blankFiles.includes("app/SOURCE_VERSION"));
+  assert.equal((await readFile(path.join(blankRoot, "app", "SOURCE_VERSION"), "utf8")).trim(), blankManifest.sourceCommit);
   for (const foundationFile of [
     "app/foundation-asset-store.mjs",
     "app/foundation-assets/bootstrap.mjs",

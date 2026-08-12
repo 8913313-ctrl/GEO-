@@ -49,9 +49,10 @@ import { AuthError, AuthService, openProductionDatabase, PERMISSIONS, WorkspaceC
 
 const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
 const packageMetadata = JSON.parse(await readFile(path.join(moduleRoot, "package.json"), "utf8"));
+const packagedSourceVersion = await readFile(path.join(moduleRoot, "SOURCE_VERSION"), "utf8").then((value) => value.trim()).catch(() => "");
 const runtimeBuild = Object.freeze({
   version: String(packageMetadata.version || "unknown"),
-  buildId: String(process.env.TZ_BUILD_ID || process.env.SOURCE_VERSION || "development").slice(0, 120),
+  buildId: String(process.env.TZ_BUILD_ID || process.env.SOURCE_VERSION || packagedSourceVersion || "development").slice(0, 120),
   startedAt: new Date().toISOString()
 });
 const root = path.join(moduleRoot, "public");

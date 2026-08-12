@@ -144,6 +144,9 @@ try {
   assert.equal(manifest.security?.containsRecoverySecrets, false);
   assert.equal(manifest.productVersion, sourcePackage.version, "delivery manifest version must match the current source package");
   assert.equal(deliveredPackage.version, sourcePackage.version, "delivered app version must match the current source package");
+  assert.match(manifest.sourceCommit, /^[a-f0-9]{40}$/, "delivery manifest must identify its source commit");
+  assert.equal(manifest.sourceDirty, false, "formal clean-delivery runtime gate rejects bundles built from a dirty source tree");
+  assert.equal((await readFile(path.join(appRoot, "SOURCE_VERSION"), "utf8")).trim(), manifest.sourceCommit, "delivered runtime source identity must match the manifest");
   assert.notEqual(appPort, 18080); assert.notEqual(appPort, 43227); assert.notEqual(appPort, 18180);
   assert.notEqual(sitePort, 18080); assert.notEqual(sitePort, 43227); assert.notEqual(sitePort, 18180);
 

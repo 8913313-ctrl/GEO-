@@ -144,6 +144,16 @@ function sha256(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex");
 }
 
+function sourceIdentity() {
+  const commitResult = spawnSync("git", ["rev-parse", "HEAD"], { cwd: projectRoot, encoding: "utf8", windowsHide: true });
+  if (commitResult.status !== 0) throw new Error(`无法读取 Git 提交：${commitResult.stderr || commitResult.stdout}`);
+  const commit = String(commitResult.stdout || "").trim().toLocaleLowerCase("en-US");
+  if (!/^[a-f0-9]{40}$/.test(commit)) throw new Error("Git 提交格式无效，不能生成可追溯交付包。");
+  const statusResult = spawnSync("git", ["status", "--porcelain", "--untracked-files=all", "--", "."], { cwd: projectRoot, encoding: "utf8", windowsHide: true });
+  if (statusResult.status !== 0) throw new Error(`无法读取 Git 工作树状态：${statusResult.stderr || statusResult.stdout}`);
+  return { commit, dirty: Boolean(String(statusResult.stdout || "").trim()) };
+}
+
 async function exists(target) {
   try {
     await access(target);
@@ -439,6 +449,7 @@ async function main() {
   if (!new Set(["blank", "migrated"]).has(options.mode)) throw new Error("--mode 只能是 blank 或 migrated。");
   const packageJson = JSON.parse(await readFile(path.join(projectRoot, "package.json"), "utf8"));
   const version = safeToken(options.version || packageJson.version, "版本号");
+  const source = sourceIdentity();
   const retainBuilds = positiveInteger(options.retainBuilds, "--retain-builds");
   let customerId = "";
   let migration = null;
@@ -463,6 +474,7 @@ async function main() {
 
   try {
     await copyApplication(path.join(bundleRoot, "app"));
+    await writeFile(path.join(bundleRoot, "app", "SOURCE_VERSION"), `${source.commit}\n`, "utf8");
     const operationsSource = path.join(projectRoot, "deploy", "private-delivery");
     if (!await exists(operationsSource)) throw new Error("缺少 deploy/private-delivery 运维文件。");
     await copyTree(operationsSource, path.join(bundleRoot, "operations"), { blank: true, executable: true }, "operations");
@@ -491,6 +503,8 @@ async function main() {
       formatVersion: 1,
       product: PRODUCT_ID,
       productVersion: version,
+      sourceCommit: source.commit,
+      sourceDirty: source.dirty,
       deliveryMode: options.mode,
       createdAt,
       requires: { operatingSystem: "Linux x86_64/arm64", dockerEngine: ">=24", dockerCompose: ">=2.20" },
