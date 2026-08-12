@@ -503,6 +503,10 @@ body.auth-locked { overflow: hidden; }
 .activity-item:not(:last-child)::before { position: absolute; top: 35px; bottom: -7px; left: 13px; width: 1px; background: var(--line); content: ""; }
 .activity-dot { position: relative; z-index: 1; display: grid; width: 28px; height: 28px; place-items: center; border: 4px solid white; border-radius: 50%; color: var(--blue); background: var(--blue-soft); }
 .activity-dot svg { width: 11px; height: 11px; }
+.dashboard-activity-empty { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 12px; align-items: start; padding: 14px 0 4px; color: var(--muted); }
+.dashboard-activity-empty > svg { width: 20px; height: 20px; margin: 2px 0 0 8px; color: var(--muted-2); }
+.dashboard-activity-empty b { display: block; margin-bottom: 4px; color: var(--ink); font-size: 13px; }
+.dashboard-activity-empty p { max-width: 32ch; font-size: 12px; line-height: 1.65; }
 .activity-copy b { display: block; font-size: 11px; }
 .activity-copy p { margin: 2px 0 0; color: var(--muted); font-size: 10px; }
 

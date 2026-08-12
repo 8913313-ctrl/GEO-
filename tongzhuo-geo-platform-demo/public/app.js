@@ -296,7 +296,7 @@ function calculateHistoricalQuestionRuleScores(question, allQuestions = [], busi
     intent: "场景分析", stage: "需求认知", recommendation: 88, business: 76, reason: "覆盖客户类型、决策链和真实使用场景",
     variants: [
       (seed) => "哪些企业和业务场景更适合开展" + seed + "？",
-      (seed) => seed + "在制造业采购场景中如何落地？",
+      (seed, context = {}) => seed + "在" + (context.industry || "目标行业") + "的客户决策场景中如何落地？",
       (seed) => "企业在什么阶段应开始做" + seed + "？",
       (seed) => seed + "适合解决哪些客户获取问题？",
       (seed) => "不同规模企业开展" + seed + "时应如何选择切入点？",
@@ -347,7 +347,7 @@ function calculateHistoricalQuestionRuleScores(question, allQuestions = [], busi
       (seed, context = {}) => (context.brandName || "该企业") + "在" + seed + "项目中能提供哪些服务？",
       (seed, context = {}) => "企业为什么选择" + (context.brandName || "该企业") + "开展" + seed + "？",
       (seed, context = {}) => (context.brandName || "该企业") + "如何用企业知识支撑" + seed + "？",
-      (seed, context = {}) => "制造业企业怎样验证" + (context.brandName || "该企业") + "的" + seed + "方案？",
+      (seed, context = {}) => (context.industry || "目标行业") + "企业怎样验证" + (context.brandName || "该企业") + "的" + seed + "方案？",
       (seed, context = {}) => (context.brandName || "该企业") + "做" + seed + "时有哪些服务边界？",
       (seed, context = {}) => (context.brandName || "该企业") + "的" + seed + "能力适合哪些企业？"
     ]
@@ -1441,7 +1441,10 @@ function buildQuestionCandidates(seeds, packId, businessLineId, existingQuestion
       const seedIndex = (attempt + Math.floor(attempt / totalVariants)) % normalizedSeeds.length;
       const seed = normalizedSeeds[seedIndex];
       const questionText = variantIndex < template.variants.length
-        ? template.variants[variantIndex](seed, { brandName: options.brandName || options.companyName || "" })
+        ? template.variants[variantIndex](seed, {
+            brandName: options.brandName || options.companyName || "",
+            industry: options.industry || options.industryRegion || ""
+          })
         : seed + "在" + (DIMENSIONS.find((item) => item.id === dimension)?.label || dimension) + "中，从" + QUESTION_FALLBACK_ANGLES[(variantIndex - template.variants.length) % QUESTION_FALLBACK_ANGLES.length] + "角度应该如何分析？" + (variantIndex >= template.variants.length + QUESTION_FALLBACK_ANGLES.length ? "（第" + (Math.floor((variantIndex - template.variants.length) / QUESTION_FALLBACK_ANGLES.length) + 1) + "轮拓展）" : "");
       const key = questionText.toLowerCase();
       if (existingQuestions.has(key)) continue;
@@ -1729,7 +1732,7 @@ function migrateState(parsed) {
   parsed.monitoring.trackedWorks = parsed.monitoring.trackedWorks.map((work, index) => ({
     ...work,
     id: work.id || "WORK-" + String(index + 1).padStart(3, "0"),
-    sourceDomain: work.sourceDomain || (String(work.site || "").includes("知乎") ? "zhihu.com" : String(work.site || "").includes("公众号") ? "mp.weixin.qq.com" : "tongzhuo.com"),
+    sourceDomain: work.sourceDomain || (String(work.site || "").includes("知乎") ? "zhihu.com" : String(work.site || "").includes("公众号") ? "mp.weixin.qq.com" : "unknown.local"),
     url: work.url || "",
     publications: Array.isArray(work.publications) ? work.publications : [],
     autoTracked: work.autoTracked !== false,
@@ -2938,6 +2941,20 @@ function currentUserCan(permission) {
   return Boolean(window.__TZ_AUTH__?.user?.permissions?.includes(permission));
 }
 
+function currentActorName(fallback = "当前用户") {
+  const user = typeof window !== "undefined" ? window.__TZ_AUTH__?.user || {} : {};
+  return String(user.displayName || user.name || user.username || fallback).trim() || fallback;
+}
+
+function assignableMemberNames() {
+  const names = [
+    currentActorName(),
+    ...(memberSnapshot.users || []).map((user) => user.displayName || user.name || user.username),
+    ...(state.settings?.members || []).map((member) => member.name || member.displayName || member.username)
+  ].map((name) => String(name || "").trim()).filter(Boolean);
+  return [...new Set(names)];
+}
+
 function productionUserToMember(user) {
   return {
     id: user.id,
@@ -3372,7 +3389,7 @@ function ensureArticleTrackedWork(article) {
   let work = state.monitoring.trackedWorks.find((item) => item.articleId === article.id)
     || state.monitoring.trackedWorks.find((item) => !item.articleId && item.title === article.title);
   if (!work) {
-    const siteDomain = String(state.site?.domain || "").replace(/^https?:\/\//i, "").replace(/\/+$/, "") || domainFromUrl(article.siteUrl, "tongzhuo.com");
+    const siteDomain = String(state.site?.domain || "").replace(/^https?:\/\//i, "").replace(/\/+$/, "") || domainFromUrl(article.siteUrl);
     work = {
       id: uid("WORK"), articleId: article.id, title: article.title || "未命名文章", site: "企业官网", type: "官网",
       sourceDomain: siteDomain, url: "", publications: [], autoTracked: true, citedDays: 0, questions: 0, citations: 0,
@@ -3411,7 +3428,7 @@ function upsertTrackedPublication(article, target = {}, options = {}) {
     work.url = primary.url;
     work.site = primary.platformName || work.site;
     work.type = primary.platform === "web" ? "官网" : (work.type || "内容平台");
-    work.sourceDomain = domainFromUrl(primary.url, work.sourceDomain || "tongzhuo.com");
+    work.sourceDomain = domainFromUrl(primary.url, work.sourceDomain || "unknown.local");
   }
   work.autoTracked = true;
   work.updatedAt = now;
@@ -3569,7 +3586,7 @@ function defaultAgentForLine(line, contentType = null) {
 }
 
 function snapshotWritingAgent(agent, options = {}) {
-  return createWritingAgentSnapshot(agent, { modelName: state.settings.model, selectedBy: "王宁", ...options });
+  return createWritingAgentSnapshot(agent, { modelName: state.settings.model, selectedBy: currentActorName(), ...options });
 }
 
 function resolvePlanWritingAgent(plan) {
@@ -3811,7 +3828,7 @@ function saveState() {
   queueWorkspaceSync();
 }
 
-function addOperationLog(category, detail, actor = "王宁") {
+function addOperationLog(category, detail, actor = currentActorName()) {
   const logs = state.settings.operationLogs = Array.isArray(state.settings.operationLogs) ? state.settings.operationLogs : [];
   logs.unshift({ id: uid("LOG"), occurredAt: Date.now(), category, actor, detail });
   if (logs.length > 120) logs.length = 120;
@@ -4033,6 +4050,53 @@ function pageHead(title, description, actions = "") {
   return '<div class="page-head"><div><h2>' + escapeHtml(title) + "</h2><p>" + escapeHtml(description) + '</p></div><div class="page-actions">' + actions + "</div></div>";
 }
 
+function dashboardGreeting(date = new Date()) {
+  const hour = date.getHours();
+  const period = hour < 6 ? "夜深了" : hour < 11 ? "上午好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
+  return `${period}，${currentActorName()}`;
+}
+
+function dashboardOfficialDomain() {
+  const candidates = [
+    state.site?.cms?.settings?.officialDomain,
+    state.site?.domain,
+    state.enterpriseProfile?.officialDomain
+  ];
+  return candidates.map((value) => String(value || "").trim().replace(/^https?:\/\//i, "").replace(/\/+$/, ""))
+    .find(Boolean) || "";
+}
+
+function dashboardHealthStatus(completion) {
+  const value = Math.max(0, Math.min(100, Number(completion) || 0));
+  if (value === 0) return "待建档";
+  if (value < 100) return "待完善";
+  return "已完成";
+}
+
+function dashboardActivityItems(limit = 3) {
+  const activities = [];
+  const add = (timestamp, title, detail, iconName = "check") => {
+    const time = new Date(timestamp || 0).getTime();
+    if (!Number.isFinite(time) || time <= 0 || !title) return;
+    activities.push({ time, title, detail, iconName });
+  };
+  const auditItems = auditSnapshot.loaded ? auditSnapshot.items || [] : [];
+  auditItems.forEach((entry) => add(entry.occurredAt, entry.action || "系统操作", [entry.entityType, entry.entityId].filter(Boolean).join(" · "), "history"));
+  (state.settings?.operationLogs || []).forEach((entry) => add(entry.occurredAt, entry.category || "系统操作", [entry.detail, entry.actor].filter(Boolean).join(" · "), "history"));
+  if (!activities.length) {
+    (state.articles || []).forEach((article) => add(article.updatedAt || article.createdAt, "文章内容已更新", article.title, "file"));
+    (state.keywordPacks || []).forEach((pack) => add(pack.updatedAt || pack.createdAt, "问题词包已更新", pack.title, "sparkle"));
+    (state.knowledgeItems || []).forEach((item) => add(item.updatedAt || item.createdAt, "企业知识已更新", item.title || item.question, "database"));
+  }
+  const seen = new Set();
+  return activities.sort((a, b) => b.time - a.time).filter((item) => {
+    const key = `${item.time}:${item.title}:${item.detail}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, limit);
+}
+
 function customerFacingEffectText(value) {
   return String(value || "")
     .replace(/桐灼中转站|中央中转站|中转站/gi, "灼见检测服务")
@@ -4182,6 +4246,10 @@ function renderDashboard() {
   const dashboardDeviceStatus = !publisherSnapshot.loaded ? "unknown" : dashboardDevice?.status === "online" ? "device_online" : dashboardDevice ? "device_offline" : "not_connected";
   const dashboardDeviceName = dashboardDevice?.name || state.accountGroups[0]?.deviceName || "尚未连接桌面发布器";
   const dashboardHeartbeat = dashboardDevice?.lastHeartbeatAt || publisherGroupUpdatedAt(state.accountGroups[0]);
+  const officialDomain = dashboardOfficialDomain();
+  const profileCompletion = Math.max(0, Math.min(100, Number(state.enterpriseProfile?.completion) || 0));
+  const healthStatus = dashboardHealthStatus(profileCompletion);
+  const recentActivities = dashboardActivityItems();
   const dashboardInsights = [
     { label: "内容资产", value: state.articles.length.toLocaleString("zh-CN"), delta: "已收录", context: "当前工作区", tone: "blue", path: "M2 29 C14 28 17 15 28 21 S42 39 54 26 S68 17 78 22 S91 9 105 15 S118 25 130 11 S147 9 158 18" },
     { label: "选题问题", value: (state.questionLibrary || []).length.toLocaleString("zh-CN"), delta: "待持续覆盖", context: "当前工作区", tone: "teal", path: "M2 30 C15 22 19 25 30 16 S46 17 56 26 S72 36 82 19 S99 10 109 18 S124 24 133 14 S149 12 158 6" },
@@ -4214,7 +4282,7 @@ function renderDashboard() {
 
   return `
     <div class="page-container">
-      ${pageHead("上午好，王宁", `让每一次内容发布，都变成可被 AI 准确引用的证据。${actionTargets ? `今天有 ${actionTargets} 项发布结果需要处理。` : ""}`, '<button class="primary-button" type="button" data-nav="planning"><span data-icon="plus"></span>新建内容计划</button>')}
+      ${pageHead(dashboardGreeting(), `让每一次内容发布，都变成可被 AI 准确引用的证据。${actionTargets ? `今天有 ${actionTargets} 项发布结果需要处理。` : ""}`, '<button class="primary-button" type="button" data-nav="planning"><span data-icon="plus"></span>新建内容计划</button>')}
 
       <section class="metric-grid" aria-label="行动数据">
         <article class="metric-card">
@@ -4309,22 +4377,22 @@ function renderDashboard() {
         <aside class="stack">
           <section class="card onboarding-card dashboard-health-card">
             <span class="health-watermark" data-icon="shield"></span>
-            <div class="onboarding-card-head"><span class="knowledge-icon" data-icon="shield"></span><span><small>企业资料健康度</small><b>${state.enterpriseProfile.completion}%</b></span><em class="health-status">良好</em></div>
+            <div class="onboarding-card-head"><span class="knowledge-icon" data-icon="shield"></span><span><small>企业资料健康度</small><b>${profileCompletion}%</b></span><em class="health-status">${healthStatus}</em></div>
             <div class="health-mini-chart" aria-hidden="true"><svg viewBox="0 0 280 58"><path d="M2 43 C26 27 40 32 59 40 S90 48 111 34 S146 20 169 28 S207 46 230 32 S257 20 278 28" fill="none"/><circle cx="278" cy="28" r="4"/></svg></div>
-            <div class="onboarding-progress"><i style="width:${state.enterpriseProfile.completion}%"></i></div>
-            <p>${state.enterpriseProfile.completion === 100
+            <div class="onboarding-progress"><i style="width:${profileCompletion}%"></i></div>
+            <p>${profileCompletion === 100
               ? "企业身份、业务边界、证据资料和监测基线均已确认。"
-              : state.enterpriseProfile.completion === 0
+              : profileCompletion === 0
                 ? "请先完成企业基本资料、产品业务线、目标客户与证据资料。"
                 : "企业建档尚未完成，请继续补充缺失资料并完成证据审核。"}</p>
-            <button class="secondary-button button-small" type="button" data-action="open-onboarding">${state.enterpriseProfile.completion === 100 ? "查看健康度建议" : "健康度综合建议"}</button>
+            <button class="secondary-button button-small" type="button" data-action="open-onboarding">${profileCompletion === 100 ? "查看健康度建议" : profileCompletion === 0 ? "开始企业建档" : "继续完善企业资料"}</button>
           </section>
           <section class="card">
             <div class="card-header"><div><h3>系统状态</h3><p>客户独立部署环境</p></div></div>
             <div class="system-list">
               <div class="system-item">
-                <div class="system-name"><span data-icon="globe"></span><span><b>企业官网</b><small>www.tongzhuo.com</small></span></div>
-                <span class="health"><i></i>运行正常</span>
+                <div class="system-name"><span data-icon="globe"></span><span><b>企业官网</b><small>${escapeHtml(officialDomain || "待配置")}</small></span></div>
+                ${officialDomain ? '<span class="health"><i></i>已配置</span>' : '<span class="health warning">待配置</span>'}
               </div>
               <div class="system-item">
                 <div class="system-name"><span data-icon="sparkle"></span><span><b>GEORank 能力服务</b><small>关键词拓展接口</small></span></div>
@@ -4339,11 +4407,9 @@ function renderDashboard() {
 
           <section class="card">
             <div class="card-header"><div><h3>最近动态</h3><p>关键业务事件</p></div></div>
-            <div class="activity-list">
-              <div class="activity-item"><span class="activity-dot" data-icon="check"></span><div class="activity-copy"><b>文章通过人工审核</b><p>《工业品企业如何搭建可持续的 GEO 内容体系？》 · 22 分钟前</p></div></div>
-              <div class="activity-item"><span class="activity-dot" data-icon="sparkle"></span><div class="activity-copy"><b>生成 8 个拓词结果</b><p>词包「工业品 GEO 优化」 · 36 分钟前</p></div></div>
-              <div class="activity-item"><span class="activity-dot" data-icon="database"></span><div class="activity-copy"><b>企业知识完成更新</b><p>新增 2 条服务案例证据 · 1 小时前</p></div></div>
-            </div>
+            <div class="activity-list">${recentActivities.length
+              ? recentActivities.map((item) => `<div class="activity-item"><span class="activity-dot" data-icon="${escapeHtml(item.iconName)}"></span><div class="activity-copy"><b>${escapeHtml(item.title)}</b><p>${escapeHtml(item.detail || "已记录业务事件")} · ${escapeHtml(formatRelative(item.time))}</p></div></div>`).join("")
+              : '<div class="dashboard-activity-empty"><span data-icon="history"></span><div><b>尚无业务动态</b><p>完成企业建档、知识录入或内容任务后，关键事件会显示在这里。</p></div></div>'}</div>
           </section>
         </aside>
       </div>
@@ -12412,7 +12478,7 @@ function renderBatchReviewModal() {
   const reviewable = entries.filter((entry) => !entry.reason);
   const blocked = entries.filter((entry) => entry.reason);
   const rows = entries.map(({ article, reason }) => `<div class="batch-review-item ${reason ? "blocked" : "ready"}"><span class="batch-review-state" data-icon="${reason ? "alert" : "check"}"></span><div><b>${escapeHtml(article.title)}</b><small>${escapeHtml(article.id)} · ${reason ? escapeHtml(reason) : "满足审核条件"}</small></div></div>`).join("");
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量人工审核</h2><p>将对已选择的待审核文章执行人工审核，通过后才允许进入发布流程。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="batch-review-summary"><div><span>已选择</span><b>${entries.length}</b><small>篇文章</small></div><div class="ready"><span>可审核通过</span><b>${reviewable.length}</b><small>篇</small></div><div class="blocked"><span>不参与本次</span><b>${blocked.length}</b><small>篇</small></div></div>${blocked.length ? '<div class="privacy-note warning"><span data-icon="alert"></span><span>已审核文章不会重复审核；缺少证据或未通过风控的文章也会被跳过，原状态保持不变。</span></div>' : ""}<div class="batch-review-list">${rows || '<div class="empty-state compact"><div><span data-icon="file"></span><h3>没有可审核文章</h3><p>请返回文章任务列表重新选择。</p></div></div>'}</div></div><div class="modal-foot"><span>审核人：王宁 · 审核通过后会记录时间和当前文章版本</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="confirm-batch-review" ${reviewable.length ? "" : "disabled"}><span data-icon="check"></span>确认审核通过${reviewable.length ? `（${reviewable.length}篇）` : ""}</button></div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量人工审核</h2><p>将对已选择的待审核文章执行人工审核，通过后才允许进入发布流程。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="batch-review-summary"><div><span>已选择</span><b>${entries.length}</b><small>篇文章</small></div><div class="ready"><span>可审核通过</span><b>${reviewable.length}</b><small>篇</small></div><div class="blocked"><span>不参与本次</span><b>${blocked.length}</b><small>篇</small></div></div>${blocked.length ? '<div class="privacy-note warning"><span data-icon="alert"></span><span>已审核文章不会重复审核；缺少证据或未通过风控的文章也会被跳过，原状态保持不变。</span></div>' : ""}<div class="batch-review-list">${rows || '<div class="empty-state compact"><div><span data-icon="file"></span><h3>没有可审核文章</h3><p>请返回文章任务列表重新选择。</p></div></div>'}</div></div><div class="modal-foot"><span>审核人：${escapeHtml(currentActorName())} · 审核通过后会记录时间和当前文章版本</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="confirm-batch-review" ${reviewable.length ? "" : "disabled"}><span data-icon="check"></span>确认审核通过${reviewable.length ? `（${reviewable.length}篇）` : ""}</button></div></div>`, { wide: true });
 }
 
 function renderArticleModal() {
@@ -12868,7 +12934,7 @@ async function approveSelectedArticles() {
     article.reviewStatus = "approved";
     article.reviewStage = "ready_to_publish";
     article.reviewedAt = reviewedAt;
-    article.reviewedBy = "王宁";
+    article.reviewedBy = currentActorName("审核人员");
     citations.forEach((citation) => { citation.status = "verified"; citation.supportStatus = "supported"; citation.articleVersion = article.version; });
     article.sources = citations.length;
     if (article.knowledgeSnapshot) {
@@ -13678,7 +13744,7 @@ function syncLegacyKnowledgeImages(entries) {
       mime: asset.mime || "image/*",
       knowledgeBaseId: base.id,
       reviewStatus: "approved",
-      reviewedBy: "王宁",
+      reviewedBy: currentActorName("审核人员"),
       reviewedAt: new Date().toISOString(),
       license: rawLicense || "企业自有 · 已确认",
       altText: rawAlt || name,
@@ -14151,11 +14217,12 @@ function renderContentPlanModal() {
   defaultDueDate.setDate(defaultDueDate.getDate() + 7);
   const todayValue = localDateInputValue(today);
   const defaultDueDateValue = localDateInputValue(defaultDueDate);
+  const ownerOptions = assignableMemberNames().map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join("");
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">创建内容计划</h2><p>${escapeHtml(line?.name || "业务线")} · 已选择 ${selectedTopics.length} 个选题</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="field"><label for="content-plan-name">计划名称 *</label><input class="input ${ui.planError ? "input-error" : ""}" id="content-plan-name" value="${escapeHtml(line?.name || "业务线")} · ${defaultDueDate.getMonth() + 1} 月内容计划" />${ui.planError ? '<small class="error-text">' + escapeHtml(ui.planError) + "</small>" : ""}</div>
-      <div class="field-row" style="margin-top:13px"><div class="field"><label for="content-plan-date">计划完成日期 *</label><input class="input" id="content-plan-date" type="date" min="${todayValue}" value="${defaultDueDateValue}" /></div><div class="field"><label for="content-plan-owner">负责人</label><select class="select" id="content-plan-owner"><option>王宁</option><option>李晨</option><option>AI 内容助手</option></select></div></div>
+      <div class="field-row" style="margin-top:13px"><div class="field"><label for="content-plan-date">计划完成日期 *</label><input class="input" id="content-plan-date" type="date" min="${todayValue}" value="${defaultDueDateValue}" /></div><div class="field"><label for="content-plan-owner">负责人</label><select class="select" id="content-plan-owner">${ownerOptions}</select></div></div>
       <div class="field" style="margin-top:13px"><label for="content-plan-type">内容形式</label><select class="select" id="content-plan-type"><option>深度文章</option><option>系列文章</option><option>问答文章</option><option>案例解读</option></select></div>
       <div class="plan-agent-panel"><div class="section-title"><div><h3>写作智能体 *</h3><p>决定文章角色、结构、语气与知识使用规则；保存计划时冻结当前版本</p></div><span class="small-tag blue">写法快照</span></div><select class="select" id="content-plan-agent" ${agentOptions ? "" : "disabled"}>${agentOptions || '<option value="">当前业务线没有可用智能体</option>'}</select>${defaultAgent ? `<div class="plan-agent-summary" id="plan-agent-summary"><span class="writing-agent-avatar ${escapeHtml(defaultAgent.color || "blue")}">${escapeHtml(defaultAgent.avatar || defaultAgent.name.slice(0, 1))}</span><span><b>${escapeHtml(defaultAgent.name)} · v${escapeHtml(defaultAgent.version)}</b><small>${escapeHtml(defaultAgent.style)} · ${defaultAgent.strictKnowledge ? "严格知识模式" : "普通知识模式"}</small></span></div>` : '<div class="knowledge-missing-inline"><span data-icon="alert"></span><span>请先到内容生产创建或恢复一个可用写作智能体。</span></div>'}</div>
       <details class="plan-platform-hints"><summary><span><b>预计适配平台（可选）</b><small>仅向 AI 提示写作风格，不锁定发布</small></span><span class="small-tag">不锁定发布</span></summary><div class="plan-platform-hint-body"><p>可多选，也可以不选。平台和账号仍然只在文章审核通过后到「发布运营」中确定。</p><div class="plan-platform-hint-grid" role="group" aria-label="预计适配平台（可选）">${platformHintChoices}</div></div></details>
@@ -15341,7 +15408,7 @@ function saveWritingAgent(agentId) {
       return showToast("配置没有变化", "智能体仍保持 v" + existing.version + "，未创建无意义的新版本。");
     }
     existing.changeLog = Array.isArray(existing.changeLog) ? existing.changeLog : [];
-    existing.changeLog.unshift(createWritingAgentSnapshot(existing, { modelName: state.settings.model, selectedBy: "王宁", selectionSource: "version_history" }));
+    existing.changeLog.unshift(createWritingAgentSnapshot(existing, { modelName: state.settings.model, selectedBy: currentActorName(), selectionSource: "version_history" }));
     Object.assign(existing, payload, { version: (Number(existing.version) || 1) + 1, updatedAt: Date.now() });
     saveState();
     closeModal();
@@ -15349,7 +15416,7 @@ function saveWritingAgent(agentId) {
     return showToast("智能体已更新", "「" + existing.name + "」已发布 v" + existing.version + "；历史计划和文章继续使用旧快照。");
   }
   const colors = ["blue", "teal", "amber", "violet", "rose"];
-  const agent = { id: uid("WA"), ...payload, color: colors[(state.writingAgents || []).length % colors.length], builtIn: false, status: "active", version: 1, usageCount: 0, changeLog: [], createdBy: "王宁", createdAt: Date.now(), updatedAt: Date.now() };
+  const agent = { id: uid("WA"), ...payload, color: colors[(state.writingAgents || []).length % colors.length], builtIn: false, status: "active", version: 1, usageCount: 0, changeLog: [], createdBy: currentActorName(), createdAt: Date.now(), updatedAt: Date.now() };
   state.writingAgents.unshift(agent);
   saveState();
   closeModal();
@@ -15484,7 +15551,7 @@ function archivePlanningQuestion(questionId) {
   question.archivedFromStatus = question.status || "active";
   question.status = "archived";
   question.archivedAt = Date.now();
-  question.archivedBy = "王宁";
+  question.archivedBy = currentActorName();
   question.archivedReason = "运营人员归档";
   question.selected = false;
   saveState();
@@ -15498,7 +15565,7 @@ function archivePlanningTopic(topicId) {
   topic.archivedFromStatus = topic.status || "active";
   topic.status = "archived";
   topic.archivedAt = Date.now();
-  topic.archivedBy = "王宁";
+  topic.archivedBy = currentActorName();
   topic.archivedReason = "运营人员归档";
   topic.selected = false;
   saveState();
@@ -15762,7 +15829,7 @@ async function submitContentPlan() {
   const excludedBaseIds = inheritedBaseIds.filter((id) => !resolvedBaseIds.includes(id));
   const now = Date.now();
   const agentSnapshot = snapshotWritingAgent(agent, { selectedAt: new Date(now).toISOString(), selectionSource: agent.id === line.defaultWritingAgentId ? "business_default" : "manual" });
-  const plan = { id: uid("PLAN"), name, businessLineId: line.id, topicIds: selected.map((topic) => topic.id), topicSnapshots: selected.map((topic) => cloneData(topic)), scheduledFor: date, owner: document.getElementById("content-plan-owner")?.value || "王宁", contentType, status: "planned", articleIds: [], writingAgentId: agent.id, writingAgentVersion: agentSnapshot.version, writingAgentSnapshot: agentSnapshot, writingHints: { expectedPlatformIds, expectedPlatformNames, expectedPlatformGuidance, purpose: "ai_writing_style_only", locksPublishing: false, snapshottedAt: now }, knowledgeBaseIds: resolvedBaseIds, knowledgeScope: { inheritedBaseIds, addedBaseIds, excludedBaseIds, resolvedBaseIds, snapshottedAt: now }, createdAt: now, updatedAt: now };
+  const plan = { id: uid("PLAN"), name, businessLineId: line.id, topicIds: selected.map((topic) => topic.id), topicSnapshots: selected.map((topic) => cloneData(topic)), scheduledFor: date, owner: document.getElementById("content-plan-owner")?.value || currentActorName(), contentType, status: "planned", articleIds: [], writingAgentId: agent.id, writingAgentVersion: agentSnapshot.version, writingAgentSnapshot: agentSnapshot, writingHints: { expectedPlatformIds, expectedPlatformNames, expectedPlatformGuidance, purpose: "ai_writing_style_only", locksPublishing: false, snapshottedAt: now }, knowledgeBaseIds: resolvedBaseIds, knowledgeScope: { inheritedBaseIds, addedBaseIds, excludedBaseIds, resolvedBaseIds, snapshottedAt: now }, createdAt: now, updatedAt: now };
   try {
     await syncContentPlan(plan);
   } catch (error) {
@@ -16463,7 +16530,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   article.topicSnapshot = cloneData(topic);
   article.businessLineId = line.id;
   article.category = contentType;
-  article.author = "王宁 · AI 协作";
+  article.author = `${currentActorName()} · AI 协作`;
   if (remoteGeneration) {
     applyRemoteArticleResult(article, remoteGeneration);
   }
@@ -16480,7 +16547,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
     article.knowledgeStatus = { state: "needs_review", evidenceCount: 0, supportedClaims: 0, conflictCount: 0, gapCount: 0, message: "手工正文尚未映射企业知识引用，需要在 AI 协作或企业知识核验后再审核。" };
     article.generationSnapshot = { ...(article.generationSnapshot || {}), sourceType: "manual_editor", citationIds: [], topicSnapshot: cloneData(topic), instruction: "用户直接编辑的正文，未继承模板事实引用。" };
     article.sourceType = "manual_editor";
-    article.author = "王宁 · 编辑";
+    article.author = `${currentActorName()} · 编辑`;
   } else if (options.preserveDraft && (draftTitle || draftContent)) {
     article.title = draftTitle || article.title;
     if (draftContent) {
@@ -16495,10 +16562,10 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
       article.knowledgeStatus = { state: "needs_review", evidenceCount: 0, supportedClaims: 0, conflictCount: 0, gapCount: 0, message: "手工正文尚未映射企业知识引用，需要在 AI 协作或企业知识核验后再审核。" };
       article.generationSnapshot = { ...(article.generationSnapshot || {}), sourceType: "manual_editor", citationIds: [], topicSnapshot: cloneData(topic), instruction: "用户直接编辑的正文，未继承模板事实引用。" };
       article.sourceType = "quick_editor_draft";
-      article.author = "王宁 · 编辑";
+      article.author = `${currentActorName()} · 编辑`;
     } else {
       article.sourceType = "quick_editor_title";
-      article.author = "王宁 · 编辑";
+      article.author = `${currentActorName()} · 编辑`;
     }
   }
   article.keywords = [topic.keyword, "直接创作", line.name];
@@ -16597,7 +16664,7 @@ function approveArticleAsset(articleId, assetId) {
   if (!article || !asset || !(article.assetIds || []).includes(assetId)) return showToast("素材不存在", "请刷新文章后重试。", "error");
   asset.reviewStatus = "approved";
   asset.reviewedAt = new Date().toISOString();
-  asset.reviewedBy = "王宁";
+  asset.reviewedBy = currentActorName("审核人员");
   asset.license = String(asset.license || "来源已确认").replace("待确认", "已确认");
   article.updatedAt = Date.now();
   addOperationLog("素材审核", `已确认文章《${article.title}》中的素材「${asset.name}」可用`);
@@ -17411,7 +17478,7 @@ function saveOnboardingCurrentStep() {
   return true;
 }
 
-function domainFromUrl(value, fallback = "tongzhuo.com") {
+function domainFromUrl(value, fallback = "unknown.local") {
   try {
     return new URL(String(value || "")).hostname || fallback;
   } catch {
