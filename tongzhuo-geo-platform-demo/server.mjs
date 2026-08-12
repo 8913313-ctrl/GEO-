@@ -1683,6 +1683,11 @@ async function generateScheduledContentDraft({ planId, scheduledFor, idempotency
   delete payload.promptFoundationContext;
   delete payload.approvedEvidence;
   delete payload.evidence;
+  const occurrenceHash = createHash("sha256").update(String(idempotencyKey), "utf8").digest("hex").slice(0, 24);
+  // Every retry stays within the same occurrence task/article pair; immutable
+  // versions then retain the retry history without creating orphan content.
+  payload.contentTaskId = `TASK-SCHEDULE-${occurrenceHash}`;
+  payload.contentArticleId = `ART-SCHEDULE-${occurrenceHash}`;
 
   // A crash after persistence must not append another immutable version or
   // spend model quota: reuse every successful occurrence attempt first.
@@ -1928,7 +1933,9 @@ const server = http.createServer(async (request, response) => {
       return await externalSiteConnectorApi(request, { json: (status, payload) => jsonResponse(response, status, payload) }, parts, principal);
     }
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "content-generation-schedules") {
-      const principal = await authService.requirePermission(request, method === "GET" ? PERMISSIONS.WORKSPACE_READ : PERMISSIONS.CONTENT_GENERATE, { requireCsrf: method === "GET" ? false : undefined });
+      const isManualSchedulerRun = method === "POST" && parts[3] === "process-due";
+      const permission = method === "GET" ? PERMISSIONS.WORKSPACE_READ : isManualSchedulerRun ? PERMISSIONS.SYSTEM_MANAGE : PERMISSIONS.CONTENT_GENERATE;
+      const principal = await authService.requirePermission(request, permission, { requireCsrf: method === "GET" ? false : undefined });
       return await contentGenerationSchedulerApi(request, { json: (status, payload) => jsonResponse(response, status, payload) }, parts, principal);
     }
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "content") {

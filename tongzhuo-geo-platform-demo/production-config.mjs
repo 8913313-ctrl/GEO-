@@ -81,6 +81,7 @@ export const productionConfig = Object.freeze({
   // Automatic content production is deliberately limited to reviewable
   // drafts. Each plan remains paused until an authenticated operator enables
   // it; this timer therefore has no effect on new installations.
+  contentGenerationSchedulerEnabled: booleanEnv("TZ_CONTENT_GENERATION_SCHEDULER_ENABLED", false),
   contentGenerationSchedulerIntervalMs: numberEnv("TZ_CONTENT_GENERATION_SCHEDULER_INTERVAL_MS", 60_000, { min: 10_000, max: 900_000 }),
   contentGenerationSchedulerBatchSize: numberEnv("TZ_CONTENT_GENERATION_SCHEDULER_BATCH_SIZE", 3, { min: 1, max: 20 }),
   contentAssetPatrolIntervalMs: numberEnv("TZ_CONTENT_ASSET_PATROL_INTERVAL_MS", 6 * 60 * 60 * 1_000, { min: 60_000, max: 7 * 86_400_000 }),

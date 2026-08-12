@@ -14,10 +14,10 @@ export function createContentGenerationSchedulerApi({ scheduler, requestJson, co
       const query = new URL(request.url || "/", "http://localhost").searchParams;
       return response.json(200, { ok: true, data: { items: scheduler.listSchedules({ workspaceId, status: query.get("status") || "", limit: query.get("limit") || 100 }) } });
     }
-    if (parts.length === 4 && method === "GET") {
+    if (parts.length === 4 && parts[3] !== "process-due" && method === "GET") {
       return response.json(200, { ok: true, data: { schedule: scheduler.getSchedule(decode(parts[3]), workspaceId) } });
     }
-    if (parts.length === 4 && method === "PUT") {
+    if (parts.length === 4 && parts[3] !== "process-due" && method === "PUT") {
       const body = await requestJson(request, 300_000);
       const schedule = scheduler.upsertSchedule({ workspaceId, planId: decode(parts[3]), status: body.status || "paused", schedule: body.schedule, generationPayload: body.generationPayload, actor: principal, request });
       return response.json(200, { ok: true, data: { schedule } });
