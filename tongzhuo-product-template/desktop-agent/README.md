@@ -42,4 +42,4 @@
 npm.cmd run build:desktop
 ```
 
-安装包输出在 `release/tongzhuo-geo-publisher-setup-1.8.14-x64.exe`，安装后会创建桌面快捷方式和开始菜单入口。安装包已内置发布浏览器运行时，客户电脑无需单独安装 Microsoft Edge。账号组、平台 Profile 和登录态写入 Electron 的用户数据目录，安装包不包含客户账号数据。
+安装版输出在 `release/tongzhuo-geo-publisher-setup-1.8.18-x64.exe`，便捷版输出在 `release/tongzhuo-geo-publisher-portable-1.8.18-x64.exe`。安装后会创建桌面快捷方式和开始菜单入口；安装包已内置自动发布所需的浏览器运行时。知乎验证码等人工登录流程使用本机普通 Google Chrome 或 Microsoft Edge，至少需要安装其中一种。账号组、平台 Profile 和登录态写入 Electron 的用户数据目录，安装包不包含客户账号数据。

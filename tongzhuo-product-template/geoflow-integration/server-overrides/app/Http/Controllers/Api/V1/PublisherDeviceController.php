@@ -98,7 +98,7 @@ class PublisherDeviceController extends BaseApiController
             'platform_id' => ['required', 'string', 'max:80'],
             'profile_key' => ['nullable', 'string', 'max:120'],
             'account_name' => ['nullable', 'string', 'max:120'],
-            'login_state' => ['required', 'string', 'in:unknown,open,ready,needs_verification,needs_captcha,expired,disabled,error'],
+            'login_state' => ['required', 'string', 'in:unknown,open,ready,needs_login,needs_verification,needs_captcha,expired,disabled,error'],
             'last_verified_at' => ['nullable', 'date'],
             'last_error_message' => ['nullable', 'string', 'max:1000'],
             'auto_allowed' => ['nullable', 'boolean'],

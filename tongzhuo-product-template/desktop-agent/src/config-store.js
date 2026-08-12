@@ -44,6 +44,22 @@ const defaults = {
   accountGroups: [],
 };
 
+function normalizePendingSession(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const meta = value.meta && typeof value.meta === 'object' && !Array.isArray(value.meta)
+    ? value.meta
+    : {};
+  return {
+    profile_key: String(value.profile_key || '').trim(),
+    account_name: String(value.account_name || '').trim(),
+    login_state: String(value.login_state || 'unknown').trim(),
+    last_verified_at: value.last_verified_at ? String(value.last_verified_at).trim() : null,
+    last_error_message: String(value.last_error_message || '').trim(),
+    auto_allowed: Boolean(value.auto_allowed),
+    meta,
+  };
+}
+
 function normalizeAccountGroups(value) {
   const source = Array.isArray(value) ? value : [];
   const groups = source.map((group, index) => {
@@ -59,6 +75,11 @@ function normalizeAccountGroups(value) {
         status: String(account?.status || 'needs_login').trim(),
         profileKey: String(account?.profileKey || `${id}--${platform}`).trim(),
         lastErrorMessage: String(account?.lastErrorMessage || '').trim(),
+        lastVerifiedAt: String(account?.lastVerifiedAt || '').trim(),
+        syncState: String(account?.syncState || '').trim(),
+        lastSyncedAt: String(account?.lastSyncedAt || '').trim(),
+        lastSyncError: String(account?.lastSyncError || '').trim(),
+        pendingSession: normalizePendingSession(account?.pendingSession),
         updatedAt: String(account?.updatedAt || '').trim(),
       };
     });

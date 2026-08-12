@@ -60,11 +60,14 @@ function dataPath() {
 }
 
 function startService() {
-  const browserExecutable = process.env.TZ_AGENT_BROWSER_EXECUTABLE || bundledBrowserExecutable();
-  if (browserExecutable) {
-    desktopLog(`using bundled browser runtime: ${browserExecutable}`);
+  const configuredBrowserExecutable = process.env.TZ_AGENT_BROWSER_EXECUTABLE || '';
+  const bundledBrowser = bundledBrowserExecutable();
+  if (configuredBrowserExecutable) {
+    desktopLog(`using configured browser executable: ${configuredBrowserExecutable}`);
+  } else if (bundledBrowser) {
+    desktopLog(`bundled browser runtime available as fallback: ${bundledBrowser}`);
   } else {
-    desktopLog('bundled browser runtime was not found; the service will use a configured or installed browser');
+    desktopLog('bundled browser runtime was not found; the service will use an installed browser');
   }
   desktopLog(`starting local service on ${desktopPort}`);
   serviceProcess = spawn(process.execPath, [servicePath()], {
@@ -74,8 +77,9 @@ function startService() {
       ELECTRON_RUN_AS_NODE: '1',
       TZ_AGENT_PORT: String(desktopPort),
       TZ_AGENT_DATA_DIR: dataPath(),
-      TZ_AGENT_BROWSER_EXECUTABLE: browserExecutable,
+      TZ_AGENT_BROWSER_EXECUTABLE: configuredBrowserExecutable,
       TZ_AGENT_BROWSER_CHANNEL: process.env.TZ_AGENT_BROWSER_CHANNEL || '',
+      TZ_AGENT_BUNDLED_BROWSER_EXECUTABLE: bundledBrowser,
     },
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],

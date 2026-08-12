@@ -125,13 +125,45 @@ function supportLabel(value) {
   return { ready: '已适配', planned: '规划中', export: '导出', manual: '人工完成', unknown: '未配置' }[value] || value || '未知';
 }
 
+function observedAt(value) {
+  const timestamp = Date.parse(String(value || ''));
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function syncStateLabel(account) {
+  if (!account) return '未记录';
+  return {
+    synced: '后台已同步',
+    pending: '后台待同步',
+    waiting_for_pairing: '等待绑定后台',
+  }[account.syncState] || (account.pendingSession ? '后台待同步' : '后台未记录');
+}
+
+function syncStateDetail(account) {
+  if (!account) return '';
+  if (account.lastSyncError) return account.lastSyncError;
+  if (account.lastSyncedAt) return `最近同步：${formatTime(account.lastSyncedAt)}`;
+  return syncStateLabel(account);
+}
+
 function platformState(platform, groupId = state.activeGroupId) {
   const account = accountFor(groupId, platform.id);
   const session = sessionFor(groupId, platform.id);
   const windows = windowsFor(groupId, platform.id);
   if (platform.support === 'export') return { state: 'export', account, session, windows };
-  const accountState = account?.status || session?.login_state || 'needs_login';
-  return { state: windows.length && accountState !== 'ready' ? 'open' : accountState, account, session, windows };
+  const localState = account?.status || '';
+  const remoteState = session?.login_state || '';
+  const localObservedAt = observedAt(account?.lastVerifiedAt || account?.updatedAt);
+  const remoteObservedAt = observedAt(session?.last_seen_at || session?.last_verified_at);
+  const localIsFallback = ['needs_login', 'unknown'].includes(localState)
+    && !account?.lastVerifiedAt
+    && !account?.lastErrorMessage
+    && !account?.syncState;
+  let mergedState = localState || remoteState || 'needs_login';
+  if (remoteState && localState !== 'disabled' && (!localState || localIsFallback || remoteObservedAt > localObservedAt)) {
+    mergedState = remoteState;
+  }
+  return { state: windows.length && mergedState !== 'ready' ? 'open' : mergedState, account, session, windows };
 }
 
 function connectionLabel(status) {
@@ -183,7 +215,7 @@ function renderStatus(payload) {
   $('#statReadyAccounts').textContent = `${readyAccounts} / ${accountCount}`;
   $('#statReadyAccountsHint').textContent = `${activeGroup()?.name || '当前账号组'} · 已登录账号`;
   $('#statOpenWindows').textContent = String(state.browserWindows.length);
-  $('#statOpenWindowsHint').textContent = state.browserWindows.length ? '可聚焦或关闭' : '可重复打开';
+  $('#statOpenWindowsHint').textContent = state.browserWindows.some((item) => item.driver === 'native') ? '系统浏览器登录中，请完成后正常关闭' : state.browserWindows.length ? '可聚焦或关闭' : '可重复打开';
   $('#statJobs').textContent = String(state.jobs.length);
   $('#statJobsHint').textContent = status.activeJobId ? `正在执行 #${status.activeJobId}` : '当前没有执行任务';
   $('#navWindowCount').textContent = String(state.browserWindows.length);
@@ -241,12 +273,16 @@ function shortPlatformLabel(platform) {
 }
 
 function windowRow(windowItem) {
-  const kind = windowItem.kind === 'publish' ? '发布窗口' : windowItem.kind === 'probe' ? '检测窗口' : '登录窗口';
+  const native = windowItem.driver === 'native';
+  const kind = native ? '系统浏览器人工登录' : windowItem.kind === 'publish' ? '发布窗口' : windowItem.kind === 'probe' ? '检测窗口' : '登录窗口';
   const title = windowItem.title || windowItem.url || '平台页面';
+  const actions = native
+    ? '<span class="muted">请在系统浏览器中操作并正常关闭</span>'
+    : `<button class="button button-secondary" type="button" data-window-focus="${escapeHtml(windowItem.id)}">聚焦</button><button class="button button-secondary" type="button" data-window-close="${escapeHtml(windowItem.id)}">关闭</button>`;
   return `<div class="window-row">
     <div class="window-mark">${escapeHtml(shortPlatformLabel(platformById(windowItem.platformId)))}</div>
     <div class="window-main"><strong>${escapeHtml(platformName(windowItem.platformId))} · ${escapeHtml(kind)}</strong><span title="${escapeHtml(title)}">${escapeHtml(title)} · ${escapeHtml(relativeTime(windowItem.openedAt))}</span></div>
-    <div class="window-actions"><button class="button button-secondary" type="button" data-window-focus="${escapeHtml(windowItem.id)}">聚焦</button><button class="button button-secondary" type="button" data-window-close="${escapeHtml(windowItem.id)}">关闭</button></div>
+    <div class="window-actions">${actions}</div>
   </div>`;
 }
 
@@ -275,13 +311,16 @@ function platformCard(platform) {
   const groupId = state.activeGroupId;
   const current = platformState(platform, groupId);
   const canLogin = Boolean(platform.loginUrl && platform.loginUrl !== 'about:blank' && platform.support !== 'export' && platform.support !== 'planned');
-  const canCheck = Boolean(current.account && canLogin);
+  const nativeLoginOpen = current.windows.some((item) => item.driver === 'native');
+  const canCheck = Boolean(current.account && canLogin && !nativeLoginOpen);
   const execution = platform.support === 'export' ? '本地导出，不需要登录' : platform.execution?.autoSubmit === true ? '自动发布并等待平台回执' : '自动填充平台编辑器';
   const status = current.state === 'export' ? 'export' : current.state;
+  const syncLabel = status === 'export' ? '不需要同步' : syncStateLabel(current.account);
+  const syncDetail = status === 'export' ? syncLabel : syncStateDetail(current.account);
   return `<article class="platform-card" data-platform-card="${escapeHtml(platform.id)}">
     <div class="platform-card-head"><div class="platform-mark">${escapeHtml(shortPlatformLabel(platform))}</div><div class="platform-card-title"><strong title="${escapeHtml(platform.name)}">${escapeHtml(platform.name)}</strong><span>${escapeHtml(platform.id)}</span></div><span class="state-badge ${stateBadgeClass(status)}">${escapeHtml(status === 'export' ? '导出' : accountStatusLabel(status))}</span></div>
-    <div class="platform-card-meta"><div><b>账号：</b>${escapeHtml(current.account?.accountName || '未设置账号别名')}</div><div><b>能力：</b>${escapeHtml(execution)}</div><div><b>窗口：</b>${current.windows.length ? `${current.windows.length} 个已打开` : '未打开'}</div></div>
-    <div class="platform-card-actions"><button class="button button-primary" type="button" data-platform-open="${escapeHtml(platform.id)}" ${canLogin ? '' : 'disabled'}>${current.windows.length ? '再开一个窗口' : '打开新窗口'}</button><button class="button button-secondary" type="button" data-platform-check="${escapeHtml(platform.id)}" ${canCheck ? '' : 'disabled'}>${current.state === 'ready' ? '重新检测' : '检测登录'}</button></div>
+    <div class="platform-card-meta"><div><b>账号：</b>${escapeHtml(current.account?.accountName || '未设置账号别名')}</div><div><b>能力：</b>${escapeHtml(execution)}</div><div><b>窗口：</b>${nativeLoginOpen ? '普通浏览器登录中 · 完成后请关闭窗口' : current.windows.length ? `${current.windows.length} 个已打开` : '未打开'}</div><div title="${escapeHtml(syncDetail)}"><b>后台：</b>${escapeHtml(syncLabel)}</div></div>
+    <div class="platform-card-actions"><button class="button button-primary" type="button" data-platform-open="${escapeHtml(platform.id)}" ${canLogin && !nativeLoginOpen ? '' : 'disabled'}>${nativeLoginOpen ? '请完成并关闭登录窗口' : current.windows.length ? '再开一个窗口' : '打开新窗口'}</button><button class="button button-secondary" type="button" data-platform-check="${escapeHtml(platform.id)}" ${canCheck ? '' : 'disabled'}>${current.state === 'ready' ? '重新检测' : '检测登录'}</button></div>
   </article>`;
 }
 
@@ -322,7 +361,10 @@ function renderAccountGroups() {
   if (!groups.length) { list.innerHTML = '<div class="empty-state">暂无账号组，请先新建一个账号组。</div>'; return; }
   list.innerHTML = groups.map((group) => {
     const accounts = Object.values(group.accounts || {});
-    const rows = accounts.length ? accounts.map((account) => `<div class="account-row"><div class="account-main"><strong>${escapeHtml(platformName(account.platformId))}</strong><span>${escapeHtml(account.accountName || '未设置账号别名')}</span><span class="state-badge ${stateBadgeClass(account.status)}">${escapeHtml(accountStatusLabel(account.status))}</span></div><div class="account-actions"><button class="button button-secondary" type="button" data-group-login="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}">打开新窗口</button><button class="button button-secondary" type="button" data-group-confirm="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}">${account.status === 'ready' ? '重新检测' : '检测登录'}</button><button class="button button-secondary danger-text" type="button" data-group-remove="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}">移除</button></div></div>`).join('') : '<div class="empty-state">还没有绑定平台账号。</div>';
+    const rows = accounts.length ? accounts.map((account) => {
+      const nativeLoginOpen = windowsFor(group.id, account.platformId).some((item) => item.driver === 'native');
+      return `<div class="account-row"><div class="account-main"><strong>${escapeHtml(platformName(account.platformId))}</strong><span>${escapeHtml(account.accountName || '未设置账号别名')}</span><span class="state-badge ${stateBadgeClass(account.status)}">${escapeHtml(accountStatusLabel(account.status))}</span></div><div class="account-actions"><button class="button button-secondary" type="button" data-group-login="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}" ${nativeLoginOpen ? 'disabled' : ''}>${nativeLoginOpen ? '请完成并关闭登录窗口' : '打开新窗口'}</button><button class="button button-secondary" type="button" data-group-confirm="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}" ${nativeLoginOpen ? 'disabled' : ''}>${account.status === 'ready' ? '重新检测' : '检测登录'}</button><button class="button button-secondary danger-text" type="button" data-group-remove="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}">移除</button></div></div>`;
+    }).join('') : '<div class="empty-state">还没有绑定平台账号。</div>';
     const options = availablePlatformOptions(group).map((platform) => `<option value="${escapeHtml(platform.id)}">${escapeHtml(platform.name)}</option>`).join('');
     return `<article class="account-group-card ${group.id === state.activeGroupId ? 'is-active' : ''}"><div class="account-group-head"><div><div class="account-group-title"><strong>${escapeHtml(group.name)}</strong>${group.id === state.activeGroupId ? '<span class="state-badge is-ready">当前使用</span>' : ''}</div><div class="account-group-meta">${accounts.length} 个平台账号 · ${escapeHtml(group.id)}</div></div><button class="button button-secondary" type="button" data-group-rename="${escapeHtml(group.id)}">重命名</button></div><div class="account-list">${rows}</div><div class="account-add"><select data-group-field="platform" data-group-id="${escapeHtml(group.id)}"><option value="">选择要绑定的平台</option>${options}</select><input data-group-field="name" data-group-id="${escapeHtml(group.id)}" placeholder="账号别名（可选）"><button class="button button-primary" type="button" data-group-add="${escapeHtml(group.id)}">加入账号组</button></div></article>`;
   }).join('');
@@ -401,7 +443,10 @@ async function openPlatform(platformId, groupId = state.activeGroupId, button = 
   try {
     const account = accountFor(groupId, platformId);
     const result = await api(`/api/platforms/${encodeURIComponent(platformId)}/login`, { method: 'POST', body: JSON.stringify({ groupId, accountName: account?.accountName || '' }) });
-    setNotice(`${platformName(platformId)} 已打开新窗口${result.result?.windowId ? ` · 窗口 ${result.result.windowId.slice(-8)}` : ''}`, 'success');
+    const nativeLogin = result.result?.driver === 'native';
+    setNotice(nativeLogin
+      ? `${platformName(platformId)} 已在普通系统浏览器打开。完成验证码登录后，请正常关闭该窗口，再点击“检测登录”。`
+      : `${platformName(platformId)} 已打开新窗口${result.result?.windowId ? ` · 窗口 ${result.result.windowId.slice(-8)}` : ''}`, 'success');
     await loadStatus();
   } catch (error) { setNotice(error.message, 'error'); } finally { if (button) button.disabled = false; }
 }
@@ -411,7 +456,10 @@ async function checkPlatform(platformId, groupId = state.activeGroupId, button =
   try {
     const account = accountFor(groupId, platformId);
     const result = await api(`/api/platforms/${encodeURIComponent(platformId)}/login/check`, { method: 'POST', body: JSON.stringify({ groupId, accountName: account?.accountName || '', recheck: account?.status === 'ready' }) });
-    setNotice(`${platformName(platformId)} ${result.result?.loggedIn ? '登录检测通过' : '尚未检测到登录'}`, result.result?.loggedIn ? 'success' : 'info');
+    const details = result.result || {};
+    setNotice(details.manualLoginInProgress
+      ? `${platformName(platformId)} 正在普通系统浏览器中登录。请完成验证码并关闭该窗口后再检测。`
+      : `${platformName(platformId)} ${details.loggedIn ? '登录检测通过' : '尚未检测到登录'}`, details.loggedIn ? 'success' : 'info');
     renderStatus({ status: result.status, platforms: state.platforms });
   } catch (error) { setNotice(error.message, 'error'); } finally { if (button) button.disabled = false; }
 }

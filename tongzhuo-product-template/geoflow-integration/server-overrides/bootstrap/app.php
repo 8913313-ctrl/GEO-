@@ -49,6 +49,11 @@ return Application::configure(basePath: dirname(__DIR__))
                     require __DIR__.'/../routes/tongzhuo-content-api.php';
                 });
             }
+            if (Route::getRoutes()->getByName('api.v1.publisher.jobs.index') === null) {
+                Route::prefix('api')->middleware('api')->group(function (): void {
+                    require __DIR__.'/../routes/publisher-assistant.php';
+                });
+            }
             if (Route::getRoutes()->getByName('admin.ai.providers.index') === null) {
                 require base_path('routes/tongzhuo-ai-api.php');
             }

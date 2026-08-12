@@ -41,7 +41,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
   }
 
   canRegister() {
-    return Boolean(this.config.apiToken || this.config.pairingCode);
+    return Boolean(this.config.pairingCode);
   }
 
   publicStatus() {
@@ -83,7 +83,9 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       updatedAt: invalidatedAt,
       accounts: Object.fromEntries(Object.entries(group.accounts || {}).map(([platformId, account]) => [platformId, {
         ...account,
-        status: account?.status === 'disabled' ? 'disabled' : 'unknown',
+        status: account?.status || 'unknown',
+        syncState: 'waiting_for_pairing',
+        lastSyncError: '后台绑定已失效，请重新配对。',
         lastErrorMessage: '后台绑定已失效，请重新配对后检测登录状态。',
         updatedAt: invalidatedAt,
       }])),
@@ -207,6 +209,11 @@ export class TongzhuoDesktopAgent extends EventEmitter {
             status,
             ...(extra.accountName ? { accountName: extra.accountName } : {}),
             ...(extra.lastErrorMessage !== undefined ? { lastErrorMessage: extra.lastErrorMessage } : {}),
+            ...(extra.lastVerifiedAt !== undefined ? { lastVerifiedAt: extra.lastVerifiedAt || '' } : {}),
+            ...(extra.syncState !== undefined ? { syncState: extra.syncState || '' } : {}),
+            ...(extra.lastSyncedAt !== undefined ? { lastSyncedAt: extra.lastSyncedAt || '' } : {}),
+            ...(extra.lastSyncError !== undefined ? { lastSyncError: extra.lastSyncError || '' } : {}),
+            ...(extra.pendingSession !== undefined ? { pendingSession: extra.pendingSession } : {}),
             updatedAt: now,
           },
         },
@@ -214,6 +221,95 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     });
     if (changed) this.saveAccountGroups(nextGroups);
     return this.accountGroupById(groupId)?.accounts?.[platformId] || null;
+  }
+
+  sessionPayload(groupId, platformId, payload = {}) {
+    const account = this.accountGroupById(groupId)?.accounts?.[platformId] || {};
+    const meta = payload.meta && typeof payload.meta === 'object' && !Array.isArray(payload.meta)
+      ? payload.meta
+      : {};
+    return {
+      profile_key: String(payload.profile_key || this.profileKeyFor(groupId, platformId)).trim(),
+      account_name: String(payload.account_name || account.accountName || '').trim(),
+      login_state: String(payload.login_state || account.status || 'unknown').trim(),
+      last_verified_at: payload.last_verified_at || null,
+      last_error_message: String(payload.last_error_message || '').trim(),
+      auto_allowed: Boolean(payload.auto_allowed),
+      meta,
+    };
+  }
+
+  async syncAccountSession(groupId, platformId, payload = {}) {
+    const session = this.sessionPayload(groupId, platformId, payload);
+    const account = this.accountGroupById(groupId)?.accounts?.[platformId] || {};
+    const localStatus = account.status || session.login_state || 'unknown';
+
+    if (!this.hasCredential()) {
+      const wasWaiting = account.syncState === 'waiting_for_pairing';
+      this.updateAccountStatus(groupId, platformId, localStatus, {
+        syncState: 'waiting_for_pairing',
+        lastSyncError: '尚未完成后台设备绑定。',
+        pendingSession: session,
+      });
+      if (!wasWaiting) {
+        this.log('info', 'platform.session.sync.waiting_for_pairing', `${platformId} 本地登录状态已保存，等待设备绑定后同步。`, {
+          platform_id: platformId,
+          group_id: groupId,
+        });
+      }
+      return { synced: false, queued: true, syncState: 'waiting_for_pairing' };
+    }
+
+    try {
+      await this.client.reportSession(platformId, session);
+      const syncedAt = new Date().toISOString();
+      this.updateAccountStatus(groupId, platformId, localStatus, {
+        syncState: 'synced',
+        lastSyncedAt: syncedAt,
+        lastSyncError: '',
+        pendingSession: null,
+      });
+      return { synced: true, queued: false, syncState: 'synced', syncedAt };
+    } catch (error) {
+      // Explicit invalid-pairing responses synchronously clear credentials via
+      // the client callback. Keep that state instead of overwriting it here.
+      if (!this.hasCredential()) {
+        const message = String(error?.message || 'Backend pairing was invalidated while syncing the session.');
+        this.updateAccountStatus(groupId, platformId, localStatus, {
+          syncState: 'waiting_for_pairing',
+          lastSyncError: message,
+          pendingSession: session,
+        });
+        return { synced: false, queued: true, syncState: 'waiting_for_pairing', error };
+      }
+
+      const message = String(error?.message || '后台会话同步失败。');
+      this.updateAccountStatus(groupId, platformId, localStatus, {
+        syncState: 'pending',
+        lastSyncError: message,
+        pendingSession: session,
+      });
+      this.log('warn', 'platform.session.sync.pending', `${platformId} 本地登录状态已保存，后台同步将在稍后重试。`, {
+        platform_id: platformId,
+        group_id: groupId,
+        status: Number(error?.status || 0) || null,
+        code: error?.code || null,
+        error: message,
+      });
+      return { synced: false, queued: true, syncState: 'pending', error };
+    }
+  }
+
+  async flushPendingSessions() {
+    if (!this.hasCredential()) return [];
+    const results = [];
+    for (const group of this.listAccountGroups()) {
+      for (const [platformId, account] of Object.entries(group.accounts || {})) {
+        if (!account?.pendingSession || account.status === 'disabled') continue;
+        results.push(await this.syncAccountSession(group.id, platformId, account.pendingSession));
+      }
+    }
+    return results;
   }
 
   configure(next) {
@@ -245,6 +341,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     });
     this.client.updateConfig(this.config);
     await this.heartbeat().catch(() => {});
+    await this.flushPendingSessions().catch(() => {});
     await this.loadSessions().catch(() => {});
     this.restartTimers();
     this.log('info', 'device.register.done', '发布节点已完成绑定。');
@@ -311,10 +408,16 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     const profileKey = this.profileKeyFor(groupId, platformId);
     this.log('info', 'platform.login.open', `正在打开 ${platformId} 登录窗口。`, { platform_id: platformId, group_id: groupId });
     const result = await this.browser.openLogin(platformId, { profileKey });
-    await this.client.reportSession(platformId, {
+    // Opening a page for an already verified profile must not downgrade it.
+    const localState = account.status === 'ready' ? 'ready' : 'open';
+    this.updateAccountStatus(groupId, platformId, localState, {
+      accountName: options.accountName || account.accountName || '',
+      lastErrorMessage: '',
+    });
+    const sync = await this.syncAccountSession(groupId, platformId, {
       profile_key: profileKey,
       account_name: options.accountName || account.accountName || '',
-      login_state: 'open',
+      login_state: localState,
       last_error_message: '',
       auto_allowed: false,
       meta: {
@@ -323,15 +426,16 @@ export class TongzhuoDesktopAgent extends EventEmitter {
         group_name: group?.name || '',
         url: result.url,
       },
-    }).catch(() => {});
-    this.updateAccountStatus(groupId, platformId, 'open', {
-      accountName: options.accountName || account.accountName || '',
-      lastErrorMessage: '',
     });
-    await this.loadSessions().catch(() => {});
-    this.startLoginWatch(platformId, groupId);
-    this.log('info', 'platform.login.opened', `${platformId} 登录窗口已打开。`, { platform_id: platformId, group_id: groupId, url: result.url });
-    return { ...result, loginDetection: 'automatic' };
+    if (sync.synced) await this.loadSessions().catch(() => {});
+    if (localState !== 'ready' || result.driver === 'native') this.startLoginWatch(platformId, groupId);
+    this.log('info', 'platform.login.opened', `${platformId} 登录窗口已打开。`, {
+      platform_id: platformId,
+      group_id: groupId,
+      url: result.url,
+      sync_state: sync.syncState,
+    });
+    return { ...result, loginDetection: result.driver === 'native' ? 'after_native_window_close' : 'automatic', syncState: sync.syncState };
   }
 
   browserWindows() {
@@ -363,28 +467,59 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     const probe = options.existingWindowOnly
       ? await this.browser.inspectLoginPages(platformId, { profileKey })
       : await this.browser.probeLogin(platformId, { profileKey });
-    if (options.existingWindowOnly && probe.windowOpen === false) {
-      this.updateAccountStatus(groupId, platformId, 'needs_login', {
-        lastErrorMessage: probe.reason || 'login_window_closed',
+    if (probe.manualLoginInProgress) {
+      const preservedState = account.status === 'ready' ? 'ready' : 'open';
+      if (account.status !== preservedState) {
+        this.updateAccountStatus(groupId, platformId, preservedState, {
+          lastErrorMessage: '',
+          lastVerifiedAt: account.lastVerifiedAt || '',
+        });
+      }
+      return {
+        platformId,
+        groupId,
+        profileKey,
+        loginState: preservedState,
+        loggedIn: false,
+        windowOpen: true,
+        manualLoginInProgress: true,
+        reason: 'manual_login_in_progress',
+        localStatePreserved: account.status === 'ready',
+      };
+    }    if (options.existingWindowOnly && probe.windowOpen === false) {
+      // Closing a visible login tab does not clear the persistent profile.
+      const preservedState = account.status === 'ready' ? 'ready' : 'unknown';
+      this.updateAccountStatus(groupId, platformId, preservedState, {
+        lastErrorMessage: preservedState === 'ready' ? '' : (probe.reason || 'login_window_closed'),
       });
       return {
         platformId,
         groupId,
         profileKey,
-        loginState: 'needs_login',
+        loginState: preservedState,
         loggedIn: false,
         windowOpen: false,
         reason: probe.reason || 'login_window_closed',
+        localStatePreserved: preservedState === 'ready',
       };
     }
     if (!probe.loggedIn) {
       const reason = String(probe.reason || 'login_not_detected').toLowerCase();
+      if (reason === 'probe_failed' && account.status === 'ready' && !options._profileReleaseRetry) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return this.checkLogin(platformId, { ...options, _profileReleaseRetry: true });
+      }
       const loginState = reason === 'probe_failed'
         ? 'unknown'
         : /(captcha|verification|verify|risk|blocked|challenge|登录|验证)/i.test(reason)
           ? 'needs_verification'
           : 'needs_login';
-      await this.client.reportSession(platformId, {
+      const lastVerifiedAt = loginState === 'unknown' ? (account.lastVerifiedAt || '') : '';
+      this.updateAccountStatus(groupId, platformId, loginState, {
+        lastErrorMessage: reason,
+        lastVerifiedAt,
+      });
+      const sync = await this.syncAccountSession(groupId, platformId, {
         profile_key: profileKey,
         account_name: account.accountName || '',
         login_state: loginState,
@@ -398,11 +533,8 @@ export class TongzhuoDesktopAgent extends EventEmitter {
           reason,
           url: probe.url || '',
         },
-      }).catch(() => {});
-      this.updateAccountStatus(groupId, platformId, loginState, {
-        lastErrorMessage: reason,
       });
-      await this.loadSessions().catch(() => {});
+      if (sync.synced) await this.loadSessions().catch(() => {});
       return {
         platformId,
         groupId,
@@ -411,6 +543,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
         loggedIn: false,
         reason,
         url: probe.url || '',
+        syncState: sync.syncState,
       };
     }
     const ready = await this.confirmLogin(platformId, {
@@ -426,23 +559,49 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     const key = `${groupId}:${platformId}`;
     if (this.loginWatchers.has(key)) return this.loginWatchers.get(key);
     const task = (async () => {
-      for (let attempt = 0; attempt < 120; attempt += 1) {
+      for (let attempt = 0; attempt < 1200; attempt += 1) {
         const group = this.accountGroupById(groupId);
         const account = group?.accounts?.[platformId];
-        if (!account || !['open', 'needs_verification'].includes(account.status)) return null;
-        const result = await this.checkLogin(platformId, {
-          groupId,
-          source: 'automatic_open_window',
-          existingWindowOnly: true,
-        }).catch(() => null);
+        if (!account || !['open', 'needs_verification', 'needs_login', 'unknown', 'ready'].includes(account.status)) return null;
+        let result;
+        try {
+          result = await this.checkLogin(platformId, {
+            groupId,
+            source: 'automatic_open_window',
+            existingWindowOnly: true,
+          });
+          if (result?.manualLoginInProgress) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            continue;
+          }
+          if (platformId === 'zhihu' && result?.windowOpen === false) {
+            // The native browser has released the profile. Probe the editor
+            // once before claiming that login succeeded or failed.
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+            result = await this.checkLogin(platformId, {
+              groupId,
+              source: 'automatic_probe',
+            });
+          }
+        } catch (error) {
+          this.log('warn', 'platform.login.watch.failed', `${platformId} 登录窗口检测失败，将继续重试。`, {
+            platform_id: platformId,
+            group_id: groupId,
+            error: error.message,
+          });
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          continue;
+        }
         if (result?.loggedIn) {
-          this.log('info', 'platform.login.detected', `${platformId} 登录已自动同步到后台。`, {
+          this.log('info', 'platform.login.detected', `${platformId} 本地登录已确认。`, {
             platform_id: platformId,
             group_id: groupId,
             profile_key: this.profileKeyFor(groupId, platformId),
+            sync_state: result.syncState || 'synced',
           });
           return result;
         }
+        if (platformId === 'zhihu' || result?.windowOpen === false) return result;
         await new Promise((resolve) => setTimeout(resolve, 3000));
       }
       return null;
@@ -450,14 +609,13 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     this.loginWatchers.set(key, task);
     return task;
   }
-
   /**
    * Re-check every bound local browser profile on a modest cadence. The
    * backend receives the exact probe result, so an expired cookie cannot stay
    * displayed as an authenticated account after the assistant detects it.
    */
   async syncLoginStates() {
-    if (!this.hasCredential() || this.loginSyncInFlight) return [];
+    if (this.loginSyncInFlight) return [];
     this.loginSyncInFlight = true;
     try {
       const targets = [];
@@ -470,6 +628,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       }
 
       const results = [];
+      if (this.hasCredential()) await this.flushPendingSessions();
       for (const target of targets) {
         try {
           results.push(await this.checkLogin(target.platformId, {
@@ -526,15 +685,15 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       recheck: Boolean(options.recheck),
     });
 
-    await this.client.reportSession(platformId, {
+    const session = {
       profile_key: profileKey,
       account_name: options.accountName || account.accountName || '',
       login_state: 'ready',
       last_verified_at: verifiedAt,
       last_error_message: '',
-       // This flag controls backend dispatch only; platform results still
-       // distinguish draft saves, verified publications and failures.
-       auto_allowed: !isGuided,
+      // This flag controls backend dispatch only; platform results still
+      // distinguish draft saves, verified publications and failures.
+      auto_allowed: !isGuided,
       meta: {
         event,
         group_id: groupId,
@@ -542,19 +701,22 @@ export class TongzhuoDesktopAgent extends EventEmitter {
         execution_mode: platform.execution?.mode || 'unknown',
         confirmation_source: automatic ? 'automatic_probe' : 'local_operator',
       },
-    });
-
+    };
     this.updateAccountStatus(groupId, platformId, 'ready', {
       accountName: options.accountName || account.accountName || '',
       lastErrorMessage: '',
+      lastVerifiedAt: verifiedAt,
     });
-    await this.heartbeat({
-      event: 'platform_login_confirmed',
-      platform_id: platformId,
-      group_id: groupId,
-      login_state: 'ready',
-    }).catch(() => {});
-    await this.loadSessions().catch(() => {});
+    const sync = await this.syncAccountSession(groupId, platformId, session);
+    if (this.hasCredential()) {
+      await this.heartbeat({
+        event: 'platform_login_confirmed',
+        platform_id: platformId,
+        group_id: groupId,
+        login_state: 'ready',
+      }).catch(() => {});
+    }
+    if (sync.synced) await this.loadSessions().catch(() => {});
 
     const result = {
       platformId,
@@ -564,8 +726,11 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       verifiedAt,
       autoAllowed: !isGuided,
       recheck: Boolean(options.recheck),
+      syncState: sync.syncState,
     };
-    this.log('info', 'platform.login.confirm.done', `${platform.name} 登录检测通过，状态已同步到后台。`, {
+    this.log(sync.synced ? 'info' : 'warn', 'platform.login.confirm.done', sync.synced
+      ? `${platform.name} 登录检测通过，状态已同步到后台。`
+      : `${platform.name} 登录检测通过，本地状态已保存，后台等待同步。`, {
       platform_id: platformId,
       group_id: groupId,
       ...result,
@@ -721,11 +886,12 @@ export class TongzhuoDesktopAgent extends EventEmitter {
         : normalizedExistingState;
     const isGuided = platform?.execution?.mode === 'assisted' || platform?.support === 'manual' || platform?.support === 'planned';
 
-    await this.client.reportSession(platformId, {
+    const verifiedAt = ['published', 'draft_saved'].includes(state) ? new Date().toISOString() : null;
+    const session = {
       profile_key: profileKey,
       account_name: currentAccount.accountName || '',
       login_state: preservedLoginState,
-      last_verified_at: ['published', 'draft_saved'].includes(state) ? new Date().toISOString() : null,
+      last_verified_at: verifiedAt,
       last_error_message: state === 'failed' ? (result.message || '') : '',
       // A guided platform may fill content, but it must never be treated as an
       // unattended publishing channel by the server scheduler.
@@ -738,11 +904,14 @@ export class TongzhuoDesktopAgent extends EventEmitter {
         remote_url: result.remote_url || '',
         attempt: result.attempt || null,
       },
-    });
+    };
     this.updateAccountStatus(group?.id, platformId, preservedLoginState, {
       lastErrorMessage: state === 'failed' ? (result.message || '') : '',
+      lastVerifiedAt: verifiedAt || (authenticationFailure ? '' : (currentAccount.lastVerifiedAt || '')),
     });
-    await this.loadSessions().catch(() => {});
+    const sync = await this.syncAccountSession(group?.id, platformId, session);
+    if (sync.synced) await this.loadSessions().catch(() => {});
+    return sync;
   }
 
   log(level, event, message, context = {}) {
@@ -783,20 +952,6 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     this.heartbeatTimer = null;
     this.loginSyncTimer = null;
 
-    if (!this.hasCredential()) {
-      this.log('warn', 'connection.waiting', '尚未完成设备绑定，当前仅保留本地控制台。');
-      return;
-    }
-
-    const pollMs = Math.max(10, Number(this.config.pollSeconds) || 20) * 1000;
-    this.pollTimer = setInterval(() => this.poll().catch((error) => {
-      this.lastError = error.message;
-      this.log('error', 'jobs.poll.failed', `读取任务失败：${error.message}`);
-    }), pollMs);
-    this.heartbeatTimer = setInterval(() => this.heartbeat().catch((error) => {
-      this.lastError = error.message;
-      this.log('error', 'device.heartbeat.failed', `设备心跳失败：${error.message}`);
-    }), 30000);
     const loginSyncMs = Math.max(60, Number(this.config.loginCheckSeconds) || 300) * 1000;
     this.loginSyncTimer = setInterval(() => this.syncLoginStates().catch((error) => {
       this.lastError = error.message;
@@ -814,6 +969,23 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       this.lastError = error.message;
       this.log('warn', 'platform.login.probe.initial.failed', `登录状态初次同步失败：${error.message}`);
     });
+
+    // Browser-profile login checks are local-only and remain available before
+    // the GEOFlow device pairing has been completed.
+    if (!this.hasCredential()) {
+      this.log('warn', 'connection.waiting', '尚未完成设备绑定，平台登录状态将在本机检测并等待同步。');
+      return;
+    }
+
+    const pollMs = Math.max(10, Number(this.config.pollSeconds) || 20) * 1000;
+    this.pollTimer = setInterval(() => this.poll().catch((error) => {
+      this.lastError = error.message;
+      this.log('error', 'jobs.poll.failed', `读取任务失败：${error.message}`);
+    }), pollMs);
+    this.heartbeatTimer = setInterval(() => this.heartbeat().catch((error) => {
+      this.lastError = error.message;
+      this.log('error', 'device.heartbeat.failed', `设备心跳失败：${error.message}`);
+    }), 30000);
   }
 
   async shutdown() {

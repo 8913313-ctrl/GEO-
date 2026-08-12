@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+  <title>桐灼 GEO 发布器验收测试</title>
+  <link rel="stylesheet" href="/test.css">
+</head>
+<body>
+  <main class="page-shell">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">LOCAL ACCEPTANCE</p>
+        <h1>发布器验收测试</h1>
+        <p class="subtitle">默认仅读取本机状态，不会打开平台页面、修改配置或向 GEO 后台发送请求。</p>
+      </div>
+      <div class="header-actions">
+        <a class="button secondary" href="/">返回工作台</a>
+        <button class="button primary" id="refreshButton" type="button">刷新本地检查</button>
+      </div>
+    </header>
+
+    <section class="notice" id="notice" hidden aria-live="polite"></section>
+
+    <section class="summary-grid" aria-label="发布器摘要">
+      <article class="summary-card" id="serviceCard"><span>本地服务</span><strong>-</strong><small>读取中</small></article>
+      <article class="summary-card" id="versionCard"><span>目标版本</span><strong>v1.8.18</strong><small>读取中</small></article>
+      <article class="summary-card" id="pairingCard"><span>设备绑定</span><strong>-</strong><small>读取中</small></article>
+      <article class="summary-card" id="windowCard"><span>受管平台窗口</span><strong>-</strong><small>读取中</small></article>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">READ-ONLY CHECKS</p>
+          <h2>本机状态检查</h2>
+        </div>
+        <span class="pill" id="summaryPill">等待检查</span>
+      </div>
+      <div class="check-list" id="checkList"></div>
+      <p class="muted" id="lastUpdated">尚未读取。</p>
+    </section>
+
+    <section class="two-column">
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">LOCAL DIAGNOSTICS</p>
+            <h2>本地诊断</h2>
+          </div>
+        </div>
+        <div class="diagnostics-list" id="diagnosticsList"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">BROWSER WINDOWS</p>
+            <h2>空白页检查</h2>
+          </div>
+          <span class="pill" id="blankPill">等待检查</span>
+        </div>
+        <p class="muted">这里只统计发布器受管的平台窗口。默认刷新不会创建浏览器窗口。</p>
+        <div class="window-list" id="windowList"></div>
+      </section>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">ACCOUNT SYNC</p>
+          <h2>平台登录与同步状态</h2>
+        </div>
+        <span class="muted" id="accountSummary">读取中</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>账号组</th><th>平台</th><th>本地登录</th><th>后台同步</th><th>最近验证 / 同步</th><th>提示</th></tr></thead>
+          <tbody id="accountRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel action-panel">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">EXPLICIT ACTIONS</p>
+          <h2>手动联调</h2>
+        </div>
+      </div>
+      <div class="action-grid">
+        <article class="action-card">
+          <h3>后台连通性探测</h3>
+          <p>仅在点击后才会带设备凭证请求 GEO 后台。若尚未配对，结果会明确显示“跳过”，不会伪造成功。</p>
+          <button class="button secondary" id="probeButton" type="button">检测后台连通性</button>
+          <div class="action-result" id="probeResult">尚未运行。</div>
+        </article>
+        <article class="action-card">
+          <h3>平台打开与空白页验证</h3>
+          <p>会真实打开所选平台的登录页，并确认发布器受管窗口的 URL 不为 <code>about:blank</code>。</p>
+          <label class="select-label" for="platformSelect">已绑定的平台账号</label>
+          <select id="platformSelect" disabled><option value="">读取中</option></select>
+          <button class="button secondary" id="openLoginButton" type="button" disabled>打开登录页并验证</button>
+          <div class="action-result" id="loginResult">需要先在工作台添加平台账号。</div>
+        </article>
+      </div>
+    </section>
+
+    <footer>测试页只显示脱敏后的运行状态，不显示 API Token、Cookie、密码、设备密钥或原始日志。</footer>
+  </main>
+  <script src="/test.js" defer></script>
+</body>
+</html>

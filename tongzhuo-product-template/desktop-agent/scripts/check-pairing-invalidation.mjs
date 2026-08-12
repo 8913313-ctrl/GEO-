@@ -47,7 +47,8 @@ try {
   assert.equal(status.hasCredential, false);
   assert.equal(status.sessions.length, 0);
   assert.equal(status.jobs.length, 0);
-  assert.equal(status.accountGroups[0].accounts.baijiahao.status, 'unknown');
+  assert.equal(status.accountGroups[0].accounts.baijiahao.status, 'ready');
+  assert.equal(status.accountGroups[0].accounts.baijiahao.syncState, 'waiting_for_pairing');
   assert.match(status.lastError, /重新生成配对码/);
   let stored = readConfig();
   assert.equal(stored.pairingToken, '');

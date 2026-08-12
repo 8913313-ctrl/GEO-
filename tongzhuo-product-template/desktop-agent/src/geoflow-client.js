@@ -13,14 +13,18 @@ export class GeoFlowRequestError extends Error {
 
 export function isInvalidPairingResponse(error) {
   if (!error) return false;
-  if ([401, 404].includes(Number(error.status))) return true;
+  const code = String(error.code || '').toUpperCase();
   if ([
     'PUBLISHER_AUTH_REQUIRED',
     'PUBLISHER_DEVICE_NOT_FOUND',
+    'PUBLISHER_DEVICE_UNAUTHORIZED',
+    'PUBLISHER_PAIRING_REQUIRED',
     'DEVICE_NOT_FOUND',
     'PAIRING_REQUIRED',
-  ].includes(String(error.code || '').toUpperCase())) return true;
-  return /(device\s+not\s+found|publisher.*not\s+paired|pairing.*required|设备不存在|未完成配对|尚未配对|需要重新配对)/i.test(String(error.message || ''));
+  ].includes(code)) return true;
+  // A missing route, an expired TLS certificate or a generic HTTP error must
+  // stay visible as a connection problem instead of erasing local pairing.
+  return /(publisher\s+device\s+(not\s+found|unauthorized)|publisher.*not\s+paired|pairing.*required|设备不存在|设备凭证无效|未完成配对|尚未配对|需要重新配对)/i.test(String(error.message || ''));
 }
 
 export class GeoFlowClient {

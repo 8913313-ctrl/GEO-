@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.18] - 2026-08-12
+
+- Use a normal installed Chrome or Edge process for Zhihu verification-code login, without Playwright, CDP, or automation flags.
+- Keep local platform login state synchronized with the GEOFlow backend while preserving verified state during temporary backend outages.
+- Prevent native login, login probing, and publishing from concurrently locking the same browser profile.
+- Remove the extra `about:blank` page and add a local v1.8.18 acceptance page plus login/synchronization regression coverage.
+
 ## [1.8.14] - 2026-08-06
 
 - Bundle Chromium for Edge-free customer publishing and apply the native Tongzhuo icon across the desktop application.
