@@ -29,6 +29,7 @@
     "check:planning-generation": "node --check scripts/check-planning-generation-flow.mjs && node scripts/check-planning-generation-flow.mjs",
     "check:content-reliability": "node --check scripts/check-content-task-reliability.mjs && node scripts/check-content-task-reliability.mjs",
     "check:runtime-identity": "node --check scripts/check-runtime-build-identity.mjs && node scripts/check-runtime-build-identity.mjs",
+    "check:clean-delivery-runtime": "node --check scripts/check-clean-delivery-runtime.mjs && node scripts/check-clean-delivery-runtime.mjs",
     "check:data-boundaries": "node --check scripts/check-data-boundaries.mjs && node scripts/check-data-boundaries.mjs",
     "check:ups-geo-rules": "node --check scripts/check-ups-geo-rule-candidates.mjs && node scripts/check-ups-geo-rule-candidates.mjs",
     "check:reextracted-source-rules": "node --check scripts/check-reextracted-source-rules.mjs && node scripts/check-reextracted-source-rules.mjs",

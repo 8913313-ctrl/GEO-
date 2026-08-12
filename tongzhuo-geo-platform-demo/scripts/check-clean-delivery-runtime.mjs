@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 
-const tempDir = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-production-api-"));
+const tempDir = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-clean-delivery-"));
 const port = 44000 + Math.floor(Math.random() * 1000);
 const baseUrl = `http://127.0.0.1:${port}`;
 const adminPassword = "PrivateAdmin!2026";
@@ -184,7 +184,7 @@ try {
 
   const databaseBytes = await readFile(path.join(tempDir, "production.sqlite"));
   assert(!databaseBytes.includes(Buffer.from(adminPassword)) && !databaseBytes.includes(Buffer.from(operatorPassword)), "Plaintext password leaked into database");
-  console.log("Production API check passed");
+  console.log(JSON.stringify({ ok: true, check: "clean-delivery-runtime", note: "Application runtime and CMS lifecycle passed; backup/restore is covered by check-production-backup-v2." }, null, 2));
 } finally {
   if (child.exitCode === null && child.signalCode === null) {
     child.kill("SIGTERM");
@@ -192,4 +192,5 @@ try {
   }
   await rm(tempDir, { recursive: true, force: true });
 }
+
 
