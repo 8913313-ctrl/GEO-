@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -7,7 +7,8 @@ import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const deliveryRoot = path.resolve(sourceRoot, "dist", "private-delivery", "qa-clean-delivery-20260812", "tongzhuo-geo-private-1.0.0-alpha.1-blank");
+const sourcePackage = JSON.parse(await readFile(path.join(sourceRoot, "package.json"), "utf8"));
+const deliveryRoot = path.resolve(process.env.TZ_CLEAN_DELIVERY_ROOT || path.join(sourceRoot, "dist", "private-delivery", `tongzhuo-geo-private-${sourcePackage.version}-blank`));
 const appRoot = path.join(deliveryRoot, "app");
 const tempRoot = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-clean-delivery-runtime-"));
 const dataDir = path.join(tempRoot, "data");
@@ -20,7 +21,9 @@ const appPort = await freePort();
 const sitePort = await freePort();
 const processes = [];
 
-function assertPathExists(value, message) { assert.ok(value, message); }
+async function assertPathExists(value, message) {
+  await access(value).catch(() => { assert.fail(`${message}: ${value}`); });
+}
 
 async function freePort() {
   const { createServer } = await import("node:net");
@@ -128,9 +131,19 @@ async function stopProcess(child) {
 }
 
 try {
-  assertPathExists(appRoot, "clean blank delivery app directory is required");
-  assertPathExists(path.join(appRoot, "server.mjs"), "delivery app server is required");
-  assertPathExists(path.join(appRoot, "site-server.mjs"), "delivery app site server is required");
+  await assertPathExists(appRoot, "clean blank delivery app directory is required");
+  await assertPathExists(path.join(appRoot, "server.mjs"), "delivery app server is required");
+  await assertPathExists(path.join(appRoot, "site-server.mjs"), "delivery app site server is required");
+  const [manifest, deliveredPackage] = await Promise.all([
+    readFile(path.join(deliveryRoot, "manifest.json"), "utf8").then(JSON.parse),
+    readFile(path.join(appRoot, "package.json"), "utf8").then(JSON.parse)
+  ]);
+  assert.equal(manifest.product, "tongzhuo-geo-private-delivery");
+  assert.equal(manifest.deliveryMode, "blank");
+  assert.equal(manifest.security?.containsCustomerData, false);
+  assert.equal(manifest.security?.containsRecoverySecrets, false);
+  assert.equal(manifest.productVersion, sourcePackage.version, "delivery manifest version must match the current source package");
+  assert.equal(deliveredPackage.version, sourcePackage.version, "delivered app version must match the current source package");
   assert.notEqual(appPort, 18080); assert.notEqual(appPort, 43227); assert.notEqual(appPort, 18180);
   assert.notEqual(sitePort, 18080); assert.notEqual(sitePort, 43227); assert.notEqual(sitePort, 18180);
 
@@ -225,7 +238,7 @@ try {
   assert.doesNotMatch(restoredHome.text, /桐灼|灼见 AI|鲁ICP备2026021587号-2/);
   await stopProcess(restoredSite);
   await stopProcess(restoredApp);
-  console.log(`Clean private-delivery runtime passed: appPort=${appPort} sitePort=${sitePort} tempRoot=${tempRoot}`);
+  console.log(`Clean private-delivery runtime passed: bundle=${deliveryRoot} appPort=${appPort} sitePort=${sitePort} tempRoot=${tempRoot}`);
 } finally {
   for (const child of processes.reverse()) await stopProcess(child);
   await rm(tempRoot, { recursive: true, force: true, maxRetries: 2, retryDelay: 50 });
