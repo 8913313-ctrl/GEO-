@@ -159,6 +159,7 @@ try {
   await waitFor(app, async () => {
     const ready = await request(appBase, "/health/ready");
     if (ready.response.status !== 200) throw new Error(`ready=${ready.response.status}:${ready.text.slice(0, 1_000)}`);
+    assert.equal(ready.body?.runtime?.buildId, manifest.sourceCommit, "running delivery build must report the manifest source commit");
     return true;
   });
   const site = spawnRuntime("site-server.mjs");
@@ -231,7 +232,12 @@ try {
   assert.equal(restored.prepare("SELECT status FROM site_cms_workflow_state WHERE workspace_id = ?").get(tenantId).status, "published");
   restored.close();
   const restoredApp = spawnRuntime("server.mjs");
-  await waitFor(restoredApp, async () => (await request(appBase, "/health/ready")).response.status === 200);
+  await waitFor(restoredApp, async () => {
+    const ready = await request(appBase, "/health/ready");
+    if (ready.response.status !== 200) return false;
+    assert.equal(ready.body?.runtime?.buildId, manifest.sourceCommit, "restored delivery build must retain the manifest source identity");
+    return true;
+  });
   const restoredSite = spawnRuntime("site-server.mjs");
   await waitFor(restoredSite, async () => (await request(siteBase, "/health/live")).response.status === 200);
   const restoredHome = await request(siteBase, "/");
