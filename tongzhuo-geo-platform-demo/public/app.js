@@ -343,13 +343,13 @@ function calculateHistoricalQuestionRuleScores(question, allQuestions = [], busi
   brand: {
     intent: "品牌了解", stage: "品牌核验", recommendation: 82, business: 80, reason: "建立品牌、能力与目标客户之间的关联",
     variants: [
-      (seed) => "桐灼科技如何为企业落地" + seed + "？",
-      (seed) => "桐灼科技在" + seed + "项目中能提供哪些服务？",
-      (seed) => "企业为什么选择桐灼科技开展" + seed + "？",
-      (seed) => "桐灼科技如何用企业知识支撑" + seed + "？",
-      (seed) => "制造业企业怎样验证桐灼科技的" + seed + "方案？",
-      (seed) => "桐灼科技做" + seed + "时有哪些服务边界？",
-      (seed) => "桐灼科技的" + seed + "能力适合哪些企业？"
+      (seed, context = {}) => (context.brandName || "该企业") + "如何为企业落地" + seed + "？",
+      (seed, context = {}) => (context.brandName || "该企业") + "在" + seed + "项目中能提供哪些服务？",
+      (seed, context = {}) => "企业为什么选择" + (context.brandName || "该企业") + "开展" + seed + "？",
+      (seed, context = {}) => (context.brandName || "该企业") + "如何用企业知识支撑" + seed + "？",
+      (seed, context = {}) => "制造业企业怎样验证" + (context.brandName || "该企业") + "的" + seed + "方案？",
+      (seed, context = {}) => (context.brandName || "该企业") + "做" + seed + "时有哪些服务边界？",
+      (seed, context = {}) => (context.brandName || "该企业") + "的" + seed + "能力适合哪些企业？"
     ]
   },
   question: {
@@ -1441,7 +1441,7 @@ function buildQuestionCandidates(seeds, packId, businessLineId, existingQuestion
       const seedIndex = (attempt + Math.floor(attempt / totalVariants)) % normalizedSeeds.length;
       const seed = normalizedSeeds[seedIndex];
       const questionText = variantIndex < template.variants.length
-        ? template.variants[variantIndex](seed)
+        ? template.variants[variantIndex](seed, { brandName: options.brandName || options.companyName || "" })
         : seed + "在" + (DIMENSIONS.find((item) => item.id === dimension)?.label || dimension) + "中，从" + QUESTION_FALLBACK_ANGLES[(variantIndex - template.variants.length) % QUESTION_FALLBACK_ANGLES.length] + "角度应该如何分析？" + (variantIndex >= template.variants.length + QUESTION_FALLBACK_ANGLES.length ? "（第" + (Math.floor((variantIndex - template.variants.length) / QUESTION_FALLBACK_ANGLES.length) + 1) + "轮拓展）" : "");
       const key = questionText.toLowerCase();
       if (existingQuestions.has(key)) continue;
@@ -1910,14 +1910,14 @@ function loadState() {
         if (saved) break;
       }
     }
-    if (!saved) return migrateState(cloneDefaultState());
+    if (!saved) return migrateState(cloneBlankState());
     const parsed = JSON.parse(saved);
-    if (!parsed || !Array.isArray(parsed.articles) || !Array.isArray(parsed.topics)) return migrateState(cloneDefaultState());
+    if (!parsed || !Array.isArray(parsed.articles) || !Array.isArray(parsed.topics)) return migrateState(cloneBlankState());
     const migrated = migrateState(parsed);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
     return migrated;
   } catch {
-    return migrateState(cloneDefaultState());
+    return migrateState(cloneBlankState());
   }
 }
 
@@ -4280,7 +4280,39 @@ function enterpriseKnowledgeBaseIds() {
 }
 
 function inheritedKnowledgeBaseIds(line = activeBusinessLine()) {
-  return [...new Set([...enterpriseKnowledgeBaseIds(), ...(line?.knowledgeBaseIds || [])])];
+  const ownedBaseIds = (state.knowledgeBases || [])
+    .filter((base) => base.scope === "business_line" && base.businessLineId === line?.id && base.status !== "archived")
+    .map((base) => base.id);
+  return [...new Set([...enterpriseKnowledgeBaseIds(), ...(line?.knowledgeBaseIds || []), ...ownedBaseIds])];
+}
+
+function enterpriseProfileCompletion() {
+  const profile = state.enterpriseProfile || {};
+  const requiredProfileFields = ["companyName", "introduction", "primaryService", "serviceDescription"];
+  const optionalProfileFields = ["brandName", "officialDomain", "industryRegion", "audience", "serviceArea"];
+  const requiredScore = requiredProfileFields.filter((key) => String(profile[key] || "").trim()).length * 12.5;
+  const optionalScore = optionalProfileFields.filter((key) => String(profile[key] || "").trim()).length * 4;
+  const hasBusinessLine = (state.businessLines || []).some((line) => line.status === "active");
+  const hasEvidence = (state.knowledgeBases || []).some((base) => base.status !== "archived" && approvedKnowledgeItems(base.id).length > 0);
+  const hasQuestions = (state.questionLibrary || []).some((question) => question.status !== "archived");
+  return Math.min(100, Math.round(requiredScore + optionalScore + (hasBusinessLine ? 10 : 0) + (hasEvidence ? 10 : 0) + (hasQuestions ? 10 : 0)));
+}
+
+function syncEnterpriseProfileToSiteCms() {
+  const profile = state.enterpriseProfile || {};
+  const cms = siteCms();
+  const settings = cms.settings || (cms.settings = {});
+  const placeholderSiteNames = new Set(["", "企业官网"]);
+  const placeholderCompanyNames = new Set(["", "企业"]);
+  if (placeholderSiteNames.has(String(settings.siteName || "").trim())) settings.siteName = profile.brandName || profile.companyName || "企业官网";
+  if (placeholderCompanyNames.has(String(settings.companyName || "").trim())) settings.companyName = profile.companyName || profile.brandName || "企业";
+  if (!String(settings.description || "").trim() || settings.description === "企业公开信息、产品服务与行业内容。") settings.description = profile.introduction || profile.serviceDescription || settings.description;
+  if (!String(settings.officialDomain || "").trim()) settings.officialDomain = String(profile.officialDomain || "").replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  if (!String(settings.industryRegion || "").trim()) settings.industryRegion = profile.industryRegion || "";
+  if (!String(settings.serviceArea || "").trim()) settings.serviceArea = profile.serviceArea || "";
+  settings.footerLabel = profile.brandName || profile.companyName || settings.footerLabel;
+  settings.updatedAt = siteNow();
+  if (settings.officialDomain) state.site.domain = settings.officialDomain;
 }
 
 function normalizeKnowledgeScope(plan, line = state.businessLines.find((item) => item.id === plan?.businessLineId) || activeBusinessLine()) {
@@ -4614,6 +4646,44 @@ function studioWorkspaceById(workspaceId) {
   return (state.writingWorkspaces || []).find((workspace) => workspace.id === workspaceId) || null;
 }
 
+function refreshBlankStudioKnowledgeScope(workspace) {
+  if (!workspace || workspace.articleId || workspace.status !== "blank") return false;
+  if (String(workspace.draftTitle || "").trim() || String(workspace.draftContent || workspace.draftContentHtml || "").trim()) return false;
+  if ((workspace.knowledgeScope?.lockedVersionIds || []).length) return false;
+  const line = state.businessLines.find((item) => item.id === workspace.businessLineId && item.status === "active");
+  if (!line) return false;
+  const inheritedBaseIds = inheritedKnowledgeBaseIds(line);
+  const current = workspace.knowledgeScope || {};
+  const excluded = new Set(current.excludedBaseIds || []);
+  const addedBaseIds = (current.addedBaseIds || []).filter((id) => knowledgeBaseById(id)?.status !== "archived");
+  const resolvedBaseIds = [...new Set([...inheritedBaseIds, ...addedBaseIds])].filter((id) => !excluded.has(id));
+  const unchanged = JSON.stringify(current.inheritedBaseIds || []) === JSON.stringify(inheritedBaseIds)
+    && JSON.stringify(current.resolvedBaseIds || []) === JSON.stringify(resolvedBaseIds);
+  if (unchanged) return false;
+  workspace.knowledgeScope = {
+    ...current,
+    inheritedBaseIds: cloneData(inheritedBaseIds),
+    addedBaseIds: cloneData(addedBaseIds),
+    excludedBaseIds: cloneData([...excluded]),
+    resolvedBaseIds: cloneData(resolvedBaseIds),
+    snapshottedAt: new Date().toISOString(),
+    lockedVersionIds: []
+  };
+  workspace.selectedKnowledgeBaseIds = cloneData(resolvedBaseIds);
+  workspace.selectedKnowledgeItemIds = (workspace.selectedKnowledgeItemIds || []).filter((itemId) => {
+    const item = knowledgeItemById(itemId);
+    return item && resolvedBaseIds.includes(item.knowledgeBaseId);
+  });
+  workspace.updatedAt = Date.now();
+  const conversation = studioConversationForWorkspace(workspace);
+  if (conversation) {
+    conversation.selectedKnowledgeBaseIds = cloneData(resolvedBaseIds);
+    conversation.selectedKnowledgeItemIds = cloneData(workspace.selectedKnowledgeItemIds);
+    conversation.updatedAt = workspace.updatedAt;
+  }
+  return true;
+}
+
 function studioConversationById(conversationId) {
   return (state.aiConversations || []).find((conversation) => conversation.id === conversationId) || null;
 }
@@ -4752,6 +4822,7 @@ function ensureStudioWorkspace(articleId = null, forceNew = false) {
   if (article && !forceNew) workspace = studioWorkspaceById(article.workspaceId) || (state.writingWorkspaces || []).find((item) => item.articleId === article.id) || null;
   if (!article && !forceNew) workspace = studioWorkspaceById(ui.studioWorkspaceId);
   if (!workspace) workspace = createStudioWorkspace(article);
+  refreshBlankStudioKnowledgeScope(workspace);
   article = studioArticleForWorkspace(workspace);
   const conversation = studioConversationForWorkspace(workspace);
   if (ui.studioWorkspaceId !== workspace.id) ui.studioPicker = null;
@@ -7449,7 +7520,8 @@ function renderDiagnosticReportDetail(report) {
   const meta = diagnosticTypeMeta(report);
   const evidence = report.evidence || report.evidenceSummary || {};
   const dataScope = report.dataScope && typeof report.dataScope === "object" ? report.dataScope : {};
-  const liveCount = Number(dataScope.evidenceCounts?.live || dataScope.verifiedEvidenceCounts?.live || 0);
+  const liveCount = Number(dataScope.dataClasses?.realtimeSampling ?? dataScope.evidenceCounts?.live ?? dataScope.verifiedEvidenceCounts?.live ?? 0);
+  const mockCount = Number(dataScope.dataClasses?.mockDemo || 0);
   const realtime = evidence.realtimeSampling || evidence.realtime || report.realtimeSampling || (liveCount > 0 ? { sampleCount: liveCount } : null);
   const sections = Array.isArray(report.sections) ? [...report.sections] : [];
   const methodology = report.methodology && typeof report.methodology === "object" ? report.methodology : {};
@@ -7480,6 +7552,7 @@ function renderDiagnosticReportDetail(report) {
       content: report.evidence.slice(0, 80).map((item) => ({
         evidenceId: item.id,
         类型: item.evidenceType,
+        数据边界: ({ research_baseline: "研究基线", enterprise_measured: "企业实测", realtime_sampling: "实时采样", mock_demo: "Mock/演示" })[item.dataOrigin] || item.dataOrigin || "未标记",
         标题: item.title || item.claim || item.sourceId,
         来源: item.sourceUrl || item.sourceKind,
         核验状态: item.verificationStatus
@@ -7496,7 +7569,7 @@ function renderDiagnosticReportDetail(report) {
     : "适用于行业信源生态、页面特征、企业官网与内容缺口分析；当前没有已核验实时 AI 样本，不用于证明品牌推荐排名、提及率、情感或实时引用表现。");
   const enterpriseEvidenceCount = Number(dataScope.evidenceCounts?.enterprise || 0);
   const enterpriseReady = !researchOnly && (monitoringSnapshot.loaded || enterpriseEvidenceCount > 0);
-  return `<div class="diagnostic-report-detail"><button class="text-button diagnostic-back" type="button" data-action="diagnostic-back-reports"><span data-icon="arrow"></span>返回报告中心</button><section class="card diagnostic-report-cover"><div><span>${escapeHtml(meta.label)} · ${escapeHtml(String(reportId || ""))}</span><h2>${escapeHtml(report.title || report.name || project?.name || meta.label)}</h2><p>${escapeHtml(summary || "服务端报告尚未返回摘要；当前不生成替代性演示结论。")}</p><div class="diagnostic-report-tags"><em>研究包 ${escapeHtml(String(packageVersion))}</em><em>${escapeHtml(project?.industry || report.industry || "行业未填写")}</em><em>${escapeHtml(formatDateTime(report.finalizedAt || report.completedAt || report.updatedAt || report.createdAt))}</em></div></div>${diagnosticStatusBadge(report)}</section><section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>证据与边界</span><h3>这份报告使用了什么，不能说明什么</h3></div></div><div class="diagnostic-evidence-layers"><article class="card ready"><i>1</i><span><small>研究基线</small><b>Citation Lab ${escapeHtml(String(packageVersion))}</b><p>${CITATION_LAB_PACKAGE.citations.toLocaleString("zh-CN")} 条历史引用 · ${CITATION_LAB_PACKAGE.canonicalQuestions} 个规范问题 · ${CITATION_LAB_PACKAGE.platforms} 个平台/终端</p></span><em>固定研究数据</em></article><article class="card ${enterpriseReady ? "ready" : ""}"><i>2</i><span><small>企业实测</small><b>官网与运营系统</b><p>官网诊断 ${monitoringDisplayNumber(scores.total)}/100 · 文章 ${monitoringDisplayNumber(production.articleTotal)} 篇 · 已发布 ${monitoringDisplayNumber(production.published)} 篇${enterpriseEvidenceCount ? ` · 报告证据 ${enterpriseEvidenceCount} 条` : ""}</p></span><em>${enterpriseReady ? "有数据" : "待连接"}</em></article><article class="card ${realtime ? "ready" : ""}"><i>3</i><span><small>实时采样</small><b>${realtime ? "本报告包含实时采样" : "未接入"}</b><p>${realtime ? escapeHtml(realtime.summary || realtime.description || `已记录 ${realtime.sampleCount || realtime.count || liveCount || "—"} 个样本`) : "未保存完整 AI 回答、引用 URL、模型版本和采集时间，因此不能计算当前品牌排名、提及率或周期趋势。"}</p></span><em>${realtime ? "有证据" : "无数据"}</em></article></div><div class="diagnostic-scope-note"><span data-icon="info"></span><div><b>适用范围</b><p>${escapeHtml(scopeText)}</p></div></div></section>${sections.length ? `<section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>报告正文</span><h3>诊断发现</h3></div></div><div class="diagnostic-report-sections">${sections.map((section, index) => `<article class="card" data-report-kind="${escapeHtml(section.kind || section.key || "content")}"><i>${String(index + 1).padStart(2, "0")}</i><div><h3>${escapeHtml(section.title || section.name || `第 ${index + 1} 部分`)}</h3><div class="diagnostic-section-body">${diagnosticStructuredValue(section.content ?? section.items ?? section.summary ?? section.text ?? "该部分尚未返回内容。")}</div></div></article>`).join("")}</div></section>` : `<div class="monitor-real-note warning"><span data-icon="info"></span><div><b>报告正文待服务端返回</b><small>当前只展示可验证的项目、证据元数据和状态，不填充虚构诊断发现。</small></div></div>`}<section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>执行建议</span><h3>人工确认后回流业务系统</h3><p>回流只创建待确认内容，不自动发布；每一项都由运营人员单独确认。</p></div></div>${diagnosticReportActions(report)}</section></div>`;
+  return `<div class="diagnostic-report-detail"><button class="text-button diagnostic-back" type="button" data-action="diagnostic-back-reports"><span data-icon="arrow"></span>返回报告中心</button><section class="card diagnostic-report-cover"><div><span>${escapeHtml(meta.label)} · ${escapeHtml(String(reportId || ""))}</span><h2>${escapeHtml(report.title || report.name || project?.name || meta.label)}</h2><p>${escapeHtml(summary || "服务端报告尚未返回摘要；当前不生成替代性演示结论。")}</p><div class="diagnostic-report-tags"><em>研究包 ${escapeHtml(String(packageVersion))}</em><em>${escapeHtml(project?.industry || report.industry || "行业未填写")}</em><em>${escapeHtml(formatDateTime(report.finalizedAt || report.completedAt || report.updatedAt || report.createdAt))}</em></div></div>${diagnosticStatusBadge(report)}</section><section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>证据与边界</span><h3>这份报告使用了什么，不能说明什么</h3></div></div><div class="diagnostic-evidence-layers"><article class="card ready"><i>1</i><span><small>研究基线</small><b>Citation Lab ${escapeHtml(String(packageVersion))}</b><p>${CITATION_LAB_PACKAGE.citations.toLocaleString("zh-CN")} 条历史引用 · ${CITATION_LAB_PACKAGE.canonicalQuestions} 个规范问题 · ${CITATION_LAB_PACKAGE.platforms} 个平台/终端</p></span><em>固定研究数据</em></article><article class="card ${enterpriseReady ? "ready" : ""}"><i>2</i><span><small>企业实测</small><b>官网与运营系统</b><p>官网诊断 ${monitoringDisplayNumber(scores.total)}/100 · 文章 ${monitoringDisplayNumber(production.articleTotal)} 篇 · 已发布 ${monitoringDisplayNumber(production.published)} 篇${enterpriseEvidenceCount ? ` · 报告证据 ${enterpriseEvidenceCount} 条` : ""}</p></span><em>${enterpriseReady ? "有数据" : "待连接"}</em></article><article class="card ${realtime ? "ready" : ""}"><i>3</i><span><small>实时采样</small><b>${realtime ? "本报告包含实时采样" : "未接入"}</b><p>${realtime ? escapeHtml(realtime.summary || realtime.description || `已记录 ${realtime.sampleCount || realtime.count || liveCount || "—"} 个样本`) : "未保存完整 AI 回答、引用 URL、模型版本和采集时间，因此不能计算当前品牌排名、提及率或周期趋势。"}</p></span><em>${realtime ? "有证据" : "无数据"}</em></article><article class="card ${mockCount ? "ready" : ""}"><i>4</i><span><small>Mock/演示</small><b>${mockCount ? `本报告包含 ${mockCount} 条演示数据` : "无演示数据"}</b><p>Mock 只用于联调和验收，即使状态为已验证，也不参与当前排名、推荐率或实时引用指标。</p></span><em>${mockCount ? "仅供演示" : "无数据"}</em></article></div><div class="diagnostic-scope-note"><span data-icon="info"></span><div><b>适用范围</b><p>${escapeHtml(scopeText)}</p></div></div></section>${sections.length ? `<section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>报告正文</span><h3>诊断发现</h3></div></div><div class="diagnostic-report-sections">${sections.map((section, index) => `<article class="card" data-report-kind="${escapeHtml(section.kind || section.key || "content")}"><i>${String(index + 1).padStart(2, "0")}</i><div><h3>${escapeHtml(section.title || section.name || `第 ${index + 1} 部分`)}</h3><div class="diagnostic-section-body">${diagnosticStructuredValue(section.content ?? section.items ?? section.summary ?? section.text ?? "该部分尚未返回内容。")}</div></div></article>`).join("")}</div></section>` : `<div class="monitor-real-note warning"><span data-icon="info"></span><div><b>报告正文待服务端返回</b><small>当前只展示可验证的项目、证据元数据和状态，不填充虚构诊断发现。</small></div></div>`}<section class="diagnostic-report-block"><div class="diagnostic-section-title"><div><span>执行建议</span><h3>人工确认后回流业务系统</h3><p>回流只创建待确认内容，不自动发布；每一项都由运营人员单独确认。</p></div></div>${diagnosticReportActions(report)}</section></div>`;
 }
 
 function renderDiagnosticReports() {
@@ -10569,11 +10642,14 @@ function renderSiteOverview() {
   const pendingLeads = leads.filter((lead) => lead.status === "new").length;
   const published = articles.filter((article) => article.status === "published" || article.siteStatus === "published").length;
   const approved = articles.filter((article) => article.reviewStatus === "approved" && article.status !== "published").length;
+  const settings = siteCms().settings || {};
+  const identityReady = Boolean(settings.siteName && settings.siteName !== "企业官网" && settings.companyName && settings.companyName !== "企业" && settings.officialDomain);
+  const publicHome = pages.find((page) => (page.id === "home" || page.path === "/") && page.status === "published");
   const checks = [
-    ["企业主体", "Organization 与 WebSite 已配置", "ok"],
+    ["企业主体", identityReady ? "Organization 与 WebSite 已配置" : "企业名称、品牌或域名尚未配置完整", identityReady ? "ok" : "warn"],
     ["文章信源", `${published} 篇文章已生成 Article 数据`, "ok"],
     ["栏目结构", "主栏目与标签可继续配置", "warn"],
-    ["机器入口", "sitemap · RSS · llms 自动更新", "ok"]
+    ["机器入口", publicHome ? "发布后更新 sitemap · RSS · llms" : "首页尚未公开，机器入口不会包含页面", publicHome ? "ok" : "warn"]
   ];
   return `
     <div class="site-cms-overview">
@@ -10660,10 +10736,10 @@ function renderSiteNavigation() {
 function renderSiteLeads() {
   const leads = siteLeads();
   const pending = leads.filter((lead) => lead.status === "new").length;
-  const contacted = leads.filter((lead) => lead.status === "contacted").length;
+  const contacted = leads.filter((lead) => lead.status === "contacting").length;
   const qualified = leads.filter((lead) => lead.status === "qualified").length;
-  const leadStatus = { new: ["新线索", "status-review"], contacted: ["已联系", "status-publishing"], qualified: ["有效商机", "status-approved"] };
-  return `<section class="card table-card"><div class="card-header"><div><h2>官网咨询线索</h2><p>来自官网表单的咨询，支持来源页面、跟进状态和导出。</p></div><button class="secondary-button button-small" type="button" data-action="export-leads"><span data-icon="download"></span>导出 CSV</button></div><div class="site-lead-summary"><div><b>${pending}</b><span>待跟进</span></div><div><b>${leads.length}</b><span>已收录线索</span></div><div><b>${qualified}</b><span>有效商机</span></div><div><b>${leads.length ? Math.round((qualified / leads.length) * 100) : 0}%</b><span>转化率</span></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>联系人</th><th>企业</th><th>咨询服务</th><th>提交时间</th><th>来源页面</th><th>状态</th><th></th></tr></thead><tbody>${leads.map((lead) => { const meta = leadStatus[lead.status] || leadStatus.new; return `<tr><td><b>${escapeHtml(lead.name)}</b><small class="table-subtext">${escapeHtml(lead.owner || "未分配")}</small></td><td>${escapeHtml(lead.company)}</td><td>${escapeHtml(lead.service)}</td><td>${escapeHtml(lead.createdAt)}</td><td><span class="source-tag">${escapeHtml(lead.sourcePage || "官网")}</span></td><td><span class="status-badge ${meta[1]}">${meta[0]}</span></td><td><button class="link-button" type="button" data-action="site-lead-follow" data-lead-id="${escapeHtml(lead.id)}">${lead.status === "new" ? "跟进" : "查看"}</button></td></tr>`; }).join("")}</tbody></table></div><div class="site-category-tip"><span data-icon="info"></span><span>${contacted} 条线索正在跟进；每次跟进会写入时间、负责人和下一步计划。</span></div></section>`;
+  const leadStatus = { new: ["新线索", "status-review"], contacting: ["联系中", "status-publishing"], qualified: ["有效商机", "status-approved"], won: ["已成交", "status-approved"], lost: ["已流失", "status-draft"], spam: ["垃圾线索", "status-draft"] };
+  return `<section class="card table-card"><div class="card-header"><div><h2>官网咨询线索</h2><p>来自官网表单的咨询，支持状态、负责人和来源筛选。</p></div><button class="secondary-button button-small" type="button" data-action="export-leads"><span data-icon="download"></span>导出脱敏 CSV</button></div><div class="site-lead-summary"><div><b>${pending}</b><span>待认领</span></div><div><b>${leads.length}</b><span>已收录线索</span></div><div><b>${qualified}</b><span>有效商机</span></div><div><b>${leads.length ? Math.round((qualified / leads.length) * 100) : 0}%</b><span>商机占比</span></div></div><div class="site-lead-filters"><select class="select" data-lead-filter="status"><option value="">全部状态</option>${Object.entries(leadStatus).map(([value, meta]) => `<option value="${value}">${meta[0]}</option>`).join("")}</select><select class="select" data-lead-filter="ownerId"><option value="">全部负责人</option><option value="unassigned">未分配</option><option value="${escapeHtml(window.__TZ_AUTH__?.user?.id || "")}">我负责的</option></select><input class="input" data-lead-filter="q" placeholder="搜索联系人、企业或需求"><button class="secondary-button button-small" type="button" data-action="site-filter-leads">筛选</button></div><div class="table-scroll"><table class="data-table"><thead><tr><th>联系人</th><th>企业</th><th>联系方式</th><th>需求</th><th>提交时间</th><th>来源页面</th><th>状态</th><th></th></tr></thead><tbody>${leads.map((lead) => { const meta = leadStatus[lead.status] || leadStatus.new; return `<tr><td><b>${escapeHtml(lead.name)}</b><small class="table-subtext">${escapeHtml(lead.owner || "未分配")}</small></td><td>${escapeHtml(lead.company)}</td><td>${escapeHtml(lead.phoneOrEmail || lead.phone || "")}</td><td>${escapeHtml(lead.need || lead.service || "")}</td><td>${escapeHtml(lead.createdAt)}</td><td><span class="source-tag">${escapeHtml(lead.sourcePage || "官网")}</span></td><td><span class="status-badge ${meta[1]}">${meta[0]}</span></td><td>${lead.ownerId ? `<button class="link-button" type="button" data-action="site-lead-follow" data-lead-id="${escapeHtml(lead.id)}">查看 / 跟进</button>` : `<button class="link-button" type="button" data-action="site-claim-lead" data-lead-id="${escapeHtml(lead.id)}">认领</button>`}</td></tr>`; }).join("")}</tbody></table></div><div class="site-category-tip"><span data-icon="info"></span><span>${contacted} 条线索正在联系；认领、状态变化、跟进和导出都会写入审计。</span></div></section>`;
 }
 
 function renderSiteSettings() {
@@ -10864,9 +10940,29 @@ function renderSiteReleasesModal() {
 async function publishSiteCms() {
   if (siteCmsRuntime.publishing) return;
   if (!currentUserCan("content.publish")) return showToast("没有官网发布权限", "请由管理员或具备发布权限的成员执行。", "error");
+  const settings = siteCms().settings || {};
+  const publicHome = (siteCms().pages || []).find((page) => page.id === "home" || page.path === "/");
+  if (!settings.siteName || settings.siteName === "企业官网" || !settings.companyName || settings.companyName === "企业") {
+    ui.siteTab = "seo";
+    render();
+    return showToast("请先确认客户官网身份", "网站名称和企业主体仍是占位内容，已为你打开“SEO 与 AI 信号”中的站点设置。", "error");
+  }
+  if (!settings.officialDomain) return showToast("请先配置官网域名", "正式发布前必须填写客户企业的主域名。", "error");
+  if (!publicHome || publicHome.status !== "published") return showToast("首页尚未设为公开", "请在页面管理中将首页状态改为“已发布”并保存。", "error");
+  if (!window.confirm(`确认发布“${settings.siteName}”？\n\n系统将先提交审核并完成发布审批，然后生成新的不可变正式版本。`)) return;
   siteCmsRuntime.publishing = true;
   try {
     await flushSiteCmsDraftSync();
+    let workflowStatus = siteCmsRuntime.publication?.status || siteCmsRuntime.publication?.workflow?.status || "draft";
+    if (["draft", "rejected", "published", "unpublished"].includes(workflowStatus)) {
+      const submitted = await productionApi("/api/v1/site-cms/submit-review", { method: "POST", body: { reason: "管理员确认官网内容并提交发布审核" } });
+      workflowStatus = submitted?.data?.workflow?.status || "pending_review";
+    }
+    if (workflowStatus === "pending_review") {
+      const approved = await productionApi("/api/v1/site-cms/approve", { method: "POST", body: { reason: "管理员确认客户企业身份、页面公开状态和机器入口" } });
+      workflowStatus = approved?.data?.workflow?.status || "approved";
+    }
+    if (workflowStatus !== "approved") throw new Error(`官网当前审核状态为 ${workflowStatus}，暂不能发布。`);
     const payload = await productionApi("/api/v1/site-cms/publish", { method: "POST", body: { expectedDraftRevision: siteCmsRuntime.draft?.revision, note: `官网正式发布 ${siteNow()}` } });
     applySiteCmsApiPayload(payload, { replaceDraft: false });
     await refreshSiteCmsFromServer();
@@ -11162,8 +11258,8 @@ function saveSiteAppearance() {
 function renderSiteLeadFollowModal() {
   const lead = siteLeads().find((item) => item.id === ui.modal?.leadId);
   if (!lead) return "";
-  const history = (lead.history || []).map((item) => `<div class="article-version-row"><span><b>${escapeHtml(item.note)}</b><small>${escapeHtml(item.owner || lead.owner || "未分配")} · ${escapeHtml(item.at || "")}</small></span><em>${item.status === "qualified" ? "有效商机" : item.status === "contacted" ? "已联系" : "新线索"}</em></div>`).join("");
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">线索跟进 · ${escapeHtml(lead.name)}</h2><p>${escapeHtml(lead.company)} · ${escapeHtml(lead.service)} · 来源 ${escapeHtml(lead.sourcePage || "官网")}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-lead-status">线索状态</label><select class="select" id="site-lead-status"><option value="new" ${lead.status === "new" ? "selected" : ""}>新线索</option><option value="contacted" ${lead.status === "contacted" ? "selected" : ""}>已联系</option><option value="qualified" ${lead.status === "qualified" ? "selected" : ""}>有效商机</option></select></div><div class="field"><label for="site-lead-owner">负责人</label><input class="input" id="site-lead-owner" value="${escapeHtml(lead.owner || "")}" /></div></div><div class="field"><label for="site-lead-next">下次跟进时间</label><input class="input" id="site-lead-next" value="${escapeHtml(lead.nextFollowAt || "")}" placeholder="例如：2026-07-28 10:00" /></div><div class="field"><label for="site-lead-note">本次跟进记录 *</label><textarea class="textarea" id="site-lead-note" rows="4" placeholder="记录沟通结果、客户需求和下一步安排">${escapeHtml(lead.notes || "")}</textarea></div>${history ? `<div class="field"><label>历史跟进记录</label><div class="article-version-list">${history}</div></div>` : '<div class="archive-impact-note"><span data-icon="info"></span><span>这是首次跟进，保存后会建立第一条沟通记录。</span></div>'}</div><div class="modal-foot"><span>线索编号 ${escapeHtml(lead.id)} · 提交于 ${escapeHtml(lead.createdAt)}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-lead" data-lead-id="${escapeHtml(lead.id)}"><span data-icon="check"></span>保存跟进</button></div></div>`, { wide: true });
+  const history = (lead.history || []).map((item) => `<div class="article-version-row"><span><b>${escapeHtml(item.note || (item.eventType === "claimed" ? "认领线索" : "状态更新"))}</b><small>${escapeHtml(item.actor || item.owner || lead.owner || "系统")} · ${escapeHtml(item.at || "")}</small></span><em>${item.status === "qualified" ? "有效商机" : item.status === "contacting" ? "联系中" : item.status === "won" ? "已成交" : item.status === "lost" ? "已流失" : item.status === "spam" ? "垃圾线索" : "新线索"}</em></div>`).join("");
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">线索跟进 · ${escapeHtml(lead.name)}</h2><p>${escapeHtml(lead.company)} · ${escapeHtml(lead.phoneOrEmail || lead.phone || "")} · 来源 ${escapeHtml(lead.sourcePage || "官网")}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-lead-status">线索状态</label><select class="select" id="site-lead-status">${[["new","新线索"],["contacting","联系中"],["qualified","有效商机"],["won","已成交"],["lost","已流失"],["spam","垃圾线索"]].map(([value,label]) => `<option value="${value}" ${lead.status === value ? "selected" : ""}>${label}</option>`).join("")}</select></div><div class="field"><label>负责人</label><input class="input" value="${escapeHtml(lead.owner || "未分配")}" readonly /></div></div><div class="field"><label for="site-lead-next">下次跟进时间</label><input class="input" id="site-lead-next" type="datetime-local" value="${escapeHtml(String(lead.followUpAt || lead.nextFollowAt || "").slice(0, 16))}" /></div><div class="field"><label for="site-lead-note">本次跟进记录 *</label><textarea class="textarea" id="site-lead-note" rows="4" placeholder="记录沟通结果、客户需求和下一步安排"></textarea></div>${history ? `<div class="field"><label>不可变跟进记录</label><div class="article-version-list">${history}</div></div>` : '<div class="archive-impact-note"><span data-icon="info"></span><span>尚无跟进记录，保存后将写入不可修改的审计历史。</span></div>'}</div><div class="modal-foot"><span>线索编号 ${escapeHtml(lead.id)} · 提交于 ${escapeHtml(lead.createdAt)}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-lead" data-lead-id="${escapeHtml(lead.id)}"><span data-icon="check"></span>保存跟进</button></div></div>`, { wide: true });
 }
 
 async function saveSiteLead(leadId) {
@@ -11172,13 +11268,12 @@ async function saveSiteLead(leadId) {
   const note = siteValue("site-lead-note");
   if (!note) return showToast("请填写跟进记录", "至少记录本次沟通结果或下一步安排。", "error");
   const status = siteValue("site-lead-status") || lead.status;
-  const owner = siteValue("site-lead-owner") || "未分配";
   if (ui.savingSiteLeadId === leadId) return;
   ui.savingSiteLeadId = leadId;
   try {
     const payload = await productionApi(`/api/v1/site-cms/leads/${encodeURIComponent(leadId)}`, {
       method: "PATCH",
-      body: { status, owner, nextFollowAt: siteValue("site-lead-next"), note }
+      body: { status, nextFollowAt: siteValue("site-lead-next"), note }
     });
     const updated = payload?.data?.lead || payload?.lead;
     if (!updated) throw new Error("线索接口未返回更新后的记录");
@@ -11289,23 +11384,39 @@ function csvCell(value) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
-function exportSiteLeads() {
-  const statusLabel = { new: "新线索", contacted: "已联系", qualified: "有效商机" };
-  const header = ["线索编号", "联系人", "企业", "咨询服务", "提交时间", "来源页面", "状态", "负责人", "下次跟进", "最近记录"];
-  const rows = siteLeads().map((lead) => [lead.id, lead.name, lead.company, lead.service, lead.createdAt, lead.sourcePage, statusLabel[lead.status] || lead.status, lead.owner, lead.nextFollowAt, lead.notes]);
-  const csv = "\uFEFF" + [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `官网咨询线索-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  siteCms().lastLeadsExportAt = siteNow();
-  saveState();
-  showToast("线索 CSV 已导出", `共导出 ${rows.length} 条线索及当前跟进状态。`, "success");
+async function claimSiteLead(leadId) {
+  try {
+    const payload = await productionApi(`/api/v1/site-cms/leads/${encodeURIComponent(leadId)}/claim`, { method: "POST", body: {} });
+    const updated = payload?.data?.lead;
+    if (!updated) throw new Error("认领接口未返回线索。");
+    const index = siteCmsRuntime.leads.findIndex((item) => item.id === leadId);
+    if (index >= 0) siteCmsRuntime.leads[index] = updated;
+    render();
+    showToast(payload?.data?.duplicate ? "线索已由您认领" : "认领成功", "现在可以记录沟通结果和更新状态。", "success");
+  } catch (error) { showToast("认领失败", error.message || "请刷新后重试。", "error"); }
+}
+
+async function filterSiteLeads() {
+  const params = new URLSearchParams();
+  for (const field of document.querySelectorAll("[data-lead-filter]")) if (field.value) params.set(field.dataset.leadFilter, field.value);
+  try {
+    const payload = await productionApi(`/api/v1/site-cms/leads${params.size ? `?${params}` : ""}`);
+    siteCmsRuntime.leads = payload?.data?.items || [];
+    render();
+  } catch (error) { showToast("筛选失败", error.message || "请稍后重试。", "error"); }
+}
+
+async function exportSiteLeads() {
+  try {
+    const response = await fetch("/api/v1/site-cms/leads/export", { credentials: "same-origin" });
+    if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(body.message || "导出失败"); }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = `官网咨询线索-脱敏-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast("脱敏 CSV 已导出", "联系方式已经过服务端脱敏，并记录本次导出审计。", "success");
+  } catch (error) { showToast("线索导出失败", error.message || "当前账号可能没有导出权限。", "error"); }
 }
 
 function renderKnowledgeLibraries() {
@@ -14124,7 +14235,7 @@ function renderRiskModal() {
 
 function renderResetModal() {
   return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">重置演示数据</h2><p>恢复到第一次打开时的示例状态</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
+    <div class="modal-head"><div><h2 id="modal-title">清空当前客户空间</h2><p>恢复为空白企业项目，保留系统内置方法与写作助手</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body"><div class="privacy-note" style="margin-top:0;border-color:#f0c8cc;background:var(--red-soft)"><span data-icon="alert" style="color:var(--red)"></span><span>这只会清除当前浏览器中的演示操作记录，不会删除工作区文件，也不会影响任何旧工程。</span></div></div>
     <div class="modal-foot"><span></span><div class="modal-foot-right"><button class="secondary-button" data-action="close-modal">取消</button><button class="danger-button" data-action="confirm-reset">确认重置</button></div></div>
   `);
@@ -14410,6 +14521,10 @@ async function submitKnowledgeBase() {
     return;
   }
   state.knowledgeBases.unshift(base);
+  if (base.scope === "business_line" && base.businessLineId) {
+    const line = state.businessLines.find((item) => item.id === base.businessLineId);
+    if (line) line.knowledgeBaseIds = [...new Set([...(line.knowledgeBaseIds || []), base.id])];
+  }
   saveState();
   render();
   ui.modal = { type: "knowledgeBaseDetail", baseId: base.id };
@@ -17612,12 +17727,20 @@ document.addEventListener("click", async (event) => {
     return navigate("knowledge");
   }
   if (action === "finish-onboarding") {
-    state.enterpriseProfile.completion = 100;
-    state.enterpriseProfile.steps.forEach((step) => { step.status = "complete"; });
+    persistOnboardingDraft();
+    state.enterpriseProfile.completion = enterpriseProfileCompletion();
+    state.enterpriseProfile.steps.forEach((step) => {
+      if (step.id === "evidence") step.status = (state.knowledgeBases || []).some((base) => approvedKnowledgeItems(base.id).length) ? "complete" : "pending";
+      else step.status = "complete";
+    });
+    syncEnterpriseProfileToSiteCms();
     saveState();
     closeModal();
     navigate("planning");
-    return showToast("企业建档已完成", "企业事实卡、问题集与监测基线已准备，可以进入选题中心。");
+    const missing = [];
+    if (!(state.knowledgeBases || []).some((base) => approvedKnowledgeItems(base.id).length)) missing.push("企业证据");
+    if (!(state.questionLibrary || []).some((question) => question.status !== "archived")) missing.push("客户问题");
+    return showToast("企业基础资料已保存", missing.length ? `当前完整度 ${state.enterpriseProfile.completion}%；还需补充${missing.join("、")}后才能形成完整 GEO 基线。` : "企业事实、证据和问题基线已经准备，可以进入选题中心。", missing.length ? "warning" : "success");
   }
   if (action === "preview-site") {
     await flushSiteCmsDraftSync().catch(() => {});
@@ -18481,6 +18604,8 @@ document.addEventListener("click", async (event) => {
     ui.modal = { type: "siteLeadFollow", leadId: actionElement.dataset.leadId };
     return renderModal();
   }
+  if (action === "site-claim-lead") return claimSiteLead(actionElement.dataset.leadId);
+  if (action === "site-filter-leads") return filterSiteLeads();
   if (action === "site-save-lead") return saveSiteLead(actionElement.dataset.leadId);
   if (action === "site-deployment") {
     ui.modal = { type: "siteDeployment" };
@@ -18687,9 +18812,9 @@ document.addEventListener("click", async (event) => {
   if (action === "confirm-reset") {
     localStorage.removeItem(STORAGE_KEY);
     LEGACY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
-    state = migrateState(cloneDefaultState());
-    ui.selectedPackId = state.keywordPacks[0].id;
-    ui.selectedBusinessLineId = state.businessLines[0].id;
+    state = migrateState(cloneBlankState());
+    ui.selectedPackId = state.keywordPacks[0]?.id || null;
+    ui.selectedBusinessLineId = state.businessLines[0]?.id || null;
     ui.planningTab = "keywords";
     ui.planningArchiveKind = "questions";
     ui.businessKeywordInput = "";
@@ -18717,9 +18842,10 @@ document.addEventListener("click", async (event) => {
     ui.assetTab = "all";
     ui.assetExpandedId = null;
     ui.assetSearch = "";
+    saveState();
     closeModal();
     render();
-    return showToast("演示数据已重置", "已恢复到首次打开时的示例状态。");
+    return showToast("客户空间已清空", "已恢复为空白企业项目，不包含桐灼或其他客户业务数据。");
   }
   if (action === "export-logs") return exportOperationLogs();
 });
