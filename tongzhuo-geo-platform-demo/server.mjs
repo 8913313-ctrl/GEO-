@@ -8,6 +8,7 @@ import { publisherStore, PublisherError } from "./publisher-store.mjs";
 import { aiProviderStore, AiProviderError } from "./ai-provider-store.mjs";
 import { aiGenerationService, AiGenerationError } from "./ai-generation-service.mjs";
 import { KnowledgeError, KnowledgeStore } from "./knowledge-store.mjs";
+import { KnowledgeUrlImportStore } from "./knowledge-url-import-store.mjs";
 import { ContentError, ContentStateError, ContentStore } from "./content-store.mjs";
 import { FoundationMethodologyResolver } from "./foundation-methodology-resolver.mjs";
 import { FoundationAssetStore } from "./foundation-asset-store.mjs";
@@ -78,6 +79,7 @@ const authService = new AuthService(database, {
 });
 const workspaceStore = new WorkspaceStore(database, { trustProxy: configured.trustProxy });
 const knowledgeStore = new KnowledgeStore(database);
+const knowledgeUrlImportStore = new KnowledgeUrlImportStore(database, knowledgeStore, { workspaceId: projectWorkspaceId });
 const foundationMethodologyResolver = new FoundationMethodologyResolver(database);
 const foundationAssetStore = new FoundationAssetStore(database);
 const contentStore = new ContentStore(database, {
@@ -1179,6 +1181,18 @@ async function handleMonitoringApi(request, response, parts) {
 async function handleKnowledgeApi(request, response, parts) {
   const method = request.method || "GET";
   const workspaceId = projectWorkspaceId;
+  if (parts.length === 5 && parts[3] === "url-imports" && parts[4] === "preview" && method === "POST") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.KNOWLEDGE_MANAGE);
+    const body = await requestJson(request, 100_000);
+    const preview = await knowledgeUrlImportStore.createPreview({ workspaceId, libraryId: body.libraryId, url: body.url, idempotencyKey: request.headers["idempotency-key"] || body.idempotencyKey || "", actor: principal, request });
+    return jsonResponse(response, 201, { ok: true, data: { preview } });
+  }
+  if (parts.length === 6 && parts[3] === "url-imports" && parts[5] === "commit" && method === "POST") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.KNOWLEDGE_MANAGE);
+    const body = await requestJson(request, 10_000);
+    const result = await knowledgeUrlImportStore.commitPreview({ workspaceId, previewId: decodeURIComponent(parts[4]), confirmed: body.confirmed === true, actor: principal, request });
+    return jsonResponse(response, result.idempotent ? 200 : 201, { ok: true, data: result });
+  }
   if (parts.length === 4 && parts[3] === "assets" && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const query = new URL(request.url || "/", "http://localhost").searchParams;

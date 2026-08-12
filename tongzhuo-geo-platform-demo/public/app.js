@@ -10857,7 +10857,8 @@ function renderSitePublishModal() {
   const categories = siteCategories();
   const selectedCategory = article.siteCategory || article.category || categories[0]?.name || "GEO优化";
   const slug = article.siteSlug || String(article.title).toLowerCase().replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-").replace(/^-|-$/g, "").slice(0, 64) || article.id.toLowerCase();
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">发布到企业官网</h2><p>${escapeHtml(article.id)} · 冻结版本 ${escapeHtml(article.version || "v1")} · 官网发布信息</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body site-publish-modal-body"><div class="publish-article"><b>${escapeHtml(article.title)}</b><span>正文来自内容生产中心；本窗口只补充官网展示字段。</span></div><div class="field-row"><div class="field"><label for="site-publish-category">主栏目 *</label><select class="select" id="site-publish-category">${categories.map((item) => `<option value="${escapeHtml(item.name)}" ${item.name === selectedCategory ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></div><div class="field"><label for="site-publish-author">作者</label><input class="input" id="site-publish-author" value="${escapeHtml(article.author || "桐灼研究")}" /></div></div><div class="field"><label for="site-publish-slug">文章地址 slug *</label><div class="site-slug-input"><span>/insights/</span><input class="input" id="site-publish-slug" value="${escapeHtml(slug)}" /></div><small class="field-help">修改已发布文章的 slug 时，系统自动生成 301 重定向。</small></div><div class="field"><label for="site-publish-excerpt">官网摘要</label><textarea class="textarea" id="site-publish-excerpt" rows="4">${escapeHtml(article.excerpt || "")}</textarea></div><div class="site-publish-checks"><div><span class="check-dot ok">✓</span><span><b>引用编号</b><small>${articlePublicCitationMarkersVisible(article) ? "对外显示 [K1]、[K2]" : "仅后台可见，官网正文隐藏"}</small></span></div><div><span class="check-dot ok">✓</span><span><b>Article / Breadcrumb</b><small>发布时自动生成结构化数据</small></span></div><div><span class="check-dot ok">✓</span><span><b>栏目页、首页、sitemap</b><small>发布后自动更新相关入口</small></span></div><div><span class="check-dot ok">✓</span><span><b>知识证据冻结</b><small>${articleCitations(article).length} 条引用证据随版本保存</small></span></div></div></div><div class="modal-foot"><span>发布后可在行业资讯中下线或回滚</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-confirm-publish"><span data-icon="send"></span>确认发布</button></div></div>`, { wide: true });
+  const defaultAuthor = String(siteCms()?.settings?.authorName || state.enterpriseProfile?.brandName || state.enterpriseProfile?.companyName || "企业内容团队").trim();
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">发布到企业官网</h2><p>${escapeHtml(article.id)} · 冻结版本 ${escapeHtml(article.version || "v1")} · 官网发布信息</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body site-publish-modal-body"><div class="publish-article"><b>${escapeHtml(article.title)}</b><span>正文来自内容生产中心；本窗口只补充官网展示字段。</span></div><div class="field-row"><div class="field"><label for="site-publish-category">主栏目 *</label><select class="select" id="site-publish-category">${categories.map((item) => `<option value="${escapeHtml(item.name)}" ${item.name === selectedCategory ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("")}</select></div><div class="field"><label for="site-publish-author">作者</label><input class="input" id="site-publish-author" value="${escapeHtml(article.author || defaultAuthor)}" /></div></div><div class="field"><label for="site-publish-slug">文章地址 slug *</label><div class="site-slug-input"><span>/insights/</span><input class="input" id="site-publish-slug" value="${escapeHtml(slug)}" /></div><small class="field-help">修改已发布文章的 slug 时，系统自动生成 301 重定向。</small></div><div class="field"><label for="site-publish-excerpt">官网摘要</label><textarea class="textarea" id="site-publish-excerpt" rows="4">${escapeHtml(article.excerpt || "")}</textarea></div><div class="site-publish-checks"><div><span class="check-dot ok">✓</span><span><b>引用编号</b><small>${articlePublicCitationMarkersVisible(article) ? "对外显示 [K1]、[K2]" : "仅后台可见，官网正文隐藏"}</small></span></div><div><span class="check-dot ok">✓</span><span><b>Article / Breadcrumb</b><small>发布时自动生成结构化数据</small></span></div><div><span class="check-dot ok">✓</span><span><b>栏目页、首页、sitemap</b><small>发布后自动更新相关入口</small></span></div><div><span class="check-dot ok">✓</span><span><b>知识证据冻结</b><small>${articleCitations(article).length} 条引用证据随版本保存</small></span></div></div></div><div class="modal-foot"><span>发布后可在行业资讯中下线或回滚</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-confirm-publish"><span data-icon="send"></span>确认发布</button></div></div>`, { wide: true });
 }
 
 async function submitSitePublish() {
@@ -10866,7 +10867,7 @@ async function submitSitePublish() {
   if (ui.submittingSitePublish) return;
   const category = document.getElementById("site-publish-category")?.value || article.category || "GEO优化";
   const slug = document.getElementById("site-publish-slug")?.value.trim() || article.id.toLowerCase();
-  const author = document.getElementById("site-publish-author")?.value.trim() || article.author || "桐灼研究";
+  const author = document.getElementById("site-publish-author")?.value.trim() || article.author || String(siteCms()?.settings?.authorName || state.enterpriseProfile?.brandName || state.enterpriseProfile?.companyName || "企业内容团队").trim();
   const excerpt = document.getElementById("site-publish-excerpt")?.value.trim() || article.excerpt || "";
   const oldSlug = article.siteSlug;
   const selectedCategory = siteCategories().find((item) => item.name === category) || null;
@@ -11995,7 +11996,7 @@ function renderSettingsPanel() {
     <section class="card">
       <div class="card-header"><div><h3>部署与工作流</h3><p>当前客户空间的基础配置</p></div><button class="primary-button button-small" data-action="save-settings">保存设置</button></div>
       <div class="setting-section">
-        <div class="setting-row"><div><b>部署方式</b><small>应用、数据库、官网均客户独立</small></div><div class="setting-value">${escapeHtml(state.settings.deployment)} · 桐灼科技</div><span class="small-tag teal">运行正常</span></div>
+        <div class="setting-row"><div><b>部署方式</b><small>应用、数据库、官网均客户独立</small></div><div class="setting-value">${escapeHtml(state.settings.deployment)}</div><span class="small-tag teal">运行正常</span></div>
         <div class="setting-row"><div><b>文章风险门禁</b><small>存在高风险表述时阻止发布</small></div><div class="setting-value">审核通过仍需经过发布风险门</div><button class="toggle ${state.settings.riskGate ? "on" : ""}" type="button" data-setting="riskGate" aria-label="切换风险门禁"></button></div>
         <div class="setting-row"><div><b>人工审核</b><small>AI 生成文章默认进入待审核</small></div><div class="setting-value">适用于所有内容生成任务</div><button class="toggle ${state.settings.manualReview ? "on" : ""}" type="button" data-setting="manualReview" aria-label="切换人工审核"></button></div>
         <div class="setting-row"><div><b>系统版本</b><small>企业私有化生产底座</small></div><div class="setting-value">Tongzhuo GEO Platform 1.0.0-alpha.1</div><button class="secondary-button button-small" data-action="show-version">版本说明</button></div>
@@ -13571,8 +13572,10 @@ function renderUploadKnowledgeImagesModal() {
 function renderImportKnowledgeModal() {
   const bases = (state.knowledgeBases || []).filter((base) => base.kind === "document" && base.status !== "archived");
   const preparation = knowledgePreparationById(ui.modal?.preparationId);
+  const urlPreview = ui.modal?.urlPreview || null;
   const preferredBase = bases.find((base) => base.businessLineId === activeBusinessLine()?.id) || bases[0];
-  const options = bases.map((base) => `<option value="${base.id}" ${base.id === preferredBase?.id ? "selected" : ""}>${escapeHtml(base.name)} · ${escapeHtml(knowledgeScopeLabel(base))}</option>`).join("");
+  const selectedBaseId = urlPreview?.libraryId || preferredBase?.id;
+  const options = bases.map((base) => `<option value="${base.id}" ${base.id === selectedBaseId ? "selected" : ""}>${escapeHtml(base.name)} · ${escapeHtml(knowledgeScopeLabel(base))}</option>`).join("");
   if (!bases.length) {
     return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">导入资料</h2><p>需要先创建一个文档知识库承接资料</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="empty-state"><div><span data-icon="book"></span><h3>暂无文档知识库</h3><p>先新建文档库，再导入 PDF、Word、Markdown 或文本资料。</p><button class="primary-button button-small" type="button" data-action="create-knowledge-base"><span data-icon="plus"></span>新建知识库</button></div></div></div>`, { wide: true });
   }
@@ -13580,12 +13583,13 @@ function renderImportKnowledgeModal() {
     <div class="modal-head"><div><h2 id="modal-title">导入企业资料</h2><p>上传后自动解析、建立索引并进入文章创作；PDF 中的图片会同步进入图片资料库</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       ${preparation ? `<section class="knowledge-import-guide"><span class="knowledge-icon ${preparation.id === "pricing_delivery" ? "amber" : preparation.id === "brand_compliance" || preparation.id === "faq" ? "purple" : ""}" data-icon="${preparation.icon}"></span><div><span>正在准备：${escapeHtml(preparation.title)}</span><b>${escapeHtml(preparation.purpose)}</b><p><strong>建议优先上传：</strong>${escapeHtml(preparation.materials.join("；"))}</p></div></section>` : ""}
-      <div class="field"><label for="knowledge-import-base">导入到 *</label><select class="select" id="knowledge-import-base">${options}</select></div>
+      <div class="field"><label for="knowledge-import-base">导入到 *</label><select class="select" id="knowledge-import-base" ${urlPreview ? "disabled" : ""}>${options}</select></div>
+      <section class="knowledge-import-guide" style="margin-top:14px"><span class="knowledge-icon" data-icon="link"></span><div style="width:100%"><span>从公开网页导入</span><b>先安全抓取并预览，确认后才写入知识库</b><div class="field-row" style="margin-top:10px"><div class="field"><label for="knowledge-import-url">公开网页地址</label><input class="input" id="knowledge-import-url" type="url" value="${escapeHtml(urlPreview?.requestedUrl || "")}" placeholder="https://www.example.com/product" ${urlPreview ? "disabled" : ""} /></div><div class="field" style="flex:0 0 auto;align-self:end"><button class="secondary-button" type="button" data-action="preview-knowledge-url" ${urlPreview ? "disabled" : ""}><span data-icon="search"></span>抓取预览</button></div></div>${urlPreview ? `<div class="privacy-note" style="margin-top:12px"><span data-icon="shield"></span><span><b>${escapeHtml(urlPreview.title)}</b><br />最终地址：${escapeHtml(urlPreview.finalUrl)} · ${Number(urlPreview.sourceBytes || 0).toLocaleString("zh-CN")} 字节${urlPreview.duplicate ? " · 检测到知识库已有相同正文" : ""}</span></div><div class="field" style="margin-top:12px"><label for="knowledge-url-preview-content">正文预览（只读）</label><textarea class="textarea" id="knowledge-url-preview-content" rows="9" readonly>${escapeHtml(urlPreview.content || "")}</textarea></div><label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input id="knowledge-url-confirm" type="checkbox" /><span>我已检查标题、来源地址和正文，确认将这份资料写入企业知识库。</span></label>` : `<small>只允许公网 HTTP/HTTPS，系统会在每次跳转时重新校验 DNS 和 IP，并限制超时、类型与响应大小。</small>`}</div></section>
       <div class="field" style="margin-top:14px"><label for="knowledge-import-file">选择资料文件 *</label><input class="input" id="knowledge-import-file" type="file" accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml" multiple /><small>可一次选择多个 PDF、DOCX、XLSX 或普通文档；系统分批解析，失败文件会单独列出。扫描文档需要先配置 OCR。</small></div>
       <div class="field" style="margin-top:14px"><label for="knowledge-import-content">正文或关键摘录（PDF / Word 建议填写）</label><textarea class="textarea" id="knowledge-import-content" rows="8" placeholder="可粘贴资料正文或关键摘录。若是文本类文件，可留空由系统读取。"></textarea></div>
       <div class="privacy-note" style="margin-top:14px"><span data-icon="lock"></span><span>原文件保存在客户私有服务器；PDF 会拆分为文字知识、内嵌图片和来源页码，扫描件在后台继续 OCR。上传资料不会自动修改或发布已有文章。</span></div>
     </div>
-    <div class="modal-foot"><span>上传即入库；处理失败的文件会单独提示，不阻塞其他资料</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-import"><span data-icon="upload"></span>上传并入库</button></div></div>
+    <div class="modal-foot"><span>${urlPreview ? "网页仍是预览状态，未确认前不会进入知识库" : "文件上传即入库；网页导入必须先预览确认"}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button>${urlPreview ? `<button class="secondary-button" type="button" data-action="reset-knowledge-url-preview">重新抓取</button><button class="primary-button" type="button" data-action="commit-knowledge-url"><span data-icon="check"></span>确认写入知识库</button>` : `<button class="primary-button" type="button" data-action="submit-knowledge-import"><span data-icon="upload"></span>上传并入库</button>`}</div></div>
   `, { wide: true });
 }
 
@@ -14656,6 +14660,55 @@ async function submitKnowledgeImport() {
     }
   } finally {
     if (submitButton?.isConnected) { submitButton.disabled = false; submitButton.innerHTML = originalButtonHtml; hydrateIcons(submitButton); }
+  }
+}
+
+async function previewKnowledgeUrl() {
+  const base = knowledgeBaseById(document.getElementById("knowledge-import-base")?.value);
+  const input = document.getElementById("knowledge-import-url");
+  const url = input?.value.trim() || "";
+  if (!base || base.kind !== "document") return showToast("请选择文档知识库", "网页资料必须进入一个有效的文档知识库。", "error");
+  if (!url) {
+    input?.classList.add("input-error");
+    input?.focus();
+    return showToast("请输入网页地址", "仅支持可公开访问的 HTTP/HTTPS 网页。", "error");
+  }
+  const button = document.querySelector('[data-action="preview-knowledge-url"]');
+  if (button) button.disabled = true;
+  try {
+    await ensureKnowledgeBaseOnServer(base);
+    const response = await productionApi("/api/v1/knowledge/url-imports/preview", { method: "POST", headers: { "Idempotency-Key": `url-preview-${Date.now()}-${Math.random().toString(36).slice(2)}` }, body: { libraryId: base.id, url } });
+    const preview = response.data?.preview || response.preview;
+    if (!preview?.id) throw new Error("服务端未返回网页预览");
+    ui.modal = { ...(ui.modal || {}), type: "importKnowledge", urlPreview: preview };
+    renderModal();
+    showToast("网页已安全抓取", "请检查标题、最终地址和正文，勾选确认后再写入知识库。", "success");
+  } finally {
+    if (button?.isConnected) button.disabled = false;
+  }
+}
+
+async function commitKnowledgeUrl() {
+  const preview = ui.modal?.urlPreview;
+  if (!preview?.id) return showToast("预览已失效", "请重新抓取网页。", "error");
+  const confirmation = document.getElementById("knowledge-url-confirm");
+  if (!confirmation?.checked) {
+    confirmation?.focus();
+    return showToast("请先人工确认", "检查来源和正文后勾选确认，系统才会写入知识库。", "error");
+  }
+  const button = document.querySelector('[data-action="commit-knowledge-url"]');
+  if (button) button.disabled = true;
+  try {
+    const response = await productionApi(`/api/v1/knowledge/url-imports/${encodeURIComponent(preview.id)}/commit`, { method: "POST", body: { confirmed: true } });
+    const result = response.data || response;
+    await refreshKnowledgeFromServer();
+    const baseId = preview.libraryId;
+    ui.modal = { type: "knowledgeBaseDetail", baseId };
+    render();
+    renderModal();
+    showToast(result.duplicate ? "相同网页资料已存在" : "网页资料已写入知识库", result.duplicate ? "未创建重复文档，已返回现有知识版本。" : "系统已保留来源地址并进入知识索引流程。", "success");
+  } finally {
+    if (button?.isConnected) button.disabled = false;
   }
 }
 
@@ -18705,6 +18758,12 @@ document.addEventListener("click", async (event) => {
     return renderModal();
   }
   if (action === "submit-knowledge-base") return submitKnowledgeBase();
+  if (action === "preview-knowledge-url") return previewKnowledgeUrl().catch((error) => showToast("网页抓取失败", error.message || "请检查地址后重试。", "error"));
+  if (action === "reset-knowledge-url-preview") {
+    ui.modal = { ...(ui.modal || {}), type: "importKnowledge", urlPreview: null };
+    return renderModal();
+  }
+  if (action === "commit-knowledge-url") return commitKnowledgeUrl().catch((error) => showToast("网页入库失败", error.message || "请重新抓取后重试。", "error"));
   if (action === "submit-knowledge-import") return submitKnowledgeImport().catch((error) => showToast("资料导入失败", error.message || "请检查文件后重试。", "error"));
   if (action === "upload-knowledge-images") {
     ui.modal = { type: "uploadKnowledgeImages" };

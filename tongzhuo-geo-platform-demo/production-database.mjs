@@ -1776,6 +1776,38 @@ const MIGRATIONS = Object.freeze([
       CREATE INDEX publication_tasks_due_queue_idx
         ON publication_tasks (tenant_id, status, next_attempt_at, created_at, id);
     `
+  },
+  {
+    version: 28,
+    name: "knowledge_url_import_previews",
+    sql: `
+      CREATE TABLE knowledge_url_import_previews (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        library_id TEXT NOT NULL REFERENCES knowledge_libraries(id) ON DELETE CASCADE,
+        requested_url TEXT NOT NULL,
+        final_url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content_text TEXT NOT NULL,
+        content_hash TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        source_bytes INTEGER NOT NULL CHECK (source_bytes >= 0),
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'committing', 'committed', 'expired')),
+        document_id TEXT REFERENCES knowledge_documents(id) ON DELETE SET NULL,
+        version_id TEXT REFERENCES knowledge_document_versions(id) ON DELETE SET NULL,
+        idempotency_key TEXT NOT NULL DEFAULT '',
+        created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        committed_at TEXT,
+        UNIQUE (workspace_id, created_by, idempotency_key)
+      ) STRICT;
+
+      CREATE INDEX knowledge_url_previews_expiry_idx
+        ON knowledge_url_import_previews (workspace_id, status, expires_at);
+      CREATE INDEX knowledge_url_previews_hash_idx
+        ON knowledge_url_import_previews (library_id, content_hash, status);
+    `
   }
 ]);
 
