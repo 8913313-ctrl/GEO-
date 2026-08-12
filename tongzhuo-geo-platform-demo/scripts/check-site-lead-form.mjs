@@ -4,6 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { ProductionDatabase } from "../production-database.mjs";
 import { createSiteRuntime } from "../site-server.mjs";
+import { normalizeSiteCmsSnapshot } from "../site-cms-store.mjs";
+import { PublicSiteStore } from "../public-site/site-store.mjs";
+import { renderFixedPage } from "../public-site/site-renderer.mjs";
 
 const directory = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-site-lead-form-"));
 const runtimes = [];
@@ -74,7 +77,25 @@ try {
     assert.ok(source.indexOf("form.reset()") > source.indexOf("response.ok"), "form fields must only reset after a successful response");
   }
 
-  console.log("Official-site lead required validation, durable idempotency, project isolation, rate limiting, source attribution, response promise, and failure-preserving frontend checks passed.");
+  const configuredCms = normalizeSiteCmsSnapshot({ settings: { leadForm: { nameLabel: "联系人<script>", contactLabel: "手机或微信", submitLabel: "提交选型需求", responsePromise: "2 小时内联系", privacyNotice: "仅用于选型服务", showCompany: false, showService: false, showWebsite: true, showMessage: false } } });
+  const configuredSite = new PublicSiteStore({ database: building.runtime.store.database, workspaceId: "tenant-building", projectId: "project-building" }).siteConfig({ revision: 1, state: {} }, configuredCms);
+  const contactPage = configuredSite.pages.find((item) => item.id === "contact") || { id: "contact", title: "联系我们", path: "/contact/" };
+  const configuredHtml = renderFixedPage({ site: configuredSite, page: contactPage, origin: "https://building.example.test" });
+  assert.match(configuredHtml, /联系人&lt;script&gt; \*/);
+  assert.doesNotMatch(configuredHtml, /联系人<script>/);
+  assert.match(configuredHtml, /手机或微信 \*/);
+  assert.match(configuredHtml, /提交选型需求/);
+  assert.match(configuredHtml, /2 小时内联系；仅用于选型服务/);
+  assert.match(configuredHtml, /name="website"/);
+  assert.doesNotMatch(configuredHtml, /name="company"|name="service"|name="message"/);
+  assert.match(configuredHtml, /name="name"[^>]+required/);
+  assert.match(configuredHtml, /name="phone"[^>]+required/);
+  const disabledSite = { ...configuredSite, leadForm: { ...configuredSite.leadForm, enabled: false } };
+  const disabledHtml = renderFixedPage({ site: disabledSite, page: contactPage, origin: "https://building.example.test" });
+  assert.doesNotMatch(disabledHtml, /data-lead-form/);
+  assert.match(disabledHtml, /暂未开放在线咨询/);
+
+  console.log("Official-site lead validation, configurable safe rendering, required-field boundary, idempotency, isolation, rate limiting, attribution, response promise, and failure preservation passed.");
 } finally {
   for (const runtime of runtimes.reverse()) {
     await runtime.close();

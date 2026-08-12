@@ -511,7 +511,14 @@ function serviceRows(site, module) {
 }
 
 function renderContactForm(site, sourcePath) {
-  return `<form class="lead-form" data-lead-form><div class="form-grid"><label><span>姓名 *</span><input name="name" autocomplete="name" maxlength="80" required></label><label><span>联系电话 *</span><input name="phone" autocomplete="tel" maxlength="60" required></label><label><span>企业名称</span><input name="company" autocomplete="organization" maxlength="160"></label><label><span>咨询方向</span><select name="service"><option value="业务咨询">业务咨询</option>${(site.businessLines || []).slice(0, 10).map((line) => `<option value="${escapeHtml(line.product || line.name)}">${escapeHtml(line.product || line.name)}</option>`).join("")}</select></label></div><label><span>需要解决的问题</span><textarea name="message" rows="5" maxlength="2000" placeholder="请描述企业现状、目标和当前遇到的问题"></textarea></label><input type="hidden" name="source_url" value="${escapeHtml(sourcePath)}"><div class="form-submit"><button class="button ink" type="submit">预约诊断 <span aria-hidden="true">→</span></button><p data-form-message role="status">提交后 1 个工作日内回复；填写内容仅用于本次诊断联系。</p></div></form>`;
+  const f = site.leadForm || {};
+  if (f.enabled === false) return `<div class="lead-form-disabled"><p>暂未开放在线咨询，请通过页面公开联系方式联系我们。</p></div>`;
+  const fields = [];
+  if (f.showCompany !== false) fields.push(`<label><span>${escapeHtml(f.companyLabel || "企业名称")}</span><input name="company" autocomplete="organization" maxlength="160"></label>`);
+  if (f.showService !== false) fields.push(`<label><span>${escapeHtml(f.serviceLabel || "咨询方向")}</span><select name="service"><option value="业务咨询">业务咨询</option>${(site.businessLines || []).slice(0, 10).map((line) => `<option value="${escapeHtml(line.product || line.name)}">${escapeHtml(line.product || line.name)}</option>`).join("")}</select></label>`);
+  if (f.showWebsite === true) fields.push(`<label><span>${escapeHtml(f.websiteLabel || "企业官网")}</span><input name="website" type="url" maxlength="300" placeholder="https://"></label>`);
+  const message = f.showMessage !== false ? `<label><span>${escapeHtml(f.messageLabel || "需要解决的问题")}</span><textarea name="message" rows="5" maxlength="2000" placeholder="${escapeHtml(f.messagePlaceholder || "请描述企业现状、目标和当前遇到的问题")}"></textarea></label>` : "";
+  return `<form class="lead-form" data-lead-form><div class="form-grid"><label><span>${escapeHtml(f.nameLabel || "姓名")} *</span><input name="name" autocomplete="name" maxlength="80" required></label><label><span>${escapeHtml(f.contactLabel || "联系方式")} *</span><input name="phone" autocomplete="tel" maxlength="60" required></label>${fields.join("")}</div>${message}<input type="hidden" name="source_url" value="${escapeHtml(sourcePath)}"><div class="form-submit"><button class="button ink" type="submit">${escapeHtml(f.submitLabel || "提交咨询")} <span aria-hidden="true">→</span></button><p data-form-message role="status">${escapeHtml([f.responsePromise, f.privacyNotice].filter(Boolean).join("；"))}</p></div></form>`;
 }
 
 function renderFixedModule({ site, page, module, articles, index }) {

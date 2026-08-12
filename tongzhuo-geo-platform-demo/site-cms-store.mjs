@@ -268,6 +268,7 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const profile = state.enterpriseProfile && typeof state.enterpriseProfile === "object" ? state.enterpriseProfile : {};
   const legacySite = state.site && typeof state.site === "object" ? state.site : {};
   const settingsSource = cms.settings && typeof cms.settings === "object" ? cms.settings : {};
+  const leadFormSource = settingsSource.leadForm && typeof settingsSource.leadForm === "object" && !Array.isArray(settingsSource.leadForm) ? settingsSource.leadForm : {};
   const settings = {
     siteName: cleanText(settingsSource.siteName, profile.brandName || "企业官网", 160),
     companyName: cleanText(settingsSource.companyName, profile.companyName || profile.brandName || "企业", 300),
@@ -289,6 +290,15 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
     schemaLogoUrl: cleanPublicUrl(settingsSource.schemaLogoUrl, { allowRelative: true }),
     footerIcp: cleanText(settingsSource.footerIcp, "", 120),
     footerLabel: cleanText(settingsSource.footerLabel, profile.brandName || "企业", 120),
+    leadForm: {
+      enabled: leadFormSource.enabled !== false,
+      nameLabel: cleanText(leadFormSource.nameLabel, "姓名", 40), contactLabel: cleanText(leadFormSource.contactLabel, "联系方式", 40),
+      companyLabel: cleanText(leadFormSource.companyLabel, "企业名称", 40), serviceLabel: cleanText(leadFormSource.serviceLabel, "咨询方向", 40),
+      websiteLabel: cleanText(leadFormSource.websiteLabel, "企业官网", 40), messageLabel: cleanText(leadFormSource.messageLabel, "需要解决的问题", 60),
+      messagePlaceholder: cleanText(leadFormSource.messagePlaceholder, "请描述企业现状、目标和当前遇到的问题", 200), submitLabel: cleanText(leadFormSource.submitLabel, "提交咨询", 40),
+      responsePromise: cleanText(leadFormSource.responsePromise, "提交后 1 个工作日内回复", 160), privacyNotice: cleanText(leadFormSource.privacyNotice, "填写内容仅用于本次业务联系", 240),
+      showCompany: leadFormSource.showCompany !== false, showService: leadFormSource.showService !== false, showWebsite: leadFormSource.showWebsite === true, showMessage: leadFormSource.showMessage !== false
+    },
     sameAs: cleanPublicUrlList(settingsSource.sameAs),
     allowAiCrawl: settingsSource.allowAiCrawl !== false, updatedAt: settingsSource.updatedAt || null
   };
