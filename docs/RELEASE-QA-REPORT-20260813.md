@@ -43,9 +43,9 @@
 - `npm run check:concurrent-migrations`：四进程首次启动迁移竞争回归通过。
 - `npm run check:site-capacity`：10,000 篇已审核发布文章下，首页、资讯、文章、sitemap、RSS 和 llms-full 全部成功；热态核心页面 p95 不高于 56.69ms，冷缓存 sitemap p95 约 479.20ms（本机 Windows/Node 26 数据，不等同生产 SLA）。
 - `npm run check:runtime-endurance`：1,000 篇文章、30 分钟、1,074 次请求、错误 0；p50 65.13ms、p95 71.67ms、p99 76.07ms；后半程 RSS -0.60%，WAL 稳定在约 4.02MB。
-- 最新空白交付包源码提交：`7bc19431c462f7e0479a463acff4eee9e526f318`；manifest 与 `SOURCE_VERSION` 一致，`sourceDirty=false`。
-- 交付包目录共 323 个文件（manifest 记录 321 个 payload 文件，另含 manifest 与总校验文件）；归档大小 `161410151` bytes。
-- 最新空白交付包 SHA-256：`bc40bbb3bb086189e79845b7320f30a6f3d291296c1675eca782497bac8fbf93`；不含客户数据和恢复密钥。
+- 最新空白交付包源码提交：`668e998d59e77ec1c9256c2f3e5d3c19ed3193d9`；manifest 与 `SOURCE_VERSION` 一致，`sourceDirty=false`。
+- 交付包目录共 323 个文件（manifest 记录 321 个 payload 文件，另含 manifest 与总校验文件）；归档大小 `161408864` bytes。
+- 最新空白交付包 SHA-256：`7d6a3065eb6c37c025d2ab9a85c38ec8de4c812cff7a935b7ebb5cd97298e558`；不含客户数据和恢复密钥。
 - `npm audit --omit=dev --audit-level=high`：High/Critical 为 0。
 
 ## 上线前必须验收
