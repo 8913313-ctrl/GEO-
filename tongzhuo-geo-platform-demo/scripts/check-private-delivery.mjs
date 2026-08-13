@@ -114,8 +114,14 @@ async function createBackupFixture(root, options = {}) {
 
 try {
   const blankOutput = path.join(testRoot, "blank-output");
-  const dirtyRefusal = runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive"], 1);
-  assert.match(`${dirtyRefusal.stdout}\n${dirtyRefusal.stderr}`, /干净的 Git 工作区/);
+  const dirtyMarker = path.join(projectRoot, `.private-delivery-dirty-check-${process.pid}`);
+  await writeFile(dirtyMarker, "test-only\n", "utf8");
+  try {
+    const dirtyRefusal = runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive"], 1);
+    assert.match(`${dirtyRefusal.stdout}\n${dirtyRefusal.stderr}`, /干净的 Git 工作区/);
+  } finally {
+    await rm(dirtyMarker, { force: true });
+  }
   runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive", "--allow-dirty"]);
   const blankRoot = path.join(blankOutput, `tongzhuo-geo-private-${packageJson.version}-blank`);
   const blankManifest = JSON.parse(await readFile(path.join(blankRoot, "manifest.json"), "utf8"));
