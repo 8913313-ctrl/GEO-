@@ -71,6 +71,7 @@ function usage() {
   --customer-id <代号>          migrated 模式必填；只允许字母、数字、点、横线和下划线
   --acknowledge-sensitive-data  确认 migrated 包包含客户数据和恢复密钥
   --overwrite                   仅覆盖由本构建器生成的同名目录/压缩包
+  --allow-dirty                 仅限本地测试；允许脏工作区并在 manifest 标记
   --no-archive                  只生成目录，不生成 tar.gz（用于本地验证）
   --help                        显示帮助
 
@@ -91,6 +92,7 @@ function parseArguments(argv) {
     archive: true,
     pruneHistory: false,
     retainBuilds: "2",
+    allowDirty: false,
     help: false
   };
   const valueOptions = new Map([
@@ -114,6 +116,7 @@ function parseArguments(argv) {
     else if (argument === "--overwrite") options.overwrite = true;
     else if (argument === "--no-archive") options.archive = false;
     else if (argument === "--prune-history") options.pruneHistory = true;
+    else if (argument === "--allow-dirty") options.allowDirty = true;
     else if (argument === "--help" || argument === "-h") options.help = true;
     else throw new Error(`未知参数：${argument}`);
   }
@@ -450,6 +453,9 @@ async function main() {
   const packageJson = JSON.parse(await readFile(path.join(projectRoot, "package.json"), "utf8"));
   const version = safeToken(options.version || packageJson.version, "版本号");
   const source = sourceIdentity();
+  if (source.dirty && !options.allowDirty) {
+    throw new Error("正式交付包必须从干净的 Git 工作区构建。请先提交或移走运行数据；本地测试可显式使用 --allow-dirty。");
+  }
   const retainBuilds = positiveInteger(options.retainBuilds, "--retain-builds");
   let customerId = "";
   let migration = null;

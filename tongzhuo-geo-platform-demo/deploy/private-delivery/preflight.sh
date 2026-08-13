@@ -59,6 +59,21 @@ done
 docker info >/dev/null 2>&1 || pd_die "Docker Engine is unavailable to the current user. Start Docker or run with the approved service account."
 docker compose version >/dev/null 2>&1 || pd_die "Docker Compose v2 is required (the 'docker compose' command)."
 
+version_at_least() {
+  local actual="$1" required_major="$2" required_minor="$3" label="$4"
+  local major minor
+  IFS=. read -r major minor _ <<<"${actual#v}"
+  [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ ]] \
+    || pd_die "Could not parse $label version: $actual"
+  (( major > required_major || (major == required_major && minor >= required_minor) )) \
+    || pd_die "$label >=${required_major}.${required_minor} is required; found $actual."
+}
+
+docker_engine_version="$(docker version --format '{{.Server.Version}}' 2>/dev/null)"
+docker_compose_version="$(docker compose version --short 2>/dev/null)"
+version_at_least "$docker_engine_version" 24 0 "Docker Engine"
+version_at_least "$docker_compose_version" 2 20 "Docker Compose"
+
 if [[ -z "$SOURCE_ROOT" ]]; then
   SOURCE_ROOT="$(pd_discover_local_app "$SCRIPT_DIR")"
 else

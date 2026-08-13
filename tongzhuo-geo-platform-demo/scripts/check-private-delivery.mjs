@@ -114,7 +114,9 @@ async function createBackupFixture(root, options = {}) {
 
 try {
   const blankOutput = path.join(testRoot, "blank-output");
-  runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive"]);
+  const dirtyRefusal = runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive"], 1);
+  assert.match(`${dirtyRefusal.stdout}\n${dirtyRefusal.stderr}`, /干净的 Git 工作区/);
+  runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive", "--allow-dirty"]);
   const blankRoot = path.join(blankOutput, `tongzhuo-geo-private-${packageJson.version}-blank`);
   const blankManifest = JSON.parse(await readFile(path.join(blankRoot, "manifest.json"), "utf8"));
   assert.equal(blankManifest.deliveryMode, "blank");
@@ -264,9 +266,9 @@ try {
   await writeFile(path.join(blankOutput, "stale-private-delivery.tar.gz"), "stale archive");
   await writeFile(path.join(blankOutput, "stale-private-delivery.tar.gz.sha256"), "stale checksum");
   await utimes(staleBundle, new Date(0), new Date(0));
-  const overwriteRequired = runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive"], 1);
+  const overwriteRequired = runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive", "--allow-dirty"], 1);
   assert.match(overwriteRequired.stderr, /--overwrite/);
-  runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive", "--overwrite", "--prune-history", "--retain-builds", "1"]);
+  runBuilder(["--mode", "blank", "--output", blankOutput, "--no-archive", "--overwrite", "--prune-history", "--retain-builds", "1", "--allow-dirty"]);
   await assertSums(blankRoot);
   assert.equal(await exists(staleBundle), false);
   assert.equal(await exists(path.join(blankOutput, "stale-private-delivery.tar.gz")), false);
@@ -281,7 +283,8 @@ try {
     "--customer-id", "fixture-customer",
     "--acknowledge-sensitive-data",
     "--output", migratedOutput,
-    "--no-archive"
+    "--no-archive",
+    "--allow-dirty"
   ]);
   const migratedRoot = path.join(migratedOutput, `tongzhuo-geo-private-${packageJson.version}-migrated-fixture-customer`);
   const migratedManifest = JSON.parse(await readFile(path.join(migratedRoot, "manifest.json"), "utf8"));
@@ -298,7 +301,8 @@ try {
     "--migration-input", backupDir,
     "--customer-id", "fixture-customer",
     "--output", path.join(testRoot, "must-fail"),
-    "--no-archive"
+    "--no-archive",
+    "--allow-dirty"
   ], 1);
   assert.match(missingAcknowledgement.stderr, /acknowledge-sensitive-data/);
 
@@ -312,7 +316,8 @@ try {
     "--customer-id", "external-key-customer",
     "--acknowledge-sensitive-data",
     "--output", path.join(testRoot, "environment-key-must-fail"),
-    "--no-archive"
+    "--no-archive",
+    "--allow-dirty"
   ], 1);
   assert.match(environmentKeyMigration.stderr, /TZ_MASTER_KEY|外部.*主密钥/);
 
@@ -323,7 +328,8 @@ try {
     "--customer-id", "fixture-customer",
     "--acknowledge-sensitive-data",
     "--output", path.join(testRoot, "tampered-must-fail"),
-    "--no-archive"
+    "--no-archive",
+    "--allow-dirty"
   ], 1);
   assert.match(tampered.stderr, /SHA256|校验/);
 
