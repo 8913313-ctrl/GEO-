@@ -83,7 +83,12 @@ try {
   assert.equal(result.response.status, 200); assert.equal(JSON.parse(result.text).service, "official-site");
 
   result = await request(base, "/");
-  assert.equal(result.response.status, 200); assert.match(result.text, /ENTERPRISE GEO OPERATIONS/); assert.match(result.text, /测试企业有限公司/); assert.doesNotMatch(result.text, /旧官网首页|LegacyOrg/); assert.match(result.text, /https:\/\/www\.example\.test\//);
+  assert.equal(result.response.status, 200);
+  assert.match(result.text, /ENTERPRISE OPERATIONS/);
+  assert.match(result.text, /测试企业有限公司/);
+  assert.match(result.text, /了解产品方案/);
+  assert.doesNotMatch(result.text, /ENTERPRISE GEO OPERATIONS|开始 GEO 诊断|企业数字身份证|旧官网首页|LegacyOrg/);
+  assert.match(result.text, /https:\/\/www\.example\.test\//);
 
   result = await request(base, "/about/");
   assert.equal(result.response.status, 200); assert.match(result.text, /关于我们/); assert.match(result.response.headers.get("link"), /https:\/\/www\.example\.test\/about\//);

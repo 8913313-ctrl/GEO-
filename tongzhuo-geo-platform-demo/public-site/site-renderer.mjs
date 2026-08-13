@@ -797,7 +797,24 @@ function renderHomePage({ site, page, articles, categories, origin, preview = fa
     <section class="corp-contact"><div class="shell corp-contact-layout"><div><h2>先看清企业现在最该解决的问题。</h2><p>提交企业现状后，我们会先确认诊断范围、所需资料与交付边界。可在提交前沟通保密方式，不强制采购后续服务。</p></div><a class="corp-button corp-button-light" href="/contact/">提交业务咨询 <span aria-hidden="true">→</span></a></div></section>
   </div>`;
   const description = site.description || `${brand}企业官网。`;
-  return documentShell({ site, origin, pathname: "/", title: "", description, active: "/", schemaExtra: [{ "@type": "WebPage", name: brand, description }], body, preview, assetBase, bodyClass: "corp-home-page" });
+  // GEO is the delivery engine, not the customer's product. A privately
+  // deployed customer site must promote that customer's configured business
+  // instead of inheriting 桐灼's GEO sales language from the default shell.
+  const customerFacing = !/桐灼|灼见/.test(`${brand}${site.companyName || ""}`);
+  const customerBody = customerFacing
+    ? body
+      .replaceAll("ENTERPRISE GEO OPERATIONS", "ENTERPRISE OPERATIONS")
+      .replace(/<h1>让客户和 AI，<br><strong>先认准你的企业。<\/strong><\/h1>/, `<h1>${escapeHtml(brand)}<br><strong>${escapeHtml(coreService)}</strong></h1>`)
+      .replaceAll("开始 GEO 诊断", "了解产品方案")
+      .replaceAll("看懂数字身份证", "了解企业能力")
+      .replaceAll("企业数字身份证", "企业能力档案")
+      .replaceAll("数字身份证", "企业能力档案")
+      .replace("GEO 不是多写几篇文章，<br>而是建立一条可信的答案链。", "把专业能力，变成客户看得懂的产品答案。")
+      .replaceAll("建立可被客户与 AI 理解的企业身份", "建立清晰、可信的企业产品信息")
+      .replaceAll("先看清企业现在最该解决的问题。", "告诉我们你的采购或使用需求。")
+      .replaceAll("提交企业现状后，我们会先确认诊断范围、所需资料与交付边界。可在提交前沟通保密方式，不强制采购后续服务。", "提交需求后，我们会确认产品范围、应用场景和下一步沟通方式。")
+    : body;
+  return documentShell({ site, origin, pathname: "/", title: "", description, active: "/", schemaExtra: [{ "@type": "WebPage", name: brand, description }], body: customerBody, preview, assetBase, bodyClass: "corp-home-page" });
 }
 
 function renderServicesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
