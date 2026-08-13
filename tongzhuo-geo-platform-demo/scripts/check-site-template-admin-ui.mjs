@@ -14,6 +14,8 @@ assert.match(app, /data-template-key="\$\{escapeHtml\(template\.key\)\}"/);
 assert.match(app, /allowedTemplateKeys = new Set\(\["professional", "industrial", "energy", "beauty", "engineering-case", "product-matrix"\]\)/);
 assert.match(app, /theme\.key = templateKey/);
 assert.match(app, /保存后只更新官网草稿/);
+assert.match(app, /咨询入口尚未公开/);
+assert.match(app, /避免首页按钮跳转到 404 页面/);
 assert.match(styles, /\.site-template-picker\s*\{/);
 assert.match(styles, /\.site-template-option:focus-within\s*\{/);
 assert.match(styles, /@media[\s\S]*\.site-template-picker\s*\{\s*grid-template-columns:\s*repeat\(2/);

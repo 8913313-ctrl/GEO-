@@ -11210,6 +11210,7 @@ async function publishSiteCms() {
   if (!currentUserCan("content.publish")) return showToast("没有官网发布权限", "请由管理员或具备发布权限的成员执行。", "error");
   const settings = siteCms().settings || {};
   const publicHome = (siteCms().pages || []).find((page) => page.id === "home" || page.path === "/");
+  const publicContact = (siteCms().pages || []).find((page) => page.id === "contact" || page.path === "/contact/");
   if (!settings.siteName || settings.siteName === "企业官网" || !settings.companyName || settings.companyName === "企业") {
     ui.siteTab = "seo";
     render();
@@ -11217,6 +11218,11 @@ async function publishSiteCms() {
   }
   if (!settings.officialDomain) return showToast("请先配置官网域名", "正式发布前必须填写客户企业的主域名。", "error");
   if (!publicHome || publicHome.status !== "published") return showToast("首页尚未设为公开", "请在页面管理中将首页状态改为“已发布”并保存。", "error");
+  if (settings.leadForm?.enabled !== false && (!publicContact || publicContact.status !== "published")) {
+    ui.siteTab = "pages";
+    render();
+    return showToast("咨询入口尚未公开", "在线咨询表单已启用。请在页面管理中将“联系我们”设为“已发布”，避免首页按钮跳转到 404 页面。", "error");
+  }
   if (!window.confirm(`确认发布“${settings.siteName}”？\n\n系统将先提交审核并完成发布审批，然后生成新的不可变正式版本。`)) return;
   siteCmsRuntime.publishing = true;
   try {
