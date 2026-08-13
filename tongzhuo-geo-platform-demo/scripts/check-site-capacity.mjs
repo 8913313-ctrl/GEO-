@@ -32,7 +32,7 @@ try {
   new WorkspaceStore(database).save(workspaceId, {
     articles: [],
     site: { cms: {
-      settings: { siteName: "容量测试企业", companyName: "容量测试企业有限公司", description: "容量测试官网", allowAiCrawl: true },
+      settings: { siteName: "容量测试企业", companyName: "容量测试企业有限公司", officialDomain: "capacity.example", description: "容量测试官网", allowAiCrawl: true },
       categories: [{ id: "knowledge", name: "行业知识", slug: "knowledge", status: "active", navVisible: true }],
       pages: [{ id: "home", title: "首页", path: "/", status: "published", sitemapEnabled: true }, { id: "insights", title: "行业资讯", path: "/insights/", status: "published", sitemapEnabled: true }],
       navItems: [{ id: "home", label: "首页", path: "/", visible: true }, { id: "insights", label: "行业资讯", path: "/insights/", visible: true }],

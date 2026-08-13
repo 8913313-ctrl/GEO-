@@ -41,7 +41,7 @@ async function hit(base, pathname) {
 try {
   database = new ProductionDatabase({ databasePath });
   new WorkspaceStore(database).save(workspaceId, { articles: [], site: { cms: {
-    settings: { siteName: "长稳测试企业", companyName: "长稳测试企业有限公司", description: "长稳测试官网", allowAiCrawl: true },
+    settings: { siteName: "长稳测试企业", companyName: "长稳测试企业有限公司", officialDomain: "endurance.example", description: "长稳测试官网", allowAiCrawl: true },
     categories: [{ id: "knowledge", name: "行业知识", slug: "knowledge", status: "active", navVisible: true }],
     pages: [{ id: "home", title: "首页", path: "/", status: "published", sitemapEnabled: true }, { id: "insights", title: "行业资讯", path: "/insights/", status: "published", sitemapEnabled: true }],
     navItems: [{ id: "home", label: "首页", path: "/", visible: true }, { id: "insights", label: "行业资讯", path: "/insights/", visible: true }], theme: { key: "industrial", cta: "预约咨询" }
