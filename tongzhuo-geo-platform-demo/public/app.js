@@ -2002,10 +2002,10 @@ function applySiteCmsApiPayload(payload, { replaceDraft = true } = {}) {
       siteCmsRuntime.localDirty = false;
     }
   }
-  if (parsed.publication) siteCmsRuntime.publication = parsed.publication;
+  siteCmsRuntime.publication = parsed.publication;
   if (parsed.releases.length || payload?.data?.releases || payload?.releases) siteCmsRuntime.releases = parsed.releases;
   if (parsed.leads.length || payload?.data?.leads || payload?.leads) siteCmsRuntime.leads = parsed.leads;
-  siteCmsRuntime.loaded = Boolean(siteCmsRuntime.draft && siteCmsRuntime.publication);
+  siteCmsRuntime.loaded = Boolean(siteCmsRuntime.draft);
   siteCmsRuntime.error = "";
   return parsed;
 }
@@ -11034,8 +11034,9 @@ function renderSiteReleasePanel() {
 function renderSitePanel() {
   const draft = siteCmsRuntime.draft;
   const publication = siteCmsRuntime.publication;
-  const changed = siteCmsRuntime.localDirty || Boolean(draft && publication && draft.checksum !== publication.checksum);
-  const releaseBar = `<section class="site-release-bar ${changed ? "has-changes" : "is-current"}"><div class="site-release-state"><span class="site-release-indicator"></span><div><b>${siteCmsRuntime.saving ? "正在保存草稿" : changed ? "有未发布修改" : "草稿与官网一致"}</b><small>草稿 r${escapeHtml(draft?.revision || "—")} · 正式 v${escapeHtml(publication?.version || "—")} · 最近发布 ${escapeHtml(siteDisplayTime(publication?.publishedAt))}</small></div></div><div class="site-release-actions"><button class="secondary-button button-small" type="button" data-action="site-show-releases">发布历史</button><button class="secondary-button button-small" type="button" data-action="preview-site">预览草稿</button><button class="primary-button button-small" type="button" data-action="site-publish-cms">发布官网</button></div></section>`;
+  const firstPublication = !publication;
+  const changed = firstPublication || siteCmsRuntime.localDirty || Boolean(draft && publication && draft.checksum !== publication.checksum);
+  const releaseBar = `<section class="site-release-bar ${changed ? "has-changes" : "is-current"}"><div class="site-release-state"><span class="site-release-indicator"></span><div><b>${siteCmsRuntime.saving ? "正在保存草稿" : firstPublication ? "官网尚未首次发布" : changed ? "有未发布修改" : "草稿与官网一致"}</b><small>草稿 r${escapeHtml(draft?.revision || "—")} · ${firstPublication ? "公开端暂不可访问" : `正式 v${escapeHtml(publication.version)} · 最近发布 ${escapeHtml(siteDisplayTime(publication.publishedAt))}`}</small></div></div><div class="site-release-actions"><button class="secondary-button button-small" type="button" data-action="site-show-releases">发布历史</button><button class="secondary-button button-small" type="button" data-action="preview-site">预览草稿</button><button class="primary-button button-small" type="button" data-action="site-publish-cms">${firstPublication ? "首次发布官网" : "发布官网"}</button></div></section>`;
   let body = "";
   if (ui.siteTab === "pages") body = renderSitePages();
   else if (ui.siteTab === "catalog") body = renderSiteCatalog();

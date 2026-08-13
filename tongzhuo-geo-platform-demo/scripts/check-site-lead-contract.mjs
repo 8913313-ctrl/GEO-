@@ -73,6 +73,20 @@ try {
     result = await request(base, "/api/v1/users", { method: "POST", headers: admin, body: JSON.stringify({ username, displayName: username, password: "RoleUser!2026", role }) });
     assert.equal(result.response.status, 201, JSON.stringify(result.body));
   }
+  result = await request(base, "/api/v1/site-cms/snapshot", { headers: { Cookie: adminCookie } });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  const firstSiteCms = structuredClone(result.body.data.draft.snapshot);
+  Object.assign(firstSiteCms.settings, { siteName: "线索验收官网", companyName: "线索验收企业有限公司", officialDomain: "lead-contract.example.test" });
+  firstSiteCms.pages = firstSiteCms.pages.map((page) => ({ ...page, status: "published" }));
+  result = await request(base, "/api/v1/site-cms/draft", { method: "PUT", headers: admin, body: JSON.stringify({ expectedRevision: result.body.data.draft.revision, cms: firstSiteCms }) });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  const siteDraftRevision = result.body.data.draft.revision;
+  for (const [endpoint, reason] of [["submit-review", "线索官网首次审核"], ["approve", "线索官网首次审核通过"]]) {
+    result = await request(base, `/api/v1/site-cms/${endpoint}`, { method: "POST", headers: admin, body: JSON.stringify({ reason }) });
+    assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  }
+  result = await request(base, "/api/v1/site-cms/publish", { method: "POST", headers: admin, body: JSON.stringify({ expectedDraftRevision: siteDraftRevision, note: "线索官网首次发布" }) });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
   const sitePort = 48_000 + Math.floor(Math.random() * 300);
   siteRuntime = createSiteRuntime({ databasePath: httpDatabasePath, workspaceId: "default", projectId: "default", staticRoot: directory, host: "127.0.0.1", port: sitePort, baseUrl: "https://lead-contract.example.test", logger: { info() {}, warn() {}, error() {} } });
   const siteAddress = await siteRuntime.listen();

@@ -440,6 +440,14 @@ function parseSnapshot(value) {
 
 function actorId(actor) { return actor?.userId || actor?.id || null; }
 
+function hasConfiguredSiteIdentity(snapshot = {}) {
+  const settings = snapshot.settings || {};
+  const siteName = cleanText(settings.siteName, "", 160);
+  const companyName = cleanText(settings.companyName, "", 300);
+  const officialDomain = cleanText(settings.officialDomain, "", 300);
+  return Boolean(siteName && siteName !== "企业官网" && companyName && companyName !== "企业" && officialDomain);
+}
+
 const WORKFLOW_TRANSITIONS = Object.freeze({
   draft: new Set(["pending_review"]),
   pending_review: new Set(["approved", "rejected"]),
@@ -469,7 +477,7 @@ export class SiteCmsStore {
     const existing = this.connection.prepare("SELECT * FROM site_cms_drafts WHERE workspace_id = ?").get(workspaceId);
     const publication = this.connection.prepare("SELECT workspace_id FROM site_cms_publications WHERE workspace_id = ?").get(workspaceId);
     const state = this.workspaceState(workspaceId);
-    if (existing && publication) {
+    if (existing) {
       const stored = parseSnapshot(existing.snapshot_json);
       const needsContentMigration = Number(stored.schemaVersion || 0) < 2
         || !Array.isArray(stored.services) || !Array.isArray(stored.cases) || !Array.isArray(stored.problemGroups);
@@ -490,10 +498,12 @@ export class SiteCmsStore {
         }
       }
       const workflow = this.connection.prepare("SELECT workspace_id FROM site_cms_workflow_state WHERE workspace_id = ?").get(workspaceId);
-      if (!workflow) this.connection.prepare("INSERT OR IGNORE INTO site_cms_workflow_state (workspace_id, status, changed_at, reason) VALUES (?, 'published', ?, 'existing-publication-migration')").run(workspaceId, new Date().toISOString());
+      if (!workflow) this.connection.prepare(`INSERT OR IGNORE INTO site_cms_workflow_state (workspace_id, status, changed_at, reason) VALUES (?, ?, ?, ?)`)
+        .run(workspaceId, publication ? "published" : "draft", new Date().toISOString(), publication ? "existing-publication-migration" : "draft-only-bootstrap");
       return;
     }
     const snapshot = normalizeSiteCmsSnapshot(state.site?.cms || this.projectSeed?.site?.cms || {}, state);
+    const createBootstrapPublication = hasConfiguredSiteIdentity(snapshot);
     const serialized = serializeSnapshot(snapshot);
     const now = new Date().toISOString();
     this.database.transaction(() => {
@@ -503,14 +513,15 @@ export class SiteCmsStore {
       const currentDraft = this.connection.prepare("SELECT workspace_id FROM site_cms_drafts WHERE workspace_id = ?").get(workspaceId);
       const currentPublication = this.connection.prepare("SELECT workspace_id FROM site_cms_publications WHERE workspace_id = ?").get(workspaceId);
       if (!currentDraft) this.connection.prepare(`INSERT INTO site_cms_drafts (workspace_id, revision, snapshot_json, checksum, created_at, updated_at, updated_by) VALUES (?, 1, ?, ?, ?, ?, NULL)`).run(workspaceId, serialized.json, serialized.checksum, now, now);
-      if (!currentPublication) {
+      if (!currentPublication && createBootstrapPublication) {
         const releaseId = `SITE-REL-${randomUUID()}`;
         this.connection.prepare(`INSERT INTO site_cms_releases (id, workspace_id, version_number, source_draft_revision, source_release_id, operation, snapshot_json, checksum, note, created_at, created_by) VALUES (?, ?, 1, 1, NULL, 'bootstrap', ?, ?, ?, ?, NULL)`)
           .run(releaseId, workspaceId, serialized.json, serialized.checksum, "升级前官网自动保留版本", now);
         this.connection.prepare(`INSERT INTO site_cms_publications (workspace_id, release_id, version_number, published_at, published_by) VALUES (?, ?, 1, ?, NULL)`).run(workspaceId, releaseId, now);
       }
       const workflow = this.connection.prepare("SELECT workspace_id FROM site_cms_workflow_state WHERE workspace_id = ?").get(workspaceId);
-      if (!workflow) this.connection.prepare("INSERT OR IGNORE INTO site_cms_workflow_state (workspace_id, status, changed_at, reason) VALUES (?, 'published', ?, 'bootstrap')").run(workspaceId, now);
+      if (!workflow) this.connection.prepare(`INSERT OR IGNORE INTO site_cms_workflow_state (workspace_id, status, changed_at, reason) VALUES (?, ?, ?, ?)`)
+        .run(workspaceId, createBootstrapPublication ? "published" : "draft", now, createBootstrapPublication ? "bootstrap" : "awaiting-first-publication");
     });
   }
 
@@ -548,7 +559,15 @@ export class SiteCmsStore {
   }
 
   publication(workspaceId = this.workspaceId) {
+    const publication = this.publicationOrNull(workspaceId);
+    if (!publication) throw new SiteCmsError("官网尚未完成首次发布。", 404, "SITE_CMS_NOT_PUBLISHED");
+    return publication;
+  }
+
+  publicationOrNull(workspaceId = this.workspaceId) {
     this.ensureInitialized(workspaceId);
+    const pointer = this.connection.prepare("SELECT workspace_id FROM site_cms_publications WHERE workspace_id = ?").get(workspaceId);
+    if (!pointer) return null;
     const row = this.connection.prepare(`SELECT p.workspace_id, p.release_id, p.version_number, p.published_at, p.published_by, r.operation, r.note, r.checksum, r.source_draft_revision, r.snapshot_json FROM site_cms_publications p JOIN site_cms_releases r ON r.id = p.release_id AND r.workspace_id = p.workspace_id AND r.version_number = p.version_number WHERE p.workspace_id = ?`).get(workspaceId);
     if (!row) throw new SiteCmsError("官网正式发布指针无效，请停止公开服务并检查发布记录。", 503, "SITE_CMS_PUBLICATION_INVALID");
     const workflow = this.workflow(workspaceId);
@@ -592,18 +611,20 @@ export class SiteCmsStore {
     const draft = this.draft(workspaceId);
     const expectedRevision = Number(input.expectedDraftRevision);
     if (!Number.isInteger(expectedRevision) || expectedRevision !== draft.revision) throw new SiteCmsError("发布前草稿版本已变化，请刷新预览后重新发布。", 409, "SITE_CMS_PUBLISH_CONFLICT", { expectedRevision, currentRevision: draft.revision });
-    const current = this.publication(workspaceId);
-    if (current.status !== "approved") throw new SiteCmsError("官网必须先通过审核才能发布。", 409, "SITE_CMS_PUBLISH_REQUIRES_APPROVAL", { status: current.status });
-    if (draft.checksum === current.checksum) throw new SiteCmsError("官网草稿与当前正式版本一致，无需重复发布。", 409, "SITE_CMS_NO_CHANGES");
-    const version = current.version + 1;
+    const current = this.publicationOrNull(workspaceId);
+    const workflow = this.workflow(workspaceId);
+    if (workflow.status !== "approved") throw new SiteCmsError("官网必须先通过审核才能发布。", 409, "SITE_CMS_PUBLISH_REQUIRES_APPROVAL", { status: workflow.status });
+    if (current && draft.checksum === current.checksum) throw new SiteCmsError("官网草稿与当前正式版本一致，无需重复发布。", 409, "SITE_CMS_NO_CHANGES");
+    const version = current ? current.version + 1 : 1;
     const id = `SITE-REL-${randomUUID()}`;
     const now = new Date().toISOString();
     const userId = actorId(actor);
     const note = cleanText(input.note, `发布官网 v${version}`, 500);
     this.database.transaction(() => {
-      this.connection.prepare(`INSERT INTO site_cms_releases (id, workspace_id, version_number, source_draft_revision, source_release_id, operation, snapshot_json, checksum, note, created_at, created_by) VALUES (?, ?, ?, ?, ?, 'publish', ?, ?, ?, ?, ?)`).run(id, workspaceId, version, draft.revision, current.releaseId, JSON.stringify(draft.snapshot), draft.checksum, note, now, userId);
-      this.connection.prepare(`UPDATE site_cms_publications SET release_id = ?, version_number = ?, published_at = ?, published_by = ? WHERE workspace_id = ?`).run(id, version, now, userId, workspaceId);
-      appendAuditLog(this.connection, { actorUserId: userId, action: "site.cms.publish", entityType: "site_cms_release", entityId: id, details: { version, draftRevision: draft.revision, previousReleaseId: current.releaseId, checksum: draft.checksum }, request, trustProxy: this.trustProxy, createdAt: now });
+      this.connection.prepare(`INSERT INTO site_cms_releases (id, workspace_id, version_number, source_draft_revision, source_release_id, operation, snapshot_json, checksum, note, created_at, created_by) VALUES (?, ?, ?, ?, ?, 'publish', ?, ?, ?, ?, ?)`).run(id, workspaceId, version, draft.revision, current?.releaseId || null, JSON.stringify(draft.snapshot), draft.checksum, note, now, userId);
+      if (current) this.connection.prepare(`UPDATE site_cms_publications SET release_id = ?, version_number = ?, published_at = ?, published_by = ? WHERE workspace_id = ?`).run(id, version, now, userId, workspaceId);
+      else this.connection.prepare(`INSERT INTO site_cms_publications (workspace_id, release_id, version_number, published_at, published_by) VALUES (?, ?, ?, ?, ?)`).run(workspaceId, id, version, now, userId);
+      appendAuditLog(this.connection, { actorUserId: userId, action: "site.cms.publish", entityType: "site_cms_release", entityId: id, details: { version, draftRevision: draft.revision, previousReleaseId: current?.releaseId || null, firstPublication: !current, checksum: draft.checksum }, request, trustProxy: this.trustProxy, createdAt: now });
       this._transitionStatus("published", { actor, request, workspaceId, reason: note });
     });
     return this.publication(workspaceId);

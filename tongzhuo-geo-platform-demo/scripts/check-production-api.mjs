@@ -107,7 +107,7 @@ try {
   result = await request("/api/v1/site-cms");
   assert(result.response.status === 401, "CMS must reject anonymous access");
   result = await request("/api/v1/site-cms", { headers: { Cookie: adminCookie } });
-  assert(result.response.status === 200 && result.body.data.draft && result.body.data.publication, "CMS snapshot should expose draft and publication");
+  assert(result.response.status === 200 && result.body.data.draft && result.body.data.publication === null, "A blank customer deployment should expose a draft without publishing generic identity");
   const cmsDraft = result.body.data.draft;
   result = await request("/api/v1/site-cms/draft", {
     method: "PUT",
@@ -139,7 +139,7 @@ try {
     headers: { Cookie: adminCookie, "X-CSRF-Token": adminCsrf, "Content-Type": "application/json" },
     body: JSON.stringify({ expectedDraftRevision: updatedCmsDraft.revision, note: "HTTP CMS contract test" })
   });
-  assert(result.response.status === 200 && result.body.data.publication.version >= 2, "CMS publication failed");
+  assert(result.response.status === 200 && result.body.data.publication.version === 1, "First CMS publication must create version 1");
   result = await request("/api/v1/site-cms/preview?path=/", { headers: { Cookie: adminCookie } });
   assert(result.response.status === 200 && /noindex/i.test(result.response.headers.get("x-robots-tag") || "") && result.response.headers.get("x-frame-options") === "SAMEORIGIN", "CMS preview headers are unsafe");
 

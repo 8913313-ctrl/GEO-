@@ -16,6 +16,19 @@ async function start(options) {
   const databasePath = path.join(directory, `${options.workspaceId}.sqlite`);
   const database = new ProductionDatabase({ databasePath });
   const runtime = createSiteRuntime({ database, staticRoot: directory, host: "127.0.0.1", port: nextPort++, baseUrl: options.baseUrl, workspaceId: options.workspaceId, projectId: options.projectId, leadRateLimit: options.leadRateLimit, logger: { info() {}, warn() {}, error() {} } });
+  const cmsStore = runtime.store.cmsStore;
+  const current = cmsStore.draft();
+  const cms = structuredClone(current.snapshot);
+  Object.assign(cms.settings, {
+    siteName: `${options.workspaceId} official site`,
+    companyName: `${options.workspaceId} company`,
+    officialDomain: new URL(options.baseUrl).hostname
+  });
+  cms.pages = cms.pages.map((page) => ({ ...page, status: "published" }));
+  const saved = cmsStore.saveDraft({ expectedRevision: current.revision, cms });
+  cmsStore.submitReview({ reason: "lead form test first publication review" });
+  cmsStore.approve({ reason: "lead form test first publication approved" });
+  cmsStore.publish({ expectedDraftRevision: saved.revision, note: "lead form test first publication" });
   runtime.testDatabase = database;
   const address = await runtime.listen();
   runtimes.push(runtime);

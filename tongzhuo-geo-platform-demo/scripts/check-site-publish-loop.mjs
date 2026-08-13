@@ -72,6 +72,48 @@ try {
   const csrf = result.body.data.csrfToken;
   const auth = headers(cookie, csrf);
 
+  siteRuntime = createSiteRuntime({
+    databasePath,
+    staticRoot: temporaryDirectory,
+    host: "127.0.0.1",
+    port: 0,
+    baseUrl: "https://site.example.test",
+    workspaceId: "default",
+    flushIntervalMs: 60_000,
+    logger: { info() {}, warn() {}, error() {} }
+  });
+  const siteAddress = await siteRuntime.listen(0, "127.0.0.1");
+  const siteBase = `http://127.0.0.1:${siteAddress.port}`;
+  result = await request(siteBase, "/");
+  assert.equal(result.response.status, 404, "a fresh customer website must remain unavailable before first publication");
+  assert.equal(result.response.headers.get("x-robots-tag"), "noindex, nofollow, noarchive, nosnippet, noimageindex");
+  assert.equal(result.response.headers.get("cache-control"), "no-store");
+
+  result = await request(adminBase, "/api/v1/site-cms", { headers: headers(cookie, "") });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  assert.equal(result.body.data.publication, null, "a fresh customer must not receive an automatic public website");
+  const firstSiteCms = structuredClone(result.body.data.draft.snapshot);
+  Object.assign(firstSiteCms.settings, {
+    siteName: "交付回归企业官网",
+    companyName: "交付回归测试企业有限公司",
+    officialDomain: "site.example.test"
+  });
+  firstSiteCms.pages = firstSiteCms.pages.map((page) => ({ ...page, status: "published" }));
+  result = await request(adminBase, "/api/v1/site-cms/draft", {
+    method: "PUT", headers: auth,
+    body: JSON.stringify({ expectedRevision: result.body.data.draft.revision, cms: firstSiteCms })
+  });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  const firstDraftRevision = result.body.data.draft.revision;
+  result = await request(adminBase, "/api/v1/site-cms/submit-review", { method: "POST", headers: auth, body: JSON.stringify({ reason: "首次官网交付审核" }) });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  result = await request(adminBase, "/api/v1/site-cms/approve", { method: "POST", headers: auth, body: JSON.stringify({ reason: "企业身份与公开页面已核验" }) });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  result = await request(adminBase, "/api/v1/site-cms/publish", { method: "POST", headers: auth, body: JSON.stringify({ expectedDraftRevision: firstDraftRevision, note: "首次正式发布" }) });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  assert.equal(result.body.data.publication.version, 1);
+  assert.equal(result.body.data.publication.operation, "publish");
+
   result = await request(adminBase, "/api/v1/site-cms/approve", {
     method: "POST", headers: auth, body: JSON.stringify({ reason: "非法跳过提交审核" })
   });
@@ -177,18 +219,6 @@ try {
   const frozenAt = result.body.data.version.frozenAt;
   const contentHash = result.body.data.version.contentHash;
 
-  siteRuntime = createSiteRuntime({
-    databasePath,
-    staticRoot: temporaryDirectory,
-    host: "127.0.0.1",
-    port: 0,
-    baseUrl: "https://site.example.test",
-    workspaceId: "default",
-    flushIntervalMs: 60_000,
-    logger: { info() {}, warn() {}, error() {} }
-  });
-  const siteAddress = await siteRuntime.listen(0, "127.0.0.1");
-  const siteBase = `http://127.0.0.1:${siteAddress.port}`;
   result = await request(siteBase, "/insights");
   assert.equal(result.response.status, 200);
   assert.doesNotMatch(result.text, /Official site publish loop article/);

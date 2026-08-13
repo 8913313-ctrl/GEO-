@@ -15,7 +15,8 @@ try {
   assert.equal(resolveProjectSeed("missing-project"), null);
 
   const blankStore = new SiteCmsStore(database, { workspaceId: "tenant-blank-customer", projectSeedKey: "" });
-  const blank = blankStore.publication().snapshot;
+  const blank = blankStore.draft().snapshot;
+  assert.equal(blankStore.publicationOrNull(), null, "a fresh customer must remain draft-only until manual review and first publish");
   assert.equal(blank.settings.siteName, "企业官网");
   assert.equal(blank.settings.companyName, "企业");
   assert.deepEqual(blank.services, [], "a fresh customer must not inherit Tongzhuo services");
@@ -53,13 +54,11 @@ try {
   assert.match(JSON.stringify(beauty), /成分与配方说明|敏感肌|安全/);
   assert.doesNotMatch(JSON.stringify(beauty), /桐灼|华材建材|恒稳能源/);
 
-  const blankPublic = new PublicSiteStore({ database, workspaceId: "tenant-blank-customer", projectSeedKey: "" }).snapshot();
-  const blankPages = blankPublic.site.pages.filter((page) => ["home", "about"].includes(page.id)).map((page) => renderFixedPage({
-    site: blankPublic.site, page, articles: [], categories: blankPublic.categories, origin: "https://blank-customer.example"
-  }));
-  blankPages.push(renderInsightsPage({ site: blankPublic.site, articles: [], categories: blankPublic.categories, origin: "https://blank-customer.example" }));
-  const blankHtml = blankPages.join("\n");
-  assert.doesNotMatch(blankHtml, /桐灼|灼见|鲁ICP备2026021587号-2|tongzhuo-mark|zhuojian-ai/, "neutral public pages must contain no Tongzhuo identity or assets");
+  assert.throws(
+    () => new PublicSiteStore({ database, workspaceId: "tenant-blank-customer", projectSeedKey: "" }).snapshot(),
+    (error) => error?.code === "SITE_CMS_NOT_PUBLISHED",
+    "a fresh customer must have no public snapshot before first publication"
+  );
 
   const tongzhuoPublic = new PublicSiteStore({ database, workspaceId: "tenant_tongzhuo_geo", projectSeedKey: "tongzhuo-geo" }).snapshot();
   const tongzhuoHome = renderFixedPage({

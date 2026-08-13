@@ -28,7 +28,7 @@ try {
     businessLines: [{ id: "line-1", name: "可靠设备", product: "可靠设备", description: "用于模板隔离验收的客户业务数据。" }],
     site: { cms: {
       schemaVersion: 2,
-      settings: { siteName: "示例设备", companyName: "示例设备有限公司", description: "客户自己的公开信息。" },
+      settings: { siteName: "示例设备", companyName: "示例设备有限公司", officialDomain: "equipment.example.test", description: "客户自己的公开信息。" },
       theme: { key: "professional", name: "客户主题", primaryColor: "#345678", cta: "联系我们" },
       pages: [{ id: "home", title: "首页", path: "/", status: "published" }],
       modules: { home: [{ id: "home-hero", type: "hero", title: "首页", content: "客户自己的公开信息。", status: "published" }] },

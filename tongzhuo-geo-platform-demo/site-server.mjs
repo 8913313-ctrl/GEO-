@@ -682,6 +682,9 @@ export function createSiteRuntime(options = {}) {
         const responsePromise = String(publishedSite.leadForm?.responsePromise || "我们会尽快与您联系").replace(/[。；;]+$/, "");
         return response(request, responseObject, { status: replayed ? 200 : 201, contentType: "application/json; charset=utf-8", body: JSON.stringify({ ok: true, data: { ...publicLead, duplicate: replayed, message: replayed ? `本次需求已提交，请勿重复操作。${responsePromise}。` : `提交成功，${responsePromise}。` } }), cacheControl: "no-store" }, { requestId: id, track: false });
       } catch (error) {
+        if (error?.code === "SITE_CMS_NOT_PUBLISHED") {
+          return response(request, responseObject, { status: 404, contentType: "application/json; charset=utf-8", body: JSON.stringify({ ok: false, code: error.code, message: "官网尚未开放咨询。" }), cacheControl: "no-store", headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex" } }, { requestId: id, track: false });
+        }
         const known = error instanceof PublicLeadError;
         if (!known) config.logger.error?.("official_site.lead_failed", { requestId: id, error: error.message });
         return response(request, responseObject, { status: known ? error.status : 500, contentType: "application/json; charset=utf-8", body: JSON.stringify({ ok: false, code: known ? error.code : "SITE_LEAD_FAILED", message: known ? error.message : "提交暂时失败，请稍后再试。" }), cacheControl: "no-store" }, { requestId: id, track: false });
@@ -718,7 +721,23 @@ export function createSiteRuntime(options = {}) {
       if (assetResponse !== false) return assetResponse;
       // The public runtime deliberately reads only the immutable CMS
       // publication pointer. Draft preview is an authenticated admin concern.
-      const snapshot = publishedRuntimeSnapshot(store.snapshot({ draft: false }), config.production);
+      let snapshot;
+      try {
+        snapshot = publishedRuntimeSnapshot(store.snapshot({ draft: false }), config.production);
+      } catch (error) {
+        if (error?.code === "SITE_CMS_NOT_PUBLISHED") {
+          const draftSnapshot = store.snapshot({ draft: true });
+          origin = requestOrigin(request, config, draftSnapshot.site);
+          const unavailableSite = { ...draftSnapshot.site, allowAiCrawl: false };
+          return response(request, responseObject, {
+            status: 404,
+            body: renderNotFound({ site: unavailableSite, origin, pathname }),
+            cacheControl: "no-store",
+            headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex" }
+          }, { requestId: id, pathname, track: false });
+        }
+        throw error;
+      }
       origin = requestOrigin(request, config, snapshot.site);
       if (snapshot.cms?.status === "unpublished" && !["/health/live", "/health/ready"].includes(pathname)) {
         return response(request, responseObject, { status: 404, body: renderNotFound({ site: snapshot.site, origin, pathname }) }, { requestId: id, pathname });

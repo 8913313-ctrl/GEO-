@@ -17,7 +17,7 @@ let database;
 function cms(name) {
   return {
     schemaVersion: 2,
-    settings: { siteName: name, companyName: `${name}有限公司`, description: `${name}正式公开信息。` },
+    settings: { siteName: name, companyName: `${name}有限公司`, officialDomain: `${name === "甲方建材" ? "building" : "machinery"}.example.test`, description: `${name}正式公开信息。` },
     pages: [
       { id: "home", title: "首页", path: "/", status: "published", sitemapEnabled: true },
       { id: "insights", title: "行业资讯", path: "/insights/", status: "published", sitemapEnabled: true }

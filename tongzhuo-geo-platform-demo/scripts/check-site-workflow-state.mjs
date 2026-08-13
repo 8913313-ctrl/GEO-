@@ -31,7 +31,7 @@ try {
   database.connection.prepare("INSERT INTO users (id, username, username_normalized, display_name, password_hash, role, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'test-only', ?, 'active', ?, ?)")
     .run(actorReviewer.userId, "cms-reviewer", "cms-reviewer", actorReviewer.displayName, "reviewer", now, now);
   new WorkspaceStore(database).save(workspaceId, { site: { cms: {
-    settings: { siteName: "状态机测试官网", companyName: "状态机测试企业" },
+    settings: { siteName: "状态机测试官网", companyName: "状态机测试企业", officialDomain: "workflow.example.test" },
     pages: [{ id: "home", title: "首页", path: "/", status: "published" }]
   } } }, { expectedRevision: 0 });
   const store = new SiteCmsStore(database, { workspaceId });

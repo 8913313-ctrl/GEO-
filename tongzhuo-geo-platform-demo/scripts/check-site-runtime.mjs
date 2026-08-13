@@ -56,7 +56,7 @@ try {
     }],
     site: {
       cms: {
-        settings: { siteName: "测试企业", companyName: "测试企业有限公司", description: "测试企业的公开知识库。", allowAiCrawl: true },
+        settings: { siteName: "测试企业", companyName: "测试企业有限公司", officialDomain: "www.example.test", description: "测试企业的公开知识库。", allowAiCrawl: true },
         categories: [{ id: "geo", name: "GEO 优化", slug: "geo", status: "active", navVisible: true, description: "GEO 方法与信源建设。" }],
         pages: [{ id: "home", title: "首页", path: "/", status: "published", sitemapEnabled: true }, { id: "insights", title: "行业资讯", path: "/insights", status: "published", sitemapEnabled: true }],
         navItems: [{ id: "home", label: "首页", path: "/", visible: true }, { id: "insights", label: "行业资讯", path: "/insights", visible: true }],

@@ -36,6 +36,25 @@ try {
     assert.equal(result.response.status, 201, JSON.stringify(result.body));
   }
 
+  result = await request(adminBase, "/api/v1/site-cms/snapshot", { headers: { Cookie: admin.Cookie } });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  const firstSiteCms = structuredClone(result.body.data.draft.snapshot);
+  Object.assign(firstSiteCms.settings, {
+    siteName: "Lead follow-up official site",
+    companyName: "Lead follow-up test company",
+    officialDomain: "lead-follow.example.test"
+  });
+  firstSiteCms.pages = firstSiteCms.pages.map((page) => ({ ...page, status: "published" }));
+  result = await request(adminBase, "/api/v1/site-cms/draft", { method: "PUT", headers: admin, body: JSON.stringify({ expectedRevision: result.body.data.draft.revision, cms: firstSiteCms }) });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  const firstSiteRevision = result.body.data.draft.revision;
+  for (const [endpoint, reason] of [["submit-review", "lead follow-up first publication review"], ["approve", "lead follow-up first publication approved"]]) {
+    result = await request(adminBase, `/api/v1/site-cms/${endpoint}`, { method: "POST", headers: admin, body: JSON.stringify({ reason }) });
+    assert.equal(result.response.status, 200, JSON.stringify(result.body));
+  }
+  result = await request(adminBase, "/api/v1/site-cms/publish", { method: "POST", headers: admin, body: JSON.stringify({ expectedDraftRevision: firstSiteRevision, note: "lead follow-up first publication" }) });
+  assert.equal(result.response.status, 200, JSON.stringify(result.body));
+
   siteRuntime = createSiteRuntime({ databasePath, workspaceId: "default", projectId: "default", staticRoot: directory, host: "127.0.0.1", port: 49_450 + Math.floor(Math.random() * 100), baseUrl: "https://lead-follow.example.test", logger: { info() {}, warn() {}, error() {} } });
   const address = await siteRuntime.listen(); const siteBase = `http://127.0.0.1:${address.port}`;
   const leads = [];

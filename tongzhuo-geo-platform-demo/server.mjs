@@ -127,7 +127,8 @@ const contentApi = createContentApi({
   contentStore, foundationAssetStore, industryTemplate: projectIndustryTemplate, requestJson, configured,
   onArticlePublished: async ({ principal, request }) => {
     const draft = siteCmsStore.draft(projectWorkspaceId);
-    const publication = siteCmsStore.publication(projectWorkspaceId);
+    const publication = siteCmsStore.publicationOrNull(projectWorkspaceId);
+    if (!publication) return { status: "awaiting-site-first-publication", cmsVersion: null };
     const draftInsights = Array.isArray(draft.snapshot?.pages) ? draft.snapshot.pages.find((page) => page?.id === "insights") : null;
     const publishedInsights = Array.isArray(publication.snapshot?.pages) ? publication.snapshot.pages.find((page) => page?.id === "insights") : null;
     if (publishedInsights?.status === "published" || draftInsights?.status !== "published") return { status: "already-synced", cmsVersion: publication.version };
@@ -891,7 +892,7 @@ async function handleSiteCmsApi(request, response, parts) {
   if (operation === "snapshot" && method === "GET") {
     const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const draft = siteCmsStore.draft(projectWorkspaceId);
-    const publication = siteCmsStore.publication(projectWorkspaceId);
+    const publication = siteCmsStore.publicationOrNull(projectWorkspaceId);
     return jsonResponse(response, 200, { ok: true, data: { draft, publication, releases: { items: siteCmsStore.releases(projectWorkspaceId, 100) }, leads: { items: siteLeadRows({ canReadContact: (principal.permissions || []).includes(PERMISSIONS.LEADS_CONTACT_READ) }) } } });
   }
   if (operation === "leads" && parts.length === 4 && method === "GET") {
