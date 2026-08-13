@@ -18,7 +18,8 @@ const backupDir = path.join(tempRoot, "backup");
 const tenantId = "tenant_clean_delivery";
 const projectId = "clean-delivery-company";
 const appPort = await freePort();
-const sitePort = await freePort();
+let sitePort = await freePort();
+while (sitePort === appPort) sitePort = await freePort();
 const processes = [];
 
 async function assertPathExists(value, message) {
@@ -34,6 +35,17 @@ async function freePort() {
       const port = probe.address().port;
       probe.close(() => resolve(port));
     });
+  });
+}
+
+async function portAcceptsConnections(port) {
+  const { connect } = await import("node:net");
+  return await new Promise((resolve, reject) => {
+    const socket = connect({ host: "127.0.0.1", port });
+    socket.setTimeout(1_000);
+    socket.once("connect", () => { socket.destroy(); resolve(true); });
+    socket.once("timeout", () => { socket.destroy(); reject(new Error(`tcp timeout:${port}`)); });
+    socket.once("error", reject);
   });
 }
 
@@ -84,7 +96,9 @@ async function waitFor(child, predicate, timeoutMs = 30_000) {
 }
 
 async function request(base, pathname, init = {}) {
-  const response = await fetch(`${base}${pathname}`, { redirect: "manual", ...init });
+  const headers = new Headers(init.headers || {});
+  headers.set("connection", "close");
+  const response = await fetch(`${base}${pathname}`, { redirect: "manual", ...init, headers });
   const text = await response.text();
   let body = null;
   try { body = JSON.parse(text); } catch { /* HTML/text response */ }
@@ -163,7 +177,7 @@ try {
     return true;
   });
   const site = spawnRuntime("site-server.mjs");
-  await waitFor(site, async () => (await request(siteBase, "/health/live")).response.status === 200);
+  await waitFor(site, async () => portAcceptsConnections(sitePort));
 
   const beforeSetup = await request(appBase, "/api/v1/auth/status");
   assert.equal(beforeSetup.response.status, 200); assert.equal(beforeSetup.body?.data?.initialized, false, "blank delivery must start uninitialized");
@@ -239,7 +253,7 @@ try {
     return true;
   });
   const restoredSite = spawnRuntime("site-server.mjs");
-  await waitFor(restoredSite, async () => (await request(siteBase, "/health/live")).response.status === 200);
+  await waitFor(restoredSite, async () => portAcceptsConnections(sitePort));
   const restoredHome = await request(siteBase, "/");
   assert.equal(restoredHome.response.status, 200);
   assert.match(restoredHome.text, /清源工业装备有限公司/);

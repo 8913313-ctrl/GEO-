@@ -74,12 +74,24 @@ try {
   assert.equal(publication.status, "published");
   assert.equal(publication.version, initial.version + 1);
   assert.equal(publication.snapshot.settings.description, "已经补齐企业主体证据");
-  expectError(() => store.submitReview({ reason: "已发布不能重复送审" }, actorEditor), "SITE_CMS_INVALID_TRANSITION");
+  expectError(() => store.submitReview({ reason: "没有新草稿时不能重复送审" }, actorEditor), "SITE_CMS_INVALID_TRANSITION");
+
+  const changedAfterPublication = structuredClone(revisedCms);
+  changedAfterPublication.settings.description = "正式发布后的下一版修改";
+  const nextDraft = store.saveDraft({ expectedRevision: revised.revision, cms: changedAfterPublication, reason: "准备官网下一版本" }, actorEditor);
+  assert.equal(store.workflow().status, "draft", "editing a published site must reopen the review workflow");
+  const repeatedSave = store.saveDraft({ expectedRevision: nextDraft.revision, cms: changedAfterPublication, reason: "重复保存相同下一版" }, actorEditor);
+  assert.equal(repeatedSave.revision, nextDraft.revision);
+  assert.equal(store.workflow().status, "draft", "a no-op save of an unpublished draft must not leave workflow published");
+  store.submitReview({ reason: "提交官网下一版本" }, actorEditor);
+  store.approve({ reason: "下一版本审核通过" }, actorReviewer);
+  const nextPublication = store.publish({ expectedDraftRevision: nextDraft.revision, note: "发布官网下一版本" }, actorReviewer);
+  assert.equal(nextPublication.version, publication.version + 1);
 
   const unpublished = store.unpublish({ reason: "企业要求临时下线" }, actorReviewer);
   assert.equal(unpublished.status, "unpublished");
   assert.equal(unpublished.reason, "企业要求临时下线");
-  assert.equal(store.publication().releaseId, publication.releaseId, "unpublish retains the immutable release for recovery");
+  assert.equal(store.publication().releaseId, nextPublication.releaseId, "unpublish retains the latest immutable release for recovery");
   expectError(() => store.unpublish({ reason: "重复下线" }, actorReviewer), "SITE_CMS_INVALID_TRANSITION");
 
   runtime = createSiteRuntime({ database, workspaceId, staticRoot: directory, host: "127.0.0.1", port: 0, baseUrl: "https://workflow.example.test", logger: { info() {}, warn() {}, error() {} } });

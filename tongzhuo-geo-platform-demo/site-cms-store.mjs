@@ -452,7 +452,7 @@ const WORKFLOW_TRANSITIONS = Object.freeze({
   draft: new Set(["pending_review"]),
   pending_review: new Set(["approved", "rejected"]),
   approved: new Set(["published"]),
-  published: new Set(["unpublished", "draft"]),
+  published: new Set(["unpublished", "draft", "pending_review"]),
   rejected: new Set(["draft"]),
   unpublished: new Set(["draft"])
 });
@@ -594,7 +594,13 @@ export class SiteCmsStore {
     const source = input.cms || input.snapshot || state.site?.cms || {};
     const snapshot = normalizeSiteCmsSnapshot(source, state);
     const serialized = serializeSnapshot(snapshot);
-    if (serialized.checksum === current.checksum) return current;
+    if (serialized.checksum === current.checksum) {
+      const publication = this.publicationOrNull(workspaceId);
+      if (workflow.status === "published" && publication && publication.checksum !== current.checksum) {
+        this._transitionStatus("draft", { actor, request, workspaceId, reason: input.reason || "官网草稿已有未发布修改" });
+      }
+      return current;
+    }
     const revision = current.revision + 1;
     const now = new Date().toISOString();
     const userId = actorId(actor);
@@ -631,6 +637,14 @@ export class SiteCmsStore {
   }
 
   submitReview(input = {}, actor = null, request = null, workspaceId = this.workspaceId) {
+    const workflow = this.workflow(workspaceId);
+    if (workflow.status === "published") {
+      const draft = this.draft(workspaceId);
+      const publication = this.publicationOrNull(workspaceId);
+      if (!publication || draft.checksum === publication.checksum) {
+        throw new SiteCmsError("官网没有新的草稿修改，不能重复送审。", 409, "SITE_CMS_INVALID_TRANSITION", { from: workflow.status, to: "pending_review" });
+      }
+    }
     return this.transitionStatus("pending_review", { actor, request, workspaceId, reason: input.reason || "提交官网审核" });
   }
 
