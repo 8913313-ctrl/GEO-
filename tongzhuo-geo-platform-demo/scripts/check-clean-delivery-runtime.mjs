@@ -220,7 +220,14 @@ try {
   };
   const savedCms = await api(appBase, jar, "/api/v1/site-cms/draft", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: draft.revision, cms: customerCms }) });
   assert.equal(savedCms.response.status, 200, JSON.stringify(savedCms.body));
-  const savedDraft = savedCms.body.data.draft;
+  let savedDraft = savedCms.body.data.draft;
+  // Workspace synchronization may already have written the same CMS snapshot;
+  // make the delivery test's publish path explicit with one real customer edit.
+  const publishCms = structuredClone(customerCms);
+  publishCms.settings.description = "面向制造企业的工业装备产品、选型与技术资料。";
+  const changedCms = await api(appBase, jar, "/api/v1/site-cms/draft", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedRevision: savedDraft.revision, cms: publishCms }) });
+  assert.equal(changedCms.response.status, 200, JSON.stringify(changedCms.body));
+  savedDraft = changedCms.body.data.draft;
   const attemptedPublish = await api(appBase, jar, "/api/v1/site-cms/publish", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedDraftRevision: savedDraft.revision, note: "must be blocked before review" }) });
   assert.equal(attemptedPublish.response.status, 409, "CMS publish must be blocked before approval");
   const submitted = await api(appBase, jar, "/api/v1/site-cms/submit-review", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ reason: "clean delivery review" }) });
