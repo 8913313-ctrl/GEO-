@@ -27,6 +27,7 @@ return new class extends Migration
     private function backfillAndDisambiguateKeys(): void
     {
         DB::table('article_distributions')
+            ->orderBy('id')
             ->select(['id', 'idempotency_key'])
             ->chunkById(500, function ($rows): void {
                 foreach ($rows as $row) {
