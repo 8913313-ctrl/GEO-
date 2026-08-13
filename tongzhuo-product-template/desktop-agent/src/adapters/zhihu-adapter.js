@@ -5,7 +5,7 @@ import {
   defaultDraftSuccessSelectors,
   detectAccessBlocked,
   fillFirstVisible,
-  setContentEditable,
+  fillRichContent,
 } from './fill-tools.js';
 import { submitFinalPublish } from './final-publish.js';
 
@@ -39,13 +39,13 @@ export class ZhihuAdapter extends BaseAdapter {
       'input[placeholder*="标题"]',
       '.Input[placeholder*="标题"]',
     ], article.title);
-    const body = await setContentEditable(page, [
+    const body = await fillRichContent(page, [
       '[contenteditable="true"][data-placeholder*="正文"]',
       '[contenteditable="true"][aria-label*="正文"]',
       '.DraftEditor-editorContainer [contenteditable="true"]',
       '.ProseMirror[contenteditable="true"]',
       '[contenteditable="true"]',
-    ], article.text || article.excerpt);
+    ], article);
 
     if (!title.ok || !body.ok) {
       return failed(this, page, '知乎未识别到可靠的标题或正文输入区，已停止自动执行。', 'editor_fields_not_recognized', {
@@ -75,7 +75,7 @@ export class ZhihuAdapter extends BaseAdapter {
         draft: saved.action.selector,
         draft_success: saved.confirmation.selector,
       },
-      fill: { title: true, body: true, draft_saved: true },
+      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: true },
     };
 
     if (this.platform.execution?.autoSubmit === true) {
@@ -91,7 +91,7 @@ export class ZhihuAdapter extends BaseAdapter {
         draft: saved.action.selector,
         draft_success: saved.confirmation.selector,
       },
-      fill: { title: true, body: true, draft_saved: true },
+      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: true },
     });
   }
 }

@@ -207,7 +207,12 @@ app.post('/api/platforms/:platform/login/confirm', async (request, response) => 
 
 app.post('/api/jobs/:id/run', async (request, response) => {
   try {
-    const result = await agent.runJob(Number(request.params.id), request.body?.platforms || []);
+    const jobReference = String(request.params.id || '');
+    const separator = jobReference.indexOf(':');
+    const pathProtocol = separator > 0 ? jobReference.slice(0, separator) : '';
+    const result = await agent.runQueuedJob(Number(separator > 0 ? jobReference.slice(separator + 1) : jobReference), request.body?.platforms || [], {
+      jobProtocol: request.body?.jobProtocol || request.body?.job_protocol || pathProtocol,
+    });
     response.json({ ok: true, result });
   } catch (error) {
     response.status(409).json({ ok: false, message: error.message });

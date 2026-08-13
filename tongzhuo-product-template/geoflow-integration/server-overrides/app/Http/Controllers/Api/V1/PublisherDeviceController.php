@@ -6,11 +6,16 @@ use App\Exceptions\ApiException;
 use App\Models\PublisherDevice;
 use App\Models\PublisherDevicePairing;
 use App\Models\PublisherPlatformSession;
+use App\Services\Publishing\PublisherPlatformJobLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PublisherDeviceController extends BaseApiController
 {
+    public function __construct(
+        private readonly PublisherPlatformJobLifecycleService $lifecycle,
+    ) {}
+
     public function register(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -105,6 +110,15 @@ class PublisherDeviceController extends BaseApiController
             'meta' => ['nullable', 'array'],
         ]);
 
+        $sessionLookup = [
+            'publisher_device_id' => $record->id,
+            'device_id' => $record->device_id,
+            'platform_id' => $validated['platform_id'],
+            'profile_key' => $validated['profile_key'] ?? null,
+        ];
+        $previousSession = PublisherPlatformSession::query()->where($sessionLookup)->first();
+        $previousLoginState = $previousSession?->login_state;
+
         $session = PublisherPlatformSession::query()->updateOrCreate(
             [
                 'publisher_device_id' => $record->id,
@@ -122,6 +136,8 @@ class PublisherDeviceController extends BaseApiController
                 'meta' => $validated['meta'] ?? [],
             ],
         );
+
+        $this->lifecycle->onSessionUpdated($session->fresh(['device']), $previousLoginState);
 
         return $this->success($request, [
             'session' => $this->serializeSession($session),

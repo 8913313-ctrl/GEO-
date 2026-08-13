@@ -7,6 +7,9 @@ use App\Models\Article;
 use App\Models\ArticleDistribution;
 use App\Models\DistributionChannel;
 use App\Models\PublisherDevicePairing;
+use App\Models\PublisherAccountGroup;
+use App\Services\Publishing\PublisherPlatformCatalogService;
+use App\Services\Publishing\PublishingCenterService;
 use App\Models\PublisherDevice;
 use App\Services\GeoFlow\DistributionOrchestrator;
 use App\Support\AdminWeb;
@@ -17,6 +20,8 @@ class PublisherAssistantController extends Controller
 {
     public function __construct(
         private readonly DistributionOrchestrator $distributionOrchestrator,
+        private readonly PublishingCenterService $publishingCenter,
+        private readonly PublisherPlatformCatalogService $publisherPlatforms,
     ) {}
 
     public function index(): View
@@ -117,7 +122,26 @@ class PublisherAssistantController extends Controller
             ->limit(200)
             ->get()
             ->each(function (Article $article) use (&$count): void {
-                $this->distributionOrchestrator->enqueueForArticle($article);
+                if ((bool) config('publishing.center_v2_enabled', false)) {
+                    $platformIds = $this->publisherPlatforms->activePlatforms()
+                        ->filter(fn ($platform): bool => (string) $platform->support_level !== 'planned')
+                        ->pluck('platform_id')
+                        ->values()
+                        ->all();
+                    $accountGroup = PublisherAccountGroup::query()
+                        ->where('status', 'active')
+                        ->orderBy('id')
+                        ->first();
+                    $this->publishingCenter->createBatch(
+                        article: $article,
+                        platformIds: $platformIds,
+                        publishMode: $accountGroup?->default_publish_mode ?: 'draft',
+                        accountGroup: $accountGroup,
+                        requestedByAdminId: auth('admin')->id(),
+                    );
+                } else {
+                    $this->distributionOrchestrator->enqueueForArticle($article);
+                }
                 $count++;
             });
 

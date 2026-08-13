@@ -6,6 +6,7 @@ use App\Exceptions\ApiException;
 use App\Models\PublisherDevice;
 use App\Models\PublisherPlatformJob;
 use App\Services\Publishing\PublisherBatchSummaryService;
+use App\Services\Publishing\PublisherPlatformJobLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,15 +22,18 @@ class PublisherPlatformJobController extends BaseApiController
 {
     public function __construct(
         private readonly PublisherBatchSummaryService $summary,
+        private readonly PublisherPlatformJobLifecycleService $lifecycle,
     ) {}
 
     public function index(Request $request): JsonResponse
     {
+        $this->assertFeatureEnabled();
         $deviceId = trim((string) ($request->query('device_id') ?: $request->header('X-Publisher-Worker')));
         if ($deviceId === '') {
             throw new ApiException('publisher_device_required', '缺少发布节点标识。', 401);
         }
         $device = $this->authorizeDevice($request, $deviceId);
+        $this->lifecycle->reconcile();
         $limit = max(1, min(50, $request->integer('limit', 20)));
         $now = now();
         $items = PublisherPlatformJob::query()
@@ -86,11 +90,13 @@ class PublisherPlatformJobController extends BaseApiController
 
     public function claim(Request $request, int $job): JsonResponse
     {
+        $this->assertFeatureEnabled();
         $deviceId = trim((string) ($request->header('X-Publisher-Worker') ?: $request->input('device_id')));
         if ($deviceId === '') {
             throw new ApiException('publisher_device_required', '缺少发布节点标识。', 401);
         }
         $device = $this->authorizeDevice($request, $deviceId);
+        $this->lifecycle->reconcile();
 
         $claimed = DB::transaction(function () use ($job, $device): PublisherPlatformJob {
             /** @var PublisherPlatformJob|null $item */
@@ -169,6 +175,7 @@ class PublisherPlatformJobController extends BaseApiController
 
     public function heartbeat(Request $request, int $job): JsonResponse
     {
+        $this->assertFeatureEnabled();
         $validated = $request->validate([
             'progress_step' => ['nullable', 'string', 'max:120'],
             'progress_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
@@ -210,6 +217,7 @@ class PublisherPlatformJobController extends BaseApiController
 
     public function result(Request $request, int $job): JsonResponse
     {
+        $this->assertFeatureEnabled();
         $reportedStatus = strtolower(trim((string) ($request->input('status') ?? $request->input('state') ?? 'failed')));
         $status = $this->normalizeJobStatus($reportedStatus);
         if ($status === null) {
@@ -230,7 +238,6 @@ class PublisherPlatformJobController extends BaseApiController
         }
         $device = $this->requestDevice($request);
         $lease = $this->requestLease($request);
-        $terminal = in_array($status, PublisherPlatformJob::TERMINAL_STATUSES, true);
         $failureCategory = $request->input('error_category') ?: ($providedResult['failure_category'] ?? null);
         if ($status === 'verification_required' && ! filled($failureCategory)) {
             $failureCategory = $reportedStatus === 'needs_captcha' ? 'captcha' : 'verification_required';
@@ -243,29 +250,54 @@ class PublisherPlatformJobController extends BaseApiController
         }
         $progressStep = $request->input('progress_step');
         $progressPercent = $request->has('progress_percent') ? max(0, min(100, (int) $request->input('progress_percent'))) : null;
+        $retryable = filter_var($request->input('retryable', $providedResult['retryable'] ?? false), FILTER_VALIDATE_BOOLEAN);
 
-        $updated = DB::transaction(function () use ($job, $device, $lease, $status, $terminal, $result, $message, $remoteUrl, $failureCategory, $nextOperatorAction, $progressStep, $progressPercent): array {
+        $updated = DB::transaction(function () use ($job, $device, $lease, $status, $result, $message, $remoteUrl, $failureCategory, $nextOperatorAction, $progressStep, $progressPercent, $retryable): array {
             $item = $this->lockedJob($job, $device, $lease);
             if ($item->isTerminal() && (string) $item->status !== $status) {
                 throw new ApiException('publisher_platform_job_completed', '平台子任务已完成，不能用旧租约改写结果。', 409);
             }
             $now = now();
-            $needsAttention = in_array($status, ['failed', 'login_required', 'verification_required', 'awaiting_confirmation'], true);
+            $shouldRetry = $status === 'failed'
+                && $retryable
+                && (int) $item->attempt_count < max(1, (int) $item->max_attempts);
+            $effectiveStatus = $shouldRetry ? 'queued' : $status;
+            $effectiveTerminal = in_array($effectiveStatus, PublisherPlatformJob::TERMINAL_STATUSES, true);
+            $needsAttention = in_array($effectiveStatus, ['failed', 'login_required', 'verification_required', 'awaiting_confirmation'], true);
+            $nextRetryAt = $shouldRetry
+                ? $now->copy()->addSeconds($this->retryBackoffSeconds((int) $item->attempt_count))
+                : null;
+            $mergedResult = array_replace(
+                $this->sanitizeResult(is_array($item->result) ? $item->result : []),
+                $result,
+                $shouldRetry ? [
+                    'retry_scheduled' => true,
+                    'retry_at' => $nextRetryAt->toIso8601String(),
+                    'last_failure' => [
+                        'message' => $message,
+                        'failure_category' => $failureCategory,
+                    ],
+                ] : []
+            );
             $item->forceFill([
-                'status' => $status,
-                'progress_step' => $progressStep ?? $item->progress_step,
-                'progress_percent' => $progressPercent ?? ($terminal ? 100 : $item->progress_percent),
+                'status' => $effectiveStatus,
+                'progress_step' => $shouldRetry ? '平台执行失败，等待自动重试' : ($progressStep ?? $item->progress_step),
+                'progress_percent' => $progressPercent ?? ($effectiveTerminal ? 100 : $item->progress_percent),
                 'remote_url' => $remoteUrl !== '' ? $remoteUrl : $item->remote_url,
                 'error_category' => $status === 'failed' || $status === 'verification_required' ? $failureCategory : null,
-                'error_message' => $needsAttention ? ($message !== '' ? $message : $item->error_message) : null,
-                'next_operator_action' => $nextOperatorAction,
-                'result' => array_replace($this->sanitizeResult(is_array($item->result) ? $item->result : []), $result),
+                'error_message' => $shouldRetry ? null : ($needsAttention ? ($message !== '' ? $message : $item->error_message) : null),
+                'next_operator_action' => $shouldRetry ? null : $nextOperatorAction,
+                'result' => $mergedResult,
                 'last_progress_at' => $now,
-                'finished_at' => $terminal ? ($item->finished_at ?? $now) : null,
+                'finished_at' => $effectiveTerminal ? ($item->finished_at ?? $now) : null,
+                'next_retry_at' => $nextRetryAt,
+                'claimed_at' => $shouldRetry ? null : $item->claimed_at,
+                'claimed_by' => $shouldRetry ? null : $item->claimed_by,
+                'lease_token' => $shouldRetry ? null : $item->lease_token,
                 // Retain the token for duplicate delivery checks; expiration
                 // still blocks stale workers after a non-terminal lease.
-                'lease_expires_at' => $terminal ? null : $now->copy()->addMinutes($this->leaseMinutes()),
-                'lease_heartbeat_at' => $now,
+                'lease_expires_at' => $shouldRetry || $effectiveTerminal ? null : $now->copy()->addMinutes($this->leaseMinutes()),
+                'lease_heartbeat_at' => $shouldRetry ? null : $now,
             ])->save();
 
             $distribution = $item->distribution()->lockForUpdate()->firstOrFail();
@@ -283,6 +315,13 @@ class PublisherPlatformJobController extends BaseApiController
             'device_id' => $device->device_id,
         ]);
     }
+    private function assertFeatureEnabled(): void
+    {
+        if (! (bool) config('publishing.platform_jobs_enabled', false)) {
+            throw new ApiException('publisher_platform_jobs_disabled', 'Platform jobs API is disabled.', 404);
+        }
+    }
+
     private function requestDevice(Request $request): PublisherDevice
     {
         $deviceId = trim((string) ($request->header('X-Publisher-Worker') ?: $request->input('device_id')));
@@ -339,6 +378,14 @@ class PublisherPlatformJobController extends BaseApiController
         }
 
         return $record;
+    }
+
+    private function retryBackoffSeconds(int $attempt): int
+    {
+        $base = max(1, (int) config('publishing.job_retry_backoff_seconds', 30));
+        $exponent = max(0, min(6, $attempt - 1));
+
+        return min(3600, $base * (2 ** $exponent));
     }
 
     private function leaseMinutes(): int

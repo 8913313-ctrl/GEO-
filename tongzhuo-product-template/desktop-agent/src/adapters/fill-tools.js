@@ -127,19 +127,68 @@ export async function typeIntoFirstVisible(page, selectors, value, options = {})
   return { ok: false };
 }
 
-export async function setContentEditable(page, selectors, value) {
+function sanitizeRichHtml(value = '') {
+  return String(value || '')
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, '')
+    .replace(/\son\w+\s*=\s*(["']).*?\1/gi, '')
+    .replace(/\son\w+\s*=\s*[^\s>]+/gi, '')
+    .replace(/\s(?:href|src)\s*=\s*(["'])\s*javascript:[\s\S]*?\1/gi, '');
+}
+
+function imageDataUrl(asset = {}) {
+  const content = String(asset.content_base64 || asset.base64 || '').trim();
+  const mime = String(asset.mime_type || asset.mimeType || '').trim();
+  if (!content || !/^image\/(?:png|jpeg|gif|webp|svg\+xml)$/i.test(mime)) return '';
+  return `data:${mime};base64,${content}`;
+}
+
+export function articleRichHtml(article = {}) {
+  let html = sanitizeRichHtml(article.html || article.content_html || '');
+  const images = Array.isArray(article.images) ? article.images : (Array.isArray(article?.assets?.images) ? article.assets.images : []);
+  for (const asset of images) {
+    const source = String(asset?.source_url || asset?.url || '').trim();
+    const replacement = imageDataUrl(asset);
+    if (!source || !replacement) continue;
+    html = html.split(source).join(replacement);
+  }
+  return html.trim();
+}
+
+export async function setContentEditable(page, selectors, value, options = {}) {
+  const mode = options.mode === 'html' ? 'html' : 'text';
+  const content = mode === 'html' ? sanitizeRichHtml(value) : String(value || '');
   for (const selector of selectors) {
     const locator = page.locator(selector).first();
     if (!await locator.isVisible({ timeout: 1200 }).catch(() => false)) continue;
-    await locator.evaluate((element, text) => {
+    await locator.evaluate((element, payload) => {
       element.focus();
-      element.innerText = text;
-      element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+      if (payload.mode === 'html') element.innerHTML = payload.content;
+      else element.innerText = payload.content;
+      element.dispatchEvent(new InputEvent('input', {
+        bubbles: true,
+        inputType: payload.mode === 'html' ? 'insertFromPaste' : 'insertText',
+        data: payload.mode === 'html' ? null : payload.content,
+      }));
       element.dispatchEvent(new Event('change', { bubbles: true }));
-    }, value);
-    return { ok: true, selector };
+    }, { mode, content });
+    return { ok: true, selector, format: mode };
   }
   return { ok: false };
+}
+
+export async function fillRichContent(page, selectors, article = {}) {
+  const html = articleRichHtml(article);
+  if (html) {
+    const rich = await setContentEditable(page, selectors, html, { mode: 'html' });
+    if (rich.ok) {
+      const images = await page.locator(rich.selector).first().locator('img').count().catch(() => 0);
+      return { ...rich, images };
+    }
+  }
+  const text = String(article.text || article.excerpt || '').trim();
+  const fallback = await setContentEditable(page, selectors, text, { mode: 'text' });
+  return fallback.ok ? { ...fallback, format: 'text', images: 0 } : fallback;
 }
 
 export async function clickFirstVisible(page, selectors) {

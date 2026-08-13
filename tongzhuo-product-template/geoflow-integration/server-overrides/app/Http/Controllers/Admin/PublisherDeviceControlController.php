@@ -22,18 +22,24 @@ class PublisherDeviceControlController extends Controller
             'max_concurrent_groups' => ['nullable', 'integer', 'min:1', 'max:8'],
             'enabled_platform_ids' => ['nullable', 'array'],
             'enabled_platform_ids.*' => ['string', 'max:80'],
+            'enabled_platform_ids_present' => ['nullable', 'boolean'],
             'platform_policy' => ['nullable', 'array'],
             'takeover' => ['nullable', 'boolean'],
             'clear_local_override' => ['nullable', 'boolean'],
         ]);
 
-        $version = DB::transaction(function () use ($deviceId, $input): int {
+        $hasEnabledPlatformIds = $request->has('enabled_platform_ids_present');
+
+        $version = DB::transaction(function () use ($deviceId, $input, $hasEnabledPlatformIds): int {
             $device = PublisherDevice::query()->lockForUpdate()->findOrFail($deviceId);
             $state = $this->normalizeDesiredState($device->desired_state ?? []);
-            foreach (['auto_run', 'poll_seconds', 'login_check_seconds', 'max_job_attempts', 'max_concurrent_groups', 'enabled_platform_ids', 'platform_policy', 'takeover'] as $key) {
+            foreach (['auto_run', 'poll_seconds', 'login_check_seconds', 'max_job_attempts', 'max_concurrent_groups', 'platform_policy', 'takeover'] as $key) {
                 if (array_key_exists($key, $input)) {
                     $state[$key] = $input[$key];
                 }
+            }
+            if ($hasEnabledPlatformIds) {
+                $state['enabled_platform_ids'] = $input['enabled_platform_ids'] ?? [];
             }
             $state['version'] = max((int) ($device->desired_state_version ?? 0), (int) ($state['version'] ?? 0)) + 1;
             $state['updated_at'] = now()->toIso8601String();
@@ -56,7 +62,7 @@ class PublisherDeviceControlController extends Controller
     {
         $device = PublisherDevice::query()->findOrFail($deviceId);
         $input = $request->validate([
-            'command_type' => ['required', 'string', 'max:60'],
+            'command_type' => ['required', 'string', 'in:poll_now,login_check,apply_desired_state'],
             'payload' => ['nullable', 'array'],
             'expires_minutes' => ['nullable', 'integer', 'min:1', 'max:1440'],
         ]);

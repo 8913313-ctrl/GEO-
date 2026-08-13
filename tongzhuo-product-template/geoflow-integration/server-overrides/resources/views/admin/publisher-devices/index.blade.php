@@ -259,6 +259,55 @@
                             </tr>
                             <tr class="bg-slate-50/50">
                                 <td colspan="7" class="px-5 py-4">
+                                    @php
+                                        $desired = array_replace([
+                                            'auto_run' => false,
+                                            'poll_seconds' => 20,
+                                            'login_check_seconds' => 300,
+                                            'max_job_attempts' => 2,
+                                            'max_concurrent_groups' => 1,
+                                            'enabled_platform_ids' => [],
+                                        ], is_array($device->desired_state) ? $device->desired_state : []);
+                                        $selectedPlatforms = array_values(array_filter((array) ($desired['enabled_platform_ids'] ?? []), 'is_string'));
+                                    @endphp
+                                    <div class="grid gap-4 xl:grid-cols-[1.45fr_0.8fr]">
+                                        <form method="POST" action="{{ route('admin.publisher-devices.desired-state.update', $device->id) }}" class="rounded-2xl border border-slate-200 bg-white p-4">
+                                            @csrf
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <div>
+                                                    <div class="text-sm font-semibold text-slate-950">远程自动发布配置</div>
+                                                    <div class="mt-1 text-xs text-slate-500">期望 v{{ (int) ($device->desired_state_version ?? 0) }} / 已应用 v{{ $device->applied_state_version ?? '—' }} · 全局协议 {{ $jobProtocol ?? 'legacy' }}</div>
+                                                </div>
+                                                @if ($device->local_override)
+                                                    <label class="inline-flex items-center gap-2 text-xs font-medium text-amber-700"><input type="checkbox" name="clear_local_override" value="1">收回本地接管</label>
+                                                @endif
+                                            </div>
+                                            <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                                <label class="text-xs font-medium text-slate-600">自动发布<select name="auto_run" class="mt-1 w-full rounded-lg border-slate-200 text-sm"><option value="0" @selected(! $desired['auto_run'])>关闭</option><option value="1" @selected($desired['auto_run'])>开启</option></select></label>
+                                                <label class="text-xs font-medium text-slate-600">任务轮询（秒）<input name="poll_seconds" type="number" min="10" max="3600" value="{{ (int) $desired['poll_seconds'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                                <label class="text-xs font-medium text-slate-600">登录检测（秒）<input name="login_check_seconds" type="number" min="60" max="86400" value="{{ (int) $desired['login_check_seconds'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                                <label class="text-xs font-medium text-slate-600">最大重试次数<input name="max_job_attempts" type="number" min="1" max="10" value="{{ (int) $desired['max_job_attempts'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                                <label class="text-xs font-medium text-slate-600">账号组并发数<input name="max_concurrent_groups" type="number" min="1" max="8" value="{{ (int) $desired['max_concurrent_groups'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                            </div>
+                                            <div class="mt-4 text-xs font-medium text-slate-600">平台白名单（不勾选表示允许全部已适配平台）</div>
+                                            <input type="hidden" name="enabled_platform_ids_present" value="1">
+                                            <div class="mt-2 flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                                @foreach (($platformOptions ?? collect()) as $platformOption)
+                                                    <label class="inline-flex items-center gap-1.5 rounded-lg bg-white px-2 py-1 text-xs text-slate-700 ring-1 ring-slate-200"><input type="checkbox" name="enabled_platform_ids[]" value="{{ $platformOption->platform_id }}" @checked(in_array($platformOption->platform_id, $selectedPlatforms, true))>{{ $platformOption->name }}</label>
+                                                @endforeach
+                                            </div>
+                                            <div class="mt-4 flex justify-end"><button type="submit" class="rounded-lg bg-cyan-600 px-4 py-2 text-xs font-semibold text-white hover:bg-cyan-500">应用配置</button></div>
+                                        </form>
+                                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                            <div class="text-sm font-semibold text-slate-950">远程命令</div>
+                                            <div class="mt-1 text-xs text-slate-500">设备下次心跳后领取。{{ ($deviceCommandsEnabled ?? false) ? '' : '当前后台未开启命令 API。' }}</div>
+                                            <div class="mt-4 grid gap-2">
+                                                @foreach (['poll_now' => '立即轮询任务', 'login_check' => '检测全部登录状态', 'apply_desired_state' => '立即应用期望配置'] as $commandType => $commandLabel)
+                                                    <form method="POST" action="{{ route('admin.publisher-devices.commands.store', $device->id) }}">@csrf<input type="hidden" name="command_type" value="{{ $commandType }}"><button type="submit" class="w-full rounded-lg border border-cyan-200 px-3 py-2 text-left text-xs font-semibold text-cyan-800 hover:bg-cyan-50" @disabled(! ($deviceCommandsEnabled ?? false))>{{ $commandLabel }}</button></form>
+                                                @endforeach
+                                            </div>
+                                        </div>
+                                    </div>
                                     <div class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">平台会话详情</div>
                                     <div class="mt-3 flex flex-wrap gap-2">
                                         @forelse ($sessions as $session)

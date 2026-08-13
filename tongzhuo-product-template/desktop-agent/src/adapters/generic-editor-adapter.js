@@ -5,7 +5,7 @@ import {
   defaultDraftSuccessSelectors,
   detectAccessBlocked,
   fillFirstVisible,
-  setContentEditable,
+  fillRichContent,
 } from './fill-tools.js';
 import { selectorList, submitFinalPublish } from './final-publish.js';
 
@@ -118,11 +118,11 @@ export class GenericEditorAdapter extends BaseAdapter {
     return selectorList(this.platform.editorHints?.draftSuccessSelectors, defaultDraftSuccessSelectors);
   }
 
-  async fillBody(page, value) {
-    const textarea = await fillFirstVisible(page, this.textAreaSelectors(), value);
-    if (textarea.ok) return { ...textarea, kind: 'textarea' };
+  async fillBody(page, article) {
+    const textarea = await fillFirstVisible(page, this.textAreaSelectors(), article.text || article.excerpt || '');
+    if (textarea.ok) return { ...textarea, kind: 'textarea', format: 'text', images: 0 };
 
-    const editable = await setContentEditable(page, this.bodySelectors(), value);
+    const editable = await fillRichContent(page, this.bodySelectors(), article);
     if (editable.ok) return { ...editable, kind: 'contenteditable' };
     return { ok: false };
   }
@@ -139,7 +139,7 @@ export class GenericEditorAdapter extends BaseAdapter {
     }
 
     const title = await fillFirstVisible(page, this.titleSelectors(), titleValue);
-    const body = await this.fillBody(page, bodyValue);
+    const body = await this.fillBody(page, article);
     if (!title.ok || !body.ok) {
       return failure(this, page, `${this.platform.name} 未识别到可靠的标题或正文输入区，已停止自动执行。`, 'editor_fields_not_recognized', {
         selectors: { title: title.selector || null, body: body.selector || null, draft: null },
@@ -173,7 +173,7 @@ export class GenericEditorAdapter extends BaseAdapter {
         draft: saved.action?.selector || null,
         draft_success: saved.confirmation?.selector || null,
       },
-      fill: { title: true, body: true, draft_saved: Boolean(saved.ok) },
+      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: Boolean(saved.ok) },
     };
 
     if (!wantsFinalPublish) {

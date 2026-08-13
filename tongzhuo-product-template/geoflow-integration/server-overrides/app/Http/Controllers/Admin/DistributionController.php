@@ -14,6 +14,7 @@ use App\Services\GeoFlow\DistributionOrchestrator;
 use App\Services\GeoFlow\DistributionPublisherManager;
 use App\Services\GeoFlow\DistributionTargetSitePackageBuilder;
 use App\Services\GeoFlow\WechatsyncPublishPackageBuilder;
+use App\Services\Publishing\PublisherPlatformJobLifecycleService;
 use App\Support\AdminWeb;
 use App\Support\GeoFlow\ApiKeyCrypto;
 use App\Support\Site\SiteThemeCatalog;
@@ -36,6 +37,7 @@ class DistributionController extends Controller
         private readonly DistributionTargetSitePackageBuilder $targetSitePackageBuilder,
         private readonly WechatsyncPublishPackageBuilder $wechatsyncPublishPackageBuilder,
         private readonly SiteThemeCatalog $siteThemeCatalog,
+        private readonly PublisherPlatformJobLifecycleService $platformJobLifecycle,
     ) {}
 
     public function index(): View
@@ -472,6 +474,14 @@ class DistributionController extends Controller
         $distribution = ArticleDistribution::query()->whereKey($distributionId)->first();
         if (! $distribution) {
             return back()->withErrors(__('admin.distribution.message.job_not_found'));
+        }
+
+        if ($distribution->publisherPlatformJobs()->exists()) {
+            $retryCount = $this->platformJobLifecycle->retryFailedPlatforms($distribution);
+
+            return back()->with('message', $retryCount > 0
+                ? "已仅重新入队 {$retryCount} 个失败平台，成功或草稿平台不会重复发布。"
+                : '没有可重试的平台子任务；成功或草稿平台不会重复发布。');
         }
 
         $remoteMeta = is_array($distribution->remote_meta) ? $distribution->remote_meta : [];

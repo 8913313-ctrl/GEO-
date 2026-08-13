@@ -36,10 +36,14 @@ assert.equal(scheduler.groupIdForProfile('group-b--zhihu'), 'group-b');
 assert.equal(scheduler.groupIdForProfile('missing--zhihu'), '');
 
 scheduler.activeJobs = new Map([
-  ['platform:41', { groupId: 'group-a' }],
-  [42, { groupId: 'group-b' }],
+  ['platform:41', { groupId: 'group-a', protocol: 'platform-jobs' }],
+  ['legacy:42', { groupId: 'group-b', protocol: 'legacy' }],
 ]);
 assert.deepEqual(scheduler.activeJobIds(), [41, 42]);
+assert.deepEqual(scheduler.activeJobRefs(), [
+  { id: 41, protocol: 'platform-jobs' },
+  { id: 42, protocol: 'legacy' },
+]);
 
 assert.equal(scheduler.platformJobStatus({ state: 'awaiting_confirmation' }), 'awaiting_confirmation');
 

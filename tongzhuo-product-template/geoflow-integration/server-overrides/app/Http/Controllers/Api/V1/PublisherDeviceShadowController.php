@@ -30,6 +30,7 @@ class PublisherDeviceShadowController extends BaseApiController
         $desiredVersion = max(0, (int) ($record->desired_state_version ?? 0));
         $desired = $this->normalizeDesiredState($record->desired_state ?? []);
         $desired['version'] = $desiredVersion;
+        $jobProtocol = $this->jobProtocol();
         $appliedVersion = array_key_exists('applied_version', $reported)
             ? max(0, (int) $reported['applied_version'])
             : ($record->applied_state_version !== null ? (int) $record->applied_state_version : null);
@@ -54,6 +55,7 @@ class PublisherDeviceShadowController extends BaseApiController
             'device' => $devicePayload,
             'desired_state' => $desired,
             'desired_state_version' => $desiredVersion,
+            'job_protocol' => $jobProtocol,
             'applied_state_version' => $appliedVersion,
             'reported_state' => [
                 'desired_version_seen' => $reported['desired_version_seen'] ?? $desiredVersion,
@@ -75,11 +77,13 @@ class PublisherDeviceShadowController extends BaseApiController
         $desiredVersion = max(0, (int) ($record->desired_state_version ?? 0));
         $desired = $this->normalizeDesiredState($record->desired_state ?? []);
         $desired['version'] = $desiredVersion;
+        $jobProtocol = $this->jobProtocol();
 
         return $this->success($request, [
             'device_id' => $record->device_id,
             'desired_state' => $desired,
             'desired_state_version' => $desiredVersion,
+            'job_protocol' => $jobProtocol,
             'applied_state_version' => $record->applied_state_version !== null ? (int) $record->applied_state_version : null,
             'local_override' => (bool) ($record->local_override ?? false),
             'updated_at' => $record->desired_state_updated_at?->toIso8601String(),
@@ -105,6 +109,22 @@ class PublisherDeviceShadowController extends BaseApiController
     }
 
     /** @return array<string,mixed> */
+    private function jobProtocol(): string
+    {
+        $configured = strtolower(trim((string) config('publishing.job_protocol', '')));
+        if (in_array($configured, ['legacy', 'platform-jobs', 'dual', 'auto'], true)) {
+            return $configured;
+        }
+
+        $centerEnabled = (bool) config('publishing.center_v2_enabled', false);
+        $platformJobsEnabled = (bool) config('publishing.platform_jobs_enabled', false);
+        if (! $centerEnabled || ! $platformJobsEnabled) {
+            return 'legacy';
+        }
+
+        // Keep both queues readable during the rolling V1 -> V2 migration.
+        return 'dual';
+    }
     private function normalizeDesiredState(array $state): array
     {
         $defaults = [
@@ -130,6 +150,8 @@ class PublisherDeviceShadowController extends BaseApiController
         $merged['max_concurrent_groups'] = max(1, min(8, (int) $merged['max_concurrent_groups']));
         $merged['enabled_platform_ids'] = array_values(array_unique(array_filter((array) $merged['enabled_platform_ids'], 'is_string')));
         $merged['platform_policy'] = is_array($merged['platform_policy']) ? $merged['platform_policy'] : [];
+        // Job protocol is a server-wide feature flag, never a per-device shadow field.
+        unset($merged['job_protocol'], $merged['jobProtocol']);
 
         return $merged;
     }

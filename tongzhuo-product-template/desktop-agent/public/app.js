@@ -516,10 +516,12 @@ async function removeAccount(groupId, platformId) {
 async function runJob(jobId, button) {
   const card = button.closest('.job-card');
   const selectedPlatforms = [...card.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.value);
+  const matching = (state.jobs || []).filter((job) => String(job.id) === String(jobId));
+  const protocols = [...new Set(matching.map((job) => job.job_protocol).filter(Boolean))];
+  const jobProtocol = protocols.length === 1 ? protocols[0] : undefined;
   button.disabled = true;
-  try { const result = await api(`/api/jobs/${encodeURIComponent(jobId)}/run`, { method: 'POST', body: JSON.stringify({ platforms: selectedPlatforms }) }); setNotice(`任务 #${result.result.jobId} 已执行，状态：${jobStateLabel(result.result.state)}`, result.result.state === 'failed' ? 'error' : 'success'); await loadStatus(); } catch (error) { setNotice(error.message, 'error'); } finally { button.disabled = false; }
+  try { const result = await api(`/api/jobs/${encodeURIComponent(jobId)}/run`, { method: 'POST', body: JSON.stringify({ platforms: selectedPlatforms, job_protocol: jobProtocol }) }); setNotice(`任务 #${result.result.jobId} 已执行，状态：${jobStateLabel(result.result.state)}`, result.result.state === 'failed' ? 'error' : 'success'); await loadStatus(); } catch (error) { setNotice(error.message, 'error'); } finally { button.disabled = false; }
 }
-
 async function pollJobs() {
   const button = document.querySelector('[data-action="poll"]');
   if (button) button.disabled = true;

@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Article;
 use App\Models\ArticleDistribution;
+use App\Models\PublisherAccountGroup;
+use App\Services\Publishing\PublisherPlatformCatalogService;
+use App\Services\Publishing\PublishingCenterService;
 use App\Models\Author;
 use App\Models\Category;
 use App\Models\Task;
@@ -31,6 +34,8 @@ class ArticleController extends Controller
     public function __construct(
         private readonly DistributionOrchestrator $distributionOrchestrator,
         private readonly ArticleGeoQualityScorer $qualityScorer,
+        private readonly PublishingCenterService $publishingCenter,
+        private readonly PublisherPlatformCatalogService $publisherPlatforms,
     ) {}
 
     /**
@@ -345,13 +350,39 @@ class ArticleController extends Controller
             return back()->withErrors('请先发布文章到官网，再送入发布助手。');
         }
 
-        $this->distributionOrchestrator->enqueueForArticle($article);
+        $this->enqueuePublisherArticle($article);
 
         return redirect()
             ->route('admin.publisher-assistant')
             ->with('message', '文章已送入发布助手队列。请在任务中确认各平台的实际发布结果。');
     }
 
+    private function enqueuePublisherArticle(Article $article): void
+    {
+        if (! (bool) config('publishing.center_v2_enabled', false)) {
+            $this->distributionOrchestrator->enqueueForArticle($article);
+
+            return;
+        }
+
+        $platformIds = $this->publisherPlatforms->activePlatforms()
+            ->filter(fn ($platform): bool => (string) $platform->support_level !== 'planned')
+            ->pluck('platform_id')
+            ->filter(fn ($id): bool => is_string($id) && $id !== '')
+            ->values()
+            ->all();
+        $accountGroup = PublisherAccountGroup::query()
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->first();
+        $this->publishingCenter->createBatch(
+            article: $article,
+            platformIds: $platformIds,
+            publishMode: $accountGroup?->default_publish_mode ?: 'draft',
+            accountGroup: $accountGroup,
+            requestedByAdminId: auth('admin')->id(),
+        );
+    }
     /**
      * @return array{
      *     task_id: int,

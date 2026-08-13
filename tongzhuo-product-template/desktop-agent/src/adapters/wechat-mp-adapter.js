@@ -6,7 +6,7 @@ import {
   defaultDraftSuccessSelectors,
   detectAccessBlocked,
   fillFirstVisible,
-  setContentEditable,
+  fillRichContent,
 } from './fill-tools.js';
 import { submitFinalPublish } from './final-publish.js';
 
@@ -53,12 +53,12 @@ export class WechatMpAdapter extends BaseAdapter {
       '#title',
       '.title_input',
     ], article.title);
-    const body = await setContentEditable(page, [
+    const body = await fillRichContent(page, [
       '#ueditor_0',
       '.rich_media_content[contenteditable="true"]',
       '[contenteditable="true"][data-placeholder*="正文"]',
       '[contenteditable="true"]',
-    ], article.text || article.excerpt);
+    ], article);
 
     if (!title.ok || !body.ok) {
       return failed(this, page, '微信公众号未识别到可靠的标题或正文输入区，已停止自动执行。', 'editor_fields_not_recognized', {
@@ -90,7 +90,7 @@ export class WechatMpAdapter extends BaseAdapter {
         draft: saved.action.selector,
         draft_success: saved.confirmation.selector,
       },
-      fill: { title: true, body: true, draft_saved: true },
+      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: true },
     };
 
     if (this.platform.execution?.autoSubmit === true) {
@@ -106,7 +106,7 @@ export class WechatMpAdapter extends BaseAdapter {
         draft: saved.action.selector,
         draft_success: saved.confirmation.selector,
       },
-      fill: { title: true, body: true, draft_saved: true },
+      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: true },
     });
   }
 }

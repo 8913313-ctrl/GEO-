@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PublisherDevice;
 use App\Models\PublisherDevicePairing;
+use App\Services\Publishing\PublisherPlatformCatalogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -12,6 +13,10 @@ use Illuminate\View\View;
 
 class PublisherDeviceController extends Controller
 {
+    public function __construct(
+        private readonly PublisherPlatformCatalogService $platformCatalog,
+    ) {}
+
     public function index(Request $request): View
     {
         $status = (string) $request->query('status', '');
@@ -58,6 +63,9 @@ class PublisherDeviceController extends Controller
             'status' => $status,
             'counts' => $counts,
             'stateResolver' => fn (PublisherDevice $device): string => $this->displayState($device),
+            'platformOptions' => $this->platformCatalog->activePlatforms(),
+            'jobProtocol' => $this->jobProtocol(),
+            'deviceCommandsEnabled' => (bool) config('publishing.device_commands_enabled', false),
         ]);
     }
 
@@ -121,6 +129,18 @@ class PublisherDeviceController extends Controller
         $device->delete();
 
         return back()->with('status', '已删除发布设备记录。');
+    }
+
+    private function jobProtocol(): string
+    {
+        if (! (bool) config('publishing.center_v2_enabled', false)
+            || ! (bool) config('publishing.platform_jobs_enabled', false)) {
+            return 'legacy';
+        }
+
+        $configured = strtolower(trim((string) config('publishing.job_protocol', '')));
+
+        return in_array($configured, ['legacy', 'platform-jobs', 'dual', 'auto'], true) ? $configured : 'dual';
     }
 
     private function displayState(PublisherDevice $device): string

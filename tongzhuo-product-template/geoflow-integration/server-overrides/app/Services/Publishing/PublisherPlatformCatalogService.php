@@ -7,7 +7,7 @@ use Illuminate\Support\Collection;
 
 class PublisherPlatformCatalogService
 {
-    public const EXPECTED_EXTERNAL_PLATFORM_COUNT = 29;
+    public const EXPECTED_EXTERNAL_PLATFORM_COUNT = 28;
 
     /**
      * @return list<array<string,mixed>>
@@ -38,11 +38,11 @@ class PublisherPlatformCatalogService
             $this->platform('oschina', '开源中国', 'tech', 210, 'manual', 'https://www.oschina.net/', 'https://my.oschina.net/'),
             $this->platform('segmentfault', 'SegmentFault', 'tech', 220, 'manual', 'https://segmentfault.com/user/login', 'https://segmentfault.com/write'),
             $this->platform('cnblogs', '博客园', 'blog_knowledge', 230, 'manual', 'https://account.cnblogs.com/signin', 'https://i.cnblogs.com/posts/edit'),
-            $this->platform('sohufocus', '搜狐焦点', 'news_media', 240, 'planned', 'https://mp.focus.cn/', 'https://mp.focus.cn/'),
-            $this->platform('x', 'X（Twitter）', 'overseas', 250, 'planned', 'https://x.com/login', 'https://x.com/compose/post'),
-            $this->platform('eastmoney', '东方财富', 'finance_consumer', 260, 'planned', 'https://www.eastmoney.com/', 'https://www.eastmoney.com/'),
-            $this->platform('smzdm', '什么值得买', 'finance_consumer', 270, 'planned', 'https://www.smzdm.com/', 'https://post.smzdm.com/'),
-            $this->platform('netease', '网易号', 'news_media', 280, 'planned', 'https://mp.163.com/', 'https://mp.163.com/'),
+            $this->platform('sohufocus', '搜狐焦点', 'news_media', 240, 'manual', 'https://mp.focus.cn/', 'https://mp.focus.cn/'),
+            $this->platform('x', 'X（Twitter）', 'overseas', 250, 'manual', 'https://x.com/login', 'https://x.com/compose/post'),
+            $this->platform('eastmoney', '东方财富', 'finance_consumer', 260, 'manual', 'https://www.eastmoney.com/', 'https://www.eastmoney.com/'),
+            $this->platform('smzdm', '什么值得买', 'finance_consumer', 270, 'manual', 'https://www.smzdm.com/', 'https://post.smzdm.com/'),
+            $this->platform('netease', '网易号', 'news_media', 280, 'manual', 'https://mp.163.com/', 'https://mp.163.com/'),
         ];
     }
 

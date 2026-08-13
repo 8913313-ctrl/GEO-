@@ -10,6 +10,30 @@ import { findPlatform, platforms } from './platforms.js';
 import { agentVersion } from './version.js';
 import { PublishPolicy } from './publish-policy.js';
 
+const jobProtocolAliases = Object.freeze({
+  auto: 'auto',
+  dual: 'dual',
+  legacy: 'legacy',
+  v1: 'legacy',
+  'platform-jobs': 'platform-jobs',
+  platform_jobs: 'platform-jobs',
+  platformjobs: 'platform-jobs',
+  v2: 'platform-jobs',
+});
+
+export function normalizeJobProtocol(value, fallback = 'auto') {
+  const key = String(value || '').trim().toLowerCase();
+  return jobProtocolAliases[key] || fallback;
+}
+
+function responseJobItems(response) {
+  if (Array.isArray(response?.data?.items)) return response.data.items;
+  if (Array.isArray(response?.data?.jobs)) return response.data.jobs;
+  if (Array.isArray(response?.items)) return response.items;
+  if (Array.isArray(response?.jobs)) return response.jobs;
+  return Array.isArray(response?.data) ? response.data : [];
+}
+
 export class TongzhuoDesktopAgent extends EventEmitter {
   constructor() {
     super();
@@ -26,6 +50,8 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     this.activeJobId = null;
     this.activeJobs = new Map();
     this.platformJobsSupported = null;
+    this.jobProtocol = 'auto';
+    this.lastPollProtocols = [];
     this.pollInFlight = null;
     this.commandsInFlight = null;
     this.publishPolicy = new PublishPolicy({
@@ -77,6 +103,9 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       jobs: this.jobs,
       browser: this.browser.status(),
       activeJobId: this.activeJobId || this.activeJobIds()[0] || null,
+      jobProtocol: this.jobProtocol,
+      lastPollProtocols: this.lastPollProtocols,
+      platformJobsSupported: this.platformJobsSupported,
       activeJobs: [...this.activeJobs.entries()].map(([jobId, item]) => ({ jobId, ...item })),
       publishPolicy: this.publishPolicy.snapshot(),
       desiredStateVersion: Number(this.config.desiredStateVersion || 0),
@@ -373,9 +402,46 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       .map((id) => Number(String(id).replace(/^[^:]+:/, '')))
       .filter(Number.isFinite);
   }
+
+  activeJobRefs() {
+    return [...this.activeJobs.entries()].map(([key, entry]) => ({
+      id: Number(String(key).replace(/^[^:]+:/, '')),
+      protocol: normalizeJobProtocol(entry?.protocol || (String(key).startsWith('platform:') ? 'platform-jobs' : 'legacy'), 'legacy'),
+    })).filter((item) => Number.isFinite(item.id));
+  }
+
+  setJobProtocol(value, source = 'runtime') {
+    const protocol = normalizeJobProtocol(value, null);
+    if (!protocol) return false;
+    const changed = protocol !== this.jobProtocol;
+    this.jobProtocol = protocol;
+    if (['dual', 'platform-jobs'].includes(protocol)) this.platformJobsSupported = null;
+    if (changed) this.log('info', 'jobs.protocol.changed', `任务协议已切换为 ${protocol}。`, { protocol, source });
+    return changed;
+  }
+
+  heartbeatJobProtocol(body = {}) {
+    const desired = body?.desired_state || body?.device?.desired_state || {};
+    const candidates = [
+      body?.job_protocol,
+      body?.jobProtocol,
+      desired?.job_protocol,
+      desired?.jobProtocol,
+      body?.device?.job_protocol,
+      body?.device?.jobProtocol,
+      body?.device?.meta?.job_protocol,
+    ];
+    for (const candidate of candidates) {
+      const protocol = normalizeJobProtocol(candidate, null);
+      if (protocol) return protocol;
+    }
+    return null;
+  }
+
   async heartbeat(extra = {}) {
     if (!this.hasCredential()) return null;
     const activeJobIds = this.activeJobIds();
+    const activeJobRefs = this.activeJobRefs();
     const reportedState = {
       desired_version_seen: Number(this.config.desiredStateVersion || 0) || 0,
       applied_version: Number(this.config.appliedStateVersion || 0) || 0,
@@ -384,12 +450,20 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       effective_auto_run: Boolean(this.config.autoRun),
       active_job_ids: activeJobIds,
       publish_policy: this.publishPolicy.snapshot(),
+      job_protocol: this.jobProtocol,
+      active_job_refs: activeJobRefs,
+    };
+    const protocolMeta = {
+      job_protocol: this.jobProtocol,
+      job_protocol_effective: this.lastPollProtocols.length === 1 ? this.lastPollProtocols[0] : this.lastPollProtocols,
+      active_job_refs: activeJobRefs,
     };
     let result;
     try {
       result = await this.client.shadowHeartbeat(reportedState, {
         active_job_id: this.activeJobId || activeJobIds[0] || null,
         active_job_ids: activeJobIds,
+        ...protocolMeta,
         ...extra,
       });
     } catch (error) {
@@ -399,11 +473,13 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       result = await this.client.heartbeat({
         active_job_id: this.activeJobId || activeJobIds[0] || null,
         active_job_ids: activeJobIds,
+        ...protocolMeta,
         desired_state_report: reportedState,
         ...extra,
       });
     }
     const body = result?.data || result || {};
+    this.setJobProtocol(this.heartbeatJobProtocol(body), 'heartbeat');
     await this.applyDesiredState(body.desired_state || body.device?.desired_state);
     this.lastHeartbeatAt = new Date().toISOString();
     this.lastError = null;
@@ -456,6 +532,8 @@ export class TongzhuoDesktopAgent extends EventEmitter {
   }
   async applyDesiredState(desired) {
     if (!desired || typeof desired !== 'object' || Array.isArray(desired)) return null;
+    const desiredProtocol = normalizeJobProtocol(desired.job_protocol ?? desired.jobProtocol, null);
+    if (desiredProtocol) this.setJobProtocol(desiredProtocol, 'desired_state');
     const version = Number(desired.version || desired.desired_state_version || 0) || 0;
     const applied = Number(this.config.appliedStateVersion || 0) || 0;
     const takeoverRequired = Boolean(desired.takeover) && Boolean(this.config.localOverride);
@@ -518,71 +596,136 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     return this.pollInFlight;
   }
 
+  jobProtocolFor(job, fallback = 'legacy') {
+    const protocol = normalizeJobProtocol(job?.job_protocol || job?._job_protocol, null);
+    return ['legacy', 'platform-jobs'].includes(protocol) ? protocol : fallback;
+  }
+
+  jobTaskKey(protocol, id) {
+    return `${protocol === 'platform-jobs' ? 'platform' : 'legacy'}:${id}`;
+  }
+
+  tagPolledJobs(items, protocol) {
+    return items.filter((item) => item && typeof item === 'object').map((item) => {
+      const platformId = item.platform_id || item.platformId || '';
+      const payload = item.payload && typeof item.payload === 'object' ? item.payload : {};
+      const article = item.article && typeof item.article === 'object' ? item.article : null;
+      return {
+        ...item,
+        ...(protocol === 'platform-jobs' && !Array.isArray(item.platforms) ? { platforms: platformId ? [platformId] : [] } : {}),
+        ...(protocol === 'platform-jobs' && article && !payload.article ? { payload: { ...payload, article } } : {}),
+        job_protocol: protocol,
+        task_key: this.jobTaskKey(protocol, item.id),
+      };
+    });
+  }
+
+  async fetchJobsForProtocol(protocol, options = {}) {
+    try {
+      const response = protocol === 'platform-jobs'
+        ? await this.client.platformJobs(options.limit || 30)
+        : await this.client.jobs(options.limit || 30);
+      if (protocol === 'platform-jobs') this.platformJobsSupported = true;
+      return { protocol, items: this.tagPolledJobs(responseJobItems(response), protocol), unsupported: false };
+    } catch (error) {
+      const unsupported = [404, 405].includes(Number(error?.status || 0));
+      if (protocol === 'platform-jobs' && unsupported) this.platformJobsSupported = false;
+      // Authentication invalidation also uses 404 on older servers. Never
+      // hide that condition behind protocol fallback after credentials clear.
+      if (!this.hasCredential()) throw error;
+      if (unsupported && options.allowUnsupported) return { protocol, items: [], unsupported: true };
+      throw error;
+    }
+  }
+
   async pollOnce(options = {}) {
     if (!this.hasCredential()) {
       this.lastError = null;
       return [];
     }
     this.log('info', 'jobs.poll.start', '正在读取分发任务。');
-    let items = [];
-    let protocol = 'platform-jobs';
-    try {
-      if (this.platformJobsSupported === false) throw Object.assign(new Error('platform jobs unavailable'), { status: 404 });
-      const response = await this.client.platformJobs(30);
-      this.platformJobsSupported = true;
-      items = Array.isArray(response?.data?.items)
-        ? response.data.items
-        : Array.isArray(response?.data?.jobs)
-          ? response.data.jobs
-          : Array.isArray(response?.items)
-            ? response.items
-            : [];
-    } catch (error) {
-      if (![404, 405].includes(Number(error?.status || 0))) throw error;
-      this.platformJobsSupported = false;
-      protocol = 'legacy';
-      const response = await this.client.jobs(30);
-      items = Array.isArray(response?.data?.items)
-        ? response.data.items
-        : Array.isArray(response?.items)
-          ? response.items
-          : Array.isArray(response?.data)
-            ? response.data
-            : [];
+    const requestedProtocol = normalizeJobProtocol(options.jobProtocol || this.jobProtocol, 'auto');
+    const batches = [];
+    if (requestedProtocol === 'legacy') {
+      batches.push(await this.fetchJobsForProtocol('legacy'));
+    } else if (requestedProtocol === 'platform-jobs') {
+      batches.push(await this.fetchJobsForProtocol('platform-jobs'));
+    } else if (requestedProtocol === 'dual') {
+      const platformBatch = await this.fetchJobsForProtocol('platform-jobs', { allowUnsupported: true });
+      const legacyBatch = await this.fetchJobsForProtocol('legacy', { allowUnsupported: true });
+      if (platformBatch.unsupported && legacyBatch.unsupported) {
+        throw Object.assign(new Error('后台未提供可用的发布任务接口。'), { status: 404 });
+      }
+      if (!platformBatch.unsupported) batches.push(platformBatch);
+      if (!legacyBatch.unsupported) batches.push(legacyBatch);
+    } else {
+      // Auto preserves V2 priority, but an empty V2 queue also probes V1 so
+      // historical jobs are not stranded during a rolling migration.
+      const platformBatch = await this.fetchJobsForProtocol('platform-jobs', { allowUnsupported: true });
+      if (!platformBatch.unsupported) batches.push(platformBatch);
+      if (platformBatch.unsupported || platformBatch.items.length === 0) {
+        const legacyBatch = await this.fetchJobsForProtocol('legacy', { allowUnsupported: !platformBatch.unsupported });
+        if (!legacyBatch.unsupported) batches.push(legacyBatch);
+      }
     }
+    const items = batches.flatMap((batch) => batch.items);
+    const protocols = [...new Set(batches.filter((batch) => !batch.unsupported).map((batch) => batch.protocol))];
     this.jobs = items;
+    this.lastPollProtocols = protocols;
     this.lastPollAt = new Date().toISOString();
     this.lastError = null;
-    this.log('info', 'jobs.poll.done', `已读取 ${items.length} 个任务。`, { protocol });
+    this.log('info', 'jobs.poll.done', `已读取 ${items.length} 个任务。`, { protocol: requestedProtocol, polled_protocols: protocols });
     await this.loadSessions().catch(() => {});
     if (this.config.autoRun) {
       if (!options.skipCommands) this.processCommands().catch((error) => this.log('warn', 'device.commands.failed', error.message));
       const pending = items.filter((job) => ['queued', 'pending', 'ready', 'waiting_for_device'].includes(String(job.status || '').toLowerCase()));
-      const activeIds = new Set(this.activeJobIds());
+      const activeKeys = new Set([...this.activeJobs.keys()].map(String));
       const scheduledGroups = new Set([...this.activeJobs.values()].map((entry) => entry?.groupId).filter(Boolean));
       const available = Math.max(0, this.publishPolicy.maxConcurrentGroups - this.publishPolicy.activeCount());
       const ready = [];
       for (const next of pending) {
         if (ready.length >= available) break;
-        if (activeIds.has(Number(next.id))) continue;
+        const itemProtocol = this.jobProtocolFor(next);
+        const taskKey = this.jobTaskKey(itemProtocol, next.id);
+        if (activeKeys.has(taskKey)) continue;
         const groupId = next?.account_group_id || next?.group_id || next?.payload?.account_group_id || next?.payload?.group_id || this.groupIdForProfile(next?.profile_key) || this.config.activeGroupId;
         if (scheduledGroups.has(groupId)) continue;
         scheduledGroups.add(groupId);
         ready.push(next);
       }
       for (const next of ready) {
-        const taskKey = protocol === 'platform-jobs' ? `platform:${next.id}` : Number(next.id);
+        const itemProtocol = this.jobProtocolFor(next);
+        const taskKey = this.jobTaskKey(itemProtocol, next.id);
         if (this.activeJobs.has(taskKey)) continue;
-        const runner = protocol === 'platform-jobs'
+        const runner = itemProtocol === 'platform-jobs'
           ? this.runPlatformJob(next, { automatic: true })
           : this.runJob(next.id, [], { automatic: true, jobHint: next });
         runner.catch((error) => {
           this.lastError = error.message;
-          this.log('error', 'jobs.auto_run.failed', `自动执行任务 #${next.id} 失败：${error.message}`, { job_id: Number(next.id), protocol });
+          this.log('error', 'jobs.auto_run.failed', `自动执行任务 #${next.id} 失败：${error.message}`, { job_id: Number(next.id), protocol: itemProtocol });
         });
       }
     }
     return this.jobs;
+  }
+
+  async runQueuedJob(id, selectedPlatforms = [], options = {}) {
+    const jobNumber = Number(id);
+    const requested = normalizeJobProtocol(options.jobProtocol, null);
+    const concreteRequested = ['legacy', 'platform-jobs'].includes(requested) ? requested : null;
+    const candidates = this.jobs.filter((item) => Number(item?.id) === jobNumber);
+    const matching = concreteRequested
+      ? candidates.find((item) => this.jobProtocolFor(item) === concreteRequested)
+      : candidates[0];
+    const protocols = [...new Set(candidates.map((item) => this.jobProtocolFor(item)))];
+    if (!concreteRequested && protocols.length > 1) {
+      throw new Error('V1 与 V2 队列存在同号任务，请刷新页面后按任务协议执行。');
+    }
+    const protocol = concreteRequested || (matching ? this.jobProtocolFor(matching) : 'legacy');
+    if (protocol === 'platform-jobs') {
+      return this.runPlatformJob(matching || { id: jobNumber, job_protocol: protocol }, { automatic: false });
+    }
+    return this.runJob(jobNumber, selectedPlatforms, { automatic: false, jobHint: matching || undefined });
   }
 
   async runPlatformJob(jobHint, options = {}) {
@@ -993,13 +1136,14 @@ export class TongzhuoDesktopAgent extends EventEmitter {
   async runJob(id, selectedPlatforms = [], options = {}) {
     const automatic = options.automatic === true;
     const jobNumber = Number(id);
+    const taskKey = this.jobTaskKey('legacy', jobNumber);
     if (!automatic && this.activeJobs.size > 0) throw new Error('当前已有任务正在执行。');
-    if (this.activeJobs.has(jobNumber)) throw new Error('该任务已在执行。');
-    const hint = options.jobHint || this.jobs.find((item) => Number(item.id) === jobNumber) || {};
+    if (this.activeJobs.has(taskKey)) throw new Error('该任务已在执行。');
+    const hint = options.jobHint || this.jobs.find((item) => Number(item.id) === jobNumber && this.jobProtocolFor(item) === 'legacy') || {};
     const hintedGroupId = hint?.account_group_id || hint?.group_id || hint?.payload?.account_group_id || hint?.payload?.group_id || this.config.activeGroupId;
     const groupPermit = this.publishPolicy.acquireGroup(hintedGroupId, automatic);
     if (!groupPermit.allowed) throw new Error(`任务暂缓执行：${groupPermit.reason}`);
-    this.activeJobs.set(jobNumber, { groupId: hintedGroupId, startedAt: new Date().toISOString(), automatic });
+    this.activeJobs.set(taskKey, { groupId: hintedGroupId, startedAt: new Date().toISOString(), automatic, protocol: 'legacy' });
     this.activeJobId = jobNumber;
     try {
       this.log('info', 'job.start', `开始执行任务 #${id}。`, { job_id: jobNumber, selected_platforms: selectedPlatforms, automatic });
@@ -1008,7 +1152,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       const groupId = job?.account_group_id || job?.group_id || job?.payload?.account_group_id || job?.payload?.group_id || hintedGroupId;
       const group = this.accountGroupById(groupId);
       if (!group) throw new Error('当前任务没有可用账号组，请先在本地发布器创建账号组。');
-      this.activeJobs.set(jobNumber, { groupId, startedAt: this.activeJobs.get(jobNumber)?.startedAt, automatic });
+      this.activeJobs.set(taskKey, { groupId, startedAt: this.activeJobs.get(taskKey)?.startedAt, automatic, protocol: 'legacy' });
       const targetPlatforms = this.choosePlatforms(job, selectedPlatforms);
       if (!targetPlatforms.length) throw new Error('当前发布节点没有可处理的平台。请检查分发渠道或升级执行器适配器。');
       const results = this.completedPlatformResults(job, targetPlatforms);
@@ -1026,9 +1170,9 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       await this.client.reportResult(id, 'failed', error.message).catch(() => {});
       throw error;
     } finally {
-      const entry = this.activeJobs.get(jobNumber);
+      const entry = this.activeJobs.get(taskKey);
       this.publishPolicy.releaseGroup(entry?.groupId || hintedGroupId);
-      this.activeJobs.delete(jobNumber);
+      this.activeJobs.delete(taskKey);
       this.activeJobId = this.activeJobIds()[0] || null;
       this.persistPublishPolicy();
       await this.heartbeat().catch(() => {});

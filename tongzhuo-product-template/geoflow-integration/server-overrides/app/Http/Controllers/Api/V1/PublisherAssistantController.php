@@ -94,7 +94,9 @@ class PublisherAssistantController extends BaseApiController
                 throw new ApiException('publisher_job_completed', '该任务已经完成发布。', 409);
             }
 
-            if ($currentState === 'processing' && $currentWorker !== '' && $currentWorker !== $workerId) {
+            $claimedAt = isset($assistant['claimed_at']) ? now()->parse((string) $assistant['claimed_at']) : null;
+            $leaseExpired = $claimedAt === null || $claimedAt->lte(now()->subMinutes($this->legacyLeaseMinutes()));
+            if ($currentState === 'processing' && $currentWorker !== '' && $currentWorker !== $workerId && ! $leaseExpired) {
                 throw new ApiException('publisher_job_claimed', '该任务正在被另一台发布节点处理。', 409);
             }
 
@@ -146,6 +148,10 @@ class PublisherAssistantController extends BaseApiController
         $meta = $this->remoteMeta($record);
         $assistant = is_array($meta['publisher_assistant'] ?? null) ? $meta['publisher_assistant'] : [];
 
+        $currentState = (string) ($assistant['state'] ?? '');
+        if (in_array($currentState, ['published', 'cancelled'], true) && $currentState !== $state) {
+            throw new ApiException('publisher_job_completed', '发布任务已进入终态，拒绝旧结果覆盖。', 409);
+        }
         if ($workerId !== '' && isset($assistant['worker_id']) && (string) $assistant['worker_id'] !== $workerId) {
             throw new ApiException('publisher_job_worker_mismatch', '任务归属的发布节点不一致。', 409);
         }
@@ -187,6 +193,10 @@ class PublisherAssistantController extends BaseApiController
         return $this->success($request, $this->serializeDistribution($record->fresh(['article.category', 'article.author', 'article.task', 'channel'])));
     }
 
+    private function legacyLeaseMinutes(): int
+    {
+        return max(1, (int) config('publishing.legacy_job_lease_minutes', 15));
+    }
     private function findLocalPublisherDistribution(int $distribution): ArticleDistribution
     {
         $record = ArticleDistribution::query()

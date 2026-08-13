@@ -9,7 +9,6 @@ use App\Models\PublisherAccountGroup;
 use App\Models\PublisherPlatformJob;
 use App\Services\GeoFlow\DistributionPayloadBuilder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class PublishingCenterService
@@ -33,6 +32,7 @@ class PublishingCenterService
         ?string $scheduledAt = null,
         string $deviceStrategy = 'auto',
         ?int $preferredDeviceId = null,
+        ?string $idempotencyKey = null,
     ): array {
         if (! in_array($publishMode, ['direct', 'draft', 'scheduled'], true)) {
             throw new InvalidArgumentException('发布模式无效。');
@@ -42,6 +42,17 @@ class PublishingCenterService
         }
 
         $platformIds = array_values(array_unique(array_filter($platformIds, 'is_string')));
+        if ($accountGroup instanceof PublisherAccountGroup) {
+            $groupPlatforms = $accountGroup->items()
+                ->where('enabled', true)
+                ->pluck('platform_id')
+                ->filter(fn ($id): bool => is_string($id) && $id !== '')
+                ->values()
+                ->all();
+            if ($groupPlatforms !== []) {
+                $platformIds = array_values(array_intersect($platformIds, $groupPlatforms));
+            }
+        }
         if ($platformIds === []) {
             throw new InvalidArgumentException('请至少选择一个发布平台。');
         }
@@ -49,8 +60,18 @@ class PublishingCenterService
         $preflight = $this->preflight->inspect($platformIds, $publishMode, $preferredDeviceId);
         $channel = $this->ensureDesktopPublisherChannel();
         $payload = $this->payloadBuilder->build($article);
+        $payloadHash = hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
+        $idempotencyKey = $this->normalizeIdempotencyKey($idempotencyKey, $article, $platformIds, $publishMode, $accountGroup, $scheduledAt, $deviceStrategy, $preferredDeviceId, $payloadHash);
 
-        $distribution = DB::transaction(function () use ($article, $platformIds, $publishMode, $accountGroup, $requestedByAdminId, $scheduledAt, $deviceStrategy, $preflight, $channel, $payload): ArticleDistribution {
+        $existing = ArticleDistribution::query()
+            ->with('publisherPlatformJobs')
+            ->where('idempotency_key', $idempotencyKey)
+            ->first();
+        if ($existing instanceof ArticleDistribution) {
+            return ['distribution' => $existing, 'preflight' => $preflight, 'idempotent_replay' => true];
+        }
+
+        $distribution = DB::transaction(function () use ($article, $platformIds, $publishMode, $accountGroup, $requestedByAdminId, $scheduledAt, $deviceStrategy, $preflight, $channel, $payload, $payloadHash, $idempotencyKey): ArticleDistribution {
             $distribution = ArticleDistribution::query()->create([
                 'article_id' => (int) $article->id,
                 'distribution_channel_id' => (int) $channel->id,
@@ -62,8 +83,8 @@ class PublishingCenterService
                 'status' => 'queued',
                 'scheduled_at' => $scheduledAt,
                 'next_retry_at' => now(),
-                'payload_hash' => hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: ''),
-                'idempotency_key' => 'publisher-v2-'.(int) $article->id.'-'.Str::uuid(),
+                'payload_hash' => $payloadHash,
+                'idempotency_key' => $idempotencyKey,
                 'remote_meta' => [
                     'publisher_assistant' => [
                         'protocol_version' => 'v2',
@@ -108,6 +129,39 @@ class PublishingCenterService
         return ['distribution' => $distribution->fresh(['publisherPlatformJobs']), 'preflight' => $preflight];
     }
 
+    /**
+     * @param list<string> $platformIds
+     */
+    private function normalizeIdempotencyKey(
+        ?string $provided,
+        Article $article,
+        array $platformIds,
+        string $publishMode,
+        ?PublisherAccountGroup $accountGroup,
+        ?string $scheduledAt,
+        string $deviceStrategy,
+        ?int $preferredDeviceId,
+        string $payloadHash,
+    ): string {
+        $provided = trim((string) $provided);
+        if ($provided !== '') {
+            return mb_substr($provided, 0, 120);
+        }
+
+        sort($platformIds, SORT_STRING);
+        $identity = [
+            'article_id' => (int) $article->id,
+            'platform_ids' => $platformIds,
+            'publish_mode' => $publishMode,
+            'account_group_id' => $accountGroup?->id,
+            'scheduled_at' => $scheduledAt,
+            'device_strategy' => $deviceStrategy,
+            'preferred_device_id' => $preferredDeviceId,
+            'payload_hash' => $payloadHash,
+        ];
+
+        return 'publisher-v2-'.hash('sha256', json_encode($identity, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
+    }
     private function ensureDesktopPublisherChannel(): DistributionChannel
     {
         $channel = DistributionChannel::query()

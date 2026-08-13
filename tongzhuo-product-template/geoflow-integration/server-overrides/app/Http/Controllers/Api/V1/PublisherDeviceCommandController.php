@@ -20,6 +20,7 @@ class PublisherDeviceCommandController extends BaseApiController
 {
     public function index(Request $request, string $device): JsonResponse
     {
+        $this->assertFeatureEnabled();
         $record = $this->authorizeDevice($request, $device);
         $limit = max(1, min(50, $request->integer('limit', 20)));
         $now = now();
@@ -65,6 +66,7 @@ class PublisherDeviceCommandController extends BaseApiController
 
     public function claim(Request $request, string $device, int $command): JsonResponse
     {
+        $this->assertFeatureEnabled();
         $record = $this->authorizeDevice($request, $device);
         $worker = $record->device_id;
 
@@ -126,6 +128,7 @@ class PublisherDeviceCommandController extends BaseApiController
 
     public function result(Request $request, string $device, int $command): JsonResponse
     {
+        $this->assertFeatureEnabled();
         $record = $this->authorizeDevice($request, $device);
         $lease = $this->leaseToken($request);
         $status = strtolower(trim((string) ($request->input('status') ?? $request->input('state') ?? 'completed')));
@@ -176,6 +179,13 @@ class PublisherDeviceCommandController extends BaseApiController
         return $this->success($request, [
             'command' => $this->serializeCommand($updated, $record),
         ]);
+    }
+
+    private function assertFeatureEnabled(): void
+    {
+        if (! (bool) config('publishing.device_commands_enabled', false)) {
+            throw new ApiException('publisher_device_commands_disabled', 'Device commands API is disabled.', 404);
+        }
     }
 
     private function authorizeDevice(Request $request, string $deviceId): PublisherDevice
