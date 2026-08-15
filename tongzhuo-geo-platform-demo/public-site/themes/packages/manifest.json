@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "packageVersion": "2.0.0",
+  "description": "Approved independent public-site packages. Shared CMS data stays stable; every package owns its page structure and chrome.",
+  "themes": [
+    {
+      "key": "space-materials",
+      "name": "空间材料 · 材料档案",
+      "aliases": ["tiles", "tile", "ceramic", "ceramics", "space", "building-materials-archive"],
+      "pages": ["home", "listing", "article", "about", "services", "cases", "problem-map", "contact", "archive"],
+      "layout": {
+        "shell": "material-archive",
+        "home": "material-archive-home",
+        "listing": "material-journal",
+        "article": "spatial-reading",
+        "public": "material-public-pages",
+        "navigation": "archive-double-deck",
+        "footer": "material-index-footer"
+      },
+      "tokens": {
+        "page": "#f7f4ef", "surface": "#fbf8f3", "ink": "#1b1d1c", "muted": "#62645e", "accent": "#8c6e59", "accentStrong": "#252422", "accentSoft": "#d8c8b7", "line": "rgba(67,61,54,.22)", "radius": "0px", "shellWidth": "1296px", "contentWidth": "760px", "displayFont": "spatial-editorial", "bodyFont": "material-sans"
+      },
+      "headerClass": "theme-space-materials-header",
+      "footerClass": "theme-space-materials-footer",
+      "assetNamespace": "theme-space-materials"
+    },
+    {
+      "key": "power-systems",
+      "name": "UPS / 数据中心 · 工况控制台",
+      "aliases": ["ups-console", "data-center", "power-system", "power-systems", "critical-power"],
+      "pages": ["home", "listing", "article", "about", "services", "cases", "problem-map", "contact", "archive"],
+      "layout": {
+        "shell": "power-console",
+        "home": "power-control-home",
+        "listing": "technical-manual-list",
+        "article": "technical-manual",
+        "public": "technical-public-pages",
+        "navigation": "system-status-deck",
+        "footer": "technical-source-footer"
+      },
+      "tokens": {
+        "page": "#09151c", "surface": "#10232c", "ink": "#ecf1ed", "muted": "#b7c6c2", "accent": "#e4a15f", "accentStrong": "#e4a15f", "accentSoft": "#6d8990", "line": "rgba(185,207,200,.25)", "radius": "0px", "shellWidth": "1210px", "contentWidth": "780px", "displayFont": "power-grotesk", "bodyFont": "technical-sans"
+      },
+      "headerClass": "theme-power-systems-header",
+      "footerClass": "theme-power-systems-footer",
+      "assetNamespace": "theme-power-systems"
+    },
+    {
+      "key": "supply-chain",
+      "name": "物流 / 供应链 · 服务分流",
+      "aliases": ["logistics", "logistic", "supply-chain-service", "supplychain", "delivery"],
+      "pages": ["home", "listing", "article", "about", "services", "cases", "problem-map", "contact", "archive"],
+      "layout": {
+        "shell": "service-network",
+        "home": "service-split-home",
+        "listing": "dispatch-board",
+        "article": "route-reading",
+        "public": "service-route-pages",
+        "navigation": "business-split-deck",
+        "footer": "network-service-footer"
+      },
+      "tokens": {
+        "page": "#e9eee9", "surface": "#f4f6f2", "ink": "#173331", "muted": "#61716b", "accent": "#9b6c47", "accentStrong": "#153e3b", "accentSoft": "#d5ddd4", "line": "rgba(39,75,70,.24)", "radius": "0px", "shellWidth": "1296px", "contentWidth": "790px", "displayFont": "service-editorial", "bodyFont": "network-sans"
+      },
+      "headerClass": "theme-supply-chain-header",
+      "footerClass": "theme-supply-chain-footer",
+      "assetNamespace": "theme-supply-chain"
+    }
+  ]
+}

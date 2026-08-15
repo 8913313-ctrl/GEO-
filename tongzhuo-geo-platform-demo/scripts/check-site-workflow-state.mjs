@@ -10,7 +10,7 @@ import { WorkspaceStore } from "../workspace-store.mjs";
 const directory = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-site-workflow-"));
 let database;
 let runtime;
-const workspaceId = "tenant-workflow-test";
+const workspaceId = "deployment-workflow-test";
 const actorEditor = { userId: "USER-CMS-EDITOR", displayName: "运营编辑" };
 const actorReviewer = { userId: "USER-CMS-REVIEWER", displayName: "审核负责人" };
 

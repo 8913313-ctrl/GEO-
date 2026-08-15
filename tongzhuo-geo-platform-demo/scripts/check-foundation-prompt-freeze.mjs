@@ -20,14 +20,14 @@ try {
   store.setMethodologyVersionStatus(methodology.version.id, "published");
   const foundation = ensureGeoFoundationPublishedAssets(store);
   const now = new Date().toISOString();
-  for (const [workspaceId, planId, name] of [["tenant_tongzhuo_geo", "PLAN-PROMPT-TZ", "桐灼计划"], ["tenant_building_materials", "PLAN-PROMPT-BM", "建材计划"]]) {
+  for (const [workspaceId, planId, name] of [["deployment_tongzhuo_geo", "PLAN-PROMPT-TZ", "桐灼计划"], ["deployment_building_materials", "PLAN-PROMPT-BM", "建材计划"]]) {
     database.connection.prepare("INSERT INTO content_plans (id, workspace_id, name, content_type, status, methodology_version_id, prompt_version_id, quality_rule_pack_id, created_at, updated_at) VALUES (?, ?, ?, '深度文章', 'draft', ?, ?, ?, ?, ?)")
       .run(planId, workspaceId, name, methodology.version.id, foundation.promptVersion.id, foundation.qualityRulePack.id, now, now);
   }
   const resolver = new FoundationMethodologyResolver(database);
-  const methodologyContext = resolver.resolveArticleContext({ workspaceId: "tenant_tongzhuo_geo", planId: "PLAN-PROMPT-TZ", customerQuestion: "企业怎样建设 GEO 官网事实？" });
+  const methodologyContext = resolver.resolveArticleContext({ workspaceId: "deployment_tongzhuo_geo", planId: "PLAN-PROMPT-TZ", customerQuestion: "企业怎样建设 GEO 官网事实？" });
   const context = resolver.resolveArticlePromptContext({
-    workspaceId: "tenant_tongzhuo_geo", planId: "PLAN-PROMPT-TZ",
+    workspaceId: "deployment_tongzhuo_geo", planId: "PLAN-PROMPT-TZ",
     companyProfile: { legalName: "桐灼科技", shortName: "桐灼", description: "GEO 服务企业", region: "济南" },
     businessLine: { id: "BL-GEO", name: "GEO 服务", description: "企业 GEO 运营" },
     topic: { id: "TOP-1", title: "企业怎样建设 GEO 官网事实？", intent: "方案了解", stage: "方案评估" },
@@ -42,9 +42,9 @@ try {
   assert.ok(!context.renderedPrompt.includes("建材计划"));
   assert.equal(context.quality.packId, foundation.qualityRulePack.id);
   assert.ok(context.quality.rules.includes("facts_require_approved_evidence"));
-  assert.throws(() => resolver.resolveArticlePromptContext({ workspaceId: "tenant_building_materials", planId: "PLAN-PROMPT-TZ", customerQuestion: "建材问题" }), /Content plan not found/);
+  assert.throws(() => resolver.resolveArticlePromptContext({ workspaceId: "deployment_building_materials", planId: "PLAN-PROMPT-TZ", customerQuestion: "建材问题" }), /Content plan not found/);
 } finally {
   database.close();
   await rm(temporaryDirectory, { recursive: true, force: true });
 }
-console.log("Published prompt selection, variable allowlist, rendered snapshot, and tenant isolation checks passed.");
+console.log("Published prompt selection, variable allowlist, rendered snapshot, and deployment isolation checks passed.");

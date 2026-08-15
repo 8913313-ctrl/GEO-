@@ -81,7 +81,7 @@
         <div class="production-auth-copy">
           <span class="production-auth-kicker">${setup ? "FIRST RUN SETUP" : "PRIVATE DEPLOYMENT"}</span>
           <h1 id="production-auth-title">${setup ? "创建企业管理员" : "登录运营后台"}</h1>
-          <p>${setup ? "这是当前服务器的首次初始化。管理员账号仅保存在本企业服务器中。" : "请输入企业内部账号。连续失败会被记录到安全审计日志。"}</p>
+          <p>${setup ? "这是当前服务器的首次初始化。管理员账号仅保存在本企业服务器中。请由部署负责人创建并保存账号。" : "请输入企业内部账号。连续失败会被记录到安全审计日志。首次登录凭据由部署负责人交接；忘记密码请联系部署管理员重置。"}</p>
         </div>
         <form data-auth-form autocomplete="${setup ? "off" : "on"}">
           ${setup ? '<label>管理员姓名<input name="name" maxlength="80" autocomplete="name" value="系统管理员" required /></label>' : ""}
@@ -91,6 +91,7 @@
           <div class="production-auth-message" data-auth-message aria-live="assertive"></div>
           <button type="submit">${setup ? "完成初始化并进入系统" : "登录"}</button>
         </form>
+        <p class="production-auth-help">${setup ? "完成后请立即修改初始密码，并创建运营、审核和只读账号。" : "没有账号或无法登录？请联系本企业部署管理员，不要反复尝试未知密码。"}</p>
         <footer><span>单企业独立部署</span><span>数据保存在当前服务器</span></footer>
       </main>`;
 

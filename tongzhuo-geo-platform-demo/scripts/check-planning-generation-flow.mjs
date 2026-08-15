@@ -257,7 +257,7 @@ try {
   const env = cleanChildEnvironment();
   Object.assign(env, {
     NODE_ENV: "test", TZ_BIND_HOST: "127.0.0.1", TZ_COOKIE_SECURE: "0", TZ_SITE_EMBED: "false",
-    TZ_TENANT_ID: "tenant_offline_machinery", TZ_PROJECT_ID: "offline-machinery", TZ_INDUSTRY_TEMPLATE: "machinery",
+    TZ_PROJECT_ID: "offline-machinery", TZ_INDUSTRY_TEMPLATE: "machinery",
     TZ_DATABASE_PATH: databasePath, TZ_DATA_DIR: path.join(tempDir, "data"),
     TZ_LOG_DIR: path.join(tempDir, "logs"), TZ_AI_PROVIDER_DATA_DIR: path.join(tempDir, "providers"),
     TZ_AI_GENERATION_DATA_DIR: path.join(tempDir, "generation"), TZ_PUBLISHER_DATA_DIR: path.join(tempDir, "publisher"),

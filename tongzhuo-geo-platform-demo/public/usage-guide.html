@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f5f8ff" />
     <title>使用文档 · 灼见 GEO</title>
     <style>
-      :root { color-scheme: light; font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif; color: #15254b; background: #f5f8ff; }
+      :root { color-scheme: light; font-family: MiSans, "HarmonyOS Sans SC", "Microsoft YaHei UI", system-ui, sans-serif; color: #15254b; background: #f5f8ff; }
       * { box-sizing: border-box; }
       body { min-height: 100vh; margin: 0; background: radial-gradient(circle at 82% -8%, rgba(78,107,255,.14), transparent 34rem), linear-gradient(180deg,#fbfcff 0,#f5f8ff 34rem); }
       a { color: inherit; text-decoration: none; }
@@ -57,7 +57,26 @@
           <li><b>工作台</b>：查看待办、系统状态、内容资产与最近动态。</li>
           <li><b>企业知识</b>：上传、审核和维护可被引用的企业证据。</li>
           <li><b>发布助手</b>：管理本地发布器配对、账号组和平台执行状态。</li>
-          <li><b>系统设置</b>：配置成员权限、模型渠道和私有化部署参数。</li>
+          <li><b>系统设置</b>：配置模型渠道、操作日志和私有化部署参数。</li>
+        </ul>
+      </section>
+      <h2>首次登录与管理员交接</h2>
+      <section class="doc-card">
+        <ul>
+          <li><b>首次初始化</b>：打开后台登录页，由部署负责人创建企业管理员账号并保存凭据；系统不会预置一个可公开传播的通用密码。</li>
+          <li><b>首次登录后</b>：妥善保存企业管理员账号；当前独立部署系统不提供成员账号管理入口。</li>
+          <li><b>无法登录</b>：请联系本企业部署管理员核对账号或执行密码重置，不要反复尝试未知密码。</li>
+        </ul>
+      </section>
+      <h2>从配置到发布的完整操作链</h2>
+      <section class="doc-card">
+        <ul>
+          <li><b>模型配置</b>：进入系统设置 → AI 模型，填写中转站地址、模型名称和 API Key，先点击连接测试，确认返回成功后再保存。</li>
+          <li><b>企业知识</b>：进入企业知识，录入企业事实、服务能力和可引用来源；提交后完成审核，未审核资料不会进入正式生成链路。</li>
+          <li><b>选题与生成</b>：在选题中心创建用户问题，选择已审核知识和模型，点击生成；生成结果先保存为草稿，检查事实、引用和风险提示。</li>
+          <li><b>审核冻结</b>：审核人确认内容后执行通过/冻结。冻结内容不可直接发布，需由有权限成员重新编辑并提交审核。</li>
+          <li><b>官网发布</b>：在官网内容或发布助手中预览页面，确认导航、SEO 和联系方式，再执行发布；发布后用官网首页、问题地图和资讯页复核。</li>
+          <li><b>线索跟进</b>：访客通过联系我们提交线索后，在后台线索中心查看、分配负责人、记录状态和下一步动作。</li>
         </ul>
       </section>
       <div class="doc-note">提示：涉及客户信息、企业知识或外部模型调用时，请先确认数据范围和当前账号权限。所有正式发布动作都会保留操作记录。</div>

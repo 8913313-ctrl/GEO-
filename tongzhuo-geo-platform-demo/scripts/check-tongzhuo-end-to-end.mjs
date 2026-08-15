@@ -11,7 +11,7 @@ import { ensureGeoFoundationDrafts } from "../foundation-assets/bootstrap.mjs";
 import { importUpsGeoCandidateRules } from "../foundation-assets/ups-geo-review-import.mjs";
 import { createSiteRuntime } from "../site-server.mjs";
 
-const tenantId = "tenant_tongzhuo_geo";
+const workspaceId = "deployment_tongzhuo_geo";
 const projectId = "tongzhuo-geo";
 const directory = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-e2e-"));
 const databasePath = path.join(directory, "tongzhuo.sqlite");
@@ -58,14 +58,14 @@ function headers(cookie, csrf, extra = {}) { return { Cookie: cookie, ...(csrf ?
 try {
   child = spawn(process.execPath, [path.resolve("server.mjs"), String(port)], {
     cwd: path.resolve("."),
-    env: { ...process.env, NODE_ENV: "test", TZ_TENANT_ID: tenantId, TZ_PROJECT_ID: projectId, TZ_PROJECT_SEED: "tongzhuo-geo", TZ_INDUSTRY_TEMPLATE: "professional-services", TZ_BIND_HOST: "127.0.0.1", TZ_COOKIE_SECURE: "0", TZ_DATA_DIR: directory, TZ_DATABASE_PATH: databasePath, TZ_LOG_DIR: path.join(directory, "logs"), TZ_PUBLISHER_DATA_DIR: path.join(directory, "publisher"), TZ_MASTER_KEY: randomBytes(32).toString("base64") },
+    env: { ...process.env, NODE_ENV: "test", TZ_PROJECT_ID: projectId, TZ_PROJECT_SEED: "tongzhuo-geo", TZ_INDUSTRY_TEMPLATE: "professional-services", TZ_BIND_HOST: "127.0.0.1", TZ_COOKIE_SECURE: "0", TZ_DATA_DIR: directory, TZ_DATABASE_PATH: databasePath, TZ_LOG_DIR: path.join(directory, "logs"), TZ_PUBLISHER_DATA_DIR: path.join(directory, "publisher"), TZ_MASTER_KEY: randomBytes(32).toString("base64") },
     stdio: "ignore"
   });
   for (let i = 0; i < 100; i += 1) { try { if ((await request(base, "/health/ready")).response.ok) break; } catch {} await new Promise((resolve) => setTimeout(resolve, 100)); }
   let result = await request(base, "/api/v1/auth/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: "tongzhuo-admin", displayName: "桐灼项目管理员", password: "TongzhuoPrivate!2026" }) });
   assert.equal(result.response.status, 201, JSON.stringify(result.body));
   const cookie = cookies(result.response); const csrf = result.body.data.csrfToken; const auth = headers(cookie, csrf);
-  const ids = { tenantId, projectId, boundary: { website: "local-runtime", externalPlatform: "mock", liveAiSampling: "not-run" } };
+  const ids = { workspaceId, projectId, boundary: { website: "local-runtime", externalPlatform: "mock", liveAiSampling: "not-run" } };
 
   const workspaceState = {
     enterpriseProfile: { companyName: "桐灼（淄博）网络科技有限公司", brandName: "桐灼科技", introduction: "面向企业提供 GEO 服务、企业 AI 应用与内容运营服务。", officialDomain: "https://tongzhuo.ink", industryRegion: "山东淄博", serviceArea: "中国" },
@@ -107,7 +107,7 @@ try {
   result = await request(base, `/api/v1/publisher/jobs/${ids.publisherJobId}/start`, { method: "POST", headers: worker, body: "{}" }); assert.equal(result.response.status, 200, JSON.stringify(result.body));
   result = await request(base, `/api/v1/publisher/jobs/${ids.publisherJobId}/result`, { method: "POST", headers: worker, body: JSON.stringify({ state: "published", platform_results: { web: { state: "published", remote_url: "https://tongzhuo.ink/insights/geo-facts-and-sources/", data_origin: "enterprise_measured", message: "P7-T02 local-runtime 官网发布结果" }, zhihu: { state: "published", remote_url: "https://mock.example/zhihu/tongzhuo-e2e", data_origin: "mock_demo", message: "P7-T02 Mock 外部平台结果" } } }) }); assert.equal(result.response.status, 200, JSON.stringify(result.body)); ids.websitePublicationUrl = "https://tongzhuo.ink/insights/geo-facts-and-sources/"; ids.externalPublicationUrl = "https://mock.example/zhihu/tongzhuo-e2e";
 
-  siteRuntime = createSiteRuntime({ databasePath, staticRoot: directory, host: "127.0.0.1", port: 0, baseUrl: "https://tongzhuo.ink", workspaceId: tenantId, projectId, projectSeedKey: "tongzhuo-geo", flushIntervalMs: 60_000, logger: { info() {}, warn() {}, error() {} } });
+  siteRuntime = createSiteRuntime({ databasePath, staticRoot: directory, host: "127.0.0.1", port: 0, baseUrl: "https://tongzhuo.ink", workspaceId: workspaceId, projectId, projectSeedKey: "tongzhuo-geo", flushIntervalMs: 60_000, logger: { info() {}, warn() {}, error() {} } });
   await siteRuntime.listen(0); const siteAddress = siteRuntime.server.address(); assert.ok(siteAddress && typeof siteAddress.port === "number" && siteAddress.port > 0, JSON.stringify(siteAddress)); const siteBase = `http://127.0.0.1:${siteAddress.port}`;
   result = await request(siteBase, "/insights/geo-facts-and-sources/"); assert.equal(result.response.status, 200, result.text); assert.match(result.text, /企业如何从事实与公开信源开始做 GEO/); const publishedHtml = result.text;
   result = await request(siteBase, "/api/v1/leads", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": "lead-tongzhuo-e2e" }, body: JSON.stringify({ name: "P7 验收联系人", phone: "13900000000", company: "P7 验收企业", service: "GEO 诊断", message: "希望了解企业如何从事实和公开信源开始做 GEO。", source_url: "https://tongzhuo.ink/contact/", utm_source: "p7-e2e" }) }); assert.equal(result.response.status, 201, JSON.stringify(result.body)); ids.leadId = result.body.data?.id || result.body.data?.lead?.id || result.body.lead?.id || result.body.id; assert.ok(ids.leadId, JSON.stringify(result.body));
@@ -118,7 +118,7 @@ try {
 
   const verify = new ProductionDatabase({ databasePath });
   try {
-    const taskRows = verify.connection.prepare("SELECT channel, status, remote_url, result_json FROM publication_tasks WHERE tenant_id = ? AND content_id = ? ORDER BY channel").all(tenantId, ids.articleId);
+    const taskRows = verify.connection.prepare("SELECT channel, status, remote_url, result_json FROM publication_tasks WHERE workspace_id = ? AND content_id = ? ORDER BY channel").all(workspaceId, ids.articleId);
     assert.equal(taskRows.find((item) => item.channel === "web")?.status, "published"); assert.equal(taskRows.find((item) => item.channel === "zhihu")?.status, "published");
     assert.equal(JSON.parse(taskRows.find((item) => item.channel === "web")?.result_json || "{}").dataOrigin, "enterprise_measured"); assert.equal(JSON.parse(taskRows.find((item) => item.channel === "zhihu")?.result_json || "{}").dataOrigin, "mock_demo");
     assert.equal(verify.connection.prepare("SELECT project_id FROM site_contact_leads WHERE id = ?").get(ids.leadId)?.project_id, projectId);

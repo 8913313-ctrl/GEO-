@@ -33,6 +33,6 @@ const exampleConfig = JSON.parse(await readFile(new URL("../../tongzhuo-product-
 assert.equal(requireIndustryTemplate(exampleConfig.industry_template).templateKey, exampleConfig.industry_template, "project configuration must select a registered industry template");
 
 const serialized = JSON.stringify([buildingMaterials, machinery, energyEquipment, beautyConsumer]);
-assert.doesNotMatch(serialized, /桐灼|灼见|鲁ICP备|tenant_tongzhuo_geo/, "industry templates must not contain Tongzhuo customer data");
+assert.doesNotMatch(serialized, /桐灼|灼见|鲁ICP备|deployment_tongzhuo_geo/, "industry templates must not contain Tongzhuo customer data");
 
 console.log("Industry adaptation template contract checks passed.");

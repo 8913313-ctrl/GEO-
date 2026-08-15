@@ -13,7 +13,7 @@ function response({ statusCode = 200, headers = { "content-type": "application/j
   stream.statusCode = statusCode; stream.headers = headers; stream.resume = () => {}; return stream;
 }
 
-function insertArticle(connection, { workspaceId = "tenant-a", articleId, versionId, approved = true } = {}) {
+function insertArticle(connection, { workspaceId = "deployment-a", articleId, versionId, approved = true } = {}) {
   const timestamp = new Date().toISOString();
   connection.prepare(`INSERT INTO content_articles (id, workspace_id, title, category, status, current_version_id, approved_version_id, revision, metadata_json, created_at, updated_at) VALUES (?, ?, ?, 'guide', ?, ?, ?, 1, '{}', ?, ?)`)
     .run(articleId, workspaceId, `Article ${articleId}`, approved ? "approved" : "draft", versionId, approved ? versionId : null, timestamp, timestamp);
@@ -30,12 +30,12 @@ try {
   assert.ok(tables.has("external_site_publication_tasks"));
   insertArticle(database.connection, { articleId: "ART-APPROVED", versionId: "VER-APPROVED" });
   insertArticle(database.connection, { articleId: "ART-DRAFT", versionId: "VER-DRAFT", approved: false });
-  insertArticle(database.connection, { workspaceId: "tenant-b", articleId: "ART-TENANT-B", versionId: "VER-TENANT-B" });
+  insertArticle(database.connection, { workspaceId: "deployment-b", articleId: "ART-WORKSPACE-B", versionId: "VER-WORKSPACE-B" });
 
   const calls = [];
-  const content = new ContentStore(database, { workspaceId: "tenant-a", requireEvidence: false });
+  const content = new ContentStore(database, { workspaceId: "deployment-a", requireEvidence: false });
   const store = new ExternalSiteConnectorStore(database, content, {
-    workspaceId: "tenant-a",
+    workspaceId: "deployment-a",
     masterKey: randomBytes(32),
     request: async (url, options) => {
       calls.push({ url, options });
@@ -48,7 +48,7 @@ try {
     }
   });
 
-  const generic = await store.create({ workspaceId: "tenant-a", name: "Official website", type: "generic_http", endpointUrl: "https://publisher.example/hooks/articles", settings: { authType: "header", headerName: "X-API-Key", method: "DELETE", arbitraryHeaders: { Cookie: "blocked" } }, credentials: { secret: "super-secret-token" } });
+  const generic = await store.create({ workspaceId: "deployment-a", name: "Official website", type: "generic_http", endpointUrl: "https://publisher.example/hooks/articles", settings: { authType: "header", headerName: "X-API-Key", method: "DELETE", arbitraryHeaders: { Cookie: "blocked" } }, credentials: { secret: "super-secret-token" } });
   assert.equal(generic.hasCredentials, true);
   assert.deepEqual(generic.settings, { authType: "header", headerName: "x-api-key" }, "arbitrary method and headers must not survive normalization");
   assert.equal(JSON.stringify(generic).includes("super-secret-token"), false, "API model must not reveal credentials");
@@ -62,62 +62,62 @@ try {
   await assert.rejects(() => store.create({ name: "Credentials", type: "generic_http", endpointUrl: "https://user:pass@publisher.example/hook", settings: { authType: "none" } }), (error) => error.code === "EXTERNAL_SITE_URL_INVALID");
   await assert.rejects(() => store.create({ name: "Header injection", type: "generic_http", endpointUrl: "https://publisher.example/hook", settings: { authType: "header", headerName: "Cookie" }, credentials: { secret: "x" } }), (error) => error.code === "EXTERNAL_SITE_HEADER_BLOCKED");
 
-  const tested = await store.testConnection({ workspaceId: "tenant-a", connectionId: generic.id });
+  const tested = await store.testConnection({ workspaceId: "deployment-a", connectionId: generic.id });
   assert.equal(tested.connection.lastTestStatus, "passed");
   assert.equal(calls.at(-1).options.headers["x-api-key"], "super-secret-token");
   assert.deepEqual(Object.keys(calls.at(-1).options.headers), ["x-api-key"], "only normalized authentication headers may be sent");
-  const noAuth = await store.update({ workspaceId: "tenant-a", connectionId: generic.id, settings: { authType: "none" } });
+  const noAuth = await store.update({ workspaceId: "deployment-a", connectionId: generic.id, settings: { authType: "none" } });
   assert.equal(noAuth.hasCredentials, false, "switching to no authentication must remove stored credentials");
-  assert.deepEqual(store.credentials(store.row("tenant-a", generic.id)), {});
-  await store.update({ workspaceId: "tenant-a", connectionId: generic.id, settings: { authType: "header", headerName: "X-API-Key" }, credentials: { secret: "super-secret-token" } });
+  assert.deepEqual(store.credentials(store.row("deployment-a", generic.id)), {});
+  await store.update({ workspaceId: "deployment-a", connectionId: generic.id, settings: { authType: "header", headerName: "X-API-Key" }, credentials: { secret: "super-secret-token" } });
 
-  assert.throws(() => store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-DRAFT", articleVersionId: "VER-DRAFT", idempotencyKey: "draft-1" }), (error) => error.code === "CONTENT_REVIEW_REQUIRED");
-  assert.throws(() => store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-TENANT-B", articleVersionId: "VER-TENANT-B", idempotencyKey: "cross-tenant" }), (error) => error.code === "CONTENT_NOT_FOUND");
-  const created = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "publish-1" });
+  assert.throws(() => store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-DRAFT", articleVersionId: "VER-DRAFT", idempotencyKey: "draft-1" }), (error) => error.code === "CONTENT_REVIEW_REQUIRED");
+  assert.throws(() => store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-WORKSPACE-B", articleVersionId: "VER-WORKSPACE-B", idempotencyKey: "cross-deployment" }), (error) => error.code === "CONTENT_NOT_FOUND");
+  const created = store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "publish-1" });
   assert.equal(created.task.status, "queued");
-  const replay = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "publish-1" });
+  const replay = store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "publish-1" });
   assert.equal(replay.idempotent, true);
-  assert.throws(() => store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", operation: "update", remoteId: "other", idempotencyKey: "publish-1" }), (error) => error.code === "EXTERNAL_SITE_IDEMPOTENCY_CONFLICT");
+  assert.throws(() => store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", operation: "update", remoteId: "other", idempotencyKey: "publish-1" }), (error) => error.code === "EXTERNAL_SITE_IDEMPOTENCY_CONFLICT");
 
-  const published = await store.executeTask({ workspaceId: "tenant-a", taskId: created.task.id });
+  const published = await store.executeTask({ workspaceId: "deployment-a", taskId: created.task.id });
   assert.equal(published.task.status, "published");
   assert.equal(published.task.remoteUrl, "https://publisher.example/posts/remote-1");
   const callCount = calls.length;
-  const repeatedExecute = await store.executeTask({ workspaceId: "tenant-a", taskId: created.task.id });
+  const repeatedExecute = await store.executeTask({ workspaceId: "deployment-a", taskId: created.task.id });
   assert.equal(repeatedExecute.idempotent, true);
   assert.equal(calls.length, callCount, "repeated execution must not call the remote site again");
 
-  const unsafeReceipt = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "unsafe-receipt-1" });
-  const unsafeReceiptResult = await store.executeTask({ workspaceId: "tenant-a", taskId: unsafeReceipt.task.id });
+  const unsafeReceipt = store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "unsafe-receipt-1" });
+  const unsafeReceiptResult = await store.executeTask({ workspaceId: "deployment-a", taskId: unsafeReceipt.task.id });
   assert.equal(unsafeReceiptResult.task.remoteUrl, "", "credential-bearing receipt URLs must not be persisted");
   assert.equal(JSON.stringify(unsafeReceiptResult.task.receipt).includes("must-not-be-stored"), false, "receipt fields must be allowlisted");
 
-  const tampered = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "tampered-1" });
+  const tampered = store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "tampered-1" });
   assert.throws(() => database.connection.prepare("UPDATE external_site_publication_tasks SET payload_hash = ? WHERE id = ?").run("b".repeat(64), tampered.task.id), /identity is immutable/);
 
-  const update = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", operation: "update", remoteId: "remote-1", idempotencyKey: "update-1" });
-  assert.equal((await store.executeTask({ workspaceId: "tenant-a", taskId: update.task.id })).task.status, "updated");
-  const deletion = store.createTask({ workspaceId: "tenant-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", operation: "delete", idempotencyKey: "delete-1" });
+  const update = store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", operation: "update", remoteId: "remote-1", idempotencyKey: "update-1" });
+  assert.equal((await store.executeTask({ workspaceId: "deployment-a", taskId: update.task.id })).task.status, "updated");
+  const deletion = store.createTask({ workspaceId: "deployment-a", connectionId: generic.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", operation: "delete", idempotencyKey: "delete-1" });
   assert.equal(deletion.task.remoteId, "remote-1", "update/delete should resolve the latest saved remote mapping");
-  const deleted = await store.executeTask({ workspaceId: "tenant-a", taskId: deletion.task.id });
+  const deleted = await store.executeTask({ workspaceId: "deployment-a", taskId: deletion.task.id });
   assert.equal(deleted.task.status, "deleted");
   assert.equal(JSON.stringify(deleted.task.receipt).includes("must-not-be-stored"), false, "remote receipts must be reduced to allowlisted fields");
 
-  const wordpress = await store.create({ workspaceId: "tenant-a", name: "WordPress", type: "wordpress_rest", endpointUrl: "https://wordpress.example/", credentials: { username: "editor", applicationPassword: "app-pass" } });
+  const wordpress = await store.create({ workspaceId: "deployment-a", name: "WordPress", type: "wordpress_rest", endpointUrl: "https://wordpress.example/", credentials: { username: "editor", applicationPassword: "app-pass" } });
   const beforeWordPressTestCalls = calls.length;
-  await store.testConnection({ workspaceId: "tenant-a", connectionId: wordpress.id });
+  await store.testConnection({ workspaceId: "deployment-a", connectionId: wordpress.id });
   assert.equal(calls.length, beforeWordPressTestCalls + 1);
   assert.equal(calls.at(-1).options.method, "GET", "WordPress connection test must not create a draft post");
   assert.match(calls.at(-1).url, /\/wp-json\/wp\/v2\/users\/me\?context=edit$/);
 
-  const failing = await store.create({ workspaceId: "tenant-a", name: "Failing", type: "generic_http", endpointUrl: "https://fail.example/hook", settings: { authType: "none" } });
-  const failedTask = store.createTask({ workspaceId: "tenant-a", connectionId: failing.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "failure-1" });
-  await assert.rejects(() => store.executeTask({ workspaceId: "tenant-a", taskId: failedTask.task.id }), (error) => error.code === "EXTERNAL_SITE_HTTP_STATUS");
-  const failed = store.task("tenant-a", failedTask.task.id);
+  const failing = await store.create({ workspaceId: "deployment-a", name: "Failing", type: "generic_http", endpointUrl: "https://fail.example/hook", settings: { authType: "none" } });
+  const failedTask = store.createTask({ workspaceId: "deployment-a", connectionId: failing.id, articleId: "ART-APPROVED", articleVersionId: "VER-APPROVED", idempotencyKey: "failure-1" });
+  await assert.rejects(() => store.executeTask({ workspaceId: "deployment-a", taskId: failedTask.task.id }), (error) => error.code === "EXTERNAL_SITE_HTTP_STATUS");
+  const failed = store.task("deployment-a", failedTask.task.id);
   assert.equal(failed.status, "failed"); assert.equal(failed.attempts, 1); assert.ok(failed.nextAttemptAt);
-  await assert.rejects(() => store.executeTask({ workspaceId: "tenant-a", taskId: failedTask.task.id }), (error) => error.code === "EXTERNAL_SITE_HTTP_STATUS");
-  assert.equal(store.task("tenant-a", failedTask.task.id).attempts, 2, "explicit retry must increment attempts");
-  assert.throws(() => store.task("tenant-b", created.task.id), (error) => error.code === "EXTERNAL_SITE_TASK_NOT_FOUND");
+  await assert.rejects(() => store.executeTask({ workspaceId: "deployment-a", taskId: failedTask.task.id }), (error) => error.code === "EXTERNAL_SITE_HTTP_STATUS");
+  assert.equal(store.task("deployment-a", failedTask.task.id).attempts, 2, "explicit retry must increment attempts");
+  assert.throws(() => store.task("deployment-b", created.task.id), (error) => error.code === "EXTERNAL_SITE_TASK_NOT_FOUND");
 
   const auditActions = new Set(database.connection.prepare("SELECT action FROM audit_logs WHERE action LIKE 'external_site.%'").all().map((row) => row.action));
   for (const action of ["external_site.connection.create", "external_site.connection.test", "external_site.publication.create", "external_site.publication.published", "external_site.publication.updated", "external_site.publication.deleted", "external_site.publication.failed"]) assert.ok(auditActions.has(action), `missing audit action ${action}`);

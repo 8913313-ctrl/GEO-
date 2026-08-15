@@ -26,7 +26,7 @@ async function login(username, password = "RoleUser!2026") {
 }
 
 try {
-  child = spawn(process.execPath, [path.resolve("server.mjs"), String(adminPort)], { cwd: path.resolve("."), env: { ...process.env, NODE_ENV: "test", TZ_BIND_HOST: "127.0.0.1", TZ_COOKIE_SECURE: "0", TZ_DATA_DIR: directory, TZ_DATABASE_PATH: databasePath, TZ_LOG_DIR: path.join(directory, "logs"), TZ_MASTER_KEY: randomBytes(32).toString("base64"), TZ_TENANT_ID: "default", TZ_PROJECT_ID: "default" }, stdio: "ignore" });
+  child = spawn(process.execPath, [path.resolve("server.mjs"), String(adminPort)], { cwd: path.resolve("."), env: { ...process.env, NODE_ENV: "test", TZ_BIND_HOST: "127.0.0.1", TZ_COOKIE_SECURE: "0", TZ_DATA_DIR: directory, TZ_DATABASE_PATH: databasePath, TZ_LOG_DIR: path.join(directory, "logs"), TZ_MASTER_KEY: randomBytes(32).toString("base64"), TZ_PROJECT_ID: "default" }, stdio: "ignore" });
   for (let index = 0; index < 80; index += 1) { try { if ((await request(adminBase, "/health/ready")).response.ok) break; } catch { /* starting */ } await new Promise((resolve) => setTimeout(resolve, 100)); }
   let result = await request(adminBase, "/api/v1/auth/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: "lead-admin", displayName: "线索管理员", password: "LeadAdmin!2026" }) });
   assert.equal(result.response.status, 201, JSON.stringify(result.body));
@@ -91,11 +91,11 @@ try {
   const db = siteRuntime.store.database.connection;
   const followUp = db.prepare("SELECT * FROM site_lead_follow_ups WHERE lead_id = ? AND event_type = 'status_changed'").get(leads[0]);
   assert.ok(followUp); assert.throws(() => db.prepare("UPDATE site_lead_follow_ups SET note = 'tampered' WHERE id = ?").run(followUp.id), /immutable/); assert.throws(() => db.prepare("DELETE FROM site_lead_follow_ups WHERE id = ?").run(followUp.id), /cannot be deleted/);
-  assert.throws(() => db.prepare("INSERT INTO site_lead_follow_ups (id, tenant_id, project_id, lead_id, event_type, status_from, status_to, note, created_by, created_at) VALUES ('CROSS', 'other', 'other', ?, 'follow_up', 'new', 'new', '', ?, ?)").run(leads[0], followUp.created_by, new Date().toISOString()), /boundary mismatch/);
+  assert.throws(() => db.prepare("INSERT INTO site_lead_follow_ups (id, workspace_id, project_id, lead_id, event_type, status_from, status_to, note, created_by, created_at) VALUES ('CROSS', 'other', 'other', ?, 'follow_up', 'new', 'new', '', ?, ?)").run(leads[0], followUp.created_by, new Date().toISOString()), /boundary mismatch/);
   const actions = db.prepare("SELECT action FROM audit_logs WHERE entity_type = 'site_lead' ORDER BY id").all().map((row) => row.action);
   for (const action of ["site.lead.claim", "site.lead.status_change", "site.lead.export"]) assert.ok(actions.includes(action), action);
 
-  console.log("Official-site lead filtering, exclusive claim, six-state follow-up, immutable history, masked export, role denial, tenant/project boundary, and audit checks passed.");
+  console.log("Official-site lead filtering, exclusive claim, six-state follow-up, immutable history, masked export, role denial, deployment/project boundary, and audit checks passed.");
 } finally {
   await siteRuntime?.close();
   if (child && child.exitCode === null && child.signalCode === null) { child.kill("SIGTERM"); await new Promise((resolve) => child.once("exit", resolve)); }

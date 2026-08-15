@@ -63,7 +63,7 @@ try {
 
   const actions = database.connection.prepare("SELECT action FROM audit_logs WHERE entity_type LIKE 'content_generation_schedule%' ORDER BY id").all().map((row) => row.action);
   for (const action of ["content.generation_schedule.create", "content.generation_schedule.resume", "content.generation_schedule_run.draft_created", "content.generation_schedule_run.failed"]) assert.ok(actions.includes(action), `missing audit ${action}`);
-  console.log("Scheduled draft generation default-off, DST, idempotency, retry, tenant isolation, audit, and no-publish checks passed.");
+  console.log("Scheduled draft generation default-off, DST, idempotency, retry, deployment isolation, audit, and no-publish checks passed.");
 } finally {
   database?.close();
   await rm(directory, { recursive: true, force: true, maxRetries: 2, retryDelay: 50 });

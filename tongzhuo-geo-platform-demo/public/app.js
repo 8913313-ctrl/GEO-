@@ -663,6 +663,7 @@ const STATUS_META = {
   published: ["已发布", "status-success"],
   publishing: ["发布中", "status-publishing"],
   queued: ["排队中", "status-queued"],
+  existing: ["已有任务", "status-draft"],
   scheduled: ["已排期", "status-queued"],
   cancelled: ["已取消", "status-draft"],
   running: ["执行中", "status-running"],
@@ -1271,12 +1272,8 @@ function defaultState() {
       defaultWritingAgentId: "WA-GEO-DEEP",
       riskGate: true,
       manualReview: true,
-      tenant: "桐灼科技",
+      company: "桐灼科技",
       deployment: "独立服务器",
-      members: [
-        { id: "MEMBER-001", name: "王宁", email: "wangning@tongzhuo.com", role: "管理员", status: "active", lastLoginAt: minutesAgo(22), createdAt: minutesAgo(43200) },
-        { id: "MEMBER-002", name: "李晨", email: "lichen@tongzhuo.com", role: "内容运营", status: "active", lastLoginAt: minutesAgo(960), createdAt: minutesAgo(20160) }
-      ],
       operationLogs: [
         { id: "LOG-001", occurredAt: minutesAgo(18), category: "文章审核", actor: "王宁", detail: "通过文章 ART-202607-031 的 v2 版本" },
         { id: "LOG-002", occurredAt: minutesAgo(46), category: "知识同步", actor: "系统", detail: "知识资料完成分块与索引更新" },
@@ -1413,7 +1410,7 @@ function cloneBlankState() {
     imageProviderId: "",
     embeddingProviderId: "",
     defaultWritingAgentId: blank.writingAgents[0]?.id || "",
-    tenant: "待配置企业",
+    company: "待配置企业",
     deployment: "独立服务器",
     members: [],
     operationLogs: []
@@ -1680,17 +1677,7 @@ function migrateState(parsed) {
     imageIds: Array.isArray(conversation.imageIds) ? conversation.imageIds : []
   }));
   parsed.settings = { ...defaults.settings, ...(parsed.settings || {}) };
-  parsed.settings.members = Array.isArray(parsed.settings.members) && parsed.settings.members.length
-    ? parsed.settings.members.map((member, index) => ({
-      id: member.id || "MEMBER-" + String(index + 1).padStart(3, "0"),
-      name: String(member.name || "未命名成员").trim(),
-      email: String(member.email || "").trim(),
-      role: member.role || "内容运营",
-      status: ["active", "invited", "disabled"].includes(member.status) ? member.status : "active",
-      lastLoginAt: member.lastLoginAt || null,
-      createdAt: member.createdAt || Date.now()
-    }))
-    : isPrivateBlankSeed ? [] : cloneData(defaults.settings.members);
+  parsed.settings.members = [];
   parsed.settings.operationLogs = Array.isArray(parsed.settings.operationLogs) && parsed.settings.operationLogs.length
     ? parsed.settings.operationLogs.map((entry, index) => ({
       id: entry.id || "LOG-" + String(index + 1).padStart(3, "0"),
@@ -2145,6 +2132,9 @@ function contentDraftSignature(article) {
     contentText: contentPlainText(article),
     excerpt: article.excerpt || "",
     showPublicCitationMarkers: article.showPublicCitationMarkers === true,
+    coverAssetId: article.coverAssetId || null,
+    imagePlan: article.imagePlan || null,
+    assetIds: Array.isArray(article.assetIds) ? article.assetIds : [],
     planId: article.contentPlanId || article.planId || null,
     topicId: article.topicId || null,
     evidence: contentEvidencePayload(article).map((item) => ({
@@ -2524,7 +2514,7 @@ async function performContentTaskAndVersionSync(article, { createVersion = false
         businessLineId: article.businessLineId || null,
         title: article.title,
         status: "draft",
-        metadata: { localArticleId: article.id, localPlanId: article.planId || null, version: article.version, category: article.category || "", showPublicCitationMarkers: article.showPublicCitationMarkers === true }
+        metadata: { localArticleId: article.id, localPlanId: article.planId || null, version: article.version, category: article.category || "", showPublicCitationMarkers: article.showPublicCitationMarkers === true, coverAssetId: article.coverAssetId || null, imagePlan: cloneData(article.imagePlan || null), assetIds: cloneData(article.assetIds || []) }
       }
     });
     const task = contentApiTask(payload);
@@ -2550,7 +2540,7 @@ async function performContentTaskAndVersionSync(article, { createVersion = false
       contentText: contentPlainText(article),
       excerpt: article.excerpt || "",
       source: article.generationSnapshot ? "ai" : "human",
-      metadata: { localArticleId: article.id, localVersion, topicId: article.topicId || null, localPlanId: article.planId || null, contentPlanId: article.contentPlanId || null, showPublicCitationMarkers: article.showPublicCitationMarkers === true },
+      metadata: { localArticleId: article.id, localVersion, topicId: article.topicId || null, localPlanId: article.planId || null, contentPlanId: article.contentPlanId || null, showPublicCitationMarkers: article.showPublicCitationMarkers === true, coverAssetId: article.coverAssetId || null, imagePlan: cloneData(article.imagePlan || null), assetIds: cloneData(article.assetIds || []) },
       evidence: contentEvidencePayload(article)
     };
     const versionPayload = await productionApi(`/api/v1/content/tasks/${encodeURIComponent(taskId)}/versions`, {
@@ -2825,7 +2815,6 @@ const PUBLISH_PLATFORM_ALIASES = { wechat: "wechat_mp", baijia: "baijiahao", blo
 const PUBLISH_PLATFORM_REVERSE_ALIASES = Object.fromEntries(Object.entries(PUBLISH_PLATFORM_ALIASES).map(([from, to]) => [to, from]));
 let publisherSnapshot = { loaded: false, devices: [], accountGroups: [], sessions: [], jobs: [], platforms: [], readyPlatformIds: [], selectablePlatformIds: [], manualConfirmationPlatformIds: [], error: "" };
 let aiProviderSnapshot = { loaded: false, loading: false, providers: [], error: "" };
-let memberSnapshot = { loaded: false, loading: false, users: [], error: "" };
 let auditSnapshot = { loaded: false, loading: false, items: [], error: "" };
 let monitoringSnapshot = { loaded: false, loading: false, overview: null, traffic: null, liveToday: null, liveYesterday: null, diagnostics: [], error: "", loadedAt: null };
 let monitoringDiagnosticPollTimer = null;
@@ -2934,9 +2923,6 @@ let citationUpdateSnapshot = { loaded: false, loading: false, operating: false, 
 let citationDocumentUpdateSnapshot = { loaded: false, loading: false, operating: false, update: null, error: "" };
 let contentAssetSnapshot = { attempted: false, loaded: false, loading: false, syncing: false, items: [], error: "", loadedAt: null };
 
-const ROLE_UI_LABELS = Object.freeze({ admin: "管理员", operator: "内容运营", reviewer: "审核人员", viewer: "只读成员" });
-const ROLE_API_VALUES = Object.freeze(Object.fromEntries(Object.entries(ROLE_UI_LABELS).map(([key, label]) => [label, key])));
-
 function currentUserCan(permission) {
   return Boolean(window.__TZ_AUTH__?.user?.permissions?.includes(permission));
 }
@@ -2947,47 +2933,7 @@ function currentActorName(fallback = "当前用户") {
 }
 
 function assignableMemberNames() {
-  const names = [
-    currentActorName(),
-    ...(memberSnapshot.users || []).map((user) => user.displayName || user.name || user.username),
-    ...(state.settings?.members || []).map((member) => member.name || member.displayName || member.username)
-  ].map((name) => String(name || "").trim()).filter(Boolean);
-  return [...new Set(names)];
-}
-
-function productionUserToMember(user) {
-  return {
-    id: user.id,
-    username: user.username,
-    name: user.displayName || user.username,
-    email: user.email || "",
-    role: ROLE_UI_LABELS[user.role] || user.role,
-    roleValue: user.role,
-    status: user.status,
-    lastLoginAt: user.lastLoginAt,
-    createdAt: user.createdAt
-  };
-}
-
-async function refreshProductionMembers({ renderAfter = false } = {}) {
-  if (!currentUserCan("users.manage")) {
-    const own = window.__TZ_AUTH__?.user;
-    memberSnapshot = { loaded: true, loading: false, users: own ? [own] : [], error: "" };
-    return memberSnapshot;
-  }
-  memberSnapshot = { ...memberSnapshot, loading: true, error: "" };
-  try {
-    const payload = await productionApi("/api/v1/users");
-    memberSnapshot = { loaded: true, loading: false, users: payload.data?.users || [], error: "" };
-    state.settings.members = memberSnapshot.users.map(productionUserToMember);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "members") render();
-    return memberSnapshot;
-  } catch (error) {
-    memberSnapshot = { ...memberSnapshot, loaded: false, loading: false, error: error.message };
-    if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "members") render();
-    return null;
-  }
+  return [currentActorName()];
 }
 
 async function refreshProductionAudit({ renderAfter = false } = {}) {
@@ -3634,6 +3580,7 @@ const ui = {
   selectedPackId: state.keywordPacks[0]?.id || null,
   expanding: false,
   topicGenerating: false,
+  topicGeneratingQuestionIds: [],
   contentView: "articles",
   studioWorkspaceId: null,
   studioArticleId: null,
@@ -3646,6 +3593,8 @@ const ui = {
   studioPicker: null,
   studioSelectionText: "",
   studioGenerating: false,
+  studioGenerationPending: false,
+  studioSending: false,
   studioNotice: "",
   articleTab: "all",
   articleTaskView: "plans",
@@ -3672,6 +3621,8 @@ const ui = {
   siteCatalogTab: "services",
   siteContentTab: "articles",
   siteCategoryFilter: "all",
+  siteThemePending: false,
+  siteThemeSaving: false,
   knowledgeTab: "libraries",
   knowledgeKindFilter: "all",
   knowledgeAssetLibraryFilter: "all",
@@ -4132,7 +4083,11 @@ function showToast(title, message, type = "success") {
   root.appendChild(toast);
   const remove = () => toast.remove();
   toast.querySelector("button").addEventListener("click", remove);
-  window.setTimeout(remove, 3600);
+  window.setTimeout(remove, 4600);
+}
+
+function studioGenerationBusy() {
+  return ui.studioGenerating || ui.studioGenerationPending;
 }
 
 function updateShell() {
@@ -4732,20 +4687,21 @@ function renderQuestionLibrary() {
   const line = activeBusinessLine();
   const questions = state.questionLibrary.filter((question) => question.businessLineId === line?.id && question.status === "active" && !planningQuestionTopics(question).some((topic) => topic.status !== "archived"));
   const selected = questions.filter((question) => question.selected);
+  const generatingQuestionIds = new Set(ui.topicGeneratingQuestionIds || []);
   const rows = questions.map((question) => {
     const refs = planningQuestionReferences(question);
     const activeTopics = refs.topics.filter((topic) => topic.status !== "archived");
     const archivedTopics = refs.topics.filter((topic) => topic.status === "archived");
     const topicState = activeTopics.length ? `<span class="status-badge status-approved">${activeTopics.length} 个选题</span>` : archivedTopics.length ? `<span class="status-badge status-archived">${archivedTopics.length} 个已归档</span>` : '<span class="status-badge status-review">待生成</span>';
     const referenceText = refs.plans.length || refs.articles.length ? `${refs.plans.length} 计划 · ${refs.articles.length} 文章` : "暂无引用";
-    const topicAction = activeTopics.length ? "" : `<button class="link-button" type="button" data-action="question-to-topic" data-question-id="${escapeHtml(question.id)}">生成选题</button>`;
+    const isGenerating = generatingQuestionIds.has(String(question.id));
+    const topicAction = activeTopics.length ? "" : `<button class="link-button topic-generate-button" type="button" data-action="question-to-topic" data-question-id="${escapeHtml(question.id)}" ${ui.topicGenerating ? "disabled" : ""} aria-busy="${isGenerating ? "true" : "false"}">${isGenerating ? '<span class="loading-spinner dark"></span>正在生成…' : "生成选题"}</button>`;
     const coreKeywordText = (question.sourceCoreKeywords || []).join("、");
     return `<tr><td><input class="checkbox" type="checkbox" data-question-select="${question.id}" aria-label="选择问题 ${escapeHtml(question.question)}" ${question.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(question.question)}</b><small>${escapeHtml(question.id)} · v${escapeHtml(question.version || 1)} · ${escapeHtml(question.source)}</small></td><td><b>${escapeHtml(question.sourceSeedKeyword || question.sourceKeyword)}</b>${coreKeywordText ? `<small style="display:block;color:var(--muted-2);margin-top:4px">核心词：${escapeHtml(coreKeywordText)}</small>` : ""}</td><td><span class="small-tag ${question.coverage === "未覆盖" ? "teal" : ""}">${escapeHtml(question.coverage)}</span></td><td>${topicState}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${topicAction}<button class="link-button" type="button" data-action="edit-question" data-question-id="${escapeHtml(question.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-question" data-question-id="${escapeHtml(question.id)}">归档</button></div></td></tr>`;
   }).join("");
   return `
-    <section class="card toolbar-card question-add-bar"><div class="field grow"><label for="question-input">手动添加客户问题</label><input class="input ${ui.questionError ? "input-error" : ""}" id="question-input" value="${escapeHtml(ui.questionInput)}" placeholder="例如：制造企业如何开始做 AI 搜索优化？" autocomplete="off" />${ui.questionError ? '<small class="error-text">' + escapeHtml(ui.questionError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="add-question"><span data-icon="plus"></span>添加问题</button></section>
     <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 问题词库</h3><p>关键词拓展、人工录入和监测缺口统一沉淀在这里；已归档问题可在归档管理中恢复。</p></div><span class="small-tag blue">${questions.length} 个问题</span></div>${questions.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("question-library", questions.length, selected.length, "全选问题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>标准问题</th><th>来源种子词 / 核心词</th><th>覆盖</th><th>选题状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="help"></span><h3>还没有问题</h3><p>先到关键词拓展生成问题，或在上方手动添加。</p></div></div>'}</section>
-    ${selected.length ? '<div class="selection-bar"><span>已选择 <b>' + selected.length + '</b> 个问题</span><button class="primary-button button-small" type="button" data-action="questions-to-topics" ' + (ui.topicGenerating ? "disabled" : "") + '><span data-icon="arrow"></span>' + (ui.topicGenerating ? "正在生成…" : "生成选题") + '</button></div>' : ""}
+    ${selected.length ? '<div class="selection-bar"><span>' + (ui.topicGenerating ? '正在为 <b>' + generatingQuestionIds.size + '</b> 个问题生成选题，请勿重复点击' : '已选择 <b>' + selected.length + '</b> 个问题') + '</span><button class="primary-button button-small" type="button" data-action="questions-to-topics" ' + (ui.topicGenerating ? 'disabled aria-busy="true"' : "") + '>' + (ui.topicGenerating ? '<span class="loading-spinner"></span>正在生成…' : '<span data-icon="arrow"></span>生成选题') + '</button></div>' : ""}
   `;
 }
 
@@ -4987,6 +4943,84 @@ function studioKnowledgeAssets(workspace) {
   });
 }
 
+function articleImageTokens(article, topic = null, line = null, text = "") {
+  const source = [
+    article?.title, article?.excerpt, topic?.title, topic?.keyword, topic?.geoBrief?.coreQuestion,
+    topic?.dimension, topic?.intent, line?.name, line?.product, line?.industry, text
+  ].filter(Boolean).join(" ");
+  return [...new Set(String(source).toLocaleLowerCase("zh-CN").split(/[\s,，。！？、；：/\\|()[\]{}<>“”"'·-]+/).map((item) => item.trim()).filter((item) => item.length >= 2))];
+}
+
+function scoreArticleImageAsset(asset, tokens = [], context = "") {
+  if (!asset || asset.kind !== "knowledge_image" || asset.reviewStatus !== "approved" || asset.archived || !asset.serverBackedKnowledgeAsset) return -1;
+  const haystack = [asset.name, asset.altText, asset.caption, asset.category, asset.metadata?.category, asset.metadata?.tags, asset.metadata?.sourceRole].filter(Boolean).join(" ").toLocaleLowerCase("zh-CN");
+  if (!haystack) return 0;
+  let score = 0;
+  for (const token of tokens) {
+    if (haystack.includes(token)) score += token.length >= 4 ? 5 : 2;
+  }
+  if (context && haystack.includes(String(context).toLocaleLowerCase("zh-CN"))) score += 4;
+  if (asset.metadata?.license || asset.license) score += 1;
+  return score;
+}
+
+function matchArticleImages(article, workspace, topic = null, line = null) {
+  const candidates = studioKnowledgeAssets(workspace);
+  const tokens = articleImageTokens(article, topic, line);
+  const scored = candidates.map((asset) => ({ asset, score: scoreArticleImageAsset(asset, tokens, line?.product || line?.name || "") }))
+    .filter((entry) => entry.score >= 0).sort((left, right) => right.score - left.score || String(left.asset.name).localeCompare(String(right.asset.name), "zh-CN"));
+  const selected = [];
+  for (const entry of scored) {
+    if (selected.some((item) => item.asset.id === entry.asset.id)) continue;
+    if (selected.length && entry.score === 0) break;
+    selected.push(entry);
+    if (selected.length >= 3) break;
+  }
+  const cover = selected[0] || null;
+  const headings = typeof document !== "undefined" ? [...document.createElement("template").content.querySelectorAll("h2,h3")] : [];
+  const placements = selected.map((entry, index) => ({
+    assetId: entry.asset.id, role: index === 0 ? "cover" : "body", position: index, heading: headings[index - 1]?.textContent?.trim() || "正文", matchScore: entry.score,
+    matchReason: entry.score > 0 ? "标题、主题或业务线与图片说明相符" : "企业知识库中唯一可用图片", source: "knowledge", url: entry.asset.url || null,
+    altText: entry.asset.altText || entry.asset.name, caption: entry.asset.caption || entry.asset.altText || entry.asset.name
+  }));
+  return { status: cover ? (selected.length >= 2 ? "matched" : "partial") : "missing", generatedAt: new Date().toISOString(), coverAssetId: cover?.asset.id || null, placements, missing: cover ? [] : ["cover", "body"] };
+}
+
+function injectMatchedArticleImages(html, imagePlan, assets = []) {
+  const source = String(html || "");
+  if (!imagePlan?.placements?.length || typeof document === "undefined") return source;
+  const template = document.createElement("template");
+  template.innerHTML = source;
+  const headings = [...template.content.querySelectorAll("h2,h3")];
+  const bodyPlacements = imagePlan.placements.filter((item) => item.role === "body");
+  bodyPlacements.forEach((placement, index) => {
+    const asset = assets.find((item) => item.id === placement.assetId);
+    if (!asset || !asset.url || template.content.querySelector(`[data-asset-id="${CSS.escape(asset.id)}"]`)) return;
+    const figure = document.createElement("figure");
+    figure.className = "studio-knowledge-image automatic-article-image";
+    figure.dataset.assetId = asset.id;
+    figure.innerHTML = `<img src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.altText || asset.name)}" loading="lazy"><figcaption>${escapeHtml(asset.caption || asset.altText || asset.name)}</figcaption>`;
+    const heading = headings[index];
+    if (heading?.parentNode) heading.parentNode.insertBefore(figure, heading.nextSibling);
+    else template.content.appendChild(figure);
+  });
+  return sanitizeStudioHtml(template.innerHTML);
+}
+
+function applyAutomaticArticleImages(article, workspace, topic = null, line = null) {
+  if (!article || !workspace) return article;
+  const plan = matchArticleImages(article, workspace, topic, line);
+  const assets = (state.contentAssets || []).filter((asset) => plan.placements.some((placement) => placement.assetId === asset.id));
+  article.imagePlan = plan;
+  article.coverAssetId = plan.coverAssetId || null;
+  article.assetIds = [...new Set([...(article.assetIds || []), ...plan.placements.map((item) => item.assetId)])];
+  article.content = injectMatchedArticleImages(article.content, plan, assets);
+  article.coverImageUrl = assets.find((asset) => asset.id === plan.coverAssetId)?.url || null;
+  article.coverImageAlt = assets.find((asset) => asset.id === plan.coverAssetId)?.altText || "";
+  article.coverImageCaption = assets.find((asset) => asset.id === plan.coverAssetId)?.caption || "";
+  return article;
+}
+
 function createStudioWorkspace(article = null) {
   const linkedPlan = contentPlanForArticle(article);
   const line = state.businessLines.find((item) => item.id === (article?.businessLineId || linkedPlan?.businessLineId)) || activeBusinessLine();
@@ -5135,7 +5169,8 @@ function renderStudioChat(workspace, conversation, article) {
   const knowledgeChips = (conversation?.selectedKnowledgeItemIds || []).map((itemId) => knowledgeItemById(itemId)).filter(Boolean).map((item) => `<span class="studio-selection-chip"><span data-icon="book"></span><b>${escapeHtml(item.title || item.question)}</b><button type="button" data-action="remove-studio-context" data-kind="knowledge" data-id="${item.id}"><span data-icon="x"></span></button></span>`).join("");
   const attachmentChips = (workspace.attachmentIds || []).map((assetId) => (state.contentAssets || []).find((asset) => asset.id === assetId)).filter(Boolean).map((asset) => `<span class="studio-selection-chip"><span data-icon="paperclip"></span><b>${escapeHtml(asset.name)}</b><button type="button" data-action="remove-studio-context" data-kind="attachment" data-id="${asset.id}"><span data-icon="x"></span></button></span>`).join("");
   const imageChips = (conversation?.imageIds || []).map((assetId) => (state.contentAssets || []).find((asset) => asset.id === assetId)).filter(Boolean).map((asset) => `<span class="studio-selection-chip"><span data-icon="image"></span><b>${escapeHtml(asset.name)}</b><button type="button" data-action="remove-studio-context" data-kind="image" data-id="${asset.id}"><span data-icon="x"></span></button></span>`).join("");
-  return `<aside class="studio-chat-panel"><div class="studio-chat-head"><div><h3>AI 协作</h3><p>先给建议，再由你决定是否写入正文</p></div><div class="studio-chat-head-actions"><button class="icon-button" type="button" data-action="new-studio-conversation" title="新对话"><span data-icon="plus"></span></button><button class="icon-button" type="button" data-action="studio-pane" data-pane="info" title="文章信息"><span data-icon="info"></span></button></div></div><div class="studio-chat-context"><b>${article ? "当前全文" : "创作准备"}</b><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(selectedAgent?.name || "未选择智能体")}</b></span>${conversation?.webSearchEnabled ? '<span class="studio-context-chip teal"><span data-icon="globe"></span><b>联网检索演示</b></span>' : ""}</div><div class="studio-chat-messages">${messages || '<div class="studio-empty-chat"><div><span data-icon="sparkle"></span><b>从一个具体要求开始</b><p>例如：改成采购决策结构，并保留企业知识引用。</p></div></div>'}</div><div class="studio-composer">${renderStudioPicker(workspace, conversation)}<div class="studio-selected-context">${knowledgeChips}${attachmentChips}${imageChips}</div><textarea class="studio-composer-input" id="studio-composer-input" placeholder="例如：把文章改成采购决策结构，先给我看大纲差异…">${escapeHtml(ui.studioComposerDraft)}</textarea><div class="studio-composer-toolbar"><select class="studio-agent-select" id="studio-chat-agent" aria-label="选择写作智能体">${agentOptions}</select><button class="studio-tool-button teal ${conversation?.webSearchEnabled ? "active" : ""}" type="button" data-action="toggle-studio-web" title="联网检索演示（未接入真实搜索服务）"><span data-icon="globe"></span><span>联网演示</span></button><button class="studio-tool-button" type="button" data-action="open-studio-image-picker" title="插入图片"><span data-icon="image"></span></button><button class="studio-tool-button ${(workspace.attachmentIds || []).length ? "has-value" : ""}" type="button" data-action="trigger-studio-attachment" title="上传附件"><span data-icon="paperclip"></span></button><button class="studio-tool-button ${(conversation?.selectedKnowledgeItemIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-picker" title="引用知识库或文件"><span data-icon="quote"></span><span>@知识</span></button><button class="studio-tool-button ${(conversation?.imageIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-images" title="知识库图片"><span data-icon="database"></span></button><button class="studio-send-button" type="button" data-action="send-studio-chat" ${ui.studioComposerDraft.trim() ? "" : "disabled"} aria-label="发送"><span data-icon="send"></span></button></div><input id="studio-attachment-input" type="file" hidden multiple /><input id="studio-image-input" type="file" accept="image/*" hidden multiple /></div></aside>`;
+  const composerBusy = ui.studioSending || studioGenerationBusy();
+  return `<aside class="studio-chat-panel"><div class="studio-chat-head"><div><h3>AI 协作</h3><p>先给建议，再由你决定是否写入正文</p></div><div class="studio-chat-head-actions"><button class="icon-button" type="button" data-action="new-studio-conversation" title="新对话"><span data-icon="plus"></span></button><button class="icon-button" type="button" data-action="studio-pane" data-pane="info" title="文章信息"><span data-icon="info"></span></button></div></div><div class="studio-chat-context"><b>${article ? "当前全文" : "创作准备"}</b><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(selectedAgent?.name || "未选择智能体")}</b></span>${conversation?.webSearchEnabled ? '<span class="studio-context-chip teal"><span data-icon="globe"></span><b>联网检索演示</b></span>' : ""}</div><div class="studio-chat-messages">${messages || '<div class="studio-empty-chat"><div><span data-icon="sparkle"></span><b>从一个具体要求开始</b><p>例如：改成采购决策结构，并保留企业知识引用。</p></div></div>'}</div><div class="studio-composer">${renderStudioPicker(workspace, conversation)}<div class="studio-selected-context">${knowledgeChips}${attachmentChips}${imageChips}</div><textarea class="studio-composer-input" id="studio-composer-input" placeholder="例如：把文章改成采购决策结构，先给我看大纲差异…" ${composerBusy ? "disabled" : ""}>${escapeHtml(ui.studioComposerDraft)}</textarea><div class="studio-composer-toolbar"><div class="studio-composer-primary"><select class="studio-agent-select" id="studio-chat-agent" aria-label="选择写作智能体" ${composerBusy ? "disabled" : ""}>${agentOptions}</select><button class="studio-send-button" type="button" data-action="send-studio-chat" ${ui.studioComposerDraft.trim() && !composerBusy ? "" : "disabled"} aria-label="${composerBusy ? "正在生成文章" : "发送写作要求"}" aria-busy="${composerBusy ? "true" : "false"}">${composerBusy ? '<span class="loading-spinner"></span><span>生成中</span>' : '<span data-icon="send"></span><span>发送</span>'}</button></div><div class="studio-composer-tools"><button class="studio-tool-button teal ${conversation?.webSearchEnabled ? "active" : ""}" type="button" data-action="toggle-studio-web" title="联网检索演示（未接入真实搜索服务）" ${composerBusy ? "disabled" : ""}><span data-icon="globe"></span><span>联网演示</span></button><button class="studio-tool-button" type="button" data-action="open-studio-image-picker" title="插入图片" ${composerBusy ? "disabled" : ""}><span data-icon="image"></span></button><button class="studio-tool-button ${(workspace.attachmentIds || []).length ? "has-value" : ""}" type="button" data-action="trigger-studio-attachment" title="上传附件" ${composerBusy ? "disabled" : ""}><span data-icon="paperclip"></span></button><button class="studio-tool-button ${(conversation?.selectedKnowledgeItemIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-picker" title="引用知识库或文件" ${composerBusy ? "disabled" : ""}><span data-icon="quote"></span><span>@知识</span></button><button class="studio-tool-button ${(conversation?.imageIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-images" title="知识库图片" ${composerBusy ? "disabled" : ""}><span data-icon="database"></span></button></div></div><input id="studio-attachment-input" type="file" hidden multiple /><input id="studio-image-input" type="file" accept="image/*" hidden multiple /></div></aside>`;
 }
 
 function renderStudioInfo(workspace, article) {
@@ -5153,6 +5188,9 @@ function renderStudioTextEditor(workspace) {
   const draftTitle = workspace.draftTitle || workspace.topic?.title || "";
   const draftContent = workspace.draftContent || "";
   const bodyHtml = workspace.draftContentHtml || escapeHtml(draftContent).replace(/\n/g, "<br>");
+  if (studioGenerationBusy()) {
+    return `<main class="studio-editor-panel studio-generating-panel" aria-live="polite" aria-busy="true"><div class="studio-editor-head"><div><h3>正在生成文章初稿</h3><p>已带入选题、业务线、写作智能体和企业知识</p></div><span class="status-badge status-review">生成中</span></div><div class="studio-generation-stage"><span class="studio-generation-orbit"><i></i><b data-icon="sparkle"></b></span><h2>正在组织文章结构与企业知识</h2><p>请保持当前页面打开。完成后正文会自动出现，不需要再次点击发送。</p><div class="studio-generation-steps"><span class="done">读取选题</span><span class="active">核验知识与生成正文</span><span>保存文章草稿</span></div></div></main>`;
+  }
   return `<main class="studio-editor-panel studio-quick-editor"><div class="studio-editor-head"><div><h3>文章编辑器</h3><p>直接编辑标题和正文；写作与修改要求请在右侧 AI 协作中沟通</p></div><span class="status-badge status-draft">编辑中</span></div>${renderStudioRichToolbar()}<textarea class="studio-title-input" id="studio-title-editor" rows="2" placeholder="请输入标题">${escapeHtml(draftTitle)}</textarea><article class="studio-editor-body studio-quick-content" id="studio-content-editor" contenteditable="true" spellcheck="true" data-placeholder="请输入文章内容…">${bodyHtml}</article><section class="studio-publication-setting"><strong>发布展示</strong>${renderPublicCitationSetting(workspace.showPublicCitationMarkers === true, "studio-show-public-citations")}</section></main>`;
 }
 
@@ -5166,7 +5204,7 @@ function renderStudioQuickEditor(workspace) {
   const draftTitle = workspace.draftTitle || workspace.topic?.title || "";
   const draftContent = workspace.draftContent || "";
   const bodyHtml = workspace.draftContentHtml || escapeHtml(draftContent).replace(/\n/g, "<br>");
-  return `<main class="studio-editor-panel studio-quick-editor"><div class="studio-editor-head"><div><h3>直接生成文章</h3><p>先写标题和正文，也可以直接在右侧 AI 协作里提出写作要求</p></div><span class="status-badge status-draft">准备中</span></div><div class="studio-editor-toolbar" aria-label="编辑工具栏"><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-format" data-command="bold" title="粗体"><b>B</b></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="italic" title="斜体"><i>I</i></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="formatBlock" data-value="h2" title="二级标题">H2</button></div><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-format" data-command="insertUnorderedList" title="无序列表">☷</button><button class="studio-format-button" type="button" data-action="studio-link" title="链接"><span data-icon="link"></span></button><button class="studio-format-button" type="button" data-action="open-studio-image-picker" title="图片"><span data-icon="image"></span></button></div></div><textarea class="studio-title-input" id="studio-title-editor" rows="2" placeholder="请输入标题">${escapeHtml(draftTitle)}</textarea><article class="studio-editor-body studio-quick-content" id="studio-content-editor" contenteditable="true" spellcheck="true" data-placeholder="请输入文章内容…">${bodyHtml}</article><section class="studio-quick-settings"><div class="studio-quick-settings-grid"><label class="studio-field"><span>产品 / 业务线</span><select class="select" id="studio-business-line">${lines}</select></label><label class="studio-field"><span>内容形式</span><select class="select" id="studio-content-type">${["深度文章", "问答文章", "案例解读", "系列文章"].map((type) => `<option ${type === workspace.contentType ? "selected" : ""}>${type}</option>`).join("")}</select></label><label class="studio-field full"><span>写作智能体</span><select class="select" id="studio-direct-agent">${agentOptions}</select></label></div><div class="studio-knowledge-summary ${approved ? "" : "warning"}"><span data-icon="${approved ? "database" : "alert"}"></span><span><b>${studioKnowledgeBases(workspace).length} 个知识库 · ${approved} 条可用资料</b><small>${approved ? "生成后锁定企业知识版本；联网结果不会成为企业事实。" : "请先在企业知识中上传可用资料。"}</small></span></div><button class="primary-button studio-quick-generate" type="button" data-action="generate-studio-article" ${approved && selectedAgent ? "" : "disabled"}><span data-icon="sparkle"></span>${ui.studioGenerating ? "正在生成…" : "生成文章初稿"}</button></section></main>`;
+  return `<main class="studio-editor-panel studio-quick-editor"><div class="studio-editor-head"><div><h3>直接生成文章</h3><p>先写标题和正文，也可以直接在右侧 AI 协作里提出写作要求</p></div><span class="status-badge ${ui.studioGenerating ? "status-review" : "status-draft"}">${ui.studioGenerating ? "生成中" : "准备中"}</span></div><div class="studio-editor-toolbar" aria-label="编辑工具栏"><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-format" data-command="bold" title="粗体"><b>B</b></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="italic" title="斜体"><i>I</i></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="formatBlock" data-value="h2" title="二级标题">H2</button></div><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-format" data-command="insertUnorderedList" title="无序列表">☷</button><button class="studio-format-button" type="button" data-action="studio-link" title="链接"><span data-icon="link"></span></button><button class="studio-format-button" type="button" data-action="open-studio-image-picker" title="图片"><span data-icon="image"></span></button></div></div><textarea class="studio-title-input" id="studio-title-editor" rows="2" placeholder="请输入标题" ${ui.studioGenerating ? "disabled" : ""}>${escapeHtml(draftTitle)}</textarea><article class="studio-editor-body studio-quick-content" id="studio-content-editor" contenteditable="${ui.studioGenerating ? "false" : "true"}" spellcheck="true" data-placeholder="请输入文章内容…">${bodyHtml}</article><section class="studio-quick-settings"><div class="studio-quick-settings-grid"><label class="studio-field"><span>产品 / 业务线</span><select class="select" id="studio-business-line" ${ui.studioGenerating ? "disabled" : ""}>${lines}</select></label><label class="studio-field"><span>内容形式</span><select class="select" id="studio-content-type" ${ui.studioGenerating ? "disabled" : ""}>${["深度文章", "问答文章", "案例解读", "系列文章"].map((type) => `<option ${type === workspace.contentType ? "selected" : ""}>${type}</option>`).join("")}</select></label><label class="studio-field full"><span>写作智能体</span><select class="select" id="studio-direct-agent" ${ui.studioGenerating ? "disabled" : ""}>${agentOptions}</select></label></div><div class="studio-knowledge-summary ${approved ? "" : "warning"}"><span data-icon="${approved ? "database" : "alert"}"></span><span><b>${studioKnowledgeBases(workspace).length} 个知识库 · ${approved} 条可用资料</b><small>${approved ? "生成后锁定企业知识版本；联网结果不会成为企业事实。" : "请先在企业知识中上传可用资料。"}</small></span></div><button class="primary-button studio-quick-generate" type="button" data-action="generate-studio-article" ${approved && selectedAgent && !ui.studioGenerating ? "" : "disabled"} aria-busy="${ui.studioGenerating ? "true" : "false"}">${ui.studioGenerating ? '<span class="loading-spinner"></span>正在生成文章…' : '<span data-icon="sparkle"></span>生成文章初稿'}</button></section></main>`;
 }
 
 function renderStudioArticleTextEditor(article) {
@@ -5734,20 +5772,53 @@ function publishBatchPlatformStateLegacy(entry, group, selectedArticles) {
 function publishBatchPlatformState(entry, group, selectedArticles) {
   if (!entry) return { available: false, status: "not_connected", reason: "平台不存在" };
   if (!entry.enabled) return { available: false, status: entry.support === "planned" ? "planned" : "not_connected", reason: entry.description || "该平台当前不可用" };
-  const existingCount = selectedArticles.filter((article) => articleExistingPublishPlatforms(article).has(entry.id)).length;
-  if (existingCount) return { available: false, status: "queued", reason: `${existingCount} 篇文章已有该平台任务` };
-  if (entry.id === "web") return { available: true, status: "online", reason: `${state.site.domain} · 服务器发布` };
-  const catalog = publisherPlatform(entry.id);
-  if (publisherSnapshot.loaded && (!catalog || !catalog.enabled)) return { available: false, status: "not_connected", reason: "本地发布器未声明该平台" };
-  const connection = publisherAccountConnection(group, entry.id);
-  const account = connection.account;
-  if (!account) return { available: false, status: "not_connected", reason: "当前账号组尚未绑定账号" };
-  if (!connection.ready) return { available: false, status: connection.status, reason: publisherConnectionMessage(connection) };
+  let connectionState;
+  if (entry.id === "web") {
+    connectionState = { available: true, status: "online", reason: `${state.site.domain} · 服务器发布` };
+  } else {
+    const catalog = publisherPlatform(entry.id);
+    if (publisherSnapshot.loaded && (!catalog || !catalog.enabled)) return { available: false, status: "not_connected", reason: "本地发布器未声明该平台" };
+    const connection = publisherAccountConnection(group, entry.id);
+    const account = connection.account;
+    if (!account) return { available: false, status: "not_connected", reason: "当前账号组尚未绑定账号" };
+    if (!connection.ready) return { available: false, status: connection.status, reason: publisherConnectionMessage(connection) };
+    connectionState = { available: true, status: "online", reason: publisherConnectionMessage(connection), session: connection.session };
+  }
+  const eligibleArticles = selectedArticles.filter((article) => publishBatchEligibleArticle(article).ok);
+  const existingCount = eligibleArticles.filter((article) => articleExistingPublishPlatforms(article).has(entry.id)).length;
+  const availableCount = eligibleArticles.length - existingCount;
+  if (eligibleArticles.length && !availableCount) {
+    return { ...connectionState, available: false, status: "existing", existingCount, availableCount, totalCount: eligibleArticles.length, reason: `全部 ${existingCount} 篇文章已有该平台任务` };
+  }
+  if (existingCount) {
+    return { ...connectionState, existingCount, availableCount, totalCount: eligibleArticles.length, reason: `可发布 ${availableCount} 篇 · ${existingCount} 篇已有任务将跳过` };
+  }
+  return { ...connectionState, existingCount: 0, availableCount, totalCount: eligibleArticles.length };
+}
+
+function publishBatchTargetCoverage(selectedArticles, selectedPlatforms, group) {
+  const eligibleArticles = selectedArticles.filter((article) => publishBatchEligibleArticle(article).ok);
+  const actionableArticleIds = new Set();
+  let availableCount = 0;
+  let existingCount = 0;
+  eligibleArticles.forEach((article) => {
+    const existing = articleExistingPublishPlatforms(article);
+    selectedPlatforms.forEach((platform) => {
+      if (existing.has(platform)) {
+        existingCount += 1;
+        return;
+      }
+      if (!publishBatchPlatformState(publishBatchPlatformEntry(platform), group, [article]).available) return;
+      availableCount += 1;
+      actionableArticleIds.add(article.id);
+    });
+  });
   return {
-    available: true,
-    status: "online",
-    reason: publisherConnectionMessage(connection),
-    session: connection.session
+    availableCount,
+    existingCount,
+    actionableArticleCount: actionableArticleIds.size,
+    skippedArticleCount: Math.max(0, eligibleArticles.length - actionableArticleIds.size),
+    eligibleArticleCount: eligibleArticles.length
   };
 }
 
@@ -5767,9 +5838,8 @@ function publishBatchPlatformCards() {
   const entries = PUBLISH_PLATFORM_REGISTRY.filter((entry) => entry.enabled !== false && entry.category === ui.publishBatchCategory && (!query || [entry.id, PLATFORM_META[entry.id]?.name, entry.role, entry.capabilities].join(" ").toLowerCase().includes(query)));
   const cards = entries.map((entry) => {
     const stateMeta = publishBatchPlatformState(entry, group, selectedArticles);
-    const selected = (selection.platforms || []).includes(entry.id) && stateMeta.available;
-    const isExisting = stateMeta.status === "queued";
-    const status = isExisting ? "queued" : stateMeta.status;
+    const selected = (selection.platforms || []).includes(entry.id);
+    const status = stateMeta.status;
     const platform = PLATFORM_META[entry.id] || { name: entry.id, short: "平", logoClass: "generic" };
     return `<label class="publish-platform-card ${selected ? "selected" : ""} ${stateMeta.available ? "" : "disabled"}"><div class="publish-platform-card-top"><input class="checkbox" type="checkbox" data-publish-batch-platform="${entry.id}" ${selected ? "checked" : ""} ${stateMeta.available ? "" : "disabled"} /><span class="platform-logo ${platform.logoClass}">${platform.short}</span><span class="publish-platform-card-name"><b>${escapeHtml(platform.name)}</b><small>${escapeHtml(entry.role)}</small></span>${statusBadge(status)}</div><div class="publish-platform-card-meta"><span>${escapeHtml(entry.capabilities)}</span><span>${escapeHtml(stateMeta.reason)}</span></div>${entry.id === "web" ? '<em class="publish-platform-role">推荐主信源</em>' : ""}</label>`;
   }).join("");
@@ -5784,7 +5854,7 @@ function publishBatchArticleRows() {
     const selected = selection.articleIds.includes(article.id);
     const status = articleDisplayStatus(article);
     const disabled = !eligibility.ok;
-    return `<label class="publish-article-row ${selected ? "selected" : ""} ${disabled ? "disabled" : ""}"><input class="checkbox" type="checkbox" data-publish-batch-article="${article.id}" ${selected ? "checked" : ""} ${disabled ? "disabled" : ""} /><span class="publish-article-row-copy"><b>${escapeHtml(article.title)}</b><small>${escapeHtml(article.id)} · ${escapeHtml(plan?.name || "直接创作")} · ${escapeHtml(article.version || "v1")}</small></span><span class="publish-article-row-status">${statusBadge(status)}<small>${escapeHtml(eligibility.ok ? "可发布" : eligibility.reason)}</small></span></label>`;
+    return `<label class="publish-article-row ${selected ? "selected" : ""} ${disabled ? "disabled" : ""}"><input class="checkbox" type="checkbox" data-publish-batch-article="${article.id}" ${selected ? "checked" : ""} ${disabled ? "disabled" : ""} /><span class="publish-article-row-copy"><b>${escapeHtml(article.title)}</b><small>${escapeHtml(article.id)} · ${escapeHtml(plan?.name || "直接创作")} · ${escapeHtml(article.version || "v1")}</small></span><span class="publish-article-row-status">${statusBadge(status)}<small>${escapeHtml(eligibility.reason)}</small></span></label>`;
   }).join("");
   return rows || '<div class="empty-state compact"><div><span data-icon="file"></span><h3>没有可选择的文章</h3><p>请先在内容生产中完成文章审核和知识证据冻结。</p><button class="primary-button button-small" type="button" data-nav="content">去内容生产</button></div></div>';
 }
@@ -5799,11 +5869,17 @@ function renderPublishComposer() {
   const selectedArticles = state.articles.filter((article) => selection.articleIds.includes(article.id));
   const selectedPlatforms = selection.platformOrder || selection.platforms || [];
   const group = publishBatchGroup();
-  const availableCount = selectedArticles.length * selectedPlatforms.length;
+  const coverage = publishBatchTargetCoverage(selectedArticles, selectedPlatforms, group);
   const groups = state.accountGroups.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === group?.id ? "selected" : ""}>${escapeHtml(item.name)} · ${escapeHtml(item.deviceName || "本地设备")}</option>`).join("");
   const availablePlatformCount = PUBLISH_PLATFORM_REGISTRY.filter((entry) => publishBatchPlatformState(entry, group, selectedArticles).available).length;
   const mode = selection.mode || "immediate";
-  return `<div class="page-container publish-composer-page">${pageHead("新建发布批次", "先选择通过人工审核的文章，再选择多个平台；平台账号、顺序和间隔只影响发布执行，不改变文章版本。", '<button class="secondary-button" type="button" data-action="back-to-publish-tasks"><span data-icon="arrow"></span>返回发布任务</button>')}<div class="publish-flow-steps"><span class="active"><i>1</i>选择文章</span><b>→</b><span class="active"><i>2</i>选择平台</span><b>→</b><span><i>3</i>配置执行</span><b>→</b><span><i>4</i>发布回写</span></div><div class="publish-composer-grid"><section class="card publish-composer-section publish-article-picker"><div class="publish-composer-section-head"><div><h3>选择文章</h3><p>只有完成审核、风控和知识证据冻结的当前版本可以发布。</p></div><span class="small-tag blue">已选 ${selectedArticles.length} 篇</span></div><div class="publish-picker-toolbar"><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.publishBatchArticleSearch || "")}" placeholder="搜索文章、计划或编号" aria-label="搜索待发布文章" data-publish-batch-article-search /></div><button class="secondary-button button-small" type="button" data-action="publish-batch-select-eligible">选择全部可发布</button></div><div class="publish-article-list">${publishBatchArticleRows()}</div></section><section class="card publish-composer-section publish-platform-picker"><div class="publish-composer-section-head"><div><h3>选择发布平台</h3><p>同一篇文章可以发布多个平台，但同一平台只允许一个账号。</p></div><span class="small-tag green">${availablePlatformCount} 个可用</span></div><div class="publish-platform-actions"><button class="secondary-button button-small" type="button" data-action="publish-batch-select-all"><span data-icon="sparkle"></span>全平台智能分发</button><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.publishBatchSearch || "")}" placeholder="搜索平台" aria-label="搜索发布平台" data-publish-batch-platform-search /></div></div><div class="publish-category-tabs">${publishBatchCategoryTabs()}</div><div class="publish-platform-grid">${publishBatchPlatformCards()}</div><div class="publish-platform-note"><span data-icon="info"></span><span>官网不强制勾选；已登录的平台可直接下发至本地发布助手。若平台执行时出现验证码、审核或发布限制，任务结果会单独回写，不会影响其他平台。</span></div></section></div><section class="card publish-composer-section publish-delivery-config"><div class="publish-composer-section-head"><div><h3>账号与执行规则</h3><p>本地助手按照平台顺序执行，每发送一篇后等待设定间隔，再继续下一篇。</p></div><span class="small-tag">${selectedPlatforms.length} 个平台</span></div><div class="publish-config-grid"><label class="field"><span>发布账号组</span><select class="select" data-publish-batch-group>${groups}</select><small>账号登录和分类在本地发布助手中维护，后台只同步账号别名和状态。</small></label><label class="field"><span>文章间隔（分钟）</span><input class="input" type="number" min="5" max="1440" step="5" value="${escapeHtml(selection.intervalMinutes || 60)}" data-publish-batch-interval /><small>适用于同一平台的下一篇文章。</small></label><div class="publish-mode-picker"><span>发布方式</span><div class="publish-mode-options"><label class="publish-mode-option ${mode === "immediate" ? "active" : ""}"><input type="radio" name="publish-batch-mode" value="immediate" data-publish-batch-mode ${mode === "immediate" ? "checked" : ""} /><b>立即发布</b><small>创建任务后由本地助手按顺序领取</small></label><label class="publish-mode-option ${mode === "schedule" ? "active" : ""}"><input type="radio" name="publish-batch-mode" value="schedule" data-publish-batch-mode ${mode === "schedule" ? "checked" : ""} /><b>定时排期</b><small>继续设置每天数量、时间和预计完成日期</small></label></div></div></div><div class="publish-order-config"><span>执行顺序</span><div class="publish-order-chips">${publishBatchOrderChips() || '<small>选择平台后可调整顺序</small>'}</div></div></section><section class="card publish-batch-summary"><div><span class="publish-summary-icon" data-icon="send"></span><div><b>${selectedArticles.length} 篇文章 × ${selectedPlatforms.length} 个平台</b><small>将创建 ${availableCount} 条平台发布任务；文章资产仍按文章版本独立管理。</small></div></div><div class="publish-summary-actions"><button class="secondary-button" type="button" data-action="publish-batch-preflight" ${selectedArticles.length && selectedPlatforms.length ? "" : "disabled"}><span data-icon="shield"></span>检查发布条件</button><button class="primary-button" type="button" data-action="submit-publish-batch" ${selectedArticles.length && selectedPlatforms.length ? "" : "disabled"}>${mode === "schedule" ? '<span data-icon="clock"></span>进入定时排期' : '<span data-icon="send"></span>立即创建发布任务'}</button></div></section></div>`;
+  const summaryDetail = coverage.existingCount
+    ? `将创建 ${coverage.availableCount} 条平台任务；${coverage.existingCount} 条已有任务会自动跳过，不会重复发布。`
+    : `将创建 ${coverage.availableCount} 条平台发布任务；文章资产仍按文章版本独立管理。`;
+  const summaryTitle = coverage.availableCount
+    ? `${coverage.actionableArticleCount} 篇文章将发布到 ${selectedPlatforms.length} 个平台`
+    : `${selectedArticles.length} 篇文章当前没有新的发布目标`;
+  return `<div class="page-container publish-composer-page">${pageHead("新建发布批次", "先选择通过人工审核的文章，再选择多个平台；已有平台任务会按文章自动跳过，不会阻断整批发布。", '<button class="secondary-button" type="button" data-action="back-to-publish-tasks"><span data-icon="arrow"></span>返回发布任务</button>')}<div class="publish-flow-steps"><span class="active"><i>1</i>选择文章</span><b>→</b><span class="active"><i>2</i>选择平台</span><b>→</b><span><i>3</i>配置执行</span><b>→</b><span><i>4</i>发布回写</span></div><div class="publish-composer-grid"><section class="card publish-composer-section publish-article-picker"><div class="publish-composer-section-head"><div><h3>选择文章</h3><p>只有完成审核、风控和知识证据冻结的当前版本可以发布。</p></div><span class="small-tag blue">已选 ${selectedArticles.length} 篇</span></div><div class="publish-picker-toolbar"><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.publishBatchArticleSearch || "")}" placeholder="搜索文章、计划或编号" aria-label="搜索待发布文章" data-publish-batch-article-search /></div><button class="secondary-button button-small" type="button" data-action="publish-batch-select-eligible">选择全部可发布</button></div><div class="publish-article-list">${publishBatchArticleRows()}</div></section><section class="card publish-composer-section publish-platform-picker"><div class="publish-composer-section-head"><div><h3>选择发布平台</h3><p>同一篇文章可以发布多个平台；已有任务的文章会跳过，其余文章继续发布。</p></div><span class="small-tag green">${availablePlatformCount} 个可用</span></div><div class="publish-platform-actions"><button class="secondary-button button-small" type="button" data-action="publish-batch-select-all"><span data-icon="sparkle"></span>全平台智能分发</button><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.publishBatchSearch || "")}" placeholder="搜索平台" aria-label="搜索发布平台" data-publish-batch-platform-search /></div></div><div class="publish-category-tabs">${publishBatchCategoryTabs()}</div><div class="publish-platform-grid">${publishBatchPlatformCards()}</div><div class="publish-platform-note"><span data-icon="info"></span><span>官网不强制勾选；已登录的平台可直接下发至本地发布助手。若部分文章已有同平台任务，系统只跳过重复目标，其他文章照常进入队列。</span></div></section></div><section class="card publish-composer-section publish-delivery-config"><div class="publish-composer-section-head"><div><h3>账号与执行规则</h3><p>本地助手按照平台顺序执行，每发送一篇后等待设定间隔，再继续下一篇。</p></div><span class="small-tag">${selectedPlatforms.length} 个平台</span></div><div class="publish-config-grid"><label class="field"><span>发布账号组</span><select class="select" data-publish-batch-group>${groups}</select><small>账号登录和分类在本地发布助手中维护，后台只同步账号别名和状态。</small></label><label class="field"><span>文章间隔（分钟）</span><input class="input" type="number" min="5" max="1440" step="5" value="${escapeHtml(selection.intervalMinutes || 60)}" data-publish-batch-interval /><small>适用于同一平台的下一篇文章。</small></label><div class="publish-mode-picker"><span>发布方式</span><div class="publish-mode-options"><label class="publish-mode-option ${mode === "immediate" ? "active" : ""}"><input type="radio" name="publish-batch-mode" value="immediate" data-publish-batch-mode ${mode === "immediate" ? "checked" : ""} /><b>立即发布</b><small>创建任务后由本地助手按顺序领取</small></label><label class="publish-mode-option ${mode === "schedule" ? "active" : ""}"><input type="radio" name="publish-batch-mode" value="schedule" data-publish-batch-mode ${mode === "schedule" ? "checked" : ""} /><b>定时排期</b><small>继续设置每天数量、时间和预计完成日期</small></label></div></div></div><div class="publish-order-config"><span>执行顺序</span><div class="publish-order-chips">${publishBatchOrderChips() || '<small>选择平台后可调整顺序</small>'}</div></div></section><section class="card publish-batch-summary"><div><span class="publish-summary-icon" data-icon="send"></span><div><b>${summaryTitle}</b><small>${summaryDetail}</small></div></div><div class="publish-summary-actions"><button class="secondary-button" type="button" data-action="publish-batch-preflight" ${selectedArticles.length && selectedPlatforms.length ? "" : "disabled"}><span data-icon="shield"></span>检查发布条件</button><button class="primary-button" type="button" data-action="submit-publish-batch" ${coverage.availableCount ? "" : "disabled"}>${mode === "schedule" ? '<span data-icon="clock"></span>进入定时排期' : '<span data-icon="send"></span>立即创建发布任务'}</button></div></section></div>`;
 }
 
 function openPublishBatch(articleIds = []) {
@@ -7913,6 +7989,11 @@ function effectRelayCapabilityItems() {
   return Array.isArray(items) ? items : [];
 }
 
+function effectRelayConfigured() {
+  if (effectRelaySnapshot.capabilities?.configured === false || effectRelaySnapshot.quota?.configured === false) return false;
+  return effectRelaySnapshot.loaded ? true : null;
+}
+
 function effectRelayExecutionMode() {
   return String(effectRelaySnapshot.capabilities?.provider?.executionMode || "").trim().toLowerCase();
 }
@@ -8732,8 +8813,12 @@ function effectRelayStatusPanel({ flow = currentRoute() === "effect-diagnostic" 
   const unsupported = effectRelaySupportedItems(scopes, modes, questions).length === 0 && (scopes || []).length && (modes || []).length;
   const runId = cancelRunId || link?.diagnosticRunId || "";
   const canCancel = ["pending", "submitted", "queued", "running"].includes(status) && runId;
-  const statusText = customerFacingEffectText(flowState.error || effectRelaySnapshot.error || (capabilityCount ? `当前可用 ${capabilityCount} 个检测能力项` : "正在读取检测能力与额度"));
-  return `<div class="effect-relay-status ${effectRelaySnapshot.error || flowState.error ? "is-error" : ""}"><span data-icon="server"></span><div><b>灼见 AI 检测服务 · ${escapeHtml(effectRelaySnapshot.loaded ? "已连接" : "连接中")}</b><small>${escapeHtml(statusText)}</small></div><em>${escapeHtml(effectRelayRunLabel(status))}</em>${quota.availableCredits !== undefined ? `<span class="effect-relay-quota">可用 ${Number(quota.availableCredits).toLocaleString("zh-CN")} 积分</span>` : ""}${quote ? `<span class="effect-relay-quote">本次预计 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</span>` : ""}${unsupported ? '<span class="effect-relay-warning">当前选择没有可执行能力项</span>' : ""}${canCancel ? `<button class="link-button" type="button" data-action="${escapeHtml(cancelAction)}" data-effect-run-id="${escapeHtml(runId)}">取消任务</button>` : ""}<button class="link-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></div>`;
+  const relayConfigured = effectRelayConfigured();
+  const connectionLabel = relayConfigured === false ? "未配置" : effectRelaySnapshot.loaded ? "已连接" : "连接中";
+  const statusText = customerFacingEffectText(flowState.error || effectRelaySnapshot.error || (relayConfigured === false
+    ? "尚未配置 AI 检测中转站，完成实例配置后即可使用"
+    : capabilityCount ? `当前可用 ${capabilityCount} 个检测能力项` : "正在读取检测能力与额度"));
+  return `<div class="effect-relay-status ${effectRelaySnapshot.error || flowState.error ? "is-error" : ""}"><span data-icon="server"></span><div><b>灼见 AI 检测服务 · ${escapeHtml(connectionLabel)}</b><small>${escapeHtml(statusText)}</small></div><em>${escapeHtml(effectRelayRunLabel(status))}</em>${quota.availableCredits !== undefined ? `<span class="effect-relay-quota">可用 ${Number(quota.availableCredits).toLocaleString("zh-CN")} 积分</span>` : ""}${quote ? `<span class="effect-relay-quote">本次预计 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</span>` : ""}${unsupported ? '<span class="effect-relay-warning">当前选择没有可执行能力项</span>' : ""}${canCancel ? `<button class="link-button" type="button" data-action="${escapeHtml(cancelAction)}" data-effect-run-id="${escapeHtml(runId)}">取消任务</button>` : ""}<button class="link-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></div>`;
 }
 
 function effectPlatformCatalog() {
@@ -10604,22 +10689,19 @@ function legacyRenderSitePanel() {
     `;
   }
 
+  const draftTemplateKey = siteTemplateKey(siteCmsRuntime.draft?.snapshot || siteCms(), "space-materials");
+  const publicationTemplateKey = siteCmsRuntime.publication ? siteTemplateKey(siteCmsRuntime.publication.snapshot, "space-materials") : "";
+  const draftTemplateName = siteTemplateName(draftTemplateKey);
+  const publicationTemplateName = publicationTemplateKey ? siteTemplateName(publicationTemplateKey) : "尚未发布";
+  const draftIsAhead = Boolean(siteCmsRuntime.localDirty || (siteCmsRuntime.draft && siteCmsRuntime.publication && siteCmsRuntime.draft.checksum !== siteCmsRuntime.publication.checksum));
   return `
     <div class="site-layout">
-      <section class="card">
-        <div class="card-header"><div><h3>官网实时预览</h3><p>固定企业模板引用同一份产品、案例与 FAQ 数据</p></div><button class="secondary-button button-small" type="button" data-action="preview-site"><span data-icon="external"></span>打开官网</button></div>
-        <div class="card-body">
-          <div class="browser-frame">
-            <div class="browser-bar"><span class="browser-dots"><i></i><i></i><i></i></span><span class="browser-address">https://www.tongzhuo.com</span></div>
-            <div class="site-preview">
-              <div class="preview-nav"><span class="preview-brand"><i></i>桐灼科技</span><span class="preview-links"><span>首页</span><span>服务</span><span>案例</span><span>行业洞察</span><span>关于我们</span></span></div>
-              <div class="preview-hero">
-                <div><span class="preview-kicker">GEO · CONTENT · ENTERPRISE AI</span><h3>让企业在新的客户决策路径中，被发现、被理解、被选择</h3><p>围绕真实企业知识，连接官网信源、内容运营与 AI 应用，形成能够长期积累的数字资产。</p><span class="preview-cta">了解桐灼服务 →</span></div>
-                <div class="preview-visual"><span class="visual-core">GEO</span></div>
-              </div>
-              <div class="preview-features"><div class="preview-feature"><b>GEO 优化</b><p>企业实体、官网信源与行业内容。</p></div><div class="preview-feature"><b>短视频运营</b><p>账号定位、内容策划与线索承接。</p></div><div class="preview-feature"><b>企业 AI 落地</b><p>知识库、业务助手与流程优化。</p></div></div>
-            </div>
-          </div>
+      <section class="card site-live-preview-card">
+        <div class="card-header"><div><h3>官网预览</h3><p>这里显示真实 CMS 草稿预览，不再使用静态示意图。</p></div><button class="secondary-button button-small" type="button" data-action="preview-site"><span data-icon="eye"></span>预览草稿</button></div>
+        <div class="card-body site-live-preview-body">
+          <div class="site-live-preview-state"><span class="site-live-preview-icon" data-icon="layout"></span><div><b>${escapeHtml(draftTemplateName)} · 草稿${siteCmsRuntime.draft?.revision ? ` r${escapeHtml(siteCmsRuntime.draft.revision)}` : ""}</b><small>预览会打开首页、资讯和文章使用的完整主题结构，不会修改正式官网。</small></div></div>
+          <div class="site-live-preview-status-grid"><div><span>当前草稿</span><strong>${escapeHtml(draftTemplateName)}</strong><small>${draftIsAhead ? "有未发布修改" : "与正式官网一致"}</small></div><div><span>正式官网</span><strong>${escapeHtml(publicationTemplateName)}</strong><small>${siteCmsRuntime.publication ? `v${escapeHtml(siteCmsRuntime.publication.version)}` : "需要首次发布"}</small></div></div>
+          <div class="site-live-preview-note"><span data-icon="info"></span><span>选择模板后先保存草稿，再点击“预览草稿”确认；只有点击“发布官网”，正式官网才会替换。</span></div>
         </div>
       </section>
       <aside class="stack">
@@ -10726,6 +10808,15 @@ function sitePageDefinition(id = ui.sitePageId) {
 
 function siteCms() {
   return state.site.cms;
+}
+
+function siteTemplateKey(snapshot, fallback = "space-materials") {
+  const key = snapshot?.theme?.key || snapshot?.theme?.templateKey || snapshot?.theme?.template;
+  return SITE_TEMPLATE_KEYS.has(key) ? key : fallback;
+}
+
+function siteTemplateName(key) {
+  return ({ "space-materials": "空间材料", "power-systems": "UPS / 数据中心", "supply-chain": "物流 / 供应链" })[key] || "空间材料";
 }
 
 function sitePages() {
@@ -10977,19 +11068,26 @@ function renderSiteNavigation() {
   const modules = siteModules("home");
   const navItems = siteNavItems();
   const theme = siteCms().theme;
+  const draftTemplateKey = siteTemplateKey(siteCmsRuntime.draft?.snapshot || siteCms(), "space-materials");
+  const publicationTemplateKey = siteCmsRuntime.publication ? siteTemplateKey(siteCmsRuntime.publication.snapshot, "space-materials") : "";
+  const draftTemplateName = siteTemplateName(draftTemplateKey);
+  const publicationTemplateName = publicationTemplateKey ? siteTemplateName(publicationTemplateKey) : "尚未发布";
+  const draftDiffersFromPublication = Boolean(siteCmsRuntime.localDirty || (siteCmsRuntime.publication && siteCmsRuntime.draft && siteCmsRuntime.draft.checksum !== siteCmsRuntime.publication.checksum));
+  const themeSavePending = ui.siteThemePending || siteCmsRuntime.localDirty;
+  const themeSaveState = ui.siteThemeSaving ? "正在保存草稿…" : themeSavePending ? "草稿待保存" : "草稿已保存";
+  const themeSaveTone = ui.siteThemeSaving ? "blue" : themeSavePending ? "amber" : "green";
   const siteTemplates = [
-    { key: "professional", name: "专业服务", type: "编辑档案", description: "适合咨询、专业服务与知识型企业，强调可信表达和咨询转化。", color: "#5e1d2e" },
-    { key: "industrial", name: "工业制造", type: "工程材料", description: "适合建材、机械与制造企业，突出规格、应用场景和工程案例。", color: "#b85b32" },
-    { key: "energy", name: "技术设备", type: "UPS 能源", description: "适合 UPS、电力与技术设备企业，突出可靠性、选型和运维边界。", color: "#0d6b67" },
-    { key: "beauty", name: "消费品牌", type: "美妆个护", description: "适合美妆与消费品企业，突出成分、人群、使用方法和安全合规。", color: "#9d536b" },
-    { key: "engineering-case", name: "工程案例", type: "项目实录", description: "适合建材、施工与工程服务企业，突出项目场景、实施过程和成果证据。", color: "#d76632" },
-    { key: "product-matrix", name: "产品矩阵", type: "分类目录", description: "适合多 SKU 企业，突出产品线、规格方向、适用场景与选型入口。", color: "#087f77" }
+    { key: "space-materials", name: "空间材料", type: "材料档案", description: "以空间、材料、工程案例和设计服务组织整站，不是工业规格页的换色版。", color: "#8c6e59", layout: "material", home: ["空间主视觉", "材料系列", "工程案例"], listing: "材料期刊", article: "空间阅读页" },
+    { key: "power-systems", name: "UPS / 数据中心", type: "工况控制台", description: "按实际工况、选型、资料与技术支持组织整站，首页先进入产品与解决方案。", color: "#e4a15f", layout: "power", home: ["工况主视觉", "选型入口", "技术资料"], listing: "技术手册", article: "技术阅读页" },
+    { key: "supply-chain", name: "物流 / 供应链", type: "服务分流", description: "首屏先分流寄递、企业物流、行业方案和合作入口，再进入服务网络与内容。", color: "#153e3b", layout: "supply", home: ["业务入口", "服务网络", "行业方案"], listing: "调度看板", article: "路线阅读页" }
   ];
-  const selectedTemplateKey = ["professional", "industrial", "energy", "beauty", "engineering-case", "product-matrix"].includes(theme.key) ? theme.key : "professional";
+  const selectedTemplateKey = draftTemplateKey;
+  const templatePreview = (template) => `<span class="site-template-preview site-template-preview-${escapeHtml(template.layout)}" aria-hidden="true"><span class="template-preview-browser"><i></i><b></b><em></em></span><span class="template-preview-home">${template.home.map((label, index) => `<i class="template-preview-block template-preview-block-${index + 1}"><b>${escapeHtml(label)}</b></i>`).join("")}</span><span class="template-preview-routes"><b>首页</b><i></i><b>资讯</b><i></i><b>文章</b></span></span>`;
   return `
-    <div class="site-page-toolbar"><div><h2>导航与外观</h2><p>统一维护导航、首页模块、主题和公共组件，不改变文章事实内容。</p></div><button class="primary-button button-small" type="button" data-action="site-nav-save"><span data-icon="check"></span>保存外观设置</button></div>
+    <div class="site-page-toolbar"><div><h2>导航与官网模板</h2><p>模板是一整套官网页面，不是颜色皮肤；切换后首页、资讯、文章、固定页、页头和页尾会一起替换。</p></div><button class="primary-button button-small" type="button" data-action="site-nav-save"><span data-icon="check"></span>保存官网模板</button></div>
+    ${siteTemplateDeploymentStatus()}
     <div class="site-navigation-grid"><section class="card"><div class="card-header"><div><h3>主导航</h3><p>顺序、名称、地址与显示状态均可维护。</p></div><button class="secondary-button button-small" type="button" data-action="site-nav-add"><span data-icon="plus"></span>添加导航项</button></div><div class="site-nav-list">${navItems.map((item, index) => `<div class="site-nav-row"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><span class="site-module-grip">⋮⋮</span><div><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.path)} · ${escapeHtml(item.type)}</small></div><span class="status-badge ${item.visible ? "status-approved" : "status-draft"}">${item.visible ? "显示" : "隐藏"}</span><button class="icon-button" type="button" data-action="site-nav-edit" data-nav-id="${escapeHtml(item.id)}" aria-label="编辑导航"><span data-icon="edit"></span></button></div>`).join("")}</div></section><section class="card"><div class="card-header"><div><h3>首页语义模块</h3><p>每个模块均可关联知识、产品、案例或资讯。</p></div></div><div class="site-nav-list">${modules.slice(0, 5).map((module, index) => `<div class="site-nav-row compact"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><div><b>${escapeHtml(module.title)}</b><small>${escapeHtml(module.description)}</small></div><span>${module.status === "published" ? statusBadge("published") : statusBadge("draft")}</span><button class="link-button" type="button" data-action="site-module-edit" data-page-id="home" data-module-id="${escapeHtml(module.id)}">编辑</button></div>`).join("")}</div></section></div>
-    <section class="card site-theme-card"><div class="card-header"><div><h3>企业官网模板</h3><p>模板只改变页面结构与视觉表达，不会修改企业资料、产品、知识、文章或案例。当前模板版本 v${escapeHtml(theme.version || 1)}。</p></div><button class="secondary-button button-small" type="button" data-action="preview-site"><span data-icon="eye"></span>预览当前草稿</button></div><div class="site-template-picker" role="radiogroup" aria-label="企业官网模板">${siteTemplates.map((template) => `<label class="site-template-option ${selectedTemplateKey === template.key ? "is-selected" : ""}" data-template-key="${escapeHtml(template.key)}" style="--template-swatch:${escapeHtml(template.color)}"><input type="radio" name="site-template-key" value="${escapeHtml(template.key)}" ${selectedTemplateKey === template.key ? "checked" : ""}><span class="site-template-swatch" aria-hidden="true"><i></i><i></i><i></i></span><span class="site-template-copy"><b>${escapeHtml(template.name)}</b><em>${escapeHtml(template.type)}</em><small>${escapeHtml(template.description)}</small></span><span class="site-template-check" aria-hidden="true">✓</span></label>`).join("")}</div><div class="site-theme-fields"><div class="field"><label for="site-theme-name">内部版本名称</label><input class="input" id="site-theme-name" value="${escapeHtml(theme.name || "企业官网主题")}" maxlength="120" /></div><div class="field"><label for="site-theme-color">客户品牌主色</label><div class="color-setting"><i style="background:${escapeHtml(theme.primaryColor)}"></i><input class="input" id="site-theme-color" value="${escapeHtml(theme.primaryColor)}" /></div></div><div class="field"><label for="site-theme-cta">默认 CTA 文案</label><input class="input" id="site-theme-cta" value="${escapeHtml(theme.cta)}" /></div></div><div class="site-settings-footnote"><span data-icon="info"></span><span>保存后只更新官网草稿。正式站必须重新预览、审核并发布，已有正式版本不会被静默覆盖。</span></div></section>
+    <section class="card site-theme-card"><div class="card-header"><div><h3>整套官网模板</h3><p>选择的是完整页面系统：同一套企业资料会被重新编排为首页、资讯、文章、服务、案例、问题地图、关于和联系页。当前草稿模板版本 v${escapeHtml(theme.version || 1)}。</p></div><button class="secondary-button button-small" type="button" data-action="preview-site"><span data-icon="eye"></span>预览整站草稿</button></div><div class="site-template-status-strip"><div><span class="site-template-status-label">当前草稿模板</span><strong>${escapeHtml(draftTemplateName)}</strong><small>保存后只更新草稿${draftDiffersFromPublication ? " · 有未发布修改" : ""}</small></div><div><span class="site-template-status-label">正式官网模板</span><strong>${escapeHtml(publicationTemplateName)}</strong><small>${siteCmsRuntime.publication ? `正式版本 v${escapeHtml(siteCmsRuntime.publication.version)}` : "尚未首次发布"}</small></div><div class="site-template-status-help"><span data-icon="info"></span><span>模板选择 → 保存草稿 → 预览确认 → 发布官网。正式站只有发布后才替换。</span></div></div><div class="site-template-picker" role="radiogroup" aria-label="整套官网模板">${siteTemplates.map((template) => `<label class="site-template-option ${selectedTemplateKey === template.key ? "is-selected" : ""}" data-template-key="${escapeHtml(template.key)}" style="--template-swatch:${escapeHtml(template.color)}"><input type="radio" name="site-template-key" value="${escapeHtml(template.key)}" ${selectedTemplateKey === template.key ? "checked" : ""}>${templatePreview(template)}<span class="site-template-copy"><b>${escapeHtml(template.name)}</b><em>${escapeHtml(template.type)}</em><small>${escapeHtml(template.description)}</small><span class="site-template-route-summary"><span>首页：${escapeHtml(template.home[0])}</span><span>资讯：${escapeHtml(template.listing)}</span><span>文章：${escapeHtml(template.article)}</span></span></span><span class="site-template-check" aria-hidden="true">✓</span></label>`).join("")}</div><div class="site-template-save-state small-tag ${themeSaveTone}" role="status" aria-live="polite">${themeSaveState}</div><div class="site-template-scope"><span data-icon="layout"></span><div><b>切换范围</b><small>首页、资讯列表、文章详情、服务、案例、问题地图、关于、联系、页头与页尾全部使用所选模板的独立结构；企业资料、文章、图片、SEO 与发布记录保持不变。</small></div></div><div class="site-theme-fields"><div class="field"><label for="site-theme-name">内部模板备注</label><input class="input" id="site-theme-name" value="${escapeHtml(theme.name || "企业官网主题")}" maxlength="120" /></div><div class="field"><label for="site-theme-cta">默认 CTA 文案</label><input class="input" id="site-theme-cta" value="${escapeHtml(theme.cta)}" /></div></div><div class="site-settings-footnote"><span data-icon="info"></span><span>保存后只更新官网草稿。请预览首页、资讯和文章确认整套页面后再发布；已发布官网不会被静默覆盖。</span></div></section>
   `;
 }
 
@@ -11193,7 +11291,18 @@ function renderSitePreviewModal() {
   const page = sitePageDefinition(ui.modal?.pageId);
   if (!page) return "";
   const src = `/api/v1/site-cms/preview?path=${encodeURIComponent(page.path)}`;
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网草稿预览 · ${escapeHtml(page.title)}</h2><p>${escapeHtml(page.path)} · 使用正式官网渲染器 · 不会影响线上版本</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body site-rendered-preview-body"><div class="site-preview-address"><span class="status-badge status-review">草稿预览</span><code>${escapeHtml(src)}</code><button class="link-button" type="button" data-action="site-preview-reload">刷新</button></div><iframe class="site-rendered-preview-frame" id="site-rendered-preview-frame" src="${escapeHtml(src)}" title="${escapeHtml(page.title)}草稿预览"></iframe></div><div class="modal-foot"><span>预览页面带 noindex，搜索引擎和 AI 抓取不会收录</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭</button><button class="primary-button" type="button" data-action="site-publish-cms">发布官网</button></div></div>`, { wide: true });
+  const draftKey = normalizedSiteTemplateKey(siteCms().theme?.key);
+  const publicationThemeKey = siteCmsRuntime.publication?.snapshot?.theme?.key;
+  const officialUsesRetiredTemplate = Boolean(siteCmsRuntime.publication && !SITE_TEMPLATE_KEYS.has(publicationThemeKey));
+  const officialKey = siteCmsRuntime.publication ? normalizedSiteTemplateKey(publicationThemeKey) : null;
+  const comparison = officialUsesRetiredTemplate
+    ? `正式官网的旧发布快照已映射为“${siteTemplateLabel(officialKey)}”；确认后发布草稿会写入新的主题标识。`
+    : officialKey && officialKey !== draftKey
+      ? `正式官网仍是“${siteTemplateLabel(officialKey)}”，发布后才会替换。`
+    : officialKey
+      ? `正式官网当前也是“${siteTemplateLabel(officialKey)}”。`
+      : "尚未发布正式官网，当前仅供草稿确认。";
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网草稿预览 · ${escapeHtml(page.title)}</h2><p>${escapeHtml(page.path)} · 当前草稿：${escapeHtml(siteTemplateLabel(draftKey))} · 使用正式官网渲染器 · 不会影响线上版本</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body site-rendered-preview-body"><div class="site-preview-address"><span class="status-badge status-review">草稿预览</span><code>${escapeHtml(src)}</code><button class="link-button" type="button" data-action="site-preview-reload">刷新</button></div><div class="site-preview-template-note"><span data-icon="layout"></span><span>${escapeHtml(comparison)}</span></div><iframe class="site-rendered-preview-frame" id="site-rendered-preview-frame" src="${escapeHtml(src)}" title="${escapeHtml(page.title)}草稿预览"></iframe></div><div class="modal-foot"><span>预览页面带 noindex，搜索引擎和 AI 抓取不会收录</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭</button><button class="primary-button" type="button" data-action="site-publish-cms">发布官网</button></div></div>`, { wide: true });
 }
 
 function renderSiteReleasesModal() {
@@ -11514,23 +11623,118 @@ function deleteSiteNav(navId) {
   showToast("导航项已删除", "对应页面和内容不会被删除。", "success");
 }
 
-function saveSiteAppearance() {
+const SITE_TEMPLATE_KEYS = new Set(["space-materials", "power-systems", "supply-chain"]);
+
+const SITE_TEMPLATE_LABELS = Object.freeze({
+  "space-materials": "空间材料 · 材料档案",
+  "power-systems": "UPS / 数据中心 · 工况控制台",
+  "supply-chain": "物流 / 供应链 · 服务分流"
+});
+
+function normalizedSiteTemplateKey(value, fallback = "space-materials") {
+  return SITE_TEMPLATE_KEYS.has(value) ? value : fallback;
+}
+
+function siteTemplateLabel(key) {
+  return SITE_TEMPLATE_LABELS[normalizedSiteTemplateKey(key)] || "未选择官网模板";
+}
+
+function siteTemplateDeploymentStatus({ compact = false } = {}) {
+  const draftTheme = siteCms().theme || {};
+  const publicationTheme = siteCmsRuntime.publication?.snapshot?.theme || {};
+  const draftKey = normalizedSiteTemplateKey(draftTheme.key);
+  const publicationUsesRetiredTemplate = Boolean(siteCmsRuntime.publication && !SITE_TEMPLATE_KEYS.has(publicationTheme.key));
+  const publicationKey = siteCmsRuntime.publication ? normalizedSiteTemplateKey(publicationTheme.key) : null;
+  const draftPending = Boolean(ui.siteThemePending || siteCmsRuntime.localDirty || (siteCmsRuntime.draft && siteCmsRuntime.publication && siteCmsRuntime.draft.checksum !== siteCmsRuntime.publication.checksum));
+  const state = !siteCmsRuntime.publication
+    ? ["尚未首次发布", "amber"]
+    : draftPending || publicationUsesRetiredTemplate || publicationKey !== draftKey
+      ? ["草稿待发布", "amber"]
+      : ["已与正式官网一致", "green"];
+  const officialLabel = publicationKey ? siteTemplateLabel(publicationKey) : "尚未发布正式模板";
+  const officialHint = !siteCmsRuntime.publication
+    ? "完成首次发布后，正式官网才会对外提供。"
+    : publicationUsesRetiredTemplate
+      ? `旧版发布快照已在运行时迁移为“${officialLabel}”；确认预览后发布草稿，正式版本会写入新的主题标识。`
+      : "只有点击“发布官网”后，18080 公开号才会切换。";
+  return `<section class="site-template-deployment ${compact ? "is-compact" : ""}" aria-label="官网模板发布状态"><div class="site-template-deployment-item"><span class="site-template-deployment-dot draft"></span><div><b>当前草稿模板</b><strong>${escapeHtml(siteTemplateLabel(draftKey))}</strong><small>保存草稿后可预览，尚未替换公开官网。</small></div></div><div class="site-template-deployment-arrow" aria-hidden="true">→</div><div class="site-template-deployment-item"><span class="site-template-deployment-dot official"></span><div><b>当前正式官网</b><strong>${escapeHtml(officialLabel)}</strong><small>${escapeHtml(officialHint)}</small></div></div><span class="small-tag ${state[1]}">${state[0]}</span></section>`;
+}
+
+function renderSiteThemePendingState() {
+  const picker = document.querySelector(".site-template-picker");
+  if (!picker) return;
+  let status = picker.parentElement?.querySelector(".site-template-save-state");
+  if (!status) {
+    status = document.createElement("div");
+    status.className = "site-template-save-state";
+    picker.insertAdjacentElement("afterend", status);
+  }
+  const pending = ui.siteThemePending || siteCmsRuntime.localDirty;
+  status.className = `site-template-save-state small-tag ${ui.siteThemeSaving ? "blue" : pending ? "amber" : "green"}`;
+  status.textContent = ui.siteThemeSaving ? "正在保存草稿…" : pending ? "草稿待保存" : "草稿已保存";
+}
+
+function syncSiteTemplateSelection(templateKey, { renderAfter = false } = {}) {
+  if (!SITE_TEMPLATE_KEYS.has(templateKey)) return false;
+  document.querySelectorAll(".site-template-option[data-template-key]").forEach((option) => {
+    const selected = option.dataset.templateKey === templateKey;
+    option.classList.toggle("is-selected", selected);
+    option.setAttribute("aria-checked", selected ? "true" : "false");
+    const input = option.querySelector('input[name="site-template-key"]');
+    if (input) input.checked = selected;
+  });
+  const theme = siteCms().theme || (siteCms().theme = {});
+  if (theme.key !== templateKey) {
+    theme.key = templateKey;
+    theme.updatedAt = siteNow();
+    ui.siteThemePending = true;
+    saveState();
+  }
+  renderSiteThemePendingState();
+  if (renderAfter) render();
+  return true;
+}
+
+async function saveSiteAppearance() {
+  if (ui.siteThemeSaving) return;
   const theme = siteCms().theme;
-  const color = siteValue("site-theme-color");
-  const templateKey = document.querySelector('input[name="site-template-key"]:checked')?.value || theme.key || "professional";
-  const allowedTemplateKeys = new Set(["professional", "industrial", "energy", "beauty", "engineering-case", "product-matrix"]);
-  if (color && !/^#[0-9a-f]{6}$/i.test(color)) return showToast("品牌主色格式不正确", "请输入类似 #1D5CFF 的 6 位十六进制颜色。", "error");
+  const templateKey = document.querySelector('input[name="site-template-key"]:checked')?.value || theme.key || "space-materials";
+  const allowedTemplateKeys = SITE_TEMPLATE_KEYS;
   if (!allowedTemplateKeys.has(templateKey)) return showToast("官网模板无效", "请重新选择一套可用的企业官网模板。", "error");
   theme.key = templateKey;
   theme.name = siteValue("site-theme-name") || theme.name;
-  theme.primaryColor = color || theme.primaryColor;
   theme.cta = siteValue("site-theme-cta") || theme.cta;
   theme.version = (Number(theme.version) || 1) + 1;
   theme.updatedAt = siteNow();
   state.site.theme = theme.name;
+  ui.siteThemeSaving = true;
   saveState();
   render();
-  showToast("导航与外观已保存", `已创建主题版本 v${theme.version}，所有页面将使用新的公共样式。`, "success");
+  try {
+    await flushSiteCmsDraftSync();
+    ui.siteThemePending = false;
+    showToast("整套官网模板已保存", `草稿 v${theme.version} 已保存；首页、资讯、文章、固定页和页头页尾都会一起替换。`, "success");
+  } catch (error) {
+    ui.siteThemePending = true;
+    showToast("官网草稿保存失败", error.message || "请检查服务后重试。", "error");
+  } finally {
+    ui.siteThemeSaving = false;
+    if (currentRoute() === "site") render();
+  }
+}
+
+async function previewSelectedSiteTemplate() {
+  const selected = document.querySelector('input[name="site-template-key"]:checked')?.value || siteCms().theme?.key || "space-materials";
+  if (!SITE_TEMPLATE_KEYS.has(selected)) return showToast("官网模板无效", "请重新选择一套可用的企业官网模板。", "error");
+  syncSiteTemplateSelection(selected);
+  try {
+    await flushSiteCmsDraftSync();
+  } catch (error) {
+    showToast("预览准备失败", error.message || "官网草稿尚未保存，请检查服务后重试。", "error");
+    return;
+  }
+  ui.modal = { type: "sitePreview", pageId: "home" };
+  return renderModal();
 }
 
 function renderSiteLeadFollowModal() {
@@ -12215,19 +12419,6 @@ function renderSettingsPanel() {
       <section class="card ai-provider-section"><div class="card-header"><div><h3>模型供应商 / API</h3><p>一个供应商可以提供多个文本、图片或向量模型；添加后再在“更换模型”中选择。</p></div><span class="small-tag blue">服务端管理</span></div>${renderAiProviderCards()}</section>
     `;
   }
-  if (ui.settingsTab === "members") {
-    const canManageUsers = currentUserCan("users.manage");
-    const memberBadge = (member) => member.status === "active" ? '<span class="status-badge status-approved">已启用</span>' : '<span class="status-badge status-error">已停用</span>';
-    const rows = (state.settings.members || []).map((member) => `<tr><td><b>${escapeHtml(member.name)}</b><small style="display:block;color:var(--muted)">${escapeHtml(member.username || member.email)}</small></td><td>${escapeHtml(member.role)}</td><td>${member.lastLoginAt ? escapeHtml(formatRelative(member.lastLoginAt)) : "尚未登录"}</td><td>${memberBadge(member)}</td><td>${canManageUsers ? `<button class="link-button" type="button" data-action="manage-member" data-member-id="${escapeHtml(member.id)}">管理</button>` : "—"}</td></tr>`).join("");
-    return `
-      <section class="card table-card">
-        <div class="card-header"><div><h3>成员与权限</h3><p>账号、密码、角色和登录状态由当前客户服务器统一管理，所有权限由服务端执行。</p></div>${canManageUsers ? '<button class="primary-button button-small" type="button" data-action="invite-member"><span data-icon="plus"></span>创建成员</button>' : ""}</div>
-        <div class="table-scroll"><table class="data-table"><thead><tr><th>成员</th><th>角色</th><th>最近登录</th><th>状态</th><th></th></tr></thead><tbody>
-          ${rows || '<tr><td colspan="5">暂无成员</td></tr>'}
-        </tbody></table></div><div class="privacy-note" style="margin:14px 18px 18px"><span data-icon="lock"></span><span>密码使用 scrypt 保存；登录会话和 CSRF Token 在数据库中只保存摘要。停用账号会立即撤销其所有会话。</span></div>
-      </section>
-    `;
-  }
   if (ui.settingsTab === "logs") {
     const logs = auditSnapshot.loaded
       ? auditSnapshot.items.map((entry) => ({ occurredAt: entry.occurredAt, category: entry.action, actor: entry.actor, detail: `${entry.entityType}${entry.entityId ? ` · ${entry.entityId}` : ""}` }))
@@ -12261,7 +12452,6 @@ function renderSettings() {
   const items = [
     ["general", "settings", "通用设置"],
     ["models", "cpu", "AI 模型"],
-    ["members", "users", "成员权限"],
     ["logs", "log", "操作日志"]
   ];
   const nav = items.map(([id, iconName, label]) => '<button class="' + (ui.settingsTab === id ? "active" : "") + '" type="button" data-action="settings-tab" data-tab="' + id + '"><span data-icon="' + iconName + '"></span>' + label + "</button>").join("");
@@ -12329,8 +12519,8 @@ function renderModal() {
     articleVersion: renderArticleVersionModal,
     trackedWork: renderTrackedWorkModal,
     modelEditor: renderModelEditorModal,
-    memberEditor: renderMemberEditorModal,
     risk: renderRiskModal,
+    addQuestion: renderAddQuestionModal,
     questionEditor: renderQuestionEditorModal,
     topicEditor: renderTopicEditorModal,
     planningRelations: renderPlanningRelationsModal,
@@ -12497,7 +12687,7 @@ function renderArticleModal() {
   const citations = articleCitations(article);
   const lineActive = articleBusinessLineIsActive(article);
   const reviewPending = article.reviewStatus !== "approved";
-  const manualReview = reviewPending && article.reviewStage === "manual_review";
+  const manualReview = reviewPending && article.reviewStage !== "revision_requested";
   const revisionRequested = reviewPending && article.reviewStage === "revision_requested";
   const reviewStage = article.reviewStage || (reviewPending ? "draft" : "ready_to_publish");
   const submittedAt = article.reviewSubmittedAt ? new Date(article.reviewSubmittedAt).toLocaleString("zh-CN", { hour12: false }) : "尚未提交";
@@ -12505,6 +12695,8 @@ function renderArticleModal() {
   const knowledgeReady = citations.length > 0 && !citations.some((citation) => citation.supportStatus === "conflict" || citation.status === "missing") && (article.knowledgeStatus?.conflictCount || 0) === 0;
   const articleAssets = (article.assetIds || []).map((id) => (state.contentAssets || []).find((asset) => asset.id === id)).filter(Boolean);
   const assetIssues = articleAssetReviewIssues(article);
+  const imagePlanStatus = article.imagePlan?.status || (articleAssets.length ? "partial" : "missing");
+  const imagePlanCopy = imagePlanStatus === "matched" ? `已自动匹配封面与 ${Math.max(0, (article.imagePlan?.placements?.length || 1) - 1)} 张正文图片` : imagePlanStatus === "partial" ? "已匹配封面图片，正文配图可继续补充" : "未找到与文章相关的已审核企业图片，正文生成未受影响";
   const canSubmitReview = currentUserCan("content.generate");
   const canReview = currentUserCan("content.review");
   const canPublishContent = currentUserCan("content.publish");
@@ -12527,7 +12719,7 @@ function renderArticleModal() {
         : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>等待审核人员处理</button>'
       : revisionRequested
         ? canSubmitReview ? '<button class="primary-button" type="button" data-action="open-article-studio" data-article-id="' + article.id + '"><span data-icon="edit"></span>继续修改</button>' : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>等待内容运营修改</button>'
-        : canSubmitReview ? '<button class="primary-button" type="button" data-action="submit-article-review" data-article-id="' + article.id + '"><span data-icon="shield"></span>提交人工审核</button>' : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>没有提交审核权限</button>'
+        : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>当前状态不可审核</button>'
     : article.status === "draft" && article.riskStatus !== "clean"
       ? '<button class="primary-button" type="button" data-action="open-risk" data-article-id="' + article.id + '"><span data-icon="shield"></span>重新风控</button>'
     : canPublish && canPublishContent
@@ -12552,13 +12744,13 @@ function renderArticleModal() {
 
   return modalChrome(`
     <div class="modal-head">
-      <div><h2 id="modal-title">${manualReview ? "人工审核" : "文章编辑与审核"}</h2><p>${escapeHtml(article.id)} · ${escapeHtml(article.version)} · ${manualReview ? "核对通过后才允许发布" : revisionRequested ? "已退回修改，重新提交后才可审核" : reviewPending ? "草稿尚未提交人工审核" : "绑定当前版本发布"}</p></div>
+      <div><h2 id="modal-title">${manualReview ? "人工审核" : "文章编辑与审核"}</h2><p>${escapeHtml(article.id)} · ${escapeHtml(article.version)} · ${manualReview ? "当前界面直接完成核对与审核，无需再次提交" : revisionRequested ? "已退回修改，修改完成后可再次审核" : "绑定当前版本发布"}</p></div>
       <button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button>
     </div>
     <div class="modal-body">
       ${!lineActive ? '<div class="knowledge-update-banner danger"><span data-icon="lock"></span><div><b>所属业务线已删除</b><p>历史正文和引用证据仍可查看；恢复业务线后才能编辑、审核或创建新的发布任务。</p></div></div>' : ""}
       ${hasKnowledgeUpdates ? '<div class="knowledge-update-banner"><span data-icon="history"></span><div><b>企业知识已有新版本</b><p>本文继续引用生成时冻结的旧版本；如需使用最新知识，请从内容计划重新生成新版本。</p></div></div>' : ""}
-      ${manualReview ? `<div class="manual-review-banner"><span class="manual-review-step active"><i>1</i><b>人工审核中</b><small>正文、引用、风险</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>2</i><b>审核通过</b><small>冻结当前版本</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>3</i><b>进入发布</b><small>官网 / 多平台</small></span></div><div class="manual-review-meta"><div><span>当前状态</span><b class="status-badge status-review">待人工审核</b></div><div><span>提交时间</span><b>${escapeHtml(submittedAt)}</b></div><div><span>提交人</span><b>${escapeHtml(article.reviewSubmittedBy || "内容团队")}</b></div><div><span>审核版本</span><b>${escapeHtml(article.version)}</b></div></div><div class="manual-review-checklist"><b>审核清单</b><span class="ok">正文完整</span><span class="${citations.length ? "ok" : "warning"}">${citations.length ? "企业知识已引用" : "缺少企业知识引用"}</span><span class="${article.riskStatus === "clean" ? "ok" : "warning"}">${article.riskStatus === "clean" ? "风控已通过" : "待完成风控"}</span><small>审核通过后才会解锁发布，修改正文后会自动生成新版本并重新审核。</small></div>` : revisionRequested ? `<div class="knowledge-update-banner"><span data-icon="edit"></span><div><b>已退回修改</b><p>${escapeHtml(article.reviewNote || "请根据审核意见修改后重新提交。")}</p></div></div>` : reviewPending ? `<div class="knowledge-update-banner"><span data-icon="clock"></span><div><b>当前为编辑草稿</b><p>确认正文、企业知识引用和风险状态后，再提交人工审核；未提交的草稿不能审核或发布。</p></div></div>` : `<div class="manual-review-complete"><span data-icon="check"></span><div><b>人工审核已通过 · 当前版本可发布</b><p>审核人：${escapeHtml(article.reviewedBy || "内容团队")} · ${escapeHtml(reviewedAt)} · 已冻结 ${escapeHtml(article.version)} 的正文与知识引用</p></div></div>`}
+      ${manualReview ? `<div class="manual-review-banner"><span class="manual-review-step active"><i>1</i><b>人工审核中</b><small>正文、引用、风险</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>2</i><b>审核通过</b><small>冻结当前版本</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>3</i><b>进入发布</b><small>官网 / 多平台</small></span></div><div class="manual-review-meta"><div><span>当前状态</span><b class="status-badge status-review">待人工审核</b></div><div><span>进入审核</span><b>${article.reviewSubmittedAt ? escapeHtml(submittedAt) : "打开本页即开始"}</b></div><div><span>操作人</span><b>${escapeHtml(article.reviewSubmittedBy || currentActorName())}</b></div><div><span>审核版本</span><b>${escapeHtml(article.version)}</b></div></div><div class="manual-review-checklist"><b>审核清单</b><span class="ok">正文完整</span><span class="${citations.length ? "ok" : "warning"}">${citations.length ? "企业知识已引用" : "缺少企业知识引用"}</span><span class="${article.riskStatus === "clean" ? "ok" : "warning"}">${article.riskStatus === "clean" ? "风控已通过" : "审核通过时自动完成风控"}</span><small>点击“审核通过”会完成必要的风控与送审记录，并冻结当前版本；无需再次点击提交审核。</small></div>` : revisionRequested ? `<div class="knowledge-update-banner"><span data-icon="edit"></span><div><b>已退回修改</b><p>${escapeHtml(article.reviewNote || "请根据审核意见修改后重新提交。")}</p></div></div>` : `<div class="manual-review-complete"><span data-icon="check"></span><div><b>人工审核已通过 · 当前版本可发布</b><p>审核人：${escapeHtml(article.reviewedBy || "内容团队")} · ${escapeHtml(reviewedAt)} · 已冻结 ${escapeHtml(article.version)} 的正文与知识引用</p></div></div>`}
       <div class="article-drawer-grid">
         <div>
           <textarea class="editor-title" id="article-title-editor" rows="2" ${canEditArticle ? "" : "readonly"}>${escapeHtml(article.title)}</textarea>
@@ -12594,7 +12786,7 @@ function renderArticleModal() {
             <div class="citation-summary"><span>已审核证据</span><b>${citations.length} 条</b><small>${article.knowledgeStatus?.gapCount || 0} 项缺口已省略 · ${article.knowledgeStatus?.conflictCount || 0} 项冲突</small></div>
             ${article.knowledgeSnapshot ? '<p class="snapshot-note"><span data-icon="lock"></span>生成于 ' + escapeHtml(new Date(article.knowledgeSnapshot.capturedAt).toLocaleString("zh-CN", { hour12: false })) + '，引用版本' + (article.knowledgeSnapshot.frozenAt || article.reviewStatus === "approved" ? "已冻结" : "待审核冻结") + '。</p>' : ""}
           </div>
-          ${articleAssets.length ? `<div class="side-panel"><h4>文章素材 ${assetIssues.length ? '<span class="small-tag amber">' + assetIssues.length + ' 待确认</span>' : '<span class="small-tag green">已确认</span>'}</h4><div class="article-citation-list">${articleAssets.map((asset) => `<div class="article-citation-row article-asset-row"><b><span data-icon="image"></span></b><span><strong>${escapeHtml(asset.name)}</strong><small>${escapeHtml(asset.license || "来源待确认")} · ${asset.reviewStatus === "approved" ? "已审核" : "待人工确认"}</small></span>${asset.reviewStatus === "approved" ? '<span class="status-badge status-approved">可用</span>' : `<span class="article-asset-actions"><button class="link-button" type="button" data-action="approve-article-asset" data-article-id="${article.id}" data-asset-id="${asset.id}">确认可用</button><button class="link-button danger-text" type="button" data-action="remove-article-asset" data-article-id="${article.id}" data-asset-id="${asset.id}">移出</button></span>`}</div>`).join("")}</div><p class="snapshot-note"><span data-icon="info"></span>上传或 AI 生成的图片必须由人工确认来源与适用性，才可以随文章通过审核。</p></div>` : ""}
+          <div class="side-panel"><h4>自动配图 ${imagePlanStatus === "matched" ? '<span class="small-tag green">已完成</span>' : imagePlanStatus === "partial" ? '<span class="small-tag blue">部分匹配</span>' : '<span class="small-tag amber">缺图</span>'}</h4><p class="snapshot-note"><span data-icon="image"></span>${escapeHtml(imagePlanCopy)}</p>${articleAssets.length ? `<div class="article-citation-list">${articleAssets.map((asset) => { const placement = article.imagePlan?.placements?.find((item) => item.assetId === asset.id); return `<div class="article-citation-row article-asset-row"><b><span data-icon="image"></span></b><span><strong>${escapeHtml(asset.name)}</strong><small>${escapeHtml(placement?.role === "cover" ? "封面图" : "正文配图")} · ${escapeHtml(placement?.matchReason || asset.license || "来源已记录")}</small></span>${asset.reviewStatus === "approved" ? '<span class="status-badge status-approved">可用</span>' : `<span class="article-asset-actions"><button class="link-button" type="button" data-action="approve-article-asset" data-article-id="${article.id}" data-asset-id="${asset.id}">确认可用</button><button class="link-button danger-text" type="button" data-action="remove-article-asset" data-article-id="${article.id}" data-asset-id="${asset.id}">移出</button></span>`}</div>`; }).join("")}</div>` : ""}<p class="snapshot-note"><span data-icon="info"></span>自动配图只使用当前知识范围内已审核且来源明确的企业图片；缺图不会阻断文章生成。</p></div>
           <div class="side-panel">
             <h4>内容风控</h4>
             <div class="risk-score"><span class="risk-state-icon ${riskMeta.tone === "warning" ? "warning" : ""}" data-icon="shield"></span><p><b style="display:block;color:${riskMeta.tone === "warning" ? "var(--amber)" : "var(--green)"}">${riskMeta.label}</b>${riskMeta.text}</p></div>
@@ -12615,7 +12807,7 @@ function renderArticleModal() {
         ${actions}
       </div>
     </div>
-  `, { drawer: true });
+  `, { className: "article-review-workspace" });
 }
 
 function archiveArticleRevision(article, reason = "manual_edit", reasonLabel = "历史版本") {
@@ -12856,7 +13048,11 @@ async function approveArticle() {
   if (!article) return;
   if (!currentUserCan("content.review")) return showToast("没有人工审核权限", "请由审核人员或管理员执行审核通过。", "error");
   if (!articleBusinessLineIsActive(article)) return showToast("业务线已删除", "历史文章可以查看，但恢复业务线后才能继续审核和发布。", "error");
-  if (article.reviewStage !== "manual_review") return showToast("文章尚未提交人工审核", "请先确认草稿并点击“提交人工审核”。", "error");
+  if (article.reviewStage === "revision_requested") return showToast("文章已退回修改", "请先完成修改，再回到本页审核。", "error");
+  if (article.reviewStage !== "manual_review") {
+    const submitted = await submitArticleForManualReview(article.id, { fromArticleModal: true });
+    if (!submitted) return null;
+  }
   const citations = articleCitations(article);
   if (!citations.length || !article.knowledgeSnapshot) return showToast("缺少企业知识证据", "这篇历史内容没有逐条引用与版本快照，请从内容计划重新生成。", "error");
   if (citations.some((citation) => !knowledgeBaseById(citation.knowledgeBaseId || citation.baseId) || !knowledgeItemById(citation.itemId || citation.knowledgeItemId) || !knowledgeVersionById(citation.versionId || citation.knowledgeVersionId))) return showToast("引用证据不完整", "存在无法定位到知识原文的引用，暂不能通过审核。", "error");
@@ -14465,19 +14661,6 @@ function renderAiProviderModal() {
   `, { wide: true });
 }
 
-function renderMemberEditorModal() {
-  const existing = ui.modal.memberId ? state.settings.members.find((member) => member.id === ui.modal.memberId) : null;
-  const role = existing?.roleValue || ROLE_API_VALUES[existing?.role] || "operator";
-  const status = existing?.status || "active";
-  const adminCount = (state.settings.members || []).filter((member) => member.role === "管理员" && member.status !== "disabled").length;
-  const canDelete = !existing || !(existing.role === "管理员" && adminCount <= 1);
-  return modalChrome(`
-    <div class="modal-head"><div><h2 id="modal-title">${existing ? "管理成员" : "创建成员账号"}</h2><p>${existing ? "角色、状态和密码修改会由服务端立即执行并记录审计。" : "创建后成员可以使用登录账号和初始密码进入当前企业后台。"}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body"><div class="field-row"><div class="field"><label for="member-name">姓名 *</label><input class="input" id="member-name" value="${escapeHtml(existing?.name || "")}" placeholder="请输入成员姓名" /></div><div class="field"><label for="member-email">邮箱</label><input class="input" id="member-email" type="email" value="${escapeHtml(existing?.email || "")}" placeholder="name@company.com" /></div></div><div class="field-row"><div class="field"><label for="member-username">登录账号 *</label><input class="input" id="member-username" value="${escapeHtml(existing?.username || "")}" placeholder="例如：zhangsan" ${existing ? "disabled" : ""} autocomplete="username" /></div><div class="field"><label for="member-password">${existing ? "重置密码（留空不修改）" : "初始密码 *"}</label><input class="input" id="member-password" type="password" minlength="10" maxlength="200" placeholder="至少 10 个字符" autocomplete="new-password" /></div></div><div class="field-row"><div class="field"><label for="member-role">角色</label><select class="select" id="member-role">${Object.entries(ROLE_UI_LABELS).map(([value, label]) => `<option value="${value}" ${role === value ? "selected" : ""}>${label}</option>`).join("")}</select></div><div class="field"><label for="member-status">状态</label><select class="select" id="member-status">${[["active", "已启用"], ["disabled", "已停用"]].map(([value, label]) => `<option value="${value}" ${status === value ? "selected" : ""}>${label}</option>`).join("")}</select></div></div><div class="privacy-note" style="margin-top:16px"><span data-icon="lock"></span><span>初始密码只在本次提交中传送，不会写入浏览器存储；服务端使用 scrypt 保存密码摘要。</span></div></div>
-    <div class="modal-foot"><span>${existing?.lastLoginAt ? "最近登录：" + formatDateTime(existing.lastLoginAt) : "尚未登录"}</span><div class="modal-foot-right">${existing ? `<button class="danger-button" type="button" data-action="delete-member" data-member-id="${escapeHtml(existing.id)}" ${canDelete ? "" : "disabled"}>删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-member" data-member-id="${escapeHtml(existing?.id || "")}"><span data-icon="check"></span>${existing ? "保存修改" : "创建账号"}</button></div></div>
-  `);
-}
-
 function riskRuleEntries(type) {
   const record = state.knowledge?.[type] || {};
   if (Array.isArray(record.entries) && record.entries.length) return record.entries.map((entry) => String(entry).trim()).filter(Boolean);
@@ -14631,8 +14814,14 @@ function addQuestionToLibrary() {
   ui.questionInput = "";
   ui.questionError = "";
   saveState();
+  if (ui.modal?.type === "addQuestion") closeModal();
   render();
   showToast("问题已加入词库", "可以继续勾选问题并生成正式选题。");
+}
+
+function renderAddQuestionModal() {
+  const line = activeBusinessLine();
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">手动添加问题</h2><p>${escapeHtml(line?.name || "当前业务线")} · 添加后直接进入问题词库</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field"><label for="question-input">客户真实问题 *</label><textarea class="textarea ${ui.questionError ? "input-error" : ""}" id="question-input" rows="4" maxlength="120" placeholder="例如：制造企业如何开始做 AI 搜索优化？">${escapeHtml(ui.questionInput)}</textarea>${ui.questionError ? `<small class="error-text">${escapeHtml(ui.questionError)}</small>` : '<small class="field-help">最多 120 个字；重复问题不会再次添加。</small>'}</div></div><div class="modal-foot"><span>保存后可以生成选题</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="add-question"><span data-icon="plus"></span>添加问题</button></div></div>`, { wide: true });
 }
 
 function saveSelectedQuestions() {
@@ -14703,24 +14892,35 @@ function normalizeAiTopicCandidate(item, sourceQuestion, index, generationRunId 
 }
 
 async function questionsToTopics(questionIds = null) {
+  if (ui.topicGenerating) return showToast("选题正在生成", "当前生成任务完成后再继续操作，系统不会重复提交。", "warning");
   const line = activeBusinessLine();
   if (!line) return showToast("业务线不可用", "请先选择一个已启用的产品 / 业务线。", "error");
   const requestedIds = Array.isArray(questionIds) ? new Set(questionIds.map(String)) : null;
   const questions = state.questionLibrary.filter((question) => question.businessLineId === line.id && question.status === "active" && (requestedIds ? requestedIds.has(String(question.id)) : question.selected));
   if (!questions.length) return showToast("还没有选择问题", "请先勾选至少一个问题再生成选题。", "error");
+  ui.topicGenerating = true;
+  ui.topicGeneratingQuestionIds = questions.map((question) => String(question.id));
+  render();
   let providerId = selectedTextProviderId();
   if (!providerId) {
     await refreshAiProviders();
     providerId = selectedTextProviderId();
   }
-  if (!providerId) return showToast("尚未配置文本模型", "请先在系统设置 → 模型与 API 中绑定默认文本模型。", "error");
+  if (!providerId) {
+    ui.topicGenerating = false;
+    ui.topicGeneratingQuestionIds = [];
+    render();
+    return showToast("尚未配置文本模型", "请先在系统设置 → 模型与 API 中绑定默认文本模型。", "error");
+  }
   const pending = questions.filter((question) => !planningQuestionTopics(question).some((topic) => topic.status !== "archived"));
   if (!pending.length) {
+    ui.topicGenerating = false;
+    ui.topicGeneratingQuestionIds = [];
     ui.planningTab = "topics";
     render();
     return showToast("选题已经存在", "所选问题都已关联选题，已切换到选题库。");
   }
-  ui.topicGenerating = true;
+  ui.topicGeneratingQuestionIds = pending.map((question) => String(question.id));
   render();
   const batches = [];
   for (let index = 0; index < pending.length; index += 20) batches.push(pending.slice(index, index + 20));
@@ -14810,6 +15010,7 @@ async function questionsToTopics(questionIds = null) {
   }
 
   ui.topicGenerating = false;
+  ui.topicGeneratingQuestionIds = [];
   if (created.length) ui.planningTab = "topics";
   saveState();
   render();
@@ -15686,6 +15887,7 @@ function openContentPlan() {
 }
 
 function openTopicDirectStudio(topicId) {
+  if (studioGenerationBusy()) return showToast("文章正在生成", "当前文章生成完成后再继续，系统不会创建重复任务。", "warning");
   const topic = state.topics.find((item) => item.id === topicId);
   if (!topic || topic.status !== "active") return showToast("选题不可用", "该选题可能已归档，请刷新选题库后重试。", "error");
   const existingArticle = planningTopicArticles(topic)[0];
@@ -15730,7 +15932,7 @@ function openTopicDirectStudio(topicId) {
     conversation.selectedKnowledgeBaseIds = cloneData(inheritedBaseIds);
     conversation.selectedKnowledgeItemIds = [];
     conversation.webSearchEnabled = false;
-    conversation.messages = [{ id: uid("MSG"), role: "assistant", text: `已带入选题「${topic.title}」。核心回答问题是「${coreQuestion}」。你可以直接发送下方写作要求生成初稿，也可以先补充文章结构、语气或受众。`, createdAt: now, agentSnapshot, contextSnapshot: { businessLineId: line.id, sourceTopicId: topic.id, knowledgeBaseIds: cloneData(inheritedBaseIds), webSearchEnabled: false } }];
+    conversation.messages = [{ id: uid("MSG"), role: "assistant", text: `已带入选题「${topic.title}」。系统正在根据核心问题「${coreQuestion}」自动生成文章初稿；生成完成后可在这里继续调整。`, createdAt: now, agentSnapshot, contextSnapshot: { businessLineId: line.id, sourceTopicId: topic.id, knowledgeBaseIds: cloneData(inheritedBaseIds), webSearchEnabled: false } }];
     conversation.updatedAt = now;
   }
   ui.studioWorkspaceId = workspace.id;
@@ -15740,13 +15942,14 @@ function openTopicDirectStudio(topicId) {
   ui.studioAgentId = agent?.id || null;
   ui.studioWebSearch = false;
   ui.studioPicker = null;
-  ui.studioComposerDraft = "请基于这个选题和企业知识生成文章初稿";
+  ui.studioComposerDraft = "";
+  ui.studioGenerationPending = true;
   ui.contentView = "studio";
   ui.studioPane = "editor";
   saveState();
   closeModal();
   navigate("content");
-  window.setTimeout(() => document.getElementById("studio-composer-input")?.focus(), 40);
+  queueMicrotask(() => generateStudioArticle(workspace.topic?.prompt || topic.title, { automatic: true }));
 }
 
 function openTopicPlanPicker(topicId) {
@@ -16274,15 +16477,19 @@ function studioMessageSources(workspace, conversation) {
 }
 
 async function sendStudioChat() {
+  if (ui.studioSending || ui.studioGenerating) return showToast("文章正在生成", "请等待当前生成完成，系统不会重复发送。", "warning");
   const workspace = studioWorkspaceById(ui.studioWorkspaceId);
   const conversation = studioConversationForWorkspace(workspace);
   if (!workspace || !conversation) return;
   const input = document.getElementById("studio-composer-input");
   const prompt = (input?.value || ui.studioComposerDraft).trim();
   if (!prompt) return showToast("请输入调整要求", "例如：改成采购决策结构，并保留知识引用。", "error");
-  const article = syncStudioArticleEditor({ silent: true }) || studioArticleForWorkspace(workspace);
+  const article = studioArticleForWorkspace(workspace);
+  if (article) syncStudioArticleEditor({ silent: true });
   const agent = writingAgentById(conversation.selectedAgentId) || writingAgentById(workspace.writingAgentId);
   if (!agent || !writingAgentSupports(agent, workspace.businessLineId, workspace.contentType)) return showToast("写作智能体不可用", "请选择适用于当前业务线和内容形式的智能体。", "error");
+  ui.studioSending = true;
+  ui.studioComposerDraft = prompt;
   const agentSnapshot = snapshotWritingAgent(agent, { selectionSource: "studio_chat" });
   const attachments = (workspace.attachmentIds || []).map((id) => (state.contentAssets || []).find((asset) => asset.id === id)).filter(Boolean).map((asset) => ({ id: asset.id, name: asset.name, kind: asset.kind, reviewStatus: asset.reviewStatus }));
   const sources = studioMessageSources(workspace, conversation);
@@ -16298,16 +16505,23 @@ async function sendStudioChat() {
     webSearchEnabled: Boolean(conversation.webSearchEnabled)
   };
   if (!article) {
-    const editorBodyDraft = (document.getElementById("studio-content-editor")?.innerText || workspace.draftContent || "").trim();
-    const hasEditorDraft = Boolean((document.getElementById("studio-title-editor")?.value || workspace.draftTitle || "").trim() || editorBodyDraft);
+    const titleEditor = document.getElementById("studio-title-editor");
+    const bodyEditor = document.getElementById("studio-content-editor");
+    const editorBodyDraft = (bodyEditor?.innerText || workspace.draftContent || "").trim();
+    workspace.draftTitle = (titleEditor?.value || workspace.draftTitle || "").trim();
+    workspace.draftContent = editorBodyDraft;
+    workspace.draftContentHtml = sanitizeStudioHtml(bodyEditor?.innerHTML || workspace.draftContentHtml || "");
+    const hasEditorDraft = Boolean(workspace.draftTitle || editorBodyDraft);
     conversation.messages.push({ id: uid("MSG"), role: "user", text: prompt, createdAt: Date.now(), agentSnapshot, contextSnapshot, attachments });
     conversation.updatedAt = Date.now();
     workspace.updatedAt = conversation.updatedAt;
     ui.studioComposerDraft = "";
     ui.studioTopicDraft = prompt;
     saveState();
+    render();
     const generated = await generateStudioArticle(prompt, { fromChat: true, preserveDraft: hasEditorDraft });
     if (!generated) {
+      ui.studioSending = false;
       ui.studioComposerDraft = prompt;
       conversation.updatedAt = Date.now();
       workspace.updatedAt = conversation.updatedAt;
@@ -16327,11 +16541,14 @@ async function sendStudioChat() {
       conversation.updatedAt = Date.now();
       workspace.updatedAt = conversation.updatedAt;
       saveState();
-      render();
     }
+    ui.studioSending = false;
+    render();
     return;
   }
   conversation.messages.push({ id: uid("MSG"), role: "user", text: prompt, createdAt: Date.now(), agentSnapshot, contextSnapshot, attachments });
+  saveState();
+  render();
   const providerId = await ensureSelectedTextProviderId();
   const line = state.businessLines.find((item) => item.id === workspace.businessLineId && item.status === "active");
   const evidence = articleCitations(article).map((citation) => ({
@@ -16345,6 +16562,7 @@ async function sendStudioChat() {
     conversation.messages.push({ id: uid("MSG"), role: "assistant", text: failureText, createdAt: Date.now(), agentSnapshot, contextSnapshot, sources, attachments, proposal: null });
     conversation.updatedAt = Date.now();
     workspace.updatedAt = conversation.updatedAt;
+    ui.studioSending = false;
     ui.studioComposerDraft = prompt;
     saveState();
     render();
@@ -16367,6 +16585,7 @@ async function sendStudioChat() {
     conversation.messages.push({ id: uid("MSG"), role: "assistant", text: failureText, createdAt: Date.now(), agentSnapshot, contextSnapshot, sources, attachments, proposal: null });
     conversation.updatedAt = Date.now();
     workspace.updatedAt = conversation.updatedAt;
+    ui.studioSending = false;
     ui.studioComposerDraft = "";
     saveState();
     render();
@@ -16393,6 +16612,7 @@ async function sendStudioChat() {
   conversation.messages.push({ id: uid("MSG"), role: "assistant", text: responseText + (conversation.webSearchEnabled ? " 联网结果单独标为外部资料，不会当成企业知识证据。" : ""), createdAt: Date.now(), agentSnapshot, contextSnapshot, sources, attachments, proposal });
   conversation.updatedAt = Date.now();
   workspace.updatedAt = conversation.updatedAt;
+  ui.studioSending = false;
   ui.studioComposerDraft = "";
   saveState();
   render();
@@ -16456,8 +16676,12 @@ function discardStudioProposal(messageId) {
 }
 
 async function generateStudioArticle(topicOverride = "", options = {}) {
+  if (ui.studioGenerating && !ui.studioGenerationPending) return showToast("文章正在生成", "请等待当前生成完成，系统不会重复提交。", "warning");
   const workspace = studioWorkspaceById(ui.studioWorkspaceId);
-  if (!workspace || workspace.articleId) return;
+  if (!workspace || workspace.articleId) {
+    ui.studioGenerationPending = false;
+    return;
+  }
   const draftTitle = (document.getElementById("studio-title-editor")?.value || workspace.draftTitle || "").trim();
   const draftContentElement = document.getElementById("studio-content-editor");
   const draftContentHtml = sanitizeStudioHtml(draftContentElement?.innerHTML?.trim() || workspace.draftContentHtml || "");
@@ -16489,6 +16713,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
     const providerId = await ensureSelectedTextProviderId();
     if (!providerId) return showToast("尚未配置文本模型", "请先在系统设置 → 模型与 API 中绑定默认文本模型。", "error");
     const approvedEvidence = aiEvidencePayload(evidence);
+    ui.studioGenerationPending = false;
     ui.studioGenerating = true;
     saveState();
     render();
@@ -16520,6 +16745,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
       remoteGeneration = { ...remoteGeneration, html: remoteHtml, approvedEvidence };
     } catch (error) {
       ui.studioGenerating = false;
+      ui.studioGenerationPending = false;
       saveState();
       render();
       showToast("文章生成失败", error.message || "模型未返回符合 GEO 文章契约的结果，请重试。", "error");
@@ -16575,6 +16801,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
       article.author = `${currentActorName()} · 编辑`;
     }
   }
+  if (!options.manualOnly) applyAutomaticArticleImages(article, workspace, topic, line);
   article.keywords = [topic.keyword, "直接创作", line.name];
   article.generationSnapshot = { ...article.generationSnapshot, sourceType: article.sourceType, workspaceId: workspace.id, planId: null, topicSnapshot: cloneData(topic), sourceTopicId, sourceTopicSnapshot };
   if (article.generationSnapshot.outputContract) {
@@ -16608,8 +16835,17 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   ui.studioArticleId = article.id;
   ui.studioAgentId = agent.id;
   ui.studioGenerating = false;
+  ui.studioGenerationPending = false;
   saveState();
   render();
+  if (!options.manualOnly && article.imagePlan?.status !== "missing") {
+    article.contentSyncPending = true;
+    void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+      article.contentSyncPending = false;
+      article.contentSyncError = error.message || "自动配图同步失败";
+      saveState();
+    });
+  }
   showToast(options.manualOnly ? "草稿已保存" : "文章初稿已生成", options.manualOnly ? `已创建 ${article.id} · ${article.version}，可继续在右侧 AI 协作中写作。` : `已创建 ${article.id} · ${article.version}，可继续通过右侧 AI 对话调整。`);
   return article;
 }
@@ -16701,6 +16937,20 @@ function removeArticleAsset(articleId, assetId) {
   studioBumpArticleVersion(article, "asset_remove", "移除素材前");
   article.assetIds = article.assetIds.filter((id) => id !== assetId);
   article.content = removeArticleAssetMarkup(article.content, assetId);
+  if (article.imagePlan) {
+    article.imagePlan.placements = (article.imagePlan.placements || []).filter((item) => item.assetId !== assetId);
+    if (article.imagePlan.coverAssetId === assetId) {
+      const replacement = article.imagePlan.placements[0] || null;
+      article.imagePlan.coverAssetId = replacement?.assetId || null;
+      article.coverAssetId = replacement?.assetId || null;
+      article.coverImageUrl = replacement?.url || null;
+      article.coverImageAlt = replacement?.altText || "";
+      article.coverImageCaption = replacement?.caption || "";
+      if (replacement) replacement.role = "cover";
+    }
+    article.imagePlan.status = article.imagePlan.coverAssetId ? (article.imagePlan.placements.length > 1 ? "matched" : "partial") : "missing";
+    article.imagePlan.missing = article.imagePlan.coverAssetId ? (article.imagePlan.placements.length > 1 ? [] : ["body"]) : ["cover", "body"];
+  }
   studioResetArticleReview(article, "unscanned");
   article.updatedAt = Date.now();
   (state.writingWorkspaces || []).filter((workspace) => workspace.articleId === article.id).forEach((workspace) => {
@@ -16944,12 +17194,13 @@ async function executeContentPlan(planId) {
         knowledgeBaseIds: normalizeKnowledgeScope(plan).resolvedBaseIds
       });
       const article = applyRemoteArticleResult(articleFromTopic(topic, plan, index, requestedArticleId), remote);
+      applyAutomaticArticleImages(article, { ...plan, knowledgeScope: normalizeKnowledgeScope(plan) }, topic, line);
       article.geoQuality = evaluateGeoArticleQuality(article.content, topic, articleCitations(article));
       article.generationSnapshot.geoQuality = cloneData(article.geoQuality);
       state.articles.unshift(article);
       plan.articleIds.push(article.id);
       created.push(article);
-      if (!article.contentTaskId || !article.contentVersionId) {
+      if (!article.contentTaskId || !article.contentVersionId || article.imagePlan?.status !== "missing") {
         article.contentSyncPending = true;
         void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
           article.contentSyncPending = false;
@@ -17698,45 +17949,6 @@ function saveModel(modelKind) {
   showToast("默认模型已更新", `新${kind === "embedding" ? "知识索引" : "生成任务"}将使用“${modelName}”${provider ? `（${provider.name}）` : ""}；历史文章的模型快照保持不变。`);
 }
 
-async function saveMember(memberId) {
-  const existing = memberId ? state.settings.members.find((member) => member.id === memberId) : null;
-  const name = document.getElementById("member-name")?.value.trim() || "";
-  const email = document.getElementById("member-email")?.value.trim().toLowerCase() || "";
-  const username = document.getElementById("member-username")?.value.trim() || existing?.username || "";
-  const password = document.getElementById("member-password")?.value || "";
-  const role = document.getElementById("member-role")?.value || "operator";
-  const status = document.getElementById("member-status")?.value || "active";
-  if (!name || !username) return showToast("成员信息不完整", "请填写姓名和登录账号。", "error");
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showToast("邮箱格式不正确", "请填写有效的企业邮箱地址，或暂时留空。", "error");
-  if (!existing && password.length < 10) return showToast("初始密码过短", "初始密码至少需要 10 个字符。", "error");
-  if (existing && password && password.length < 10) return showToast("新密码过短", "重置密码至少需要 10 个字符。", "error");
-  const payload = { displayName: name, email, role, status, ...(!existing ? { username } : {}), ...(password ? { password } : {}) };
-  try {
-    await productionApi(existing ? `/api/v1/users/${encodeURIComponent(existing.id)}` : "/api/v1/users", { method: existing ? "PATCH" : "POST", body: payload });
-    await refreshProductionMembers();
-    closeModal();
-    render();
-    showToast(existing ? "成员配置已保存" : "成员账号已创建", existing ? "角色、状态和密码设置已由服务器更新。" : "成员可以使用登录账号和初始密码进入系统。");
-  } catch (error) {
-    showToast(existing ? "成员更新失败" : "成员创建失败", error.message || "请检查账号和角色设置。", "error");
-  }
-}
-
-async function deleteMember(memberId) {
-  const member = state.settings.members.find((item) => item.id === memberId);
-  if (!member) return;
-  if (!window.confirm(`确认删除成员“${member.name}”？该成员的所有登录会话会立即失效。`)) return;
-  try {
-    await productionApi(`/api/v1/users/${encodeURIComponent(memberId)}`, { method: "DELETE" });
-    await refreshProductionMembers();
-    closeModal();
-    render();
-    showToast("成员已删除", `“${member.name}”已从当前企业服务器移除。`);
-  } catch (error) {
-    showToast("成员删除失败", error.message || "请确认系统中仍有其他管理员。", "error");
-  }
-}
-
 function exportOperationLogs() {
   const source = auditSnapshot.loaded
     ? auditSnapshot.items.map((entry) => ({ occurredAt: entry.occurredAt, category: entry.action, actor: entry.actor, detail: `${entry.entityType}${entry.entityId ? ` · ${entry.entityId}` : ""}` }))
@@ -17822,6 +18034,15 @@ document.addEventListener("focusout", (event) => {
   if (point) monitoringHideTooltip(point);
 });
 document.addEventListener("click", async (event) => {
+  const templateOption = event.target.closest?.(".site-template-option[data-template-key]");
+  if (templateOption && templateOption.closest(".site-template-picker")) {
+    event.preventDefault();
+    const input = templateOption.querySelector('input[name="site-template-key"]');
+    if (!input) return;
+    input.checked = true;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    return;
+  }
   const consult = event.target.closest("[data-official-consult]");
   if (consult) {
     event.preventDefault();
@@ -18125,9 +18346,7 @@ document.addEventListener("click", async (event) => {
     return showToast("企业基础资料已保存", missing.length ? `当前完整度 ${state.enterpriseProfile.completion}%；还需补充${missing.join("、")}后才能形成完整 GEO 基线。` : "企业事实、证据和问题基线已经准备，可以进入选题中心。", missing.length ? "warning" : "success");
   }
   if (action === "preview-site") {
-    await flushSiteCmsDraftSync().catch(() => {});
-    ui.modal = { type: "sitePreview", pageId: "home" };
-    return renderModal();
+    return previewSelectedSiteTemplate();
   }
   if (action === "focus-seed") {
     ui.planningTab = "keywords";
@@ -18413,7 +18632,10 @@ document.addEventListener("click", async (event) => {
   if (action === "delete-keyword-candidates") return deleteKeywordCandidates(actionElement.dataset.packId, actionElement.dataset.dimension || "all");
   if (action === "focus-question") {
     ui.planningTab = "questions";
+    ui.questionError = "";
+    ui.modal = { type: "addQuestion" };
     render();
+    renderModal();
     return window.setTimeout(() => document.getElementById("question-input")?.focus(), 30);
   }
   if (action === "add-question") return addQuestionToLibrary();
@@ -18661,10 +18883,13 @@ document.addEventListener("click", async (event) => {
     const selection = ui.publishBatchSelection;
     const articles = (selection?.articleIds || []).map((id) => state.articles.find((article) => article.id === id)).filter(Boolean);
     const blocked = articles.filter((article) => !articlePublishEligibility(article).ok);
-    const websiteSelected = (selection?.platforms || []).includes("web");
+    const selectedPlatforms = selection?.platformOrder || selection?.platforms || [];
+    const websiteSelected = selectedPlatforms.includes("web");
+    const coverage = publishBatchTargetCoverage(articles, selectedPlatforms, publishBatchGroup());
     if (blocked.length) return showToast("还有文章不能发布", `${blocked.length} 篇文章未满足审核、风控或知识证据条件。`, "error");
+    if (!coverage.availableCount) return showToast("没有新的发布目标", "所选文章在这些平台都已有任务，请更换文章或平台。", "warning");
     if (!websiteSelected) return showToast("发布条件检查完成", "文章可以发布；本批次未选择官网主信源，后续引用分析可能缺少官方来源。", "warning");
-    return showToast("发布条件检查通过", `${articles.length} 篇文章、${selection.platforms.length} 个平台均满足当前演示规则。`);
+    return showToast("发布条件检查通过", `${coverage.actionableArticleCount} 篇文章将创建 ${coverage.availableCount} 条任务${coverage.existingCount ? `，另有 ${coverage.existingCount} 条已有任务会跳过` : ""}。`);
   }
   if (action === "submit-publish-batch") return submitPublishBatch().catch((error) => showToast("发布任务创建失败", error.message, "error"));
   if (action === "publish-approved") {
@@ -18912,12 +19137,12 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "site-page-save") return saveSitePage();
   if (action === "site-page-preview") {
-    await flushSiteCmsDraftSync().catch(() => {});
+    try { await flushSiteCmsDraftSync(); } catch (error) { showToast("预览准备失败", error.message || "官网草稿尚未保存。", "error"); return; }
     ui.modal = { type: "sitePreview", pageId: actionElement.dataset.pageId || ui.sitePageId };
     return renderModal();
   }
   if (action === "site-preview-reload") {
-    await flushSiteCmsDraftSync().catch(() => {});
+    try { await flushSiteCmsDraftSync(); } catch (error) { showToast("预览准备失败", error.message || "官网草稿尚未保存。", "error"); return; }
     const frame = document.getElementById("site-rendered-preview-frame");
     if (frame) frame.src = `${frame.src.split("&previewRefresh=")[0]}&previewRefresh=${Date.now()}`;
     return;
@@ -19159,7 +19384,6 @@ document.addEventListener("click", async (event) => {
     ui.settingsTab = actionElement.dataset.tab;
     render();
     if (ui.settingsTab === "models" && !aiProviderSnapshot.loaded) return refreshAiProviders({ renderAfter: true });
-    if (ui.settingsTab === "members") return refreshProductionMembers({ renderAfter: true });
     if (ui.settingsTab === "logs") return refreshProductionAudit({ renderAfter: true });
     return;
   }
@@ -19182,16 +19406,6 @@ document.addEventListener("click", async (event) => {
     return renderModal();
   }
   if (action === "save-model") return saveModel(actionElement.dataset.modelKind);
-  if (action === "invite-member") {
-    ui.modal = { type: "memberEditor" };
-    return renderModal();
-  }
-  if (action === "manage-member") {
-    ui.modal = { type: "memberEditor", memberId: actionElement.dataset.memberId };
-    return renderModal();
-  }
-  if (action === "save-member") return saveMember(actionElement.dataset.memberId || null);
-  if (action === "delete-member") return deleteMember(actionElement.dataset.memberId);
   if (action === "save-settings") {
     addOperationLog("系统设置", "保存当前客户空间的部署与工作流配置");
     saveState();
@@ -19470,6 +19684,12 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches('input[name="site-template-key"]')) {
+    const selected = event.target.value;
+    if (!syncSiteTemplateSelection(selected)) return;
+    showToast("整套模板已切换", "已切换首页、资讯、文章和公共页的结构；点击“保存官网模板”确认草稿版本。", "info");
+    return;
+  }
   if (event.target.matches("#content-generation-cadence")) {
     const interval = document.getElementById("content-generation-interval-field");
     if (interval) interval.style.display = event.target.value === "interval" ? "" : "none";
@@ -19801,12 +20021,6 @@ document.addEventListener("change", (event) => {
     const selected = new Set(ui.publishBatchSelection.articleIds || []);
     event.target.checked ? selected.add(event.target.dataset.publishBatchArticle) : selected.delete(event.target.dataset.publishBatchArticle);
     ui.publishBatchSelection.articleIds = [...selected];
-    const group = publishBatchGroup();
-    const selectedArticles = state.articles.filter((article) => ui.publishBatchSelection.articleIds.includes(article.id));
-    const available = new Set(PUBLISH_PLATFORM_REGISTRY.filter((entry) => publishBatchPlatformState(entry, group, selectedArticles).available).map((entry) => entry.id));
-    const order = (ui.publishBatchSelection.platformOrder || []).filter((platform) => available.has(platform));
-    ui.publishBatchSelection.platforms = order;
-    ui.publishBatchSelection.platformOrder = order;
     return render();
   }
   if (event.target.matches("[data-publish-batch-platform]")) {
@@ -20186,7 +20400,6 @@ async function startPrivateDeploymentApplication() {
   render();
   migrateFormalContentRecords().catch((error) => console.warn("Formal content migration failed", error));
   refreshAiProviders({ renderAfter: false }).catch(() => {});
-  refreshProductionMembers({ renderAfter: false }).catch(() => {});
   refreshProductionAudit({ renderAfter: false }).catch(() => {});
   refreshContentGenerationSchedules({ renderAfter: false }).catch(() => {});
   refreshPublisherSnapshot({ renderAfter: true }).catch(() => {});

@@ -10,8 +10,8 @@ import { WorkspaceStore } from "../workspace-store.mjs";
 
 const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-site-public-snapshot-"));
 const databasePath = path.join(temporaryDirectory, "public-snapshot.sqlite");
-const workspaceA = "tenant-building-materials";
-const workspaceB = "tenant-machinery";
+const workspaceA = "deployment-building-materials";
+const workspaceB = "deployment-machinery";
 let database;
 
 function cms(name) {
@@ -120,7 +120,7 @@ try {
     return true;
   });
 
-  console.log("Official-site published snapshot, draft isolation, article gate, tenant boundary, and immutable release checks passed.");
+  console.log("Official-site published snapshot, draft isolation, article gate, deployment boundary, and immutable release checks passed.");
 } finally {
   database?.close();
   await rm(temporaryDirectory, { recursive: true, force: true });

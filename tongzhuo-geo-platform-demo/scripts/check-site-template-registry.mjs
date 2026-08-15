@@ -11,7 +11,7 @@ import { SiteCmsStore } from "../site-cms-store.mjs";
 import { WorkspaceStore } from "../workspace-store.mjs";
 
 const directory = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-site-template-registry-"));
-const workspaceId = "tenant-site-template-registry";
+const workspaceId = "deployment-site-template-registry";
 const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
 let database;
 
@@ -33,20 +33,17 @@ function customerCms() {
 
 try {
   const templates = listSiteTemplates();
-  assert.equal(DEFAULT_SITE_TEMPLATE_KEY, "professional");
-  assert.deepEqual(templates.map((template) => template.key), ["professional", "industrial", "energy", "beauty", "engineering-case", "product-matrix"]);
-  assert.equal(resolveSiteTemplateKey("professional-services"), "professional");
-  assert.equal(resolveSiteTemplateKey("professional/editorial"), "professional");
-  assert.equal(resolveSiteTemplateKey("building-materials"), "industrial");
-  assert.equal(resolveSiteTemplateKey("industrial/building-materials"), "industrial");
-  assert.equal(resolveSiteTemplateKey("UPS"), "energy");
-  assert.equal(resolveSiteTemplateKey("technical/UPS-energy"), "energy");
-  assert.equal(resolveSiteTemplateKey("consumer"), "beauty");
-  assert.equal(resolveSiteTemplateKey("consumer/beauty"), "beauty");
-  assert.equal(resolveSiteTemplateKey("construction"), "engineering-case");
-  assert.equal(resolveSiteTemplateKey("project/engineering-case"), "engineering-case");
-  assert.equal(resolveSiteTemplateKey("multi-sku"), "product-matrix");
-  assert.equal(resolveSiteTemplateKey("catalog/product-matrix"), "product-matrix");
+  assert.equal(DEFAULT_SITE_TEMPLATE_KEY, "space-materials");
+  assert.deepEqual(templates.map((template) => template.key), ["space-materials", "power-systems", "supply-chain"]);
+  assert.equal(resolveSiteTemplateKey("professional"), "space-materials");
+  assert.equal(resolveSiteTemplateKey("industrial"), "space-materials");
+  assert.equal(resolveSiteTemplateKey("energy"), "power-systems");
+  assert.equal(resolveSiteTemplateKey("beauty"), "space-materials");
+  assert.equal(resolveSiteTemplateKey("engineering-case"), "space-materials");
+  assert.equal(resolveSiteTemplateKey("product-matrix"), "supply-chain");
+  assert.equal(resolveSiteTemplateKey("tiles"), "space-materials");
+  assert.equal(resolveSiteTemplateKey("ups-console"), "power-systems");
+  assert.equal(resolveSiteTemplateKey("logistics"), "supply-chain");
   assert.equal(resolveSiteTemplateKey("unknown"), DEFAULT_SITE_TEMPLATE_KEY);
   for (const template of templates) {
     assert.match(template.key, /^[a-z][a-z0-9-]*$/);
@@ -56,8 +53,9 @@ try {
 
   const themeCss = await readFile(path.resolve(moduleRoot, "..", "public-site", "themes", "templates.css"), "utf8");
   for (const template of templates) assert.match(themeCss, new RegExp(`\\.site-template-${template.key}\\b`));
-  assert.match(themeCss, /site-template-engineering-case[\s\S]*grid-template-columns:\s*minmax\(0,\s*\.72fr\)\s*minmax\(0,\s*1\.28fr\)/, "engineering template must provide a project-led case composition");
-  assert.match(themeCss, /site-template-product-matrix[\s\S]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/, "product matrix must provide a multi-item catalog composition");
+  assert.match(themeCss, /site-template-space-materials[\s\S]*space-hero/, "space-materials must provide an archive-led composition");
+  assert.match(themeCss, /site-template-power-systems[\s\S]*power-hero/, "power-systems must provide a control-room composition");
+  assert.match(themeCss, /site-template-supply-chain[\s\S]*flow-hero/, "supply-chain must provide a service-routing composition");
   assert.match(themeCss, /@media \(max-width: 680px\)/);
   assert.doesNotMatch(themeCss, /桐灼科技|客户案例|增长\s*\d|节省\s*\d|提升\s*\d/);
 
@@ -70,10 +68,13 @@ try {
 
   const cmsStore = new SiteCmsStore(database, { workspaceId });
   const publicStore = new PublicSiteStore({ database, cmsStore, workspaceId });
+  cmsStore.submitReview({ reason: "建立模板注册表首次发布基线" });
+  cmsStore.approve({ reason: "首次发布基线审核通过" });
+  cmsStore.publish({ expectedDraftRevision: cmsStore.draft().revision, note: "发布空间材料模板基线" });
   const originalPublication = publicStore.snapshot();
   const originalBusinessLines = structuredClone(originalPublication.site.businessLines);
-  let expectedPublishedTemplate = "professional";
-  assert.equal(originalPublication.site.theme.key, "professional");
+  let expectedPublishedTemplate = "space-materials";
+  assert.equal(originalPublication.site.theme.key, "space-materials");
 
   for (const template of templates) {
     const draftRecord = cmsStore.draft();
@@ -94,22 +95,22 @@ try {
     assert.match(html, /示例企业/);
     assert.doesNotMatch(html, /桐灼科技|灼见 GEO/, "template injected vendor/customer facts");
 
-    if (template.key === "product-matrix") {
+    if (template.key === "supply-chain") {
       cmsStore.submitReview({ reason: "模板注册表验收" });
       cmsStore.approve({ reason: "模板及客户内容通过审核" });
-      const publication = cmsStore.publish({ expectedDraftRevision: saved.revision, note: "发布产品矩阵模板快照" });
-      assert.equal(publication.snapshot.theme.key, "product-matrix");
-      assert.equal(publicStore.snapshot().site.theme.key, "product-matrix");
+      const publication = cmsStore.publish({ expectedDraftRevision: saved.revision, note: "发布物流供应链模板快照" });
+      assert.equal(publication.snapshot.theme.key, "supply-chain");
+      assert.equal(publicStore.snapshot().site.theme.key, "supply-chain");
       assert.equal(cmsStore.releases()[0].sourceDraftRevision, saved.revision);
-      expectedPublishedTemplate = "product-matrix";
+      expectedPublishedTemplate = "supply-chain";
       const nextDraft = cmsStore.draft();
       const resetCms = structuredClone(nextDraft.snapshot);
-      resetCms.theme.key = "professional";
+      resetCms.theme.key = "space-materials";
       cmsStore.saveDraft({ expectedRevision: nextDraft.revision, cms: resetCms });
     }
   }
 
-  console.log("Site template registry, six visual themes, shared CMS contract, preview isolation, published snapshot and responsive CSS checks passed.");
+  console.log("Site template registry, independent visual themes, shared CMS contract, preview isolation, published snapshot and responsive CSS checks passed.");
 } finally {
   database?.close();
   await rm(directory, { recursive: true, force: true });

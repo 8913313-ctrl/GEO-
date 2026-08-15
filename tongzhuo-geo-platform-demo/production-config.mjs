@@ -37,19 +37,15 @@ function secretEnv(name, fileName, unreadableCode = "RELAY_CLIENT_SECRET_FILE_UN
 }
 
 const dataDir = path.resolve(process.env.TZ_DATA_DIR || path.join(moduleRoot, "data"));
-const tenantId = String(process.env.TZ_TENANT_ID || "default").trim();
-
 export const productionConfig = Object.freeze({
   environment: String(process.env.NODE_ENV || "development").trim().toLowerCase(),
   host: String(process.env.TZ_BIND_HOST || "127.0.0.1").trim(),
   port: numberEnv("PORT", 43127, { min: 1, max: 65535 }),
-  // Customer-facing configuration has one project identity: tenant_id.
-  // GEOFlow keeps its established workspace_id database columns; workspaceId
-  // is the internal, one-way mapping of that same value rather than a second ID.
-  tenantId,
-  workspaceId: tenantId,
+  // This is a single-enterprise source deployment. The internal workspace
+  // column remains only for backward-compatible database reads.
+  workspaceId: "default",
   projectSeedKey: String(process.env.TZ_PROJECT_SEED || "").trim(),
-  projectId: String(process.env.TZ_PROJECT_ID || process.env.TZ_TENANT_ID || "default").trim(),
+  projectId: String(process.env.TZ_PROJECT_ID || "default").trim(),
   industryTemplate: String(process.env.TZ_INDUSTRY_TEMPLATE || "").trim(),
   dataDir,
   databasePath: path.resolve(process.env.TZ_DATABASE_PATH || path.join(dataDir, "tongzhuo-production.sqlite")),
@@ -96,12 +92,7 @@ export const productionConfig = Object.freeze({
 export function assertProductionConfiguration(config = productionConfig) {
   const problems = [];
   if (!config.host) problems.push("TZ_BIND_HOST 不能为空");
-  if (!config.tenantId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(config.tenantId)) {
-    problems.push("TZ_TENANT_ID 格式不正确，只能包含字母、数字、点、下划线、冒号和连字符，且最长 120 个字符");
-  }
-  if (config.workspaceId !== config.tenantId) {
-    problems.push("workspaceId 必须与 tenantId 完全一致，不能建立第二套客户身份");
-  }
+  if (config.workspaceId !== "default") problems.push("单企业源码部署的内部工作区必须固定为 default");
   if (!config.projectId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/.test(config.projectId)) {
     problems.push("TZ_PROJECT_ID 格式不正确，只能包含字母、数字、点、下划线、冒号和连字符，且最长 120 个字符");
   }

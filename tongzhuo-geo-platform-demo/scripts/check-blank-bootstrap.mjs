@@ -32,7 +32,7 @@ assert.match(source, /if \(!saved\) return migrateState\(cloneBlankState\(\)\)/,
 assert.match(source, /state = migrateState\(cloneBlankState\(\)\);/, "Reset must return to a neutral customer workspace.");
 
 const actorStart = source.indexOf("function currentActorName");
-const actorEnd = source.indexOf("function productionUserToMember", actorStart);
+const actorEnd = source.indexOf("function assignableMemberNames", actorStart);
 assert.ok(actorStart > 0 && actorEnd > actorStart, "Unable to isolate current-user helpers.");
 const actorSandbox = { window: { __TZ_AUTH__: { user: { username: "new-admin", displayName: "新客户管理员" } } } };
 vm.createContext(actorSandbox);

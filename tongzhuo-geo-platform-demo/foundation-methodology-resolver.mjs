@@ -39,7 +39,7 @@ export class FoundationMethodologyResolver {
     if (!workspace || !plan) throw new FoundationAssetError("workspaceId and planId are required to resolve methodology.", 422, "METHODOLOGY_CONTEXT_INVALID_INPUT");
     const row = this.connection.prepare(`
       SELECT cp.methodology_version_id, v.version, v.checksum, v.status,
-             p.id AS pack_id, p.key AS pack_key, p.scope, p.industry_template, p.tenant_id
+             p.id AS pack_id, p.key AS pack_key, p.scope, p.industry_template, p.workspace_id
       FROM content_plans cp
       LEFT JOIN methodology_versions v ON v.id = cp.methodology_version_id
       LEFT JOIN methodology_packs p ON p.id = v.pack_id
@@ -48,7 +48,7 @@ export class FoundationMethodologyResolver {
     if (!row) throw new FoundationAssetError("Content plan not found in the current private deployment.", 404, "CONTENT_PLAN_NOT_FOUND");
     if (!row.methodology_version_id) throw new FoundationAssetError("Content plan has no methodology version.", 409, "METHODOLOGY_VERSION_NOT_SELECTED");
     if (row.status !== "published") throw new FoundationAssetError("Content plan methodology must be published before generation.", 409, "METHODOLOGY_VERSION_NOT_PUBLISHED");
-    if (row.scope === "project" && row.tenant_id !== workspace) throw new FoundationAssetError("Project methodology belongs to another private deployment.", 403, "METHODOLOGY_TENANT_MISMATCH");
+    if (row.scope === "project" && row.workspace_id !== workspace) throw new FoundationAssetError("Project methodology belongs to another private deployment.", 403, "METHODOLOGY_WORKSPACE_MISMATCH");
 
     const reviews = this.connection.prepare(`
       SELECT rule_id, theme, rule_text, source_path, source_locator, source_sha256, classification
@@ -87,8 +87,8 @@ export class FoundationMethodologyResolver {
     const row = this.connection.prepare(`
       SELECT cp.prompt_version_id, cp.quality_rule_pack_id,
              pv.version AS prompt_version, pv.system_prompt, pv.user_template, pv.variables_schema_json, pv.output_schema_json, pv.quality_rules_json, pv.checksum AS prompt_checksum, pv.status AS prompt_status,
-             pt.key AS prompt_key, pt.scope AS prompt_scope, pt.industry_template AS prompt_industry, pt.tenant_id AS prompt_tenant,
-             qp.key AS quality_key, qp.version AS quality_version, qp.checksum AS quality_checksum, qp.rules_json, qp.status AS quality_status, qp.scope AS quality_scope, qp.industry_template AS quality_industry, qp.tenant_id AS quality_tenant
+             pt.key AS prompt_key, pt.scope AS prompt_scope, pt.industry_template AS prompt_industry, pt.workspace_id AS prompt_workspace,
+             qp.key AS quality_key, qp.version AS quality_version, qp.checksum AS quality_checksum, qp.rules_json, qp.status AS quality_status, qp.scope AS quality_scope, qp.industry_template AS quality_industry, qp.workspace_id AS quality_workspace
       FROM content_plans cp
       LEFT JOIN prompt_versions pv ON pv.id = cp.prompt_version_id
       LEFT JOIN prompt_templates pt ON pt.id = pv.template_id
@@ -98,8 +98,8 @@ export class FoundationMethodologyResolver {
     if (!row) throw new FoundationAssetError("Content plan not found in the current private deployment.", 404, "CONTENT_PLAN_NOT_FOUND");
     if (!row.prompt_version_id || !row.quality_rule_pack_id) throw new FoundationAssetError("Content plan must select a prompt version and quality rule pack before generation.", 409, "PROMPT_FOUNDATION_NOT_SELECTED");
     if (row.prompt_status !== "published" || row.quality_status !== "published") throw new FoundationAssetError("Content plan prompt and quality assets must be published before generation.", 409, "PROMPT_FOUNDATION_NOT_PUBLISHED");
-    for (const [kind, scope, tenant] of [["prompt", row.prompt_scope, row.prompt_tenant], ["quality", row.quality_scope, row.quality_tenant]]) {
-      if (scope === "project" && tenant !== workspace) throw new FoundationAssetError(`${kind} foundation asset belongs to another private deployment.`, 403, "PROMPT_FOUNDATION_TENANT_MISMATCH");
+    for (const [kind, scope, assetWorkspace] of [["prompt", row.prompt_scope, row.prompt_workspace], ["quality", row.quality_scope, row.quality_workspace]]) {
+      if (scope === "project" && assetWorkspace !== workspace) throw new FoundationAssetError(`${kind} foundation asset belongs to another private deployment.`, 403, "PROMPT_FOUNDATION_WORKSPACE_MISMATCH");
     }
     const variablesSchema = JSON.parse(row.variables_schema_json || "{}");
     const outputSchema = JSON.parse(row.output_schema_json || "{}");

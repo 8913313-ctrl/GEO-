@@ -16,7 +16,7 @@ function responseCapture() {
 
 try {
   database = new ProductionDatabase({ databasePath: path.join(temporaryDirectory, "monitoring-api.sqlite") });
-  const workspaceId = "tenant-monitoring-api";
+  const workspaceId = "deployment-monitoring-api";
   const contentStore = new ContentStore(database, { workspaceId, requireEvidence: false });
   const task = contentStore.createTask({ id: "TASK-MON-API", title: "监测 API 文章", businessLineId: "BL-MON" });
   contentStore.createArticle({ id: "ART-MON-API", taskId: task.id, title: "监测 API 文章", businessLineId: "BL-MON" });

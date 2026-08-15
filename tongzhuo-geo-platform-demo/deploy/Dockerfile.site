@@ -16,6 +16,7 @@ RUN if [ -f package-lock.json ]; then npm ci --omit=dev --ignore-scripts; else n
 # Citation Lab research database.  Keep its image intentionally small so a
 # website-only release can be rebuilt on production hosts with limited disk.
 COPY *.mjs ./
+COPY project-seeds ./project-seeds
 COPY public-site ./public-site
 RUN mkdir -p /app/data/logs /app/data/backups /app/data/secrets \
     && chown -R node:node /app

@@ -53,7 +53,7 @@ import { requireIndustryTemplate } from "./industry-templates/index.mjs";
 import { AuthError, AuthService, openProductionDatabase, PERMISSIONS, WorkspaceConflictError, WorkspaceStore } from "./production-foundation.mjs";
 
 const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
-const packageMetadata = JSON.parse(await readFile(path.join(moduleRoot, "package.json"), "utf8"));
+const packageMetadata = JSON.parse((await readFile(path.join(moduleRoot, "package.json"), "utf8")).replace(/^\uFEFF/, ""));
 const packagedSourceVersion = await readFile(path.join(moduleRoot, "SOURCE_VERSION"), "utf8").then((value) => value.trim()).catch(() => "");
 const runtimeBuild = Object.freeze({
   version: String(packageMetadata.version || "unknown"),
@@ -70,9 +70,6 @@ const projectIndustryTemplate = configured.industryTemplate || projectSeed?.indu
 const projectIndustryTemplateSnapshot = projectIndustryTemplate ? requireIndustryTemplate(projectIndustryTemplate) : null;
 if (projectSeed && projectSeed.projectId !== projectId) {
   throw new Error(`项目种子 ${projectSeed.key} 的 projectId 与 TZ_PROJECT_ID 不一致。`);
-}
-if (projectSeed && projectSeed.tenantId !== configured.tenantId) {
-  throw new Error(`项目种子 ${projectSeed.key} 的 tenantId 与 TZ_TENANT_ID 不一致。`);
 }
 const port = Number(process.argv[2] || configured.port);
 const database = openProductionDatabase({ databasePath: configured.databasePath });
@@ -847,7 +844,7 @@ function maskContact(value = "") {
 }
 
 function siteLeadRows({ canReadContact = false, status = "", ownerId = "", source = "", query = "" } = {}) {
-  const clauses = ["site_contact_leads.tenant_id = ?", "site_contact_leads.project_id = ?"];
+  const clauses = ["site_contact_leads.workspace_id = ?", "site_contact_leads.project_id = ?"];
   const values = [projectWorkspaceId, projectId];
   if (status) { clauses.push("site_contact_leads.status = ?"); values.push(status); }
   if (ownerId === "unassigned") clauses.push("site_contact_leads.owner_id IS NULL");
@@ -855,7 +852,7 @@ function siteLeadRows({ canReadContact = false, status = "", ownerId = "", sourc
   if (source) { clauses.push("site_contact_leads.source_page LIKE ?"); values.push(`%${source}%`); }
   if (query) { clauses.push("(site_contact_leads.name LIKE ? OR site_contact_leads.company LIKE ? OR site_contact_leads.need LIKE ?)"); values.push(`%${query}%`, `%${query}%`, `%${query}%`); }
   return database.connection.prepare(`
-    SELECT site_contact_leads.id, site_contact_leads.tenant_id, site_contact_leads.project_id,
+    SELECT site_contact_leads.id, site_contact_leads.workspace_id, site_contact_leads.project_id,
       site_contact_leads.name, site_contact_leads.company, site_contact_leads.phone_or_email, site_contact_leads.need,
       site_contact_leads.source_page, site_contact_leads.utm_json, site_contact_leads.status,
       site_contact_leads.follow_up_at, site_contact_leads.owner_id,
@@ -871,7 +868,7 @@ function siteLeadRows({ canReadContact = false, status = "", ownerId = "", sourc
   `).all(...values).map((row) => {
     const metadata = parseObject(row.metadata_json);
     return {
-      id: row.id, tenantId: row.tenant_id, projectId: row.project_id, name: row.name,
+      id: row.id, projectId: row.project_id, name: row.name,
       company: row.company, phoneOrEmail: canReadContact ? row.phone_or_email : maskContact(row.phone_or_email),
       phone: canReadContact ? row.phone_or_email : maskContact(row.phone_or_email), contactMasked: !canReadContact,
       need: row.need, sourcePage: row.source_page, utm: parseObject(row.utm_json), followUpAt: row.follow_up_at || null, ownerId: row.owner_id || null,
@@ -880,7 +877,7 @@ function siteLeadRows({ canReadContact = false, status = "", ownerId = "", sourc
       sourceUrl: row.source_page, sourcePage: row.source_page || "官网",
       status: row.status, owner: row.owner_display_name || metadata.owner || "未分配",
       nextFollowAt: row.follow_up_at || metadata.nextFollowAt || "", notes: metadata.notes || "",
-      history: database.connection.prepare(`SELECT f.id, f.event_type, f.status_from, f.status_to, f.note, f.follow_up_at, f.created_at, actor.display_name AS actor_name, owner.display_name AS owner_name FROM site_lead_follow_ups f LEFT JOIN users actor ON actor.id = f.created_by LEFT JOIN users owner ON owner.id = f.owner_to WHERE f.tenant_id = ? AND f.project_id = ? AND f.lead_id = ? ORDER BY f.created_at DESC, f.id DESC LIMIT 100`).all(row.tenant_id, row.project_id, row.id).map((item) => ({ id: item.id, eventType: item.event_type, statusFrom: item.status_from, status: item.status_to, note: item.note, nextFollowAt: item.follow_up_at || "", at: item.created_at, actor: item.actor_name || "系统", owner: item.owner_name || "未分配" })),
+      history: database.connection.prepare(`SELECT f.id, f.event_type, f.status_from, f.status_to, f.note, f.follow_up_at, f.created_at, actor.display_name AS actor_name, owner.display_name AS owner_name FROM site_lead_follow_ups f LEFT JOIN users actor ON actor.id = f.created_by LEFT JOIN users owner ON owner.id = f.owner_to WHERE f.workspace_id = ? AND f.project_id = ? AND f.lead_id = ? ORDER BY f.created_at DESC, f.id DESC LIMIT 100`).all(row.workspace_id, row.project_id, row.id).map((item) => ({ id: item.id, eventType: item.event_type, statusFrom: item.status_from, status: item.status_to, note: item.note, nextFollowAt: item.follow_up_at || "", at: item.created_at, actor: item.actor_name || "系统", owner: item.owner_name || "未分配" })),
       createdAt: row.created_at, updatedAt: row.updated_at
     };
   });
@@ -909,7 +906,7 @@ async function handleSiteCmsApi(request, response, parts) {
     const csvCell = (value) => { const safe = String(value ?? "").replaceAll('"', '""').replace(/^[=+\-@]/, "'$&"); return `"${safe}"`; };
     const labels = { new: "new", contacting: "contacting", qualified: "qualified", won: "won", lost: "lost", spam: "spam" };
     const table = [["lead_id", "name", "company", "masked_contact", "need", "source_page", "status", "owner", "follow_up_at", "created_at"], ...rows.map((lead) => [lead.id, lead.name, lead.company, lead.phoneOrEmail, lead.need, lead.sourcePage, labels[lead.status] || lead.status, lead.owner, lead.followUpAt || "", lead.createdAt])];
-    appendAuditLog(database.connection, { actorUserId: principal.userId, action: "site.lead.export", entityType: "site_lead", entityId: projectWorkspaceId, details: { tenantId: projectWorkspaceId, projectId, count: rows.length, masked: true }, request });
+    appendAuditLog(database.connection, { actorUserId: principal.userId, action: "site.lead.export", entityType: "site_lead", entityId: projectWorkspaceId, details: { projectId, count: rows.length, masked: true }, request });
     return rawResponse(response, 200, `\uFEFF${table.map((row) => row.map(csvCell).join(",")).join("\r\n")}`, "text/csv; charset=utf-8", { "Content-Disposition": `attachment; filename="site-leads-${new Date().toISOString().slice(0, 10)}.csv"` });
   }
   if (operation === "leads" && parts.length === 6 && parts[5] === "claim" && method === "POST") {
@@ -917,13 +914,13 @@ async function handleSiteCmsApi(request, response, parts) {
     const leadId = decodeURIComponent(parts[4]);
     const now = new Date().toISOString();
     const result = database.transaction(() => {
-      const row = database.connection.prepare("SELECT id, status, owner_id FROM site_contact_leads WHERE id = ? AND tenant_id = ? AND project_id = ?").get(leadId, projectWorkspaceId, projectId);
+      const row = database.connection.prepare("SELECT id, status, owner_id FROM site_contact_leads WHERE id = ? AND workspace_id = ? AND project_id = ?").get(leadId, projectWorkspaceId, projectId);
       if (!row) return null;
       if (row.owner_id && row.owner_id !== principal.userId) return { conflict: true };
       if (row.owner_id === principal.userId) return { replayed: true };
-      database.connection.prepare("UPDATE site_contact_leads SET owner_id = ?, updated_at = ? WHERE id = ? AND tenant_id = ? AND project_id = ?").run(principal.userId, now, leadId, projectWorkspaceId, projectId);
-      database.connection.prepare("INSERT INTO site_lead_follow_ups (id, tenant_id, project_id, lead_id, event_type, status_from, status_to, owner_from, owner_to, note, follow_up_at, created_by, created_at) VALUES (?, ?, ?, ?, 'claimed', ?, ?, NULL, ?, '', NULL, ?, ?)").run(`LFU-${randomUUID()}`, projectWorkspaceId, projectId, leadId, row.status, row.status, principal.userId, principal.userId, now);
-      appendAuditLog(database.connection, { actorUserId: principal.userId, action: "site.lead.claim", entityType: "site_lead", entityId: leadId, details: { tenantId: projectWorkspaceId, projectId, ownerId: principal.userId }, request });
+      database.connection.prepare("UPDATE site_contact_leads SET owner_id = ?, updated_at = ? WHERE id = ? AND workspace_id = ? AND project_id = ?").run(principal.userId, now, leadId, projectWorkspaceId, projectId);
+      database.connection.prepare("INSERT INTO site_lead_follow_ups (id, workspace_id, project_id, lead_id, event_type, status_from, status_to, owner_from, owner_to, note, follow_up_at, created_by, created_at) VALUES (?, ?, ?, ?, 'claimed', ?, ?, NULL, ?, '', NULL, ?, ?)").run(`LFU-${randomUUID()}`, projectWorkspaceId, projectId, leadId, row.status, row.status, principal.userId, principal.userId, now);
+      appendAuditLog(database.connection, { actorUserId: principal.userId, action: "site.lead.claim", entityType: "site_lead", entityId: leadId, details: { projectId, ownerId: principal.userId }, request });
       return { replayed: false };
     });
     if (!result) return jsonResponse(response, 404, { ok: false, code: "SITE_LEAD_NOT_FOUND", message: "线索不存在。" });
@@ -975,7 +972,7 @@ async function handleSiteCmsApi(request, response, parts) {
   if (operation === "leads" && parts.length === 5 && method === "PATCH") {
     const principal = await authService.requirePermission(request, PERMISSIONS.LEADS_MANAGE);
     const leadId = decodeURIComponent(parts[4]);
-    const row = database.connection.prepare("SELECT id, status, owner_id FROM site_contact_leads WHERE id = ? AND tenant_id = ? AND project_id = ?").get(leadId, projectWorkspaceId, projectId);
+    const row = database.connection.prepare("SELECT id, status, owner_id FROM site_contact_leads WHERE id = ? AND workspace_id = ? AND project_id = ?").get(leadId, projectWorkspaceId, projectId);
     if (!row) return jsonResponse(response, 404, { ok: false, code: "SITE_LEAD_NOT_FOUND", message: "线索不存在。" });
     const body = await requestJson(request, 100_000);
     const allowedStatuses = new Set(["new", "contacting", "qualified", "won", "lost", "spam"]);
@@ -989,9 +986,9 @@ async function handleSiteCmsApi(request, response, parts) {
     if (row.owner_id !== principal.userId) return jsonResponse(response, 409, { ok: false, code: "SITE_LEAD_CLAIM_REQUIRED", message: "请先认领该线索再记录跟进。" });
     const now = new Date().toISOString();
     database.transaction(() => {
-      database.connection.prepare("UPDATE site_contact_leads SET status = ?, follow_up_at = ?, updated_at = ? WHERE id = ? AND tenant_id = ? AND project_id = ?").run(status, nextFollowAt || null, now, leadId, projectWorkspaceId, projectId);
-      database.connection.prepare("INSERT INTO site_lead_follow_ups (id, tenant_id, project_id, lead_id, event_type, status_from, status_to, owner_from, owner_to, note, follow_up_at, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(`LFU-${randomUUID()}`, projectWorkspaceId, projectId, leadId, status === row.status ? "follow_up" : "status_changed", row.status, status, row.owner_id, row.owner_id, note, nextFollowAt || null, principal.userId, now);
-      appendAuditLog(database.connection, { actorUserId: principal.userId, action: status === row.status ? "site.lead.follow_up" : "site.lead.status_change", entityType: "site_lead", entityId: leadId, details: { tenantId: projectWorkspaceId, projectId, statusFrom: row.status, statusTo: status, followUpAt: nextFollowAt || null }, request });
+      database.connection.prepare("UPDATE site_contact_leads SET status = ?, follow_up_at = ?, updated_at = ? WHERE id = ? AND workspace_id = ? AND project_id = ?").run(status, nextFollowAt || null, now, leadId, projectWorkspaceId, projectId);
+      database.connection.prepare("INSERT INTO site_lead_follow_ups (id, workspace_id, project_id, lead_id, event_type, status_from, status_to, owner_from, owner_to, note, follow_up_at, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(`LFU-${randomUUID()}`, projectWorkspaceId, projectId, leadId, status === row.status ? "follow_up" : "status_changed", row.status, status, row.owner_id, row.owner_id, note, nextFollowAt || null, principal.userId, now);
+      appendAuditLog(database.connection, { actorUserId: principal.userId, action: status === row.status ? "site.lead.follow_up" : "site.lead.status_change", entityType: "site_lead", entityId: leadId, details: { projectId, statusFrom: row.status, statusTo: status, followUpAt: nextFollowAt || null }, request });
     });
     return jsonResponse(response, 200, { ok: true, data: { lead: siteLeadRows({ canReadContact: true }).find((item) => item.id === leadId) } });
   }
@@ -1407,7 +1404,7 @@ async function handlePublisherApi(request, response, parts, principal = null) {
     const expiresAt = new Date(Date.now() + Math.max(60_000, Math.min(30 * 24 * 60 * 60_000, Number(body.expiresInMs) || 7 * 24 * 60 * 60_000))).toISOString();
     const accountGroupId = String(body.accountGroupId || body.groupId || "group-default");
     const taskInputs = channels.map((channel) => {
-      const payload = { tenantId: projectWorkspaceId, contentId: gate.articleId, contentVersionId: gate.versionId, channel, contentHash: gate.version.contentHash, title: gate.version.title, content: publicContent, excerpt: gate.version.excerpt || "", accountGroupId, mode: body.mode === "scheduled" ? "scheduled" : "immediate", scheduledAt: body.scheduledAt || null };
+      const payload = { projectId, contentId: gate.articleId, contentVersionId: gate.versionId, channel, contentHash: gate.version.contentHash, title: gate.version.title, content: publicContent, excerpt: gate.version.excerpt || "", accountGroupId, mode: body.mode === "scheduled" ? "scheduled" : "immediate", scheduledAt: body.scheduledAt || null };
       const payloadJson = JSON.stringify(payload);
       return { id: `PUBTASK-${randomUUID()}`, channel, payload, payloadJson, payloadHash: createHash("sha256").update(payloadJson).digest("hex") };
     });
@@ -1415,19 +1412,19 @@ async function handlePublisherApi(request, response, parts, principal = null) {
       const existing = [];
       const created = [];
       for (const item of taskInputs) {
-        const row = database.connection.prepare("SELECT * FROM publication_tasks WHERE tenant_id = ? AND content_version_id = ? AND channel = ?").get(projectWorkspaceId, gate.versionId, item.channel);
+        const row = database.connection.prepare("SELECT * FROM publication_tasks WHERE workspace_id = ? AND content_version_id = ? AND channel = ?").get(projectWorkspaceId, gate.versionId, item.channel);
         if (row) {
           if (row.payload_hash !== item.payloadHash) throw new ContentError("同一文章版本和渠道的发布载荷与已冻结任务不一致。", 409, "PUBLICATION_TASK_PAYLOAD_CONFLICT");
           existing.push(row); continue;
         }
-        database.connection.prepare("INSERT INTO publication_tasks (id, tenant_id, content_id, content_version_id, channel, payload_hash, status, attempts, payload_json, created_by, created_at, expires_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', 0, ?, ?, ?, ?, ?)").run(item.id, projectWorkspaceId, gate.articleId, gate.versionId, item.channel, item.payloadHash, item.payloadJson, principal?.userId || null, createdAt, expiresAt, createdAt);
-        appendAuditLog(database.connection, { actorUserId: principal?.userId || null, action: "publication.task.create", entityType: "publication_task", entityId: item.id, details: { tenantId: projectWorkspaceId, contentId: gate.articleId, contentVersionId: gate.versionId, channel: item.channel, payloadHash: item.payloadHash }, request });
+        database.connection.prepare("INSERT INTO publication_tasks (id, workspace_id, content_id, content_version_id, channel, payload_hash, status, attempts, payload_json, created_by, created_at, expires_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', 0, ?, ?, ?, ?, ?)").run(item.id, projectWorkspaceId, gate.articleId, gate.versionId, item.channel, item.payloadHash, item.payloadJson, principal?.userId || null, createdAt, expiresAt, createdAt);
+        appendAuditLog(database.connection, { actorUserId: principal?.userId || null, action: "publication.task.create", entityType: "publication_task", entityId: item.id, details: { projectId, contentId: gate.articleId, contentVersionId: gate.versionId, channel: item.channel, payloadHash: item.payloadHash }, request });
         created.push(database.connection.prepare("SELECT * FROM publication_tasks WHERE id = ?").get(item.id));
       }
       return { existing, created };
     });
     const taskRows = [...reservation.existing, ...reservation.created];
-    const taskView = (row) => ({ id: row.id, tenantId: row.tenant_id, contentId: row.content_id, contentVersionId: row.content_version_id, channel: row.channel, payloadHash: row.payload_hash, status: row.status, attempts: Number(row.attempts), createdAt: row.created_at, expiresAt: row.expires_at, externalJobId: row.external_job_id || null });
+    const taskView = (row) => ({ id: row.id, projectId, contentId: row.content_id, contentVersionId: row.content_version_id, channel: row.channel, payloadHash: row.payload_hash, status: row.status, attempts: Number(row.attempts), createdAt: row.created_at, expiresAt: row.expires_at, externalJobId: row.external_job_id || null });
     if (!reservation.created.length) return jsonResponse(response, 200, { ok: true, duplicate: true, publicationTasks: taskRows.map(taskView), contentGate: { ok: true, versionId: gate.versionId } });
     const newChannels = reservation.created.map((row) => row.channel);
     let job;
@@ -1517,24 +1514,24 @@ async function handlePublisherWorkerApi(request, response, parts) {
     return jsonResponse(response, 200, { ok: true, data: { items: await publisherStore.jobs(device, query.get("limit")) } });
   }
   if (parts[1] === "jobs" && parts[2] && parts[3] === "claim" && request.method === "POST") {
-    const claimTasks = database.connection.prepare("SELECT id, status, expires_at FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
+    const claimTasks = database.connection.prepare("SELECT id, status, expires_at FROM publication_tasks WHERE workspace_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
     if (!claimTasks.length) throw new ContentError("正式发布任务不存在。", 404, "PUBLICATION_TASK_NOT_FOUND");
     if (claimTasks.every((task) => ["published", "draft_saved"].includes(task.status))) return jsonResponse(response, 200, { ok: true, data: await publisherStore.claimJob(device, parts[2]), duplicate: true });
     if (claimTasks.some((task) => task.status === "expired" || Date.parse(task.expires_at) <= Date.now())) {
       const now = new Date().toISOString();
-      database.connection.prepare("UPDATE publication_tasks SET status = 'expired', completed_at = COALESCE(completed_at, ?), updated_at = ? WHERE tenant_id = ? AND external_job_id = ? AND status NOT IN ('published', 'draft_saved')").run(now, now, projectWorkspaceId, String(parts[2]));
+      database.connection.prepare("UPDATE publication_tasks SET status = 'expired', completed_at = COALESCE(completed_at, ?), updated_at = ? WHERE workspace_id = ? AND external_job_id = ? AND status NOT IN ('published', 'draft_saved')").run(now, now, projectWorkspaceId, String(parts[2]));
       throw new ContentError("发布任务已过期。", 409, "PUBLICATION_TASK_EXPIRED");
     }
     const job = await publisherStore.claimJob(device, parts[2]);
     const now = new Date().toISOString();
     database.transaction(() => {
-      const tasks = database.connection.prepare("SELECT id, status, attempts, expires_at FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
+      const tasks = database.connection.prepare("SELECT id, status, attempts, expires_at FROM publication_tasks WHERE workspace_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
       if (!tasks.length) throw new ContentError("正式发布任务不存在。", 404, "PUBLICATION_TASK_NOT_FOUND");
       for (const task of tasks) {
         if (["published", "draft_saved"].includes(task.status)) continue;
         if (Date.parse(task.expires_at) <= Date.now()) { database.connection.prepare("UPDATE publication_tasks SET status = 'expired', completed_at = ?, updated_at = ? WHERE id = ?").run(now, now, task.id); continue; }
         database.connection.prepare("UPDATE publication_tasks SET status = 'claimed', claimed_by_device_id = ?, claimed_at = COALESCE(claimed_at, ?), updated_at = ? WHERE id = ?").run(device.id, now, now, task.id);
-        appendAuditLog(database.connection, { action: "publication.task.claim", entityType: "publication_task", entityId: task.id, details: { tenantId: projectWorkspaceId, externalJobId: String(parts[2]), deviceId: device.id, attempt: Number(task.attempts) + 1 }, request });
+        appendAuditLog(database.connection, { action: "publication.task.claim", entityType: "publication_task", entityId: task.id, details: { projectId, externalJobId: String(parts[2]), deviceId: device.id, attempt: Number(task.attempts) + 1 }, request });
       }
     });
     return jsonResponse(response, 200, { ok: true, data: job });
@@ -1543,14 +1540,14 @@ async function handlePublisherWorkerApi(request, response, parts) {
     const job = await publisherStore.startJob(device, parts[2]);
     const now = new Date().toISOString();
     database.transaction(() => {
-      const tasks = database.connection.prepare("SELECT id, status, attempts, expires_at, claimed_by_device_id FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
+      const tasks = database.connection.prepare("SELECT id, status, attempts, expires_at, claimed_by_device_id FROM publication_tasks WHERE workspace_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
       if (!tasks.length) throw new ContentError("正式发布任务不存在。", 404, "PUBLICATION_TASK_NOT_FOUND");
       for (const task of tasks) {
         if (task.claimed_by_device_id !== device.id) throw new ContentError("任务未由当前设备领取。", 409, "PUBLICATION_TASK_DEVICE_MISMATCH");
         if (["published", "draft_saved"].includes(task.status)) continue;
         if (Date.parse(task.expires_at) <= Date.now()) { database.connection.prepare("UPDATE publication_tasks SET status = 'expired', completed_at = ?, updated_at = ? WHERE id = ?").run(now, now, task.id); continue; }
         database.connection.prepare("UPDATE publication_tasks SET status = 'running', attempts = attempts + 1, next_attempt_at = NULL, updated_at = ? WHERE id = ? AND status IN ('claimed', 'queued')").run(now, task.id);
-        appendAuditLog(database.connection, { action: "publication.task.start", entityType: "publication_task", entityId: task.id, details: { tenantId: projectWorkspaceId, externalJobId: String(parts[2]), deviceId: device.id, attempt: Number(task.attempts) + 1 }, request });
+        appendAuditLog(database.connection, { action: "publication.task.start", entityType: "publication_task", entityId: task.id, details: { projectId, externalJobId: String(parts[2]), deviceId: device.id, attempt: Number(task.attempts) + 1 }, request });
       }
     });
     return jsonResponse(response, 200, { ok: true, data: job });
@@ -1563,7 +1560,7 @@ async function handlePublisherWorkerApi(request, response, parts) {
     const now = new Date().toISOString();
     const results = submittedResults;
     database.transaction(() => {
-      const tasks = database.connection.prepare("SELECT * FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
+      const tasks = database.connection.prepare("SELECT * FROM publication_tasks WHERE workspace_id = ? AND external_job_id = ?").all(projectWorkspaceId, String(parts[2]));
       if (!tasks.length) throw new ContentError("正式发布任务不存在。", 404, "PUBLICATION_TASK_NOT_FOUND");
       for (const task of tasks) {
         if (["published", "draft_saved"].includes(task.status)) continue;
@@ -1585,7 +1582,7 @@ async function handlePublisherWorkerApi(request, response, parts) {
         if (status === "published" && !/^https?:\/\//i.test(remoteUrl)) throw new ContentError("正式发布结果必须包含 HTTP/HTTPS URL。", 422, "PUBLICATION_REMOTE_URL_REQUIRED");
         if (status === "failed" && Number(task.attempts) < 3) { const retryBaseMs = Math.max(100, Math.min(10 * 60_000, Number(process.env.TZ_PUBLISHER_RETRY_BASE_MS) || 30_000)); status = "queued"; nextAttemptAt = new Date(Date.now() + Math.min(30 * 60_000, retryBaseMs * (2 ** Math.max(0, Number(task.attempts) - 1)))).toISOString(); }
         database.connection.prepare("UPDATE publication_tasks SET status = ?, remote_url = ?, error_code = ?, error_message = ?, result_json = ?, next_attempt_at = ?, completed_at = ?, updated_at = ? WHERE id = ?").run(status, remoteUrl, errorCode, errorMessage, JSON.stringify({ state: reportedState, remoteUrl, errorCode, errorMessage, dataOrigin }), nextAttemptAt, ["published", "draft_saved", "failed"].includes(status) ? now : null, now, task.id);
-        appendAuditLog(database.connection, { action: "publication.task.result", entityType: "publication_task", entityId: task.id, details: { tenantId: projectWorkspaceId, deviceId: device.id, status, reportedState, attempt: Number(task.attempts), remoteUrl: status === "published" ? remoteUrl : "", dataOrigin, errorCode, nextAttemptAt }, request });
+        appendAuditLog(database.connection, { action: "publication.task.result", entityType: "publication_task", entityId: task.id, details: { projectId, deviceId: device.id, status, reportedState, attempt: Number(task.attempts), remoteUrl: status === "published" ? remoteUrl : "", dataOrigin, errorCode, nextAttemptAt }, request });
       }
     });
     return jsonResponse(response, 200, { ok: true, data: job });
@@ -1752,7 +1749,7 @@ async function handleAiGenerationApi(request, response, parts, principal) {
     return jsonResponse(response, 405, { ok: false, code: "METHOD_NOT_ALLOWED", message: "AI 生成接口只接受 POST 请求。" });
   }
   const payload = await requestJson(request);
-  // Methodology context is always resolved from the current tenant's content
+  // Methodology context is always resolved from the current deployment's content
   // plan. Browser-supplied fragments are discarded to prevent rule injection.
   delete payload.methodologyContext;
   delete payload.promptFoundationContext;

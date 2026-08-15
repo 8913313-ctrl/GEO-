@@ -14,7 +14,6 @@ const base = `http://127.0.0.1:${port}`;
 const serverEnv = {
   ...process.env,
   NODE_ENV: "test",
-  TZ_TENANT_ID: "tenant-worker",
   TZ_PROJECT_ID: "worker-project",
   TZ_BIND_HOST: "127.0.0.1",
   TZ_COOKIE_SECURE: "0",
@@ -93,7 +92,7 @@ try {
   function seedArticle(suffix) {
     const articleId = `ART-WORKER-${suffix}`;
     const versionId = `ARTV-WORKER-${suffix}`;
-    db.connection.prepare("INSERT INTO content_articles (id, workspace_id, title, status, revision, created_at, updated_at, created_by, updated_by) VALUES (?, 'tenant-worker', ?, 'approved', 1, ?, ?, ?, ?)")
+    db.connection.prepare("INSERT INTO content_articles (id, workspace_id, title, status, revision, created_at, updated_at, created_by, updated_by) VALUES (?, 'default', ?, 'approved', 1, ?, ?, ?, ?)")
       .run(articleId, `测试文章 ${suffix}`, now, now, userId, userId);
     db.connection.prepare("INSERT INTO content_article_versions (id, article_id, version_number, title, content_html, content_text, excerpt, content_hash, source, review_status, risk_status, metadata_json, frozen_at, frozen_by, created_at, created_by) VALUES (?, ?, 1, ?, '<p>正文</p>', '正文', '', ?, 'human', 'approved', 'passed', '{}', ?, ?, ?, ?)")
       .run(versionId, articleId, `测试文章 ${suffix}`, suffix.padEnd(64, "a").slice(0, 64), now, userId, now, userId);
@@ -108,7 +107,7 @@ try {
       article: { id: articleId, title: `测试文章 ${suffix}`, content: "<p>正文</p>" },
       platforms: ["zhihu"], platformOrder: ["zhihu"], accountGroupId: "group-worker", maxAttempts: 3
     });
-    db.connection.prepare("INSERT INTO publication_tasks (id, tenant_id, content_id, content_version_id, channel, payload_hash, status, attempts, external_job_id, payload_json, created_by, created_at, expires_at, updated_at) VALUES (?, 'tenant-worker', ?, ?, 'zhihu', ?, 'queued', 0, ?, '{}', ?, ?, ?, ?)")
+    db.connection.prepare("INSERT INTO publication_tasks (id, workspace_id, content_id, content_version_id, channel, payload_hash, status, attempts, external_job_id, payload_json, created_by, created_at, expires_at, updated_at) VALUES (?, 'default', ?, ?, 'zhihu', ?, 'queued', 0, ?, '{}', ?, ?, ?, ?)")
       .run(`PUBTASK-WORKER-${suffix}`, articleId, versionId, randomBytes(32).toString("hex"), String(job.id), userId, now, new Date(Date.now() + 60_000).toISOString(), now);
     return job;
   }
@@ -162,9 +161,9 @@ try {
   assert.equal(draft.status, "draft_saved"); assert.equal(draft.attempts, 1);
   const failed = verify.connection.prepare("SELECT * FROM publication_tasks WHERE external_job_id = ?").get(String(failJob.id));
   assert.equal(failed.status, "failed"); assert.equal(failed.attempts, 3); assert.equal(failed.error_code, "PLATFORM_TIMEOUT"); assert.equal(failed.next_attempt_at, null);
-  const workerLookupPlan = verify.connection.prepare("EXPLAIN QUERY PLAN SELECT id, status, expires_at FROM publication_tasks WHERE tenant_id = ? AND external_job_id = ?").all("tenant-worker", String(successJob.id));
+  const workerLookupPlan = verify.connection.prepare("EXPLAIN QUERY PLAN SELECT id, status, expires_at FROM publication_tasks WHERE workspace_id = ? AND external_job_id = ?").all("default", String(successJob.id));
   assert.ok(workerLookupPlan.some((row) => /publication_tasks_worker_job_idx/.test(String(row.detail || ""))), "worker publication lookup must use the composite queue index");
-  const dueQueuePlan = verify.connection.prepare("EXPLAIN QUERY PLAN SELECT id FROM publication_tasks WHERE tenant_id = ? AND status = 'queued' AND (next_attempt_at IS NULL OR next_attempt_at <= ?) ORDER BY created_at, id LIMIT 100").all("tenant-worker", new Date().toISOString());
+  const dueQueuePlan = verify.connection.prepare("EXPLAIN QUERY PLAN SELECT id FROM publication_tasks WHERE workspace_id = ? AND status = 'queued' AND (next_attempt_at IS NULL OR next_attempt_at <= ?) ORDER BY created_at, id LIMIT 100").all("default", new Date().toISOString());
   assert.ok(dueQueuePlan.some((row) => /publication_tasks_due_queue_idx/.test(String(row.detail || ""))), "due publication queue lookup must use the composite due index");
   for (const action of ["publication.task.claim", "publication.task.start", "publication.task.result"]) assert.ok(verify.connection.prepare("SELECT 1 FROM audit_logs WHERE action = ?").get(action), action);
   verify.close();

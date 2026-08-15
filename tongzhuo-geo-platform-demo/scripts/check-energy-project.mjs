@@ -3,7 +3,7 @@ import { checkPrivateIndustryProject } from "./private-industry-project-check.mj
 await checkPrivateIndustryProject({
   seedKey: "energy-demo",
   projectId: "energy-demo",
-  tenantId: "tenant_energy_demo",
+  workspaceId: "energy-demo",
   industryTemplate: "energy-equipment",
   officialDomain: "energy-equipment.example.invalid",
   companyName: "UPS 能源设备行业演示项目",

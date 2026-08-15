@@ -9,7 +9,6 @@ x-app-build: &app-build
 
 x-common-env: &common-env
   NODE_ENV: production
-  TZ_TENANT_ID: ${TZ_TENANT_ID:?Set TZ_TENANT_ID in deploy/cutover.env}
   TZ_DATA_DIR: /app/data
   TZ_DATABASE_PATH: /app/data/tongzhuo-production.sqlite
   TZ_LOG_DIR: /app/data/logs

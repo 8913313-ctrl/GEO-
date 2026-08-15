@@ -33,7 +33,7 @@ async function startProject(seed) {
   databases.push(database);
   const runtime = createSiteRuntime({
     database,
-    workspaceId: seed.tenantId,
+    workspaceId: seed.projectId,
     projectId: seed.projectId,
     projectSeedKey: seed.key,
     staticRoot: root,
@@ -57,18 +57,18 @@ try {
   const buildingSeed = resolveProjectSeed("building-materials-demo");
   assert.ok(tongzhuoSeed && buildingSeed, "both customer projects must be registered seeds");
   assert.deepEqual(
-    { projectId: buildingSeed.projectId, tenantId: buildingSeed.tenantId, industryTemplate: buildingSeed.industryTemplate, demo: buildingSeed.demo },
-    { projectId: "building-materials-demo", tenantId: "tenant_building_materials_demo", industryTemplate: "building-materials", demo: true }
+    { projectId: buildingSeed.projectId, workspaceId: buildingSeed.projectId, industryTemplate: buildingSeed.industryTemplate, demo: buildingSeed.demo },
+    { projectId: "building-materials-demo", workspaceId: "building-materials-demo", industryTemplate: "building-materials", demo: true }
   );
 
   const tongzhuo = await startProject(tongzhuoSeed);
   const building = await startProject(buildingSeed);
   assert.notEqual(tongzhuo.database.databasePath, building.database.databasePath, "each customer must have an independent SQLite deployment");
 
-  const buildingSnapshot = new PublicSiteStore({ database: building.database, workspaceId: buildingSeed.tenantId, projectSeedKey: buildingSeed.key }).snapshot();
+  const buildingSnapshot = new PublicSiteStore({ database: building.database, workspaceId: buildingSeed.projectId, projectSeedKey: buildingSeed.key }).snapshot();
   assert.deepEqual(
-    { projectId: buildingSnapshot.site.projectId, tenantId: buildingSnapshot.site.tenantId, industryTemplate: buildingSnapshot.site.industryTemplate, demo: buildingSnapshot.site.demo },
-    { projectId: buildingSeed.projectId, tenantId: buildingSeed.tenantId, industryTemplate: "building-materials", demo: true }
+    { projectId: buildingSnapshot.site.projectId, workspaceId: buildingSnapshot.site.projectId, industryTemplate: buildingSnapshot.site.industryTemplate, demo: buildingSnapshot.site.demo },
+    { projectId: buildingSeed.projectId, workspaceId: buildingSeed.projectId, industryTemplate: "building-materials", demo: true }
   );
   assert.equal(buildingSnapshot.site.officialDomain, "building-materials.example.invalid");
 
@@ -98,11 +98,11 @@ try {
     body: JSON.stringify(leadPayload)
   });
   assert.equal(lead.response.status, 201, "building lead must be accepted by its own runtime");
-  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").get(buildingSeed.tenantId, buildingSeed.projectId).count, 1);
+  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").get(buildingSeed.projectId, buildingSeed.projectId).count, 1);
   assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads").get().count, 0, "a building lead must never enter Tongzhuo deployment");
 
-  const buildingCms = new SiteCmsStore(building.database, { workspaceId: buildingSeed.tenantId, projectSeedKey: buildingSeed.key });
-  const tongzhuoCms = new SiteCmsStore(tongzhuo.database, { workspaceId: tongzhuoSeed.tenantId, projectSeedKey: tongzhuoSeed.key });
+  const buildingCms = new SiteCmsStore(building.database, { workspaceId: buildingSeed.projectId, projectSeedKey: buildingSeed.key });
+  const tongzhuoCms = new SiteCmsStore(tongzhuo.database, { workspaceId: tongzhuoSeed.projectId, projectSeedKey: tongzhuoSeed.key });
   const buildingDraft = buildingCms.draft();
   const changedCms = structuredClone(buildingDraft.snapshot);
   changedCms.theme.primaryColor = "#356E56";
@@ -126,22 +126,22 @@ try {
   }
   assert.deepEqual(methodIds[0], { methodology: "MVER-GEO-CORE-V1", prompt: "PVER-GEO-ARTICLE-V1", quality: "QRULE-GEO-CONTENT-V1" });
   assert.deepEqual(methodIds[1], methodIds[0], "all private deployments must use the same versioned GEO core asset identifiers");
-  assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM site_cms_publications WHERE workspace_id = ?").get(buildingSeed.tenantId).count, 0, "Tongzhuo database must not contain building CMS publication rows");
-  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM site_cms_publications WHERE workspace_id = ?").get(tongzhuoSeed.tenantId).count, 0, "building database must not contain Tongzhuo CMS publication rows");
+  assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM site_cms_publications WHERE workspace_id = ?").get(buildingSeed.projectId).count, 0, "Tongzhuo database must not contain building CMS publication rows");
+  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM site_cms_publications WHERE workspace_id = ?").get(tongzhuoSeed.projectId).count, 0, "building database must not contain Tongzhuo CMS publication rows");
 
   const now = new Date().toISOString();
   for (const [deployment, seed, marker] of [[tongzhuo, tongzhuoSeed, "tongzhuo"], [building, buildingSeed, "building"]]) {
     deployment.database.connection.prepare("INSERT INTO knowledge_libraries (id, workspace_id, name, kind, scope, description, status, created_at, updated_at) VALUES (?, ?, ?, 'document', 'enterprise', ?, 'active', ?, ?)")
-      .run(`KB-P8-${marker}`, seed.tenantId, `P8 ${marker} knowledge`, `${marker} isolated knowledge`, now, now);
+      .run(`KB-P8-${marker}`, seed.projectId, `P8 ${marker} knowledge`, `${marker} isolated knowledge`, now, now);
     deployment.database.connection.prepare("INSERT INTO content_articles (id, workspace_id, title, category, status, metadata_json, created_at, updated_at) VALUES (?, ?, ?, 'P8', 'draft', '{}', ?, ?)")
-      .run(`ART-P8-${marker}`, seed.tenantId, `P8 ${marker} content`, now, now);
+      .run(`ART-P8-${marker}`, seed.projectId, `P8 ${marker} content`, now, now);
   }
-  assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(buildingSeed.tenantId).count, 0);
-  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(tongzhuoSeed.tenantId).count, 0);
-  assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id = ?").get(buildingSeed.tenantId).count, 0);
-  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id = ?").get(tongzhuoSeed.tenantId).count, 0);
-  assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM publication_tasks WHERE tenant_id = ?").get(buildingSeed.tenantId).count, 0);
-  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM publication_tasks WHERE tenant_id = ?").get(tongzhuoSeed.tenantId).count, 0);
+  assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(buildingSeed.projectId).count, 0);
+  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(tongzhuoSeed.projectId).count, 0);
+  assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id = ?").get(buildingSeed.projectId).count, 0);
+  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id = ?").get(tongzhuoSeed.projectId).count, 0);
+  assert.equal(tongzhuo.database.connection.prepare("SELECT COUNT(*) AS count FROM publication_tasks WHERE workspace_id = ?").get(buildingSeed.projectId).count, 0);
+  assert.equal(building.database.connection.prepare("SELECT COUNT(*) AS count FROM publication_tasks WHERE workspace_id = ?").get(tongzhuoSeed.projectId).count, 0);
 
   for (const runtime of runtimes.reverse()) await runtime.close();
   runtimes.length = 0;
@@ -153,14 +153,14 @@ try {
     const env = { TZ_DATA_DIR: dataDir, TZ_DATABASE_PATH: deployment.database.databasePath, TZ_BACKUP_DIR: path.join(dataDir, "backups"), TZ_DEPLOY_CONFIG_DIR: path.join(root, `${marker}-deploy`), TZ_SITE_STATIC_ROOT: path.join(root, `${marker}-site`) };
     const created = await createProductionBackup({ config, env, projectRoot, targetDir: backupDir, backupId: `P8-${marker}` });
     assert.equal((await verifyProductionBackup(created.targetDir)).format, "tongzhuo-private-backup-v2");
-    deployment.database.connection.prepare("DELETE FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").run(seed.tenantId, seed.projectId);
+    deployment.database.connection.prepare("DELETE FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").run(seed.projectId, seed.projectId);
     deployment.database.checkpoint("TRUNCATE");
     deployment.database.close();
     databases.splice(databases.indexOf(deployment.database), 1);
     await restoreProductionBackup({ config, env, projectRoot, sourceDir: created.targetDir, force: true, skipSafetySnapshot: true });
     const restored = new ProductionDatabase({ databasePath: deployment.database.databasePath });
-    assert.equal(restored.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(seed.tenantId).count, 1, `${marker} knowledge must survive its own backup restore`);
-    if (marker === "building") assert.equal(restored.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").get(seed.tenantId, seed.projectId).count, 1, "building lead must be restored only into building deployment");
+    assert.equal(restored.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(seed.projectId).count, 1, `${marker} knowledge must survive its own backup restore`);
+    if (marker === "building") assert.equal(restored.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").get(seed.projectId, seed.projectId).count, 1, "building lead must be restored only into building deployment");
     restored.close();
   }
 

@@ -15,7 +15,7 @@ const dataDir = path.join(tempRoot, "data");
 const siteDir = path.join(tempRoot, "site");
 const databasePath = path.join(dataDir, "tongzhuo-production.sqlite");
 const backupDir = path.join(tempRoot, "backup");
-const tenantId = "tenant_clean_delivery";
+const workspaceId = "default";
 const projectId = "clean-delivery-company";
 const appPort = await freePort();
 let sitePort = await freePort();
@@ -62,7 +62,6 @@ function spawnRuntime(entry, extraEnv = {}) {
       TZ_SITE_PORT: String(sitePort),
       TZ_SITE_BASE_URL: `http://127.0.0.1:${sitePort}`,
       TZ_SITE_STATIC_ROOT: siteDir,
-      TZ_TENANT_ID: tenantId,
       TZ_PROJECT_ID: projectId,
       TZ_INDUSTRY_TEMPLATE: "professional-services",
       TZ_PROJECT_SEED: "",
@@ -244,13 +243,13 @@ try {
   const backup = await createProductionBackup({ targetDir: backupDir, backupId: "CLEAN-DELIVERY-RUNTIME", projectRoot: appRoot, config: { dataDir, databasePath, backupDir: path.join(dataDir, "backups") }, env: { TZ_DATA_DIR: dataDir, TZ_DATABASE_PATH: databasePath, TZ_BACKUP_DIR: path.join(dataDir, "backups"), TZ_SITE_STATIC_ROOT: siteDir, TZ_DEPLOY_CONFIG_DIR: path.join(tempRoot, "deploy") } });
   assert.equal((await verifyProductionBackup(backup.targetDir)).format, "tongzhuo-private-backup-v2");
   const db = new DatabaseSync(databasePath);
-  db.prepare("UPDATE site_cms_workflow_state SET status = 'unpublished' WHERE workspace_id = ?").run(tenantId);
-  db.prepare("DELETE FROM workspace_state WHERE workspace_id = ?").run(tenantId);
+  db.prepare("UPDATE site_cms_workflow_state SET status = 'unpublished' WHERE workspace_id = ?").run(workspaceId);
+  db.prepare("DELETE FROM workspace_state WHERE workspace_id = ?").run(workspaceId);
   db.close();
   await restoreProductionBackup({ sourceDir: backup.targetDir, force: true, skipSafetySnapshot: true, projectRoot: appRoot, config: { dataDir, databasePath, backupDir: path.join(dataDir, "backups") }, env: { TZ_DATA_DIR: dataDir, TZ_DATABASE_PATH: databasePath, TZ_BACKUP_DIR: path.join(dataDir, "backups"), TZ_SITE_STATIC_ROOT: siteDir, TZ_DEPLOY_CONFIG_DIR: path.join(tempRoot, "deploy") } });
   const restored = new DatabaseSync(databasePath);
-  assert.equal(restored.prepare("SELECT COUNT(*) AS count FROM workspace_state WHERE workspace_id = ?").get(tenantId).count, 1);
-  assert.equal(restored.prepare("SELECT status FROM site_cms_workflow_state WHERE workspace_id = ?").get(tenantId).status, "published");
+  assert.equal(restored.prepare("SELECT COUNT(*) AS count FROM workspace_state WHERE workspace_id = ?").get(workspaceId).count, 1);
+  assert.equal(restored.prepare("SELECT status FROM site_cms_workflow_state WHERE workspace_id = ?").get(workspaceId).status, "published");
   restored.close();
   const restoredApp = spawnRuntime("server.mjs");
   await waitFor(restoredApp, async () => {

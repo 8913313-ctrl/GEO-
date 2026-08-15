@@ -37,25 +37,25 @@ try {
   const appliedAt = new Date().toISOString();
   for (const item of MIGRATIONS.filter((entry) => entry.version <= 21)) database.connection.prepare("INSERT INTO migrations (version, name, applied_at) VALUES (?, ?, ?)").run(item.version, item.name, appliedAt);
   const insertLegacy = database.connection.prepare("INSERT INTO site_contact_leads (id, workspace_id, name, phone, company, message, source_url, status, user_agent, metadata_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '{}', ?, ?)");
-  insertLegacy.run("LEGACY-CONTACTED", "tenant-legacy", "旧联系客户", "13800000001", "旧企业", "旧需求一", "https://legacy.example/contact", "contacted", appliedAt, appliedAt);
-  insertLegacy.run("LEGACY-CLOSED", "tenant-legacy", "旧关闭客户", "legacy@example.test", "旧企业", "旧需求二", "https://legacy.example/home", "closed", appliedAt, appliedAt);
+  insertLegacy.run("LEGACY-CONTACTED", "deployment-legacy", "旧联系客户", "13800000001", "旧企业", "旧需求一", "https://legacy.example/contact", "contacted", appliedAt, appliedAt);
+  insertLegacy.run("LEGACY-CLOSED", "deployment-legacy", "旧关闭客户", "legacy@example.test", "旧企业", "旧需求二", "https://legacy.example/home", "closed", appliedAt, appliedAt);
   database.close(); database = new ProductionDatabase({ databasePath: migrationDatabasePath });
-  const migrated = database.connection.prepare("SELECT id, workspace_id, tenant_id, project_id, phone_or_email, need, source_page, status FROM site_contact_leads ORDER BY id").all();
+  const migrated = database.connection.prepare("SELECT id, workspace_id, project_id, phone_or_email, need, source_page, status FROM site_contact_leads ORDER BY id").all();
   assert.deepEqual(migrated.map((row) => row.status), ["lost", "contacting"]);
-  assert.ok(migrated.every((row) => row.workspace_id === row.tenant_id && row.project_id === row.tenant_id));
+  assert.ok(migrated.every((row) => row.project_id === row.workspace_id));
   assert.equal(migrated.find((row) => row.id === "LEGACY-CONTACTED").phone_or_email, "13800000001");
   assert.equal(migrated.find((row) => row.id === "LEGACY-CLOSED").need, "旧需求二");
 
-  // New writes carry canonical tenant/project fields, UTM and privacy-safe response.
-  const tenantA = new PublicLeadStore(database, { workspaceId: "tenant-a", projectId: "project-building" });
-  const tenantB = new PublicLeadStore(database, { workspaceId: "tenant-b", projectId: "project-machinery" });
-  const createdA = tenantA.create({ name: "建材客户", phone: "13900001234", company: "建材企业", message: "需要 GEO 诊断", source_url: "https://building.example/contact", utm_source: "wechat", utm_campaign: "summer" }, { idempotencyKey: "lead-contract-building-0001" });
-  tenantB.create({ name: "机械客户", phone: "machinery@example.test", company: "机械企业", message: "需要产品信源", source_url: "https://machinery.example/contact" }, { idempotencyKey: "lead-contract-machinery-0001" });
+  // New writes carry canonical workspace/project fields, UTM and privacy-safe response.
+  const deploymentA = new PublicLeadStore(database, { workspaceId: "deployment-a", projectId: "project-building" });
+  const deploymentB = new PublicLeadStore(database, { workspaceId: "deployment-b", projectId: "project-machinery" });
+  const createdA = deploymentA.create({ name: "建材客户", phone: "13900001234", company: "建材企业", message: "需要 GEO 诊断", source_url: "https://building.example/contact", utm_source: "wechat", utm_campaign: "summer" }, { idempotencyKey: "lead-contract-building-0001" });
+  deploymentB.create({ name: "机械客户", phone: "machinery@example.test", company: "机械企业", message: "需要产品信源", source_url: "https://machinery.example/contact" }, { idempotencyKey: "lead-contract-machinery-0001" });
   assert.deepEqual(Object.keys(createdA).sort(), ["createdAt", "id", "replayed", "status"], "public create response must not echo contact details");
-  const canonicalA = database.connection.prepare("SELECT tenant_id, project_id, phone_or_email, need, source_page, utm_json, status, follow_up_at, owner_id FROM site_contact_leads WHERE id = ?").get(createdA.id);
-  assert.deepEqual({ ...canonicalA, utm_json: JSON.parse(canonicalA.utm_json) }, { tenant_id: "tenant-a", project_id: "project-building", phone_or_email: "13900001234", need: "需要 GEO 诊断", source_page: "https://building.example/contact", utm_json: { source: "wechat", campaign: "summer" }, status: "new", follow_up_at: null, owner_id: null });
+  const canonicalA = database.connection.prepare("SELECT workspace_id, project_id, phone_or_email, need, source_page, utm_json, status, follow_up_at, owner_id FROM site_contact_leads WHERE id = ?").get(createdA.id);
+  assert.deepEqual({ ...canonicalA, utm_json: JSON.parse(canonicalA.utm_json) }, { workspace_id: "deployment-a", project_id: "project-building", phone_or_email: "13900001234", need: "需要 GEO 诊断", source_page: "https://building.example/contact", utm_json: { source: "wechat", campaign: "summer" }, status: "new", follow_up_at: null, owner_id: null });
   assert.throws(() => database.connection.prepare("UPDATE site_contact_leads SET status = 'closed' WHERE id = ?").run(createdA.id), /constraint failed|site lead contract violation/i);
-  assert.throws(() => database.connection.prepare("UPDATE site_contact_leads SET tenant_id = 'tenant-b' WHERE id = ?").run(createdA.id), /constraint failed|site lead contract violation/i);
+  assert.throws(() => database.connection.prepare("UPDATE site_contact_leads SET workspace_id = 'deployment-b' WHERE id = ?").run(createdA.id), /immutable/i);
   database.close(); database = null;
 
   // HTTP role privacy: admin/operator may handle contacts; reviewer/viewer get
@@ -120,7 +120,7 @@ try {
     else { assert.equal(lead.phoneOrEmail, "138****5678"); assert.doesNotMatch(JSON.stringify(lead), /13812345678/); }
   }
 
-  console.log("Official-site lead migration, canonical fields, status constraint, tenant/project boundary, UTM, public privacy, and role masking checks passed.");
+  console.log("Official-site lead migration, canonical fields, status constraint, deployment/project boundary, UTM, public privacy, and role masking checks passed.");
 } finally {
   database?.close();
   await siteRuntime?.close();

@@ -104,7 +104,7 @@ export function createDiagnosticApi({ diagnosticStore, requestJson, configured =
       return response.json(200, { ok: true, data: await relayService.pullDeliveries({ limit: body.limit }) });
     }
     if (relayService && parts.length === 4 && parts[3] === "relay-runs" && method === "GET") {
-      // The customer UI needs a tenant-scoped task centre.  Keep the relay
+      // The customer UI needs a deployment-scoped task centre. Keep the relay
       // link as the lifecycle source of truth, and return only local runs and
       // evidence that have already been persisted in this customer instance.
       const query = queryOf(request);

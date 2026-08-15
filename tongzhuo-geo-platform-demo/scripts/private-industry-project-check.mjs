@@ -59,8 +59,8 @@ export async function checkPrivateIndustryProject(spec) {
     const seed = resolveProjectSeed(spec.seedKey);
     assert.ok(seed, `${spec.seedKey} must be a registered project seed`);
     assert.deepEqual(
-      { projectId: seed.projectId, tenantId: seed.tenantId, industryTemplate: seed.industryTemplate, demo: seed.demo },
-      { projectId: spec.projectId, tenantId: spec.tenantId, industryTemplate: spec.industryTemplate, demo: true }
+      { projectId: seed.projectId, industryTemplate: seed.industryTemplate, demo: seed.demo },
+      { projectId: spec.projectId, industryTemplate: spec.industryTemplate, demo: true }
     );
     assert.equal(new URL(seed.companyProfile.officialDomain).hostname, spec.officialDomain);
 
@@ -74,7 +74,7 @@ export async function checkPrivateIndustryProject(spec) {
     database = new ProductionDatabase({ databasePath });
     runtime = createSiteRuntime({
       database,
-      workspaceId: seed.tenantId,
+      workspaceId: spec.workspaceId,
       projectId: seed.projectId,
       projectSeedKey: seed.key,
       staticRoot: root,
@@ -87,7 +87,7 @@ export async function checkPrivateIndustryProject(spec) {
     const address = await runtime.listen(0);
     const base = `http://127.0.0.1:${address.port}`;
 
-    const cmsStore = new SiteCmsStore(database, { workspaceId: seed.tenantId, projectSeedKey: seed.key });
+    const cmsStore = new SiteCmsStore(database, { workspaceId: spec.workspaceId, projectSeedKey: seed.key });
     const publication = cmsStore.publication();
     const draft = cmsStore.draft();
     assert.equal(publication.checksum, draft.checksum, "new customer initialization must create matching draft and public snapshots");
@@ -99,9 +99,8 @@ export async function checkPrivateIndustryProject(spec) {
     }
     assert.doesNotMatch(JSON.stringify(publication.snapshot), spec.forbiddenIdentity, "customer CMS must not inherit another customer's identity");
 
-    const publicSnapshot = new PublicSiteStore({ database, workspaceId: seed.tenantId, projectSeedKey: seed.key }).snapshot();
+    const publicSnapshot = new PublicSiteStore({ database, workspaceId: spec.workspaceId, projectSeedKey: seed.key }).snapshot();
     assert.equal(publicSnapshot.site.projectId, seed.projectId);
-    assert.equal(publicSnapshot.site.tenantId, seed.tenantId);
     assert.equal(publicSnapshot.site.industryTemplate, seed.industryTemplate);
     assert.equal(publicSnapshot.site.officialDomain, spec.officialDomain);
     const pages = ["/", "/services/", "/cases/", "/about/", "/problem-map/", "/contact/", `/problem-map/${spec.questionSlugs[0]}/`, "/sitemap.xml", "/llms.txt", "/llms-full.txt"];
@@ -122,17 +121,17 @@ export async function checkPrivateIndustryProject(spec) {
       body: JSON.stringify(leadPayload)
     });
     assert.equal(acceptedLead.response.status, 201, "customer lead must be accepted by its own runtime");
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").get(seed.tenantId, seed.projectId).count, 1);
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id != ? OR project_id != ?").get(seed.tenantId, seed.projectId).count, 0, "lead storage must contain only this private project");
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").get(spec.workspaceId, seed.projectId).count, 1);
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id != ? OR project_id != ?").get(spec.workspaceId, seed.projectId).count, 0, "lead storage must contain only this private project");
 
     const timestamp = new Date().toISOString();
     database.connection.prepare("INSERT INTO knowledge_libraries (id, workspace_id, name, kind, scope, description, status, created_at, updated_at) VALUES (?, ?, ?, 'document', 'enterprise', ?, 'active', ?, ?)")
-      .run(`KB-${spec.articlePrefix}`, seed.tenantId, `${spec.companyName} 企业知识库`, spec.evidenceClaim, timestamp, timestamp);
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(seed.tenantId).count, 1, "new customer knowledge must be stored in its own workspace");
+      .run(`KB-${spec.articlePrefix}`, spec.workspaceId, `${spec.companyName} 企业知识库`, spec.evidenceClaim, timestamp, timestamp);
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(spec.workspaceId).count, 1, "new customer knowledge must be stored in its own workspace");
 
     const evidence = evidenceFor(spec.articlePrefix, spec.evidenceClaim);
     const content = new ContentStore(database, {
-      workspaceId: seed.tenantId,
+      workspaceId: spec.workspaceId,
       requireEvidence: true,
       evidenceValidator(items, context) {
         assert.equal(context.allowInternal, false, "public content must reject internal-only evidence");
@@ -151,29 +150,29 @@ export async function checkPrivateIndustryProject(spec) {
       "draft content must not be directly approved"
     );
     content.recordRiskScan({ articleId: article.id, versionId: version.id, status: "passed", policyVersion: "private-industry-project-v1", findings: [], summary: { score: 100 } });
-    const pending = content.submitReview({ articleId: article.id, versionId: version.id, expectedRevision: content.article(seed.tenantId, article.id).revision });
+    const pending = content.submitReview({ articleId: article.id, versionId: version.id, expectedRevision: content.article(spec.workspaceId, article.id).revision });
     assert.equal(pending.reviewStatus, "pending");
     assert.equal(content.canPublish(article.id, version.id).code, "CONTENT_REVIEW_REQUIRED", "pending content must not be public");
-    const approved = content.approveAndFreeze({ articleId: article.id, versionId: version.id, expectedRevision: content.article(seed.tenantId, article.id).revision });
+    const approved = content.approveAndFreeze({ articleId: article.id, versionId: version.id, expectedRevision: content.article(spec.workspaceId, article.id).revision });
     assert.equal(approved.reviewStatus, "approved");
     assert.ok(approved.frozenAt);
     assert.equal(content.canPublish(article.id, version.id).ok, true);
     const published = content.publish({
       articleId: article.id,
       versionId: version.id,
-      expectedRevision: content.article(seed.tenantId, article.id).revision,
+      expectedRevision: content.article(spec.workspaceId, article.id).revision,
       category: spec.articleCategory,
       metadata: { siteSlug: spec.articleSlug, siteAuthor: spec.companyName, siteExcerpt: spec.articleExcerpt }
     });
     assert.equal(published.article.status, "published");
-    assert.equal(content.task(seed.tenantId, task.id).status, "completed");
+    assert.equal(content.task(spec.workspaceId, task.id).status, "completed");
 
     const articlePage = await request(base, `/insights/${spec.articleSlug}/`);
     assert.equal(articlePage.response.status, 200, "approved and published content must appear on the customer website");
     assert.match(articlePage.text, new RegExp(escaped(spec.articleTitle)));
     assert.doesNotMatch(articlePage.text, spec.forbiddenIdentity);
-    assert.equal(new PublicSiteStore({ database, workspaceId: seed.tenantId, projectSeedKey: seed.key }).snapshot().articles.length, 1);
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM publication_tasks WHERE tenant_id != ?").get(seed.tenantId).count, 0, "publication task storage must not contain another tenant");
+    assert.equal(new PublicSiteStore({ database, workspaceId: spec.workspaceId, projectSeedKey: seed.key }).snapshot().articles.length, 1);
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM publication_tasks WHERE workspace_id != ?").get(spec.workspaceId).count, 0, "publication task storage must not contain another deployment");
 
     await runtime.close();
     runtime = null;
@@ -182,21 +181,21 @@ export async function checkPrivateIndustryProject(spec) {
     const backup = backupOptions(root, databasePath, spec.seedKey);
     const created = await createProductionBackup({ ...backup, projectRoot, targetDir: backupDir, backupId: `CHECK-${spec.articlePrefix}` });
     assert.equal((await verifyProductionBackup(created.targetDir)).format, "tongzhuo-private-backup-v2");
-    database.connection.prepare("DELETE FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").run(seed.tenantId, seed.projectId);
-    database.connection.prepare("UPDATE content_articles SET status = 'approved' WHERE workspace_id = ?").run(seed.tenantId);
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id = ? AND status = 'published'").get(seed.tenantId).count, 0, "the pre-restore mutation must remove public article status");
+    database.connection.prepare("DELETE FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").run(spec.workspaceId, seed.projectId);
+    database.connection.prepare("UPDATE content_articles SET status = 'approved' WHERE workspace_id = ?").run(spec.workspaceId);
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id = ? AND status = 'published'").get(spec.workspaceId).count, 0, "the pre-restore mutation must remove public article status");
     database.checkpoint("TRUNCATE");
     database.close();
     database = null;
     await restoreProductionBackup({ ...backup, projectRoot, sourceDir: created.targetDir, force: true, skipSafetySnapshot: true });
     database = new ProductionDatabase({ databasePath });
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").get(seed.tenantId, seed.projectId).count, 1, "the customer lead must survive its own backup restore");
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id = ? AND status = 'published'").get(seed.tenantId).count, 1, "published customer content must survive its own backup restore");
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(seed.tenantId).count, 1, "customer knowledge must survive its own backup restore");
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id != ? OR project_id != ?").get(seed.tenantId, seed.projectId).count, 0, "restore must not introduce another customer project");
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id != ?").get(seed.tenantId).count, 0, "restore must not introduce another customer's content");
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id != ?").get(seed.tenantId).count, 0, "restore must not introduce another customer's knowledge");
-    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM publication_tasks WHERE tenant_id != ?").get(seed.tenantId).count, 0, "restore must not introduce another customer's publication tasks");
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").get(spec.workspaceId, seed.projectId).count, 1, "the customer lead must survive its own backup restore");
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id = ? AND status = 'published'").get(spec.workspaceId).count, 1, "published customer content must survive its own backup restore");
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id = ?").get(spec.workspaceId).count, 1, "customer knowledge must survive its own backup restore");
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id != ? OR project_id != ?").get(spec.workspaceId, seed.projectId).count, 0, "restore must not introduce another customer project");
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM content_articles WHERE workspace_id != ?").get(spec.workspaceId).count, 0, "restore must not introduce another customer's content");
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM knowledge_libraries WHERE workspace_id != ?").get(spec.workspaceId).count, 0, "restore must not introduce another customer's knowledge");
+    assert.equal(database.connection.prepare("SELECT COUNT(*) AS count FROM publication_tasks WHERE workspace_id != ?").get(spec.workspaceId).count, 0, "restore must not introduce another customer's publication tasks");
 
     console.log(`${spec.seedKey}: initialization, industry adaptation, question seeds, review/publish gates, website identity, lead isolation and backup/restore checks passed.`);
   } finally {

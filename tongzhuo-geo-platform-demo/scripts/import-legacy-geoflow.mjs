@@ -673,7 +673,7 @@ function parseCliArguments(argv) {
 function usage() {
   return [
     "Usage:",
-    "  node scripts/import-legacy-geoflow.mjs --input legacy-export.json [--database path] [--workspace tenant-id] [--dry-run] [--initialize-workspace]",
+    "  node scripts/import-legacy-geoflow.mjs --input legacy-export.json [--database path] [--workspace deployment-id] [--dry-run] [--initialize-workspace]",
     "",
     "The import is immutable and additive. It imports only categories and published articles; it never overwrites an existing article."
   ].join("\n");

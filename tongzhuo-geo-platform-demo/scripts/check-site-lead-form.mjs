@@ -44,8 +44,8 @@ async function submit(base, key, payload, forwardedFor = "") {
 }
 
 try {
-  const building = await start({ workspaceId: "tenant-building", projectId: "project-building", baseUrl: "https://building.example.test", leadRateLimit: { maximum: 20 } });
-  const machinery = await start({ workspaceId: "tenant-machinery", projectId: "project-machinery", baseUrl: "https://machinery.example.test", leadRateLimit: { maximum: 20 } });
+  const building = await start({ workspaceId: "deployment-building", projectId: "project-building", baseUrl: "https://building.example.test", leadRateLimit: { maximum: 20 } });
+  const machinery = await start({ workspaceId: "deployment-machinery", projectId: "project-machinery", baseUrl: "https://machinery.example.test", leadRateLimit: { maximum: 20 } });
   const payload = { name: "张经理", phone: "13800001111", company: "测试建材", message: "预约 GEO 诊断", source_url: "https://building.example.test/contact/?utm_source=wechat", utm: { source: "wechat" } };
 
   let result = await submit(building.base, "lead-form-shared-key-0001", payload);
@@ -56,19 +56,19 @@ try {
   assert.equal(result.response.status, 200);
   assert.equal(result.body.data.id, leadId);
   assert.equal(result.body.data.duplicate, true);
-  assert.equal(building.runtime.store.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").get("tenant-building", "project-building").count, 1);
+  assert.equal(building.runtime.store.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").get("deployment-building", "project-building").count, 1);
 
   result = await submit(building.base, "lead-form-shared-key-0001", { ...payload, phone: "13900002222" });
   assert.equal(result.response.status, 409);
   assert.equal(result.body.code, "SITE_LEAD_IDEMPOTENCY_CONFLICT");
 
   result = await submit(machinery.base, "lead-form-shared-key-0001", { ...payload, company: "测试机械", phone: "machinery@example.test", source_url: "https://machinery.example.test/contact/" });
-  assert.equal(result.response.status, 201, "the same browser key is isolated by deployment tenant and project");
+  assert.equal(result.response.status, 201, "the same browser key is isolated by deployment deployment and project");
   assert.notEqual(result.body.data.id, leadId);
-  assert.equal(machinery.runtime.store.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").get("tenant-machinery", "project-machinery").count, 1);
-  assert.equal(building.runtime.store.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id = ? AND project_id = ?").get("tenant-building", "project-machinery").count, 0);
+  assert.equal(machinery.runtime.store.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").get("deployment-machinery", "project-machinery").count, 1);
+  assert.equal(building.runtime.store.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id = ? AND project_id = ?").get("deployment-building", "project-machinery").count, 0);
 
-  const limited = await start({ workspaceId: "tenant-limited", projectId: "project-limited", baseUrl: "https://limited.example.test", leadRateLimit: { maximum: 2, windowMs: 60_000 } });
+  const limited = await start({ workspaceId: "deployment-limited", projectId: "project-limited", baseUrl: "https://limited.example.test", leadRateLimit: { maximum: 2, windowMs: 60_000 } });
   for (const index of [1, 2]) {
     result = await submit(limited.base, `lead-form-rate-000${index}`, { name: `客户${index}`, phone: `1380000000${index}` });
     assert.equal(result.response.status, 201);
@@ -76,7 +76,7 @@ try {
   result = await submit(limited.base, "lead-form-rate-0003", { name: "客户3", phone: "13800000003" });
   assert.equal(result.response.status, 429);
   assert.equal(result.body.code, "SITE_LEAD_RATE_LIMITED");
-  assert.equal(limited.runtime.store.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE tenant_id = ?").get("tenant-limited").count, 2);
+  assert.equal(limited.runtime.store.database.connection.prepare("SELECT COUNT(*) AS count FROM site_contact_leads WHERE workspace_id = ?").get("deployment-limited").count, 2);
 
   result = await submit(building.base, "short", { name: "无效键", phone: "13800003333" });
   assert.equal(result.response.status, 422);
@@ -99,7 +99,7 @@ try {
     { key: "purchase_volume", label: "预计采购量", type: "number", placeholder: "例如 1000" },
     { key: "password", label: "密码", type: "text" }
   ] } } });
-  const configuredSite = new PublicSiteStore({ database: building.runtime.store.database, workspaceId: "tenant-building", projectId: "project-building" }).siteConfig({ revision: 1, state: {} }, configuredCms);
+  const configuredSite = new PublicSiteStore({ database: building.runtime.store.database, workspaceId: "deployment-building", projectId: "project-building" }).siteConfig({ revision: 1, state: {} }, configuredCms);
   const contactPage = configuredSite.pages.find((item) => item.id === "contact") || { id: "contact", title: "联系我们", path: "/contact/" };
   const configuredHtml = renderFixedPage({ site: configuredSite, page: contactPage, origin: "https://building.example.test" });
   assert.match(configuredHtml, /联系人&lt;script&gt; \*/);

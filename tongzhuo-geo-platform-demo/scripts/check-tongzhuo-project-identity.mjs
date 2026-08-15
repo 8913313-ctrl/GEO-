@@ -11,7 +11,7 @@ import { assertProductionConfiguration, productionConfig } from "../production-c
 
 const seed = resolveProjectSeed("tongzhuo-geo");
 assert.ok(seed, "Tongzhuo project seed must be registered.");
-assert.deepEqual({ projectId: seed.projectId, tenantId: seed.tenantId, slug: seed.slug }, { projectId: "tongzhuo-geo", tenantId: "tenant_tongzhuo_geo", slug: "tongzhuo-geo" });
+assert.deepEqual({ projectId: seed.projectId, slug: seed.slug }, { projectId: "tongzhuo-geo", slug: "tongzhuo-geo" });
 assert.equal(seed.companyProfile.legalName, "桐灼（淄博）网络科技有限公司");
 assert.equal(seed.companyProfile.officialDomain, "https://tongzhuo.ink");
 assert.equal(seed.site.cms.settings.footerIcp, "鲁ICP备2026021587号-2");
@@ -19,13 +19,13 @@ assert.ok(seed.site.cms.settings.logoUrl && seed.site.cms.settings.brandLogoUrl 
 assert.ok(seed.site.cms.services.some((item) => item.id === "geo" && item.title === "GEO 服务"), "GEO must be a declared service line.");
 assert.ok(seed.site.cms.cases.length || seed.site.cms.problemGroups.length, "A method or case must be present.");
 
-const configured = assertProductionConfiguration({ ...productionConfig, tenantId: seed.tenantId, workspaceId: seed.tenantId, projectId: seed.projectId, projectSeedKey: seed.key });
+const configured = assertProductionConfiguration({ ...productionConfig, projectId: seed.projectId, projectSeedKey: seed.key });
 assert.equal(configured.projectId, seed.projectId);
 
 const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-project-identity-"));
 const database = new ProductionDatabase({ databasePath: path.join(temporaryDirectory, "identity.sqlite") });
 try {
-  const snapshot = new PublicSiteStore({ database, workspaceId: seed.tenantId, projectSeedKey: seed.key }).snapshot();
+  const snapshot = new PublicSiteStore({ database, workspaceId: "default", projectSeedKey: seed.key }).snapshot();
   assert.equal(snapshot.site.companyName, seed.companyProfile.legalName);
   assert.equal(snapshot.site.officialDomain, "tongzhuo.ink");
   assert.equal(snapshot.site.footerIcp, "鲁ICP备2026021587号-2");

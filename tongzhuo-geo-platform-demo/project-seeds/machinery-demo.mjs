@@ -21,7 +21,7 @@ const machineryCms = Object.freeze({
 });
 
 export const machineryDemoProjectSeed = Object.freeze({
-  key: "machinery-demo", projectId: "machinery-demo", slug: "machinery-demo", tenantId: "tenant_machinery_demo", industryTemplate: "machinery", demo: true,
+  key: "machinery-demo", projectId: "machinery-demo", slug: "machinery-demo", industryTemplate: "machinery", demo: true,
   companyProfile: Object.freeze({ legalName: "机械设备行业演示项目", shortName: "机械设备演示项目", alternateName: "Machinery Demo", description: "面向采购与技术团队的机械设备选型、技术参数、交付实施和使用维护信息演示。", region: "中国", officialDomain: "https://machinery.example.invalid", address: "" }),
   site: Object.freeze({ cms: machineryCms })
 });

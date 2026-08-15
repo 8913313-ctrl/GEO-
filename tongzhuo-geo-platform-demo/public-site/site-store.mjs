@@ -82,7 +82,7 @@ function defaultSite() {
 
 export class PublicSiteStore {
   constructor(options = {}) {
-    this.workspaceId = text(options.workspaceId || process.env.TZ_TENANT_ID, "default", 120);
+    this.workspaceId = text(options.workspaceId, "default", 120);
     this.projectSeedKey = text(options.projectSeedKey || process.env.TZ_PROJECT_SEED, "", 120);
     this.projectSeed = resolveProjectSeed(this.projectSeedKey);
     this.database = options.database || new ProductionDatabase({ databasePath: options.databasePath || process.env.TZ_DATABASE_PATH || DEFAULT_DATABASE_PATH });
@@ -127,7 +127,6 @@ export class PublicSiteStore {
     return {
       projectSeedKey: this.projectSeedKey,
       projectId: text(this.projectSeed?.projectId, this.projectSeedKey || this.workspaceId, 120),
-      tenantId: text(this.projectSeed?.tenantId, this.workspaceId, 120),
       industryTemplate: text(this.projectSeed?.industryTemplate, "", 120),
       demo: this.projectSeed?.demo === true,
       siteName: text(settings.siteName, defaults.siteName, 160),
@@ -278,13 +277,28 @@ export class PublicSiteStore {
       usedSlugs.add(slug);
       const author = text(nested(metadata, "siteAuthor", "site.author", "author"), "企业内容团队", 160);
       const excerpt = text(row.excerpt || nested(metadata, "siteExcerpt", "site.excerpt", "excerpt") || truncateText(row.content_text || row.content_html, 180), "", 2_000);
+      const contentHtml = applyPublicCitationVisibility(rewritePublishedKnowledgeAssetUrls(row.content_html || "", this.publicKnowledgeAssetBase), metadata);
+      const coverAssetId = text(nested(metadata, "coverAssetId", "imagePlan.coverAssetId", "site.coverAssetId"), "", 200);
+      const coverPlacement = Array.isArray(metadata.imagePlan?.placements) ? metadata.imagePlan.placements.find((item) => item?.role === "cover") : null;
+      const firstImage = String(contentHtml).match(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i);
+      const coverImageUrl = rewritePublishedKnowledgeAssetUrls(
+        text(nested(metadata, "coverImageUrl", "site.coverImageUrl") || coverPlacement?.url || (coverAssetId ? `/api/v1/knowledge/assets/${encodeURIComponent(coverAssetId)}/content` : "") || firstImage?.[1], "", 2_000),
+        this.publicKnowledgeAssetBase
+      );
+      const coverImageAlt = text(nested(metadata, "coverImageAlt", "site.coverImageAlt") || coverPlacement?.altText, title, 500);
+      const coverImageCaption = text(nested(metadata, "coverImageCaption", "site.coverImageCaption") || coverPlacement?.caption, "", 1_000);
       return {
         id: row.id, versionId: row.version_id, version: Number(row.version_number), title, slug, excerpt, author,
         categoryId: category?.id || categoryId || null, categoryName: category?.name || categoryValue,
         categorySlug: category?.slug || (categorySlugValue ? slugify(categorySlugValue, "") : null),
         tags: [...new Set([...list(nested(metadata, "keywords", "site.keywords")), ...list(nested(metadata, "tags", "site.tags"))])].slice(0, 20),
-        contentHtml: applyPublicCitationVisibility(rewritePublishedKnowledgeAssetUrls(row.content_html || "", this.publicKnowledgeAssetBase), metadata),
+        contentHtml,
         contentText: applyPublicCitationVisibility(String(row.content_text || ""), metadata),
+        coverAssetId: coverAssetId || coverPlacement?.assetId || null,
+        coverImageUrl: coverImageUrl || null,
+        coverImageAlt,
+        coverImageCaption,
+        imageCount: (String(contentHtml).match(/<img\b/gi) || []).length + (coverImageUrl && !String(contentHtml).includes(coverImageUrl) ? 1 : 0),
         publishedAt: nested(metadata, "sitePublishedAt", "site.publishedAt", "publishedAt") || row.article_updated_at || row.frozen_at || row.version_created_at,
         updatedAt: nested(metadata, "siteUpdatedAt", "site.updatedAt", "updatedAt") || row.article_updated_at || row.frozen_at,
         reviewStatus: row.review_status, riskStatus: row.risk_status, frozenAt: row.frozen_at, metadata

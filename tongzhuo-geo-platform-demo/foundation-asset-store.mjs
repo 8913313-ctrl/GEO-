@@ -39,15 +39,15 @@ function now() { return new Date().toISOString(); }
 function id(prefix) { return `${prefix}-${randomUUID()}`; }
 function checksum(value) { return createHash("sha256").update(json(value)).digest("hex"); }
 
-function normalizeScope({ scope = "global", industryTemplate = "", tenantId = "" } = {}) {
+function normalizeScope({ scope = "global", industryTemplate = "", workspaceId = "" } = {}) {
   const normalizedScope = text(scope, "scope", 20, true);
   if (!SCOPES.has(normalizedScope)) throw new FoundationAssetError("scope must be global, industry, or project.", 422, "FOUNDATION_ASSET_INVALID_SCOPE");
   const industry = text(industryTemplate, "industryTemplate", 120);
-  const tenant = text(tenantId, "tenantId", 160);
-  if (normalizedScope === "global" && (industry || tenant)) throw new FoundationAssetError("Global assets cannot carry industryTemplate or tenantId.", 422, "FOUNDATION_ASSET_SCOPE_CONFLICT");
-  if (normalizedScope === "industry" && (!industry || tenant)) throw new FoundationAssetError("Industry assets require industryTemplate and cannot carry tenantId.", 422, "FOUNDATION_ASSET_SCOPE_CONFLICT");
-  if (normalizedScope === "project" && (!tenant || industry)) throw new FoundationAssetError("Project assets require tenantId and cannot carry industryTemplate.", 422, "FOUNDATION_ASSET_SCOPE_CONFLICT");
-  return { scope: normalizedScope, industryTemplate: industry, tenantId: tenant };
+  const workspace = text(workspaceId, "workspaceId", 160);
+  if (normalizedScope === "global" && (industry || workspace)) throw new FoundationAssetError("Global assets cannot carry industryTemplate or workspaceId.", 422, "FOUNDATION_ASSET_SCOPE_CONFLICT");
+  if (normalizedScope === "industry" && (!industry || workspace)) throw new FoundationAssetError("Industry assets require industryTemplate and cannot carry workspaceId.", 422, "FOUNDATION_ASSET_SCOPE_CONFLICT");
+  if (normalizedScope === "project" && (!workspace || industry)) throw new FoundationAssetError("Project assets require workspaceId and cannot carry industryTemplate.", 422, "FOUNDATION_ASSET_SCOPE_CONFLICT");
+  return { scope: normalizedScope, industryTemplate: industry, workspaceId: workspace };
 }
 
 export class FoundationAssetStore {
@@ -58,7 +58,7 @@ export class FoundationAssetStore {
   }
 
   methodologyPackRow(row) {
-    return row ? { id: row.id, key: row.key, scope: row.scope, industryTemplate: row.industry_template || "", tenantId: row.tenant_id || "", title: row.title, description: row.description, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at } : null;
+    return row ? { id: row.id, key: row.key, scope: row.scope, industryTemplate: row.industry_template || "", workspaceId: row.workspace_id || "", title: row.title, description: row.description, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at } : null;
   }
 
   methodologyVersionRow(row) {
@@ -86,7 +86,7 @@ export class FoundationAssetStore {
   }
 
   promptTemplateRow(row) {
-    return row ? { id: row.id, key: row.key, scope: row.scope, industryTemplate: row.industry_template || "", tenantId: row.tenant_id || "", operation: row.operation, title: row.title, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at } : null;
+    return row ? { id: row.id, key: row.key, scope: row.scope, industryTemplate: row.industry_template || "", workspaceId: row.workspace_id || "", operation: row.operation, title: row.title, status: row.status, createdAt: row.created_at, updatedAt: row.updated_at } : null;
   }
 
   promptVersionRow(row) {
@@ -94,12 +94,12 @@ export class FoundationAssetStore {
   }
 
   qualityRulePackRow(row) {
-    return row ? { id: row.id, key: row.key, scope: row.scope, industryTemplate: row.industry_template || "", tenantId: row.tenant_id || "", title: row.title, version: Number(row.version), rules: parse(row.rules_json, []), checksum: row.checksum, status: row.status, createdAt: row.created_at, publishedAt: row.published_at || null } : null;
+    return row ? { id: row.id, key: row.key, scope: row.scope, industryTemplate: row.industry_template || "", workspaceId: row.workspace_id || "", title: row.title, version: Number(row.version), rules: parse(row.rules_json, []), checksum: row.checksum, status: row.status, createdAt: row.created_at, publishedAt: row.published_at || null } : null;
   }
 
   methodologyPackByKey(key, scopeOptions = {}) {
     const scope = normalizeScope(scopeOptions);
-    return this.methodologyPackRow(this.connection.prepare("SELECT * FROM methodology_packs WHERE key = ? AND scope = ? AND industry_template = ? AND tenant_id = ?").get(text(key, "key", 160, true), scope.scope, scope.industryTemplate, scope.tenantId));
+    return this.methodologyPackRow(this.connection.prepare("SELECT * FROM methodology_packs WHERE key = ? AND scope = ? AND industry_template = ? AND workspace_id = ?").get(text(key, "key", 160, true), scope.scope, scope.industryTemplate, scope.workspaceId));
   }
 
   methodologyVersions(packId) {
@@ -159,8 +159,8 @@ export class FoundationAssetStore {
     const key = text(input.key, "key", 160, true);
     const timestamp = now();
     this.database.transaction(() => {
-      this.connection.prepare("INSERT INTO methodology_packs (id, key, scope, industry_template, tenant_id, title, description, status, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)")
-        .run(packId, key, scope.scope, scope.industryTemplate, scope.tenantId, text(input.title, "title", 300, true), text(input.description, "description", 2_000), timestamp, timestamp, actorId(actor));
+      this.connection.prepare("INSERT INTO methodology_packs (id, key, scope, industry_template, workspace_id, title, description, status, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)")
+        .run(packId, key, scope.scope, scope.industryTemplate, scope.workspaceId, text(input.title, "title", 300, true), text(input.description, "description", 2_000), timestamp, timestamp, actorId(actor));
       appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "foundation.methodology_pack.create", entityType: "methodology_pack", entityId: packId, details: { key, ...scope }, request, createdAt: timestamp });
     });
     return this.methodologyPackRow(this.connection.prepare("SELECT * FROM methodology_packs WHERE id = ?").get(packId));
@@ -203,7 +203,7 @@ export class FoundationAssetStore {
 
   promptTemplateByKey(key, scopeOptions = {}) {
     const scope = normalizeScope(scopeOptions);
-    return this.promptTemplateRow(this.connection.prepare("SELECT * FROM prompt_templates WHERE key = ? AND scope = ? AND industry_template = ? AND tenant_id = ?").get(text(key, "key", 160, true), scope.scope, scope.industryTemplate, scope.tenantId));
+    return this.promptTemplateRow(this.connection.prepare("SELECT * FROM prompt_templates WHERE key = ? AND scope = ? AND industry_template = ? AND workspace_id = ?").get(text(key, "key", 160, true), scope.scope, scope.industryTemplate, scope.workspaceId));
   }
 
   promptVersions(templateId) {
@@ -216,8 +216,8 @@ export class FoundationAssetStore {
     const key = text(input.key, "key", 160, true);
     const timestamp = now();
     this.database.transaction(() => {
-      this.connection.prepare("INSERT INTO prompt_templates (id, key, scope, industry_template, tenant_id, operation, title, status, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)")
-        .run(templateId, key, scope.scope, scope.industryTemplate, scope.tenantId, text(input.operation, "operation", 120, true), text(input.title, "title", 300, true), timestamp, timestamp, actorId(actor));
+      this.connection.prepare("INSERT INTO prompt_templates (id, key, scope, industry_template, workspace_id, operation, title, status, created_at, updated_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)")
+        .run(templateId, key, scope.scope, scope.industryTemplate, scope.workspaceId, text(input.operation, "operation", 120, true), text(input.title, "title", 300, true), timestamp, timestamp, actorId(actor));
       appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "foundation.prompt_template.create", entityType: "prompt_template", entityId: templateId, details: { key, ...scope }, request, createdAt: timestamp });
     });
     return this.promptTemplateRow(this.connection.prepare("SELECT * FROM prompt_templates WHERE id = ?").get(templateId));
@@ -251,14 +251,14 @@ export class FoundationAssetStore {
   createQualityRulePack(input = {}, actor = null, request = null) {
     const scope = normalizeScope(input);
     const key = text(input.key, "key", 160, true);
-    const version = Number(this.connection.prepare("SELECT COALESCE(MAX(version), 0) + 1 AS version FROM quality_rule_packs WHERE key = ? AND scope = ? AND industry_template = ? AND tenant_id = ?").get(key, scope.scope, scope.industryTemplate, scope.tenantId).version);
+    const version = Number(this.connection.prepare("SELECT COALESCE(MAX(version), 0) + 1 AS version FROM quality_rule_packs WHERE key = ? AND scope = ? AND industry_template = ? AND workspace_id = ?").get(key, scope.scope, scope.industryTemplate, scope.workspaceId).version);
     const rules = array(input.rules, "rules", { required: true });
     const packId = text(input.id, "id", 180) || id("QRULE");
     const digest = checksum({ kind: "quality", key, ...scope, version, rules });
     const timestamp = now();
     this.database.transaction(() => {
-      this.connection.prepare("INSERT INTO quality_rule_packs (id, key, scope, industry_template, tenant_id, title, version, rules_json, checksum, status, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)")
-        .run(packId, key, scope.scope, scope.industryTemplate, scope.tenantId, text(input.title, "title", 300, true), version, json(rules), digest, timestamp, actorId(actor));
+      this.connection.prepare("INSERT INTO quality_rule_packs (id, key, scope, industry_template, workspace_id, title, version, rules_json, checksum, status, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?)")
+        .run(packId, key, scope.scope, scope.industryTemplate, scope.workspaceId, text(input.title, "title", 300, true), version, json(rules), digest, timestamp, actorId(actor));
       appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "foundation.quality_rule_pack.create", entityType: "quality_rule_pack", entityId: packId, details: { key, version, ...scope, checksum: digest }, request, createdAt: timestamp });
     });
     return this.qualityRulePackRow(this.connection.prepare("SELECT * FROM quality_rule_packs WHERE id = ?").get(packId));
@@ -266,8 +266,8 @@ export class FoundationAssetStore {
 
   qualityRulePacksByKey(key, scopeOptions = {}) {
     const scope = normalizeScope(scopeOptions);
-    return this.connection.prepare("SELECT * FROM quality_rule_packs WHERE key = ? AND scope = ? AND industry_template = ? AND tenant_id = ? ORDER BY version DESC")
-      .all(text(key, "key", 160, true), scope.scope, scope.industryTemplate, scope.tenantId).map((row) => this.qualityRulePackRow(row));
+    return this.connection.prepare("SELECT * FROM quality_rule_packs WHERE key = ? AND scope = ? AND industry_template = ? AND workspace_id = ? ORDER BY version DESC")
+      .all(text(key, "key", 160, true), scope.scope, scope.industryTemplate, scope.workspaceId).map((row) => this.qualityRulePackRow(row));
   }
 
   selectPublishedPlanFoundation({ workspaceId, industryTemplate = "" } = {}) {
@@ -278,21 +278,21 @@ export class FoundationAssetStore {
       SELECT v.id, v.version, v.checksum, p.scope, p.industry_template
       FROM methodology_versions v JOIN methodology_packs p ON p.id = v.pack_id
       WHERE p.key = 'geo-core' AND v.status = 'published'
-        AND (p.scope = 'global' OR (p.scope = 'industry' AND p.industry_template = ?) OR (p.scope = 'project' AND p.tenant_id = ?))
+        AND (p.scope = 'global' OR (p.scope = 'industry' AND p.industry_template = ?) OR (p.scope = 'project' AND p.workspace_id = ?))
       ORDER BY CASE p.scope WHEN 'project' THEN 3 WHEN 'industry' THEN 2 ELSE 1 END DESC, v.version DESC LIMIT 1
     `).get(industry, workspace);
     const prompt = this.connection.prepare(`
       SELECT v.id, v.version, v.checksum, t.scope, t.industry_template
       FROM prompt_versions v JOIN prompt_templates t ON t.id = v.template_id
       WHERE t.key = 'geo-article' AND t.operation = 'article' AND v.status = 'published'
-        AND (t.scope = 'global' OR (t.scope = 'industry' AND t.industry_template = ?) OR (t.scope = 'project' AND t.tenant_id = ?))
+        AND (t.scope = 'global' OR (t.scope = 'industry' AND t.industry_template = ?) OR (t.scope = 'project' AND t.workspace_id = ?))
       ORDER BY CASE t.scope WHEN 'project' THEN 3 WHEN 'industry' THEN 2 ELSE 1 END DESC, v.version DESC LIMIT 1
     `).get(industry, workspace);
     const quality = this.connection.prepare(`
       SELECT id, version, checksum, scope, industry_template
       FROM quality_rule_packs
       WHERE key = 'geo-content-quality' AND status = 'published'
-        AND (scope = 'global' OR (scope = 'industry' AND industry_template = ?) OR (scope = 'project' AND tenant_id = ?))
+        AND (scope = 'global' OR (scope = 'industry' AND industry_template = ?) OR (scope = 'project' AND workspace_id = ?))
       ORDER BY CASE scope WHEN 'project' THEN 3 WHEN 'industry' THEN 2 ELSE 1 END DESC, version DESC LIMIT 1
     `).get(industry, workspace);
     const missing = [["methodology", methodology], ["prompt", prompt], ["quality", quality]].filter(([, value]) => !value).map(([kind]) => kind);
@@ -352,16 +352,16 @@ export class FoundationAssetStore {
     const plan = text(planId, "planId", 180, true);
     const selectedIndustry = text(industryTemplate, "industryTemplate", 120);
     const refs = [
-      ["methodology_versions", text(methodologyVersionId, "methodologyVersionId", 180, true), "SELECT v.status, p.scope, p.industry_template, p.tenant_id FROM methodology_versions v JOIN methodology_packs p ON p.id = v.pack_id WHERE v.id = ?"],
-      ["prompt_versions", text(promptVersionId, "promptVersionId", 180, true), "SELECT v.status, t.scope, t.industry_template, t.tenant_id FROM prompt_versions v JOIN prompt_templates t ON t.id = v.template_id WHERE v.id = ?"],
-      ["quality_rule_packs", text(qualityRulePackId, "qualityRulePackId", 180, true), "SELECT status, scope, industry_template, tenant_id FROM quality_rule_packs WHERE id = ?"]
+      ["methodology_versions", text(methodologyVersionId, "methodologyVersionId", 180, true), "SELECT v.status, p.scope, p.industry_template, p.workspace_id FROM methodology_versions v JOIN methodology_packs p ON p.id = v.pack_id WHERE v.id = ?"],
+      ["prompt_versions", text(promptVersionId, "promptVersionId", 180, true), "SELECT v.status, t.scope, t.industry_template, t.workspace_id FROM prompt_versions v JOIN prompt_templates t ON t.id = v.template_id WHERE v.id = ?"],
+      ["quality_rule_packs", text(qualityRulePackId, "qualityRulePackId", 180, true), "SELECT status, scope, industry_template, workspace_id FROM quality_rule_packs WHERE id = ?"]
     ];
     if (!this.connection.prepare("SELECT 1 FROM content_plans WHERE workspace_id = ? AND id = ?").get(workspace, plan)) throw new FoundationAssetError("Content plan not found in the current private deployment.", 404, "CONTENT_PLAN_NOT_FOUND");
     for (const [, referenceId, query] of refs) {
       const row = this.connection.prepare(query).get(referenceId);
       if (!row) throw new FoundationAssetError(`Foundation reference ${referenceId} not found.`, 404, "FOUNDATION_REFERENCE_NOT_FOUND");
       if (!allowUnpublished && row.status !== "published") throw new FoundationAssetError("Content plans may only use published foundation assets.", 409, "FOUNDATION_REFERENCE_NOT_PUBLISHED", { referenceId });
-      if (row.scope === "project" && row.tenant_id !== workspace) throw new FoundationAssetError("Project foundation asset belongs to another private deployment.", 403, "FOUNDATION_REFERENCE_TENANT_MISMATCH", { referenceId });
+      if (row.scope === "project" && row.workspace_id !== workspace) throw new FoundationAssetError("Project foundation asset belongs to another private deployment.", 403, "FOUNDATION_REFERENCE_WORKSPACE_MISMATCH", { referenceId });
       if (row.scope === "industry" && (!selectedIndustry || row.industry_template !== selectedIndustry)) throw new FoundationAssetError("Industry foundation asset does not match the content plan industry.", 409, "FOUNDATION_REFERENCE_INDUSTRY_MISMATCH", { referenceId, industryTemplate: selectedIndustry });
     }
     const timestamp = now();

@@ -2,7 +2,6 @@ export const tongzhuoGeoProjectSeed = Object.freeze({
   key: "tongzhuo-geo",
   projectId: "tongzhuo-geo",
   slug: "tongzhuo-geo",
-  tenantId: "tenant_tongzhuo_geo",
   industryTemplate: "professional-services",
   companyProfile: Object.freeze({
     legalName: "桐灼（淄博）网络科技有限公司",

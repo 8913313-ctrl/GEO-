@@ -84,7 +84,7 @@ try {
   assert.match((await request(publicBase, "/")).text, new RegExp(v2Name));
 
   const frozenBefore = runtime.store.database.connection.prepare("SELECT * FROM site_cms_releases WHERE id IN (?, ?) ORDER BY version_number").all(firstRelease.releaseId, releaseV2.releaseId);
-  result = await request(adminBase, "/api/v1/site-cms/rollback", { method: "POST", headers: auth, body: JSON.stringify({ releaseId: "SITE-REL-OTHER-TENANT", expectedCurrentVersion: releaseV2.version, reason: "跨企业回滚必须拒绝" }) });
+  result = await request(adminBase, "/api/v1/site-cms/rollback", { method: "POST", headers: auth, body: JSON.stringify({ releaseId: "SITE-REL-OTHER-WORKSPACE", expectedCurrentVersion: releaseV2.version, reason: "跨企业回滚必须拒绝" }) });
   assert.equal(result.response.status, 404);
   assert.equal(result.body.code, "SITE_CMS_RELEASE_NOT_FOUND");
   result = await request(adminBase, "/api/v1/site-cms/rollback", { method: "POST", headers: auth, body: JSON.stringify({ releaseId: firstRelease.releaseId, expectedCurrentVersion: releaseV2.version, reason: "正式回滚到初始官网" }) });
@@ -115,7 +115,7 @@ try {
   assert.equal(details.newVersion, releaseV3.version);
   assert.equal(details.reason, "正式回滚到初始官网");
 
-  console.log("Official-site authenticated rollback API, new release, immutable history, audit lineage, tenant rejection, and live cutover checks passed.");
+  console.log("Official-site authenticated rollback API, new release, immutable history, audit lineage, deployment rejection, and live cutover checks passed.");
 } finally {
   await runtime?.close();
   if (child.exitCode === null && child.signalCode === null) {

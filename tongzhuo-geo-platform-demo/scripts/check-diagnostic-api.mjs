@@ -23,7 +23,7 @@ async function call(handler, response, method, url, body = undefined) {
 
 try {
   database = new ProductionDatabase({ databasePath: path.join(temporaryDirectory, "diagnostic-api.sqlite") });
-  const store = new DiagnosticStore(database, { workspaceId: "tenant-diagnostic-api" });
+  const store = new DiagnosticStore(database, { workspaceId: "deployment-diagnostic-api" });
   const handler = createDiagnosticApi({ diagnosticStore: store, requestJson: async (request) => request.body || {}, configured: { requestBodyLimit: 1_000_000 } });
   const response = responseCapture();
 

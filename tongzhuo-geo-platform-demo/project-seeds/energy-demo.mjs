@@ -9,5 +9,5 @@ const cms = Object.freeze({
   problemGroups: Object.freeze([{ id: "selection", title: "UPS 选型问题", service: "UPS 选型支持", description: "从真实负载和续航目标开始选型。", status: "published", order: 1, questions: Object.freeze([{ id: "ups-capacity", slug: "ups-capacity-selection", title: "机房应该如何确定 UPS 容量与续航时间？", answer: "应先核对关键负载、启动冲击、未来扩容、冗余方式和目标后备时间，再结合电池方案、环境条件与维护能力确认。", industries: Object.freeze(["UPS 电源", "数据中心"]), status: "published", order: 1 }]) }])
 });
 
-export const energyDemoProjectSeed = Object.freeze({ key: "energy-demo", projectId: "energy-demo", slug: "energy-demo", tenantId: "tenant_energy_demo", industryTemplate: "energy-equipment", demo: true, companyProfile: Object.freeze({ legalName: "UPS 能源设备行业演示项目", shortName: "恒稳能源演示项目", description: "UPS 选型、续航、安装和运维资料演示。", region: "中国", officialDomain: "https://energy-equipment.example.invalid" }), site: Object.freeze({ cms }) });
+export const energyDemoProjectSeed = Object.freeze({ key: "energy-demo", projectId: "energy-demo", slug: "energy-demo", industryTemplate: "energy-equipment", demo: true, companyProfile: Object.freeze({ legalName: "UPS 能源设备行业演示项目", shortName: "恒稳能源演示项目", description: "UPS 选型、续航、安装和运维资料演示。", region: "中国", officialDomain: "https://energy-equipment.example.invalid" }), site: Object.freeze({ cms }) });
 export default energyDemoProjectSeed;

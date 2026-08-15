@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { signInstanceRequest as signCentralRequest } from "../../geo-data-hub-demo/relay-store.mjs";
+import { createDiagnosticApi } from "../diagnostic-api.mjs";
 import { DiagnosticRelayClient, payloadHash } from "../diagnostic-relay-client.mjs";
 import { DiagnosticRelayService } from "../diagnostic-relay-service.mjs";
 import { DiagnosticStore } from "../diagnostic-store.mjs";
@@ -86,6 +87,42 @@ try {
   };
   const client = new DiagnosticRelayClient({ baseUrl: "https://relay.example.test", instanceId: "instance-check", clientId: "client-check", clientSecret: secret, fetchImpl });
   const service = new DiagnosticRelayService({ database, diagnosticStore, client, pullBatchSize: 10 });
+
+  const unconfiguredService = new DiagnosticRelayService({ database, diagnosticStore });
+  assert.deepEqual(await unconfiguredService.capabilities(), {
+    configured: false,
+    enabled: false,
+    state: "not_configured",
+    provider: null,
+    items: []
+  });
+  assert.deepEqual(await unconfiguredService.quota(), {
+    configured: false,
+    enabled: false,
+    state: "not_configured"
+  });
+  const unconfiguredApi = createDiagnosticApi({
+    diagnosticStore,
+    relayService: unconfiguredService,
+    requestJson: async () => ({})
+  });
+  for (const resource of ["capabilities", "quota"]) {
+    let apiResult = null;
+    const url = `/api/v1/diagnostics/relay/${resource}`;
+    await unconfiguredApi(
+      { method: "GET", url, headers: {} },
+      { json(status, body) { apiResult = { status, body }; return apiResult; } },
+      url.split("/").filter(Boolean),
+      null
+    );
+    assert.equal(apiResult.status, 200);
+    assert.equal(apiResult.body.data[resource].configured, false);
+    assert.equal(apiResult.body.data[resource].state, "not_configured");
+  }
+  await assert.rejects(
+    () => unconfiguredService.quote({ projectId: project.id, questionSetId: questionSet.id, items: [] }),
+    (error) => error.code === "RELAY_CLIENT_NOT_CONFIGURED" && error.status === 503
+  );
 
   assert.equal((await service.capabilities()).provider.providerCode, "aidso");
   assert.equal((await service.quota()).availableCredits, 98);

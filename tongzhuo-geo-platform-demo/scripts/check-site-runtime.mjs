@@ -84,9 +84,13 @@ try {
 
   result = await request(base, "/");
   assert.equal(result.response.status, 200);
-  assert.match(result.text, /ENTERPRISE OPERATIONS/);
+  // The public homepage is owned by the selected theme package.  Keep this
+  // assertion tied to the package contract instead of a retired shared-shell
+  // eyebrow so a valid theme can change its copy without breaking the test.
+  assert.match(result.text, /theme-package-page theme-package-home/);
+  assert.match(result.text, /data-theme-layout="(?:material-archive-home|power-control-home|service-split-home)"/);
   assert.match(result.text, /测试企业有限公司/);
-  assert.match(result.text, /了解产品方案/);
+  assert.match(result.text, /href="\/contact\/"/);
   assert.doesNotMatch(result.text, /ENTERPRISE GEO OPERATIONS|开始 GEO 诊断|企业数字身份证|旧官网首页|LegacyOrg/);
   assert.match(result.text, /https:\/\/www\.example\.test\//);
 

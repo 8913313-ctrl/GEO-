@@ -39,7 +39,6 @@ export const buildingMaterialsDemoProjectSeed = Object.freeze({
   key: "building-materials-demo",
   projectId: "building-materials-demo",
   slug: "building-materials-demo",
-  tenantId: "tenant_building_materials_demo",
   industryTemplate: "building-materials",
   demo: true,
   companyProfile: Object.freeze({

@@ -354,7 +354,7 @@ export class BrandMonitoringError extends DiagnosticError {
  * Schedules immutable, relay-backed brand-monitoring snapshots.  It does not
  * scrape the Aidso dashboard and does not have any browser-side credentials:
  * each occurrence goes through DiagnosticRelayService, so the existing HMAC,
- * tenant billing, outbox delivery and live-evidence persistence stay intact.
+ * customer billing, outbox delivery and live-evidence persistence stay intact.
  */
 export class BrandMonitoringService {
   constructor({ database, diagnosticStore, relayService, workspaceId = DEFAULT_WORKSPACE_ID, trustProxy = false, schedulerBatchSize = 12 } = {}) {

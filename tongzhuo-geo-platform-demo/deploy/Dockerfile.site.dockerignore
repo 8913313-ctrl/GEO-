@@ -4,5 +4,7 @@
 !package.json
 !package-lock.json
 !*.mjs
+!project-seeds/
+!project-seeds/**
 !public-site/
 !public-site/**

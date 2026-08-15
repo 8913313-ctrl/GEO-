@@ -32,12 +32,12 @@ const publishedMethodology = foundationStore.setMethodologyVersionStatus(foundat
 const publishedPrompt = foundationStore.setPromptVersionStatus(foundationDrafts.promptVersion.id, "published");
 const publishedQuality = foundationStore.setQualityRulePackStatus(foundationDrafts.qualityRulePack.id, "published");
 const unpublishedQuality = foundationStore.createQualityRulePack({ id: "QRULE-CONTENT-API-DRAFT", key: "content-api-draft", scope: "global", title: "未发布测试规则", rules: [{ key: "test-rule", severity: "warning" }] });
-const otherDeploymentQuality = foundationStore.createQualityRulePack({ id: "QRULE-OTHER-DEPLOYMENT", key: "other-deployment", scope: "project", tenantId: "another-private-deployment", title: "其他客户部署规则", rules: [{ key: "test-rule", severity: "warning" }] });
+const otherDeploymentQuality = foundationStore.createQualityRulePack({ id: "QRULE-OTHER-DEPLOYMENT", key: "other-deployment", scope: "project", workspaceId: "another-private-deployment", title: "其他客户部署规则", rules: [{ key: "test-rule", severity: "warning" }] });
 foundationStore.setQualityRulePackStatus(otherDeploymentQuality.id, "published");
 const buildingOnlyQuality = foundationStore.createQualityRulePack({ id: "QRULE-BUILDING-ONLY", key: "building-only", scope: "industry", industryTemplate: "building-materials", title: "建材行业规则", rules: [{ key: "material-specification", severity: "warning" }] });
 foundationStore.setQualityRulePackStatus(buildingOnlyQuality.id, "published");
 database.close();
-const child = spawn(process.execPath, [path.resolve("server.mjs"), String(port)], { cwd: path.resolve("."), env: { ...process.env, NODE_ENV: "test", TZ_TENANT_ID: "tenant-content-api", TZ_BIND_HOST: "127.0.0.1", TZ_COOKIE_SECURE: "0", TZ_DATA_DIR: temp, TZ_DATABASE_PATH: databasePath, TZ_LOG_DIR: path.join(temp, "logs"), TZ_AI_PROVIDER_DATA_DIR: path.join(temp, "ai"), TZ_PUBLISHER_DATA_DIR: path.join(temp, "publisher"), TZ_PUBLISHER_SCHEDULER_INTERVAL_MS: "250", TZ_MASTER_KEY: randomBytes(32).toString("base64") }, stdio: ["ignore", "pipe", "pipe"] });
+const child = spawn(process.execPath, [path.resolve("server.mjs"), String(port)], { cwd: path.resolve("."), env: { ...process.env, NODE_ENV: "test", TZ_BIND_HOST: "127.0.0.1", TZ_COOKIE_SECURE: "0", TZ_DATA_DIR: temp, TZ_DATABASE_PATH: databasePath, TZ_LOG_DIR: path.join(temp, "logs"), TZ_AI_PROVIDER_DATA_DIR: path.join(temp, "ai"), TZ_PUBLISHER_DATA_DIR: path.join(temp, "publisher"), TZ_PUBLISHER_SCHEDULER_INTERVAL_MS: "250", TZ_MASTER_KEY: randomBytes(32).toString("base64") }, stdio: ["ignore", "pipe", "pipe"] });
 let childOutput = "";
 child.stdout.on("data", (chunk) => { childOutput = (childOutput + chunk.toString("utf8")).slice(-8_000); });
 child.stderr.on("data", (chunk) => { childOutput = (childOutput + chunk.toString("utf8")).slice(-8_000); });
@@ -79,7 +79,7 @@ try {
   result = await request(`/api/v1/content/plans/${encodeURIComponent(formalPlan.id)}/foundation`, { method: "POST", headers: auth, body: JSON.stringify({ ...foundationRequest, qualityRulePackId: unpublishedQuality.id }) });
   assert.equal(result.response.status, 409, JSON.stringify(result.body)); assert.equal(result.body.code, "FOUNDATION_REFERENCE_NOT_PUBLISHED");
   result = await request(`/api/v1/content/plans/${encodeURIComponent(formalPlan.id)}/foundation`, { method: "POST", headers: auth, body: JSON.stringify({ ...foundationRequest, qualityRulePackId: otherDeploymentQuality.id }) });
-  assert.equal(result.response.status, 403, JSON.stringify(result.body)); assert.equal(result.body.code, "FOUNDATION_REFERENCE_TENANT_MISMATCH");
+  assert.equal(result.response.status, 403, JSON.stringify(result.body)); assert.equal(result.body.code, "FOUNDATION_REFERENCE_WORKSPACE_MISMATCH");
   result = await request(`/api/v1/content/plans/${encodeURIComponent(formalPlan.id)}/foundation`, { method: "POST", headers: auth, body: JSON.stringify({ ...foundationRequest, qualityRulePackId: buildingOnlyQuality.id, industryTemplate: "machinery" }) });
   assert.equal(result.response.status, 409, JSON.stringify(result.body)); assert.equal(result.body.code, "FOUNDATION_REFERENCE_INDUSTRY_MISMATCH");
   result = await request("/api/v1/content/plans/PLAN-NOT-IN-THIS-DEPLOYMENT/foundation", { method: "POST", headers: auth, body: JSON.stringify(foundationRequest) });
@@ -178,11 +178,11 @@ try {
   assert.equal(result.response.status, 422, JSON.stringify(result.body)); assert.equal(result.body.code, "KNOWLEDGE_EVIDENCE_REFERENCE_NOT_FOUND");
   const publicationDatabase = new ProductionDatabase({ databasePath });
   try {
-    const taskRows = publicationDatabase.connection.prepare("SELECT * FROM publication_tasks WHERE tenant_id = ? AND content_id = ? ORDER BY created_at").all("tenant-content-api", article.id);
+    const taskRows = publicationDatabase.connection.prepare("SELECT * FROM publication_tasks WHERE workspace_id = ? AND content_id = ? ORDER BY created_at").all("default", article.id);
     assert.equal(taskRows.length, 2, "one frozen task per approved article version and channel");
     assert.ok(taskRows.every((row) => row.attempts === 0 && row.status === "queued" && row.expires_at > row.created_at && row.external_job_id));
     assert.throws(() => publicationDatabase.connection.prepare("UPDATE publication_tasks SET payload_hash = ? WHERE id = ?").run("f".repeat(64), taskRows[0].id), /identity is immutable/);
-    assert.throws(() => publicationDatabase.connection.prepare("INSERT INTO publication_tasks (id, tenant_id, content_id, content_version_id, channel, payload_hash, payload_json, created_at, expires_at, updated_at) VALUES ('PUBTASK-CROSS', 'another-tenant', ?, ?, 'web', ?, '{}', ?, ?, ?)").run(article.id, version.id, "a".repeat(64), new Date().toISOString(), new Date(Date.now() + 60_000).toISOString(), new Date().toISOString()), /content boundary mismatch/);
+    assert.throws(() => publicationDatabase.connection.prepare("INSERT INTO publication_tasks (id, workspace_id, content_id, content_version_id, channel, payload_hash, payload_json, created_at, expires_at, updated_at) VALUES ('PUBTASK-CROSS', 'another-workspace', ?, ?, 'web', ?, '{}', ?, ?, ?)").run(article.id, version.id, "a".repeat(64), new Date().toISOString(), new Date(Date.now() + 60_000).toISOString(), new Date().toISOString()), /content boundary mismatch/);
     const auditRows = publicationDatabase.connection.prepare("SELECT details_json FROM audit_logs WHERE action = 'publication.task.create' AND entity_type = 'publication_task'").all();
     assert.equal(auditRows.length, 2); assert.ok(auditRows.every((row) => JSON.parse(row.details_json).payloadHash));
   } finally { publicationDatabase.close(); }

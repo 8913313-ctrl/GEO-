@@ -1992,6 +1992,158 @@ const MIGRATIONS = Object.freeze([
       ON site_contact_leads
       BEGIN SELECT RAISE(ABORT, 'site lead submission is immutable'); END;
     `
+  },
+  {
+    version: 33,
+    name: "single_deployment_workspace_schema",
+    sql: `
+      ALTER TABLE methodology_packs RENAME COLUMN tenant_id TO workspace_id;
+      ALTER TABLE prompt_templates RENAME COLUMN tenant_id TO workspace_id;
+      ALTER TABLE quality_rule_packs RENAME COLUMN tenant_id TO workspace_id;
+
+      DROP TRIGGER site_contact_leads_contract_insert;
+      DROP TRIGGER site_contact_leads_contract_update;
+      DROP TRIGGER site_contact_leads_idempotency_immutable;
+      DROP TRIGGER site_contact_leads_submission_immutable;
+      DROP TRIGGER site_lead_follow_ups_boundary_insert;
+      DROP TRIGGER site_lead_follow_ups_immutable;
+      DROP TRIGGER site_lead_follow_ups_no_delete;
+      DROP INDEX site_contact_leads_workspace_idx;
+      DROP INDEX site_contact_leads_tenant_project_idx;
+      DROP INDEX site_contact_leads_owner_follow_up_idx;
+      DROP INDEX site_contact_leads_idempotency_idx;
+      DROP INDEX site_lead_follow_ups_lead_idx;
+      DROP INDEX site_lead_follow_ups_actor_idx;
+
+      ALTER TABLE site_lead_follow_ups RENAME TO site_lead_follow_ups_legacy;
+      ALTER TABLE site_contact_leads RENAME TO site_contact_leads_legacy;
+
+      CREATE TABLE site_contact_leads (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        company TEXT NOT NULL DEFAULT '',
+        phone_or_email TEXT NOT NULL,
+        need TEXT NOT NULL DEFAULT '',
+        source_page TEXT NOT NULL DEFAULT '',
+        utm_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(utm_json)),
+        status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')),
+        follow_up_at TEXT,
+        owner_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        phone TEXT NOT NULL DEFAULT '',
+        service TEXT NOT NULL DEFAULT '',
+        website TEXT NOT NULL DEFAULT '',
+        message TEXT NOT NULL DEFAULT '',
+        source_url TEXT NOT NULL DEFAULT '',
+        user_agent TEXT NOT NULL DEFAULT '',
+        metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL DEFAULT '',
+        submission_hash TEXT NOT NULL DEFAULT ''
+      ) STRICT;
+
+      INSERT INTO site_contact_leads (
+        id, workspace_id, project_id, name, company, phone_or_email, need,
+        source_page, utm_json, status, follow_up_at, owner_id, phone, service,
+        website, message, source_url, user_agent, metadata_json, created_at,
+        updated_at, idempotency_key, submission_hash
+      )
+      SELECT
+        id, workspace_id, project_id, name, company, phone_or_email, need,
+        source_page, utm_json, status, follow_up_at, owner_id, phone, service,
+        website, message, source_url, user_agent, metadata_json, created_at,
+        updated_at, idempotency_key, submission_hash
+      FROM site_contact_leads_legacy;
+
+      CREATE INDEX site_contact_leads_workspace_idx
+        ON site_contact_leads (workspace_id, project_id, status, created_at DESC);
+      CREATE INDEX site_contact_leads_owner_follow_up_idx
+        ON site_contact_leads (workspace_id, project_id, owner_id, follow_up_at);
+      CREATE UNIQUE INDEX site_contact_leads_idempotency_idx
+        ON site_contact_leads (workspace_id, project_id, idempotency_key)
+        WHERE idempotency_key <> '';
+
+      CREATE TABLE site_lead_follow_ups (
+        id TEXT PRIMARY KEY,
+        workspace_id TEXT NOT NULL,
+        project_id TEXT NOT NULL,
+        lead_id TEXT NOT NULL REFERENCES site_contact_leads(id) ON DELETE RESTRICT,
+        event_type TEXT NOT NULL CHECK (event_type IN ('claimed', 'follow_up', 'status_changed')),
+        status_from TEXT NOT NULL CHECK (status_from IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')),
+        status_to TEXT NOT NULL CHECK (status_to IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')),
+        owner_from TEXT REFERENCES users(id) ON DELETE SET NULL,
+        owner_to TEXT REFERENCES users(id) ON DELETE SET NULL,
+        note TEXT NOT NULL DEFAULT '',
+        follow_up_at TEXT,
+        created_by TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        created_at TEXT NOT NULL
+      ) STRICT;
+
+      INSERT INTO site_lead_follow_ups (
+        id, workspace_id, project_id, lead_id, event_type, status_from,
+        status_to, owner_from, owner_to, note, follow_up_at, created_by, created_at
+      )
+      SELECT
+        id, tenant_id, project_id, lead_id, event_type, status_from,
+        status_to, owner_from, owner_to, note, follow_up_at, created_by, created_at
+      FROM site_lead_follow_ups_legacy;
+
+      DROP TABLE site_lead_follow_ups_legacy;
+      DROP TABLE site_contact_leads_legacy;
+
+      CREATE INDEX site_lead_follow_ups_lead_idx
+        ON site_lead_follow_ups (workspace_id, project_id, lead_id, created_at DESC);
+      CREATE INDEX site_lead_follow_ups_actor_idx
+        ON site_lead_follow_ups (workspace_id, project_id, created_by, created_at DESC);
+
+      CREATE TRIGGER site_contact_leads_contract_insert
+      BEFORE INSERT ON site_contact_leads
+      WHEN NEW.workspace_id = '' OR NEW.project_id = '' OR NEW.phone_or_email = ''
+        OR NEW.status NOT IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')
+      BEGIN SELECT RAISE(ABORT, 'site lead contract violation'); END;
+
+      CREATE TRIGGER site_contact_leads_contract_update
+      BEFORE UPDATE OF workspace_id, project_id, phone_or_email, status ON site_contact_leads
+      WHEN NEW.workspace_id = '' OR NEW.project_id = '' OR NEW.phone_or_email = ''
+        OR NEW.status NOT IN ('new', 'contacting', 'qualified', 'won', 'lost', 'spam')
+      BEGIN SELECT RAISE(ABORT, 'site lead contract violation'); END;
+
+      CREATE TRIGGER site_contact_leads_identity_immutable
+      BEFORE UPDATE OF workspace_id, project_id ON site_contact_leads
+      WHEN NEW.workspace_id != OLD.workspace_id OR NEW.project_id != OLD.project_id
+      BEGIN SELECT RAISE(ABORT, 'site lead identity is immutable'); END;
+
+      CREATE TRIGGER site_contact_leads_idempotency_immutable
+      BEFORE UPDATE OF idempotency_key, submission_hash ON site_contact_leads
+      WHEN NEW.idempotency_key != OLD.idempotency_key OR NEW.submission_hash != OLD.submission_hash
+      BEGIN SELECT RAISE(ABORT, 'site lead idempotency identity is immutable'); END;
+
+      CREATE TRIGGER site_contact_leads_submission_immutable
+      BEFORE UPDATE OF name, company, phone_or_email, phone, service, website, message, need, source_url, source_page, utm_json, user_agent, metadata_json, created_at
+      ON site_contact_leads
+      BEGIN SELECT RAISE(ABORT, 'site lead submission is immutable'); END;
+
+      CREATE TRIGGER site_lead_follow_ups_boundary_insert
+      BEFORE INSERT ON site_lead_follow_ups
+      WHEN NOT EXISTS (
+        SELECT 1 FROM site_contact_leads lead
+        WHERE lead.id = NEW.lead_id
+          AND lead.workspace_id = NEW.workspace_id
+          AND lead.project_id = NEW.project_id
+      )
+      BEGIN SELECT RAISE(ABORT, 'site lead follow-up boundary mismatch'); END;
+
+      CREATE TRIGGER site_lead_follow_ups_immutable
+      BEFORE UPDATE ON site_lead_follow_ups
+      BEGIN SELECT RAISE(ABORT, 'site lead follow-up is immutable'); END;
+      CREATE TRIGGER site_lead_follow_ups_no_delete
+      BEFORE DELETE ON site_lead_follow_ups
+      BEGIN SELECT RAISE(ABORT, 'site lead follow-up cannot be deleted'); END;
+
+      ALTER TABLE publication_tasks RENAME COLUMN tenant_id TO workspace_id;
+    `
   }
 ]);
 

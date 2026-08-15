@@ -764,7 +764,7 @@ async function checkApiAndFollowUp(store) {
 
 try {
   database = new ProductionDatabase({ databasePath: path.join(temporaryDirectory, "analysis-workbench.sqlite") });
-  const store = new AnalysisWorkbenchStore(database, { workspaceId: "tenant-analysis-workbench" });
+  const store = new AnalysisWorkbenchStore(database, { workspaceId: "deployment-analysis-workbench" });
   checkMigrationNine();
   checkQuickPlanning();
   checkBoundedResearchDocumentQuery();

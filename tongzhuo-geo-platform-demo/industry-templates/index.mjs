@@ -10,7 +10,7 @@ const REQUIRED_KEYS = Object.freeze([
   "contentTypes", "terminologyPack", "promptPreset", "navigationPreset", "version"
 ]);
 const FORBIDDEN_CUSTOMER_KEYS = new Set([
-  "tenant_id", "tenantId", "company_profile", "companyName", "legalName", "shortName",
+  "workspace_id", "workspaceId", "company_profile", "companyName", "legalName", "shortName",
   "brand", "brandName", "contact", "phone", "email", "domain", "footerIcp"
 ]);
 

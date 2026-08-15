@@ -398,6 +398,13 @@ function pagedPath(pathname, page) {
 function frontendDemoPageForPath(site, pathname) {
   if (site?.frontendDemo !== true) return null;
   const key = routeKey(pathname);
+  // A CMS publication can be missing during local first-run walkthroughs.
+  // Keep the documented public navigation usable in that explicit demo mode
+  // by rendering the same fixed-page templates used after publication.
+  if (key === "/services/") return { id: "services", type: "服务页", title: "产品与服务", path: "/services/", status: "published", seoDescription: "查看企业的产品、服务能力、适用对象与交付流程。" };
+  if (key === "/about/") return { id: "about", type: "关于页", title: "关于我们", path: "/about/", status: "published", seoDescription: "了解企业主体、服务定位与公开信息。" };
+  if (key === "/contact/") return { id: "contact", type: "联系页", title: "联系我们", path: "/contact/", status: "published", seoDescription: "联系企业并提交业务咨询。" };
+  if (key === "/insights/") return { id: "insights", type: "资讯列表", title: "行业资讯", path: "/insights/", status: "published", seoDescription: "阅读企业发布的行业资讯、方法与实践内容。" };
   if (key === "/cases/") return { id: "cases", type: "案例页", title: "服务案例", path: "/cases/", status: "published", seoDescription: "查看企业服务案例与典型实施路径。" };
   if (key === "/problem-map/") return { id: "problem-map", type: "问题地图", title: "问题地图", path: "/problem-map/", status: "published", seoDescription: "按服务方向与行业查看企业客户常见问题及直接回答。" };
   return null;
@@ -445,7 +452,7 @@ async function readStaticFile(staticRoot, relativePath) {
 class SiteAccessRecorder {
   constructor(monitoringStore, options = {}) {
     this.monitoringStore = monitoringStore;
-    this.workspaceId = options.workspaceId || process.env.TZ_TENANT_ID || "default";
+    this.workspaceId = options.workspaceId || "default";
     this.logger = options.logger || console;
     this.pending = [];
     this.flushing = null;
@@ -497,7 +504,7 @@ export function createSiteRuntime(options = {}) {
   const store = options.store || new PublicSiteStore({
     database: options.database,
     databasePath: options.databasePath,
-    workspaceId: options.workspaceId || process.env.TZ_TENANT_ID || "default",
+    workspaceId: options.workspaceId || "default",
     projectSeedKey: options.projectSeedKey || process.env.TZ_PROJECT_SEED || "",
     publicKnowledgeAssetBase: "/site-assets/knowledge"
   });
@@ -508,7 +515,7 @@ export function createSiteRuntime(options = {}) {
     port: positiveInteger(options.port ?? process.env.TZ_SITE_PORT, DEFAULT_PORT, 1, 65_535),
     staticRoot: path.resolve(options.staticRoot || process.env.TZ_SITE_STATIC_ROOT || DEFAULT_STATIC_ROOT),
     baseUrl: configuredOrigin(options.baseUrl || process.env.TZ_SITE_BASE_URL),
-    workspaceId: options.workspaceId || process.env.TZ_TENANT_ID || "default",
+    workspaceId: options.workspaceId || "default",
     trustProxy: options.trustProxy ?? booleanValue(process.env.TZ_TRUST_PROXY),
     production: options.production ?? process.env.NODE_ENV === "production",
     logger: options.logger || console
@@ -563,9 +570,12 @@ export function createSiteRuntime(options = {}) {
     if (pathname === "/llms-full.txt") return response(request, responseObject, { status: 200, contentType: "text/plain; charset=utf-8", body: renderLlms({ site, articles: machineArticles, origin, full: true }) }, { pathname });
     const cmsPage = /^\/(insights|article)(\/|$)/.test(pathname) ? null : cmsPageForPath(site, pathname);
     const demoPage = cmsPage ? null : frontendDemoPageForPath(site, pathname);
+    // Explicit local/demo runtimes may start before the first CMS release.
+    // Render fixed pages from the same renderer so every homepage CTA remains
+    // usable during setup; production still requires a published snapshot.
     if ((cmsPage || demoPage) && (cmsPage?.id !== "insights")) {
       const page = demoPage || cmsPage;
-      if (!demoPage && cmsPage.status !== "published") return response(request, responseObject, { status: 404, body: renderNotFound({ site, origin, pathname }) }, { pathname });
+      if (!demoPage && cmsPage?.status !== "published") return response(request, responseObject, { status: 404, body: renderNotFound({ site, origin, pathname }) }, { pathname });
       const body = refreshSiteAssetVersion(renderFixedPage({ site, page, articles: visibleArticles, categories, origin }));
       return response(request, responseObject, { status: 200, body, canonical: new URL(page.path, origin).href }, { pathname: page.path });
     }
@@ -693,6 +703,26 @@ export function createSiteRuntime(options = {}) {
     if (!["GET", "HEAD"].includes(method)) {
       return response(request, responseObject, { status: 405, body: errorBody(405, "Only GET and HEAD are supported."), headers: { Allow: "GET, HEAD" }, cacheControl: "no-store" }, { requestId: id, track: false });
     }
+    if (pathname === "/health/live" || pathname === "/health/ready") {
+      try {
+        store.database.connection.prepare("SELECT 1").get();
+        return response(request, responseObject, {
+          status: 200,
+          contentType: "application/json; charset=utf-8",
+          cacheControl: "no-store",
+          body: JSON.stringify({ ok: true, service: "official-site", workspaceId: config.workspaceId })
+        }, { requestId: id, pathname, track: false });
+      } catch (error) {
+        config.logger.error?.("official_site.health_failed", { requestId: id, error: error.message });
+        return response(request, responseObject, {
+          status: 503,
+          contentType: "application/json; charset=utf-8",
+          cacheControl: "no-store",
+          body: JSON.stringify({ ok: false, service: "official-site", code: "SITE_HEALTH_NOT_READY" })
+        }, { requestId: id, pathname, track: false });
+      }
+    }
+    let demoFallback = false;
     try {
       const publicKnowledgeMatch = pathname.match(/^\/site-assets\/knowledge\/([^/]+)$/);
       if (publicKnowledgeMatch) {
@@ -727,19 +757,28 @@ export function createSiteRuntime(options = {}) {
       } catch (error) {
         if (error?.code === "SITE_CMS_NOT_PUBLISHED") {
           const draftSnapshot = store.snapshot({ draft: true });
-          origin = requestOrigin(request, config, draftSnapshot.site);
-          const unavailableSite = { ...draftSnapshot.site, allowAiCrawl: false };
-          return response(request, responseObject, {
-            status: 404,
-            body: renderNotFound({ site: unavailableSite, origin, pathname }),
-            cacheControl: "no-store",
-            headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex" }
-          }, { requestId: id, pathname, track: false });
+          // Local/demo runtimes may intentionally run before the first CMS
+          // release. In that explicit mode, render the seeded draft site so
+          // homepage navigation and CTAs remain usable during setup. Never
+          // expose this fallback from a production runtime.
+          if (!config.production && draftSnapshot.site?.frontendDemo === true) {
+            snapshot = draftSnapshot;
+            demoFallback = true;
+          } else {
+            origin = requestOrigin(request, config, draftSnapshot.site);
+            const unavailableSite = { ...draftSnapshot.site, allowAiCrawl: false };
+            return response(request, responseObject, {
+              status: 404,
+              body: renderNotFound({ site: unavailableSite, origin, pathname }),
+              cacheControl: "no-store",
+              headers: { "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet, noimageindex" }
+            }, { requestId: id, pathname, track: false });
+          }
         }
-        throw error;
+        if (!snapshot) throw error;
       }
       origin = requestOrigin(request, config, snapshot.site);
-      if (snapshot.cms?.status === "unpublished" && !["/health/live", "/health/ready"].includes(pathname)) {
+      if (!demoFallback && snapshot.cms?.status === "unpublished" && !["/health/live", "/health/ready"].includes(pathname)) {
         return response(request, responseObject, { status: 404, body: renderNotFound({ site: snapshot.site, origin, pathname }) }, { requestId: id, pathname });
       }
       const location = redirectLocation(snapshot.site, pathname, url.search);

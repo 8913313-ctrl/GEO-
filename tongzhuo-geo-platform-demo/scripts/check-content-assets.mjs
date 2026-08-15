@@ -20,7 +20,7 @@ function insertArticle(workspaceId, articleId, versionId, title, status = "publi
 try {
   insertArticle("default", "ART-ASSET-1", "VER-ASSET-1", "资产追踪测试文章");
   insertArticle("default", "ART-ASSET-DRAFT", "VER-ASSET-DRAFT", "尚未发布的草稿文章", "draft");
-  insertArticle("tenant-b", "ART-ASSET-B", "VER-ASSET-B", "其他租户文章");
+  insertArticle("deployment-b", "ART-ASSET-B", "VER-ASSET-B", "其他部署文章");
   let responseBody = "<html><head><link rel=\"canonical\" href=\"https://www.example.com/article\"></head><body>v1</body></html>";
   const store = new ContentAssetStore(database, {
     workspaceId: "default",
@@ -43,7 +43,7 @@ try {
   const synced = store.syncPublisherJob({ id: 88, articleId: "ART-ASSET-1", contentVersionId: "VER-ASSET-1", updatedAt: new Date().toISOString(), results: { web: { state: "published", remote_url: "https://www.example.com/article?fbclid=x" }, zhihu: { state: "published", remote_url: "https://www.zhihu.com/p/123" }, failed: { state: "failed", remote_url: "https://failed.example/1" } } });
   assert.equal(synced.synced, 2);
   assert.equal(store.get("default", asset.id).publications.length, 3);
-  assert.equal(store.list({ workspaceId: "tenant-b" }).length, 0, "workspace list must not leak another workspace");
+  assert.equal(store.list({ workspaceId: "deployment-b" }).length, 0, "workspace list must not leak another workspace");
 
   let checked = await store.checkPublication({ assetId: asset.id, publicationId: synced.publications.find((item) => item.platform === "web").id });
   assert.equal(checked.healthStatus, "healthy");

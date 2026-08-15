@@ -137,11 +137,27 @@ export class DiagnosticRelayService {
   }
 
   async capabilities() {
-    return this._requireClient().capabilities();
+    if (!this.client) {
+      return {
+        configured: false,
+        enabled: false,
+        state: "not_configured",
+        provider: null,
+        items: []
+      };
+    }
+    return this.client.capabilities();
   }
 
   async quota() {
-    return this._requireClient().quota();
+    if (!this.client) {
+      return {
+        configured: false,
+        enabled: false,
+        state: "not_configured"
+      };
+    }
+    return this.client.quota();
   }
 
   async quote({ projectId, questionSetId = null, items = [], platforms = [], terminals = [], modes = [], allowSupersededQuestionSet = false } = {}) {
