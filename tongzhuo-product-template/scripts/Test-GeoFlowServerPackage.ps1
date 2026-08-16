@@ -79,6 +79,15 @@ Assert-Condition ([string] $manifest.install_command -like '*install-geoflow-ove
 Assert-Condition ([string] $manifest.dry_run_command -like '*--dry-run*') 'GEOFlow server package manifest is missing dry_run_command.'
 Assert-Condition ([string] $manifest.verify_command -like '*verify-geoflow-overrides.sh*') 'GEOFlow server package manifest is missing verify_command.'
 Assert-Condition ([string] $manifest.smoke_command -like '*smoke-geoflow-workbench.sh*') 'GEOFlow server package manifest is missing smoke_command.'
+Assert-Condition ([string] $manifest.contract_check_command -like '*check-publisher-automation-contract.ps1*') 'GEOFlow server package manifest is missing publisher contract_check_command.'
+Assert-Condition ([string] $manifest.publisher_automation.reconcile_command -eq 'php artisan publisher:reconcile --json') 'GEOFlow server package manifest is missing the reconcile command.'
+Assert-Condition ([string] $manifest.publisher_automation.scheduler_verify_command -eq 'php artisan schedule:list') 'GEOFlow server package manifest is missing the scheduler verification command.'
+Assert-Condition ([bool] $manifest.publisher_automation.scheduler_cron_required) 'GEOFlow server package must declare that system Cron is required.'
+Assert-Condition ([bool] $manifest.publisher_automation.sse_proxy_buffering_must_be_disabled) 'GEOFlow server package must declare the SSE proxy buffering requirement.'
+$featureFlags = @($manifest.publisher_automation.required_feature_flags)
+foreach ($requiredFlag in @('PUBLISHING_CENTER_V2_ENABLED', 'PUBLISHER_PLATFORM_JOBS_ENABLED', 'PUBLISHER_DEVICE_COMMANDS_ENABLED', 'PUBLISHER_DEVICE_EVENTS_ENABLED')) {
+    Assert-Condition ($featureFlags -contains $requiredFlag) "GEOFlow server package manifest is missing publisher feature flag: $requiredFlag"
+}
 Assert-Condition ([bool] $manifest.security.excludes_env) 'GEOFlow server package manifest must declare .env exclusion.'
 Assert-Condition ([bool] $manifest.security.excludes_runtime_storage) 'GEOFlow server package manifest must declare runtime storage exclusion.'
 Assert-Condition ([bool] $manifest.security.excludes_customer_tokens) 'GEOFlow server package manifest must declare customer token exclusion.'
@@ -89,6 +98,8 @@ foreach ($pattern in @(
     '*/deployment/install-geoflow-overrides.sh',
     '*/deployment/verify-geoflow-overrides.sh',
     '*/deployment/smoke-geoflow-workbench.sh',
+    '*/deployment/check-publisher-automation-contract.ps1',
+    '*/server-overrides/app/Console/Commands/ReconcilePublisherPlatformJobsCommand.php',
     '*/server-overrides/app/Http/Controllers/Admin/CustomerProjectController.php',
     '*/server-overrides/app/Http/Controllers/Admin/GeoGrowthController.php',
     '*/server-overrides/app/Http/Controllers/Admin/GeoOpportunityController.php',
@@ -96,7 +107,13 @@ foreach ($pattern in @(
     '*/server-overrides/app/Http/Controllers/Admin/GeoAnswerTestController.php',
     '*/server-overrides/app/Http/Controllers/Admin/PublisherAssistantController.php',
     '*/server-overrides/app/Http/Controllers/Admin/PublisherDeviceController.php',
+    '*/server-overrides/app/Http/Controllers/Admin/PublisherDeviceControlController.php',
+    '*/server-overrides/app/Http/Controllers/Api/V1/PublisherAssistantController.php',
     '*/server-overrides/app/Http/Controllers/Api/V1/PublisherDeviceController.php',
+    '*/server-overrides/app/Http/Controllers/Api/V1/PublisherDeviceShadowController.php',
+    '*/server-overrides/app/Http/Controllers/Api/V1/PublisherDeviceEventController.php',
+    '*/server-overrides/app/Http/Controllers/Api/V1/PublisherDeviceCommandController.php',
+    '*/server-overrides/app/Http/Controllers/Api/V1/PublisherPlatformJobController.php',
     '*/server-overrides/app/Http/Controllers/Api/V1/ContentWorkflowController.php',
     '*/server-overrides/app/Http/Controllers/Api/V1/AiProviderController.php',
     '*/server-overrides/app/Http/Controllers/Api/Internal/RagController.php',
@@ -108,9 +125,20 @@ foreach ($pattern in @(
     '*/server-overrides/app/Models/TongzhuoGeoPlan.php',
     '*/server-overrides/app/Models/TongzhuoGeoAnswerTest.php',
     '*/server-overrides/app/Models/PublisherDevice.php',
+    '*/server-overrides/app/Models/PublisherDeviceCommand.php',
+    '*/server-overrides/app/Models/PublisherPlatformJob.php',
+    '*/server-overrides/app/Models/PublisherPlatformSession.php',
     '*/server-overrides/app/Models/AiProvider.php',
     '*/server-overrides/app/Models/TongzhuoContentBusinessLine.php',
     '*/server-overrides/app/Models/TongzhuoKnowledgeDocument.php',
+    '*/server-overrides/app/Services/Publishing/PublisherDeviceCredential.php',
+    '*/server-overrides/app/Services/Publishing/PublisherPlatformCatalogService.php',
+    '*/server-overrides/app/Services/Publishing/PublisherPlatformJobLifecycleService.php',
+    '*/server-overrides/app/Services/Publishing/PublisherPreflightService.php',
+    '*/server-overrides/app/Services/Publishing/PublisherSelectorHealthService.php',
+    '*/server-overrides/app/Services/Publishing/PublishingCenterService.php',
+    '*/server-overrides/bootstrap/app.php',
+    '*/server-overrides/config/publishing.php',
     '*/server-overrides/app/Services/Access/AccessControlService.php',
     '*/server-overrides/app/Services/TongzhuoAi/AiModelGateway.php',
     '*/server-overrides/app/Services/Rag/HybridKnowledgeRetriever.php',
@@ -118,6 +146,8 @@ foreach ($pattern in @(
     '*/server-overrides/routes/tongzhuo-content-api.php',
     '*/server-overrides/routes/tongzhuo-ai-api.php',
     '*/server-overrides/routes/tongzhuo-rag-api.php',
+    '*/server-overrides/routes/publisher-assistant.php',
+    '*/server-overrides/routes/publisher-device-sync.php',
     '*/server-overrides/public/assets/styles.css',
     '*/server-overrides/public/assets/wukong-overrides.css',
     '*/server-overrides/public/assets/site.js',
@@ -143,10 +173,18 @@ foreach ($pattern in @(
     '*/server-overrides/database/migrations/2026_07_21_030000_create_tongzhuo_geo_plans_table.php',
     '*/server-overrides/database/migrations/2026_07_21_040000_create_tongzhuo_geo_answer_tests_table.php',
     '*/server-overrides/database/migrations/2026_07_21_050000_create_tongzhuo_customer_projects_table.php',
+    '*/server-overrides/database/migrations/2026_07_21_085000_add_pairing_fields_to_publisher_devices_table.php',
+    '*/server-overrides/database/migrations/2026_07_21_090000_create_publisher_device_pairings_table.php',
+    '*/server-overrides/database/migrations/2026_07_21_091000_create_publisher_platform_sessions_table.php',
     '*/server-overrides/database/migrations/2026_07_25_000000_create_tongzhuo_access_control_tables.php',
     '*/server-overrides/database/migrations/2026_07_25_000000_create_tongzhuo_content_workflow_tables.php',
     '*/server-overrides/database/migrations/2026_07_25_000000_create_ai_providers_table.php',
-    '*/server-overrides/database/migrations/2026_07_25_010000_create_tongzhuo_rag_tables.php'
+    '*/server-overrides/database/migrations/2026_07_25_010000_create_tongzhuo_rag_tables.php',
+    '*/server-overrides/database/migrations/2026_08_12_000000_add_publisher_shadow_and_lease_fields.php',
+    '*/server-overrides/database/migrations/2026_08_13_000000_promote_verified_publisher_platforms.php',
+    '*/server-overrides/database/migrations/2026_08_13_001000_harden_article_distribution_idempotency.php',
+    '*/server-overrides/database/migrations/2026_08_15_000000_add_publisher_profile_lease_index.php',
+    '*/server-overrides/database/migrations/2026_08_15_010000_add_publisher_account_group_source_fields.php'
 )) {
     Assert-ZipHas -Entries $entries -Pattern $pattern
 }
@@ -182,6 +220,21 @@ try {
     Assert-Condition ($installerText -like '*--dry-run*') 'Server installer in package is missing --dry-run support.'
     Assert-Condition ($installerText -like '*No files were copied and no artisan command was executed*') 'Server installer dry-run safety message is missing.'
 
+    $contractEntry = $archive.Entries | Where-Object {
+        ($_.FullName -replace '\\', '/') -like '*/deployment/check-publisher-automation-contract.ps1'
+    } | Select-Object -First 1
+    Assert-Condition ($null -ne $contractEntry) 'check-publisher-automation-contract.ps1 not found in server package.'
+    $reader = [IO.StreamReader]::new($contractEntry.Open())
+    try {
+        $contractText = $reader.ReadToEnd()
+    } finally {
+        $reader.Dispose()
+    }
+    Assert-Condition ($contractText -like '*Publisher automation contract: PASS*') 'Publisher contract success marker is missing.'
+    Assert-Condition ($contractText -like '*2026_08_15_000000_add_publisher_profile_lease_index.php*') 'Publisher contract is missing the profile lease migration.'
+    Assert-Condition ($contractText -like '*2026_08_15_010000_add_publisher_account_group_source_fields.php*') 'Publisher contract is missing the account-group source migration.'
+    Assert-Condition ($contractText -like '*PublisherDeviceCredential.php*') 'Publisher contract is missing device credential hardening.'
+
     $verifierEntry = $archive.Entries | Where-Object {
         ($_.FullName -replace '\\', '/') -like '*/deployment/verify-geoflow-overrides.sh'
     } | Select-Object -First 1
@@ -197,6 +250,12 @@ try {
     Assert-Condition ($verifierText -like '*customer-projects*') 'Server verifier in package is missing customer project checks.'
     Assert-Condition ($verifierText -like '*geo-growth*') 'Server verifier in package is missing GEO growth checks.'
     Assert-Condition ($verifierText -like '*tongzhuo-cms*') 'Server verifier in package is missing CMS checks.'
+    Assert-Condition ($verifierText -like '*publisher:reconcile*') 'Server verifier in package is missing publisher reconcile checks.'
+    Assert-Condition ($verifierText -like '*schedule:list*') 'Server verifier in package is missing scheduler checks.'
+    Assert-Condition ($verifierText -like '*devices/{device}/events*') 'Server verifier in package is missing SSE route checks.'
+    Assert-Condition ($verifierText -like '*devices/{device}/commands*') 'Server verifier in package is missing device command route checks.'
+    Assert-Condition ($verifierText -like '*2026_08_15_000000_add_publisher_profile_lease_index.php*') 'Server verifier in package is missing the profile lease migration check.'
+    Assert-Condition ($verifierText -like '*2026_08_15_010000_add_publisher_account_group_source_fields.php*') 'Server verifier in package is missing the account-group source migration check.'
 
     $smokeEntry = $archive.Entries | Where-Object {
         ($_.FullName -replace '\\', '/') -like '*/deployment/smoke-geoflow-workbench.sh'

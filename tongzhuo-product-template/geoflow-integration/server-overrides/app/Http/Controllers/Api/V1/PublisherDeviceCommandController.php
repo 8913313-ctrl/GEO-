@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Exceptions\ApiException;
 use App\Models\PublisherDevice;
 use App\Models\PublisherDeviceCommand;
+use App\Services\Publishing\PublisherDeviceCredential;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -106,7 +107,7 @@ class PublisherDeviceCommandController extends BaseApiController
 
             $item->forceFill([
                 'status' => 'claimed',
-                'claimed_at' => $item->claimed_at ?? now(),
+                'claimed_at' => now(),
                 'claimed_by' => $worker,
                 'lease_token' => bin2hex(random_bytes(32)),
                 'lease_expires_at' => now()->addMinutes($this->leaseMinutes()),
@@ -198,8 +199,7 @@ class PublisherDeviceCommandController extends BaseApiController
             throw new ApiException('publisher_device_disabled', '发布设备已被禁用。', 403);
         }
         $token = trim((string) $request->bearerToken());
-        $secret = trim((string) ($record->public_key ?? ''));
-        if ($token === '' || $secret === '' || ! hash_equals($secret, $token)) {
+        if (! PublisherDeviceCredential::verify($record, $token)) {
             throw new ApiException('publisher_device_unauthorized', '设备凭证无效，请重新配对。', 401);
         }
 

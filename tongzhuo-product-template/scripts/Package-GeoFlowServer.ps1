@@ -16,6 +16,7 @@ $overridesRoot = Join-Path $integrationRoot 'server-overrides'
 $installerPath = Join-Path $integrationRoot 'deployment\install-geoflow-overrides.sh'
 $verifierPath = Join-Path $integrationRoot 'deployment\verify-geoflow-overrides.sh'
 $smokePath = Join-Path $integrationRoot 'deployment\smoke-geoflow-workbench.sh'
+$publisherContractPath = Join-Path $integrationRoot 'deployment\check-publisher-automation-contract.ps1'
 
 if (-not (Test-Path $overridesRoot)) {
     throw "server-overrides not found: $overridesRoot"
@@ -29,6 +30,10 @@ if (-not (Test-Path $verifierPath)) {
 if (-not (Test-Path $smokePath)) {
     throw "Linux smoke test not found: $smokePath"
 }
+if (-not (Test-Path $publisherContractPath)) {
+    throw "Publisher automation contract check not found: $publisherContractPath"
+}
+& $publisherContractPath -PackageRoot $integrationRoot
 $product = & (Join-Path $PSScriptRoot 'Read-ProductMetadata.ps1') -Root $rootPath
 
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
@@ -51,6 +56,7 @@ try {
     Copy-Item -LiteralPath $installerPath -Destination (Join-Path $packageRoot 'deployment\install-geoflow-overrides.sh') -Force
     Copy-Item -LiteralPath $verifierPath -Destination (Join-Path $packageRoot 'deployment\verify-geoflow-overrides.sh') -Force
     Copy-Item -LiteralPath $smokePath -Destination (Join-Path $packageRoot 'deployment\smoke-geoflow-workbench.sh') -Force
+    Copy-Item -LiteralPath $publisherContractPath -Destination (Join-Path $packageRoot 'deployment\check-publisher-automation-contract.ps1') -Force
 
     $manifest = @{
         product = 'Tongzhuo GEOFlow Server Overrides'
@@ -63,7 +69,20 @@ try {
         dry_run_command = 'bash deployment/install-geoflow-overrides.sh --laravel-root /path/to/geoflow --package-root . --dry-run'
         verify_command = 'bash deployment/verify-geoflow-overrides.sh --laravel-root /path/to/geoflow --base-url https://example.com'
         smoke_command = 'bash deployment/smoke-geoflow-workbench.sh --base-url https://example.com'
+        contract_check_command = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File deployment/check-publisher-automation-contract.ps1 -PackageRoot .'
         excludes = @('.env', 'storage', 'vendor', 'node_modules', '.data')
+        publisher_automation = @{
+            reconcile_command = 'php artisan publisher:reconcile --json'
+            scheduler_verify_command = 'php artisan schedule:list'
+            scheduler_cron_required = $true
+            required_feature_flags = @(
+                'PUBLISHING_CENTER_V2_ENABLED',
+                'PUBLISHER_PLATFORM_JOBS_ENABLED',
+                'PUBLISHER_DEVICE_COMMANDS_ENABLED',
+                'PUBLISHER_DEVICE_EVENTS_ENABLED'
+            )
+            sse_proxy_buffering_must_be_disabled = $true
+        }
         security = @{
             excludes_env = $true
             excludes_runtime_storage = $true

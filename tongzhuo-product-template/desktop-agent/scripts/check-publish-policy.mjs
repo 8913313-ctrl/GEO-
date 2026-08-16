@@ -45,6 +45,25 @@ assert.equal(policy.canStartProfile({ groupId: 'group-b', profileKey: 'profile-c
 now += 61 * 60 * 1000;
 assert.equal(policy.canStartProfile({ groupId: 'group-b', profileKey: 'profile-c', platformId: 'wechat_mp' }).allowed, true);
 
+// The strike before a cooldown must survive a normal node restart. Otherwise
+// restarting the publisher would bypass the consecutive-risk pause threshold.
+const firstRiskPolicy = new PublishPolicy({
+  now: () => now,
+  policy: { riskPauseThreshold: 2, riskPauseMinutes: 60 },
+});
+firstRiskPolicy.recordOutcome('toutiao', { state: 'failed', message: 'captcha verification required' });
+const resumedRiskPolicy = new PublishPolicy({
+  now: () => now,
+  policy: { riskPauseThreshold: 2, riskPauseMinutes: 60 },
+  state: firstRiskPolicy.snapshot(),
+});
+resumedRiskPolicy.recordOutcome('toutiao', { state: 'failed', message: 'risk verification required' });
+assert.equal(
+  resumedRiskPolicy.canStartProfile({ groupId: 'group-b', profileKey: 'profile-toutiao', platformId: 'toutiao' }).reason,
+  'risk_cooldown',
+  'a restart must not erase an unpaused consecutive risk strike',
+);
+
 assert.equal(policy.shouldRetry(new Error('network timeout')), true);
 assert.equal(policy.shouldRetry(new Error('login verification required')), false);
 

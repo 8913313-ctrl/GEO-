@@ -77,11 +77,21 @@ export class PublishPolicy {
     for (const [key, entry] of Object.entries(asObject(source.cooldowns))) {
       const item = asObject(entry);
       const until = Math.max(0, Math.trunc(finiteNumber(item.until, 0)));
-      if (until > this.now()) {
+      const riskCount = Math.max(0, Math.trunc(finiteNumber(item.riskCount, 0)));
+      const lastRiskAt = Math.max(0, Math.trunc(finiteNumber(item.lastRiskAt, 0)));
+      const activeCooldown = until > this.now();
+      // Before the threshold is reached `until` is zero. Keep those recent
+      // consecutive strikes across a normal process restart, otherwise a
+      // restart would let an account evade its N-strike risk pause.
+      const recentUnpausedStrike = until === 0
+        && riskCount > 0
+        && lastRiskAt >= this.now() - DAY_MS;
+      if (activeCooldown || recentUnpausedStrike) {
         cooldowns[key] = {
           until,
-          riskCount: Math.max(0, Math.trunc(finiteNumber(item.riskCount, 0))),
+          riskCount,
           reason: String(item.reason || 'risk_control'),
+          lastRiskAt,
         };
       }
     }
@@ -213,12 +223,23 @@ export class PublishPolicy {
   recordRisk(platformId, reason = 'risk_control', platformPolicy = {}) {
     const key = String(platformId || '').trim();
     if (!key) return null;
-    const current = this.state.cooldowns[key] || { riskCount: 0, until: 0 };
+    const now = this.now();
+    const current = this.state.cooldowns[key] || { riskCount: 0, until: 0, lastRiskAt: 0 };
+    // A completed cooldown is a recovery boundary. A new risk after it expires
+    // starts a fresh strike sequence rather than extending an old pause forever.
+    const baseline = current.until > 0 && current.until <= now
+      ? { riskCount: 0, until: 0, lastRiskAt: 0 }
+      : current;
     const settings = this.policyFor(key, platformPolicy);
-    const riskCount = current.riskCount + 1;
+    const riskCount = baseline.riskCount + 1;
     const shouldPause = riskCount >= settings.riskPauseThreshold;
-    const until = shouldPause ? this.now() + settings.riskPauseMinutes * 60 * 1000 : 0;
-    this.state.cooldowns[key] = { riskCount, until, reason: String(reason || 'risk_control') };
+    const until = shouldPause ? now + settings.riskPauseMinutes * 60 * 1000 : 0;
+    this.state.cooldowns[key] = {
+      riskCount,
+      until,
+      reason: String(reason || 'risk_control'),
+      lastRiskAt: now,
+    };
     return this.state.cooldowns[key];
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "tongzhuo-geo-desktop-agent",
-  "version": "1.8.18",
+  "version": "1.8.19",
   "private": true,
   "description": "桐灼 GEO Windows 发布节点",
   "author": "Tongzhuo GEO",
@@ -10,19 +10,29 @@
     "start": "set NODE_ENV=development&& set TZ_AGENT_ALLOW_INSECURE_DEV_KEY=1&& set TZ_AGENT_ALLOW_INSECURE_DEV_API=1&& node src/main.js",
     "start:desktop": "electron .",
     "prepare:browser-runtime": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Prepare-BrowserRuntime.ps1",
-    "build:desktop": "npm run prepare:browser-runtime && electron-builder --win nsis portable",
-    "check": "node --check public/app.js && node --check public/test.js && node --check electron-main.mjs && node --check preload.cjs && node --check src/main.js && node --check src/agent.js && node --check src/config-store.js && node --check src/geoflow-client.js && node --check src/log-buffer.js && node --check src/platform-browser.js && node --check src/platforms.js && node --check src/platform-result.js && node --check src/job-state-machine.js && node --check src/version.js && node --check src/diagnostics.js && node --check src/publish-policy.js && node --check src/export-bundle.js && node --check src/article-payload.js && node --check src/adapters/index.js && node --check src/adapters/base-adapter.js && node --check src/adapters/generic-editor-adapter.js && node --check src/adapters/fill-tools.js && node --check src/adapters/final-publish.js && node --check src/adapters/short-post-adapter.js && node --check src/adapters/zhihu-adapter.js && node --check src/adapters/wechat-mp-adapter.js && node --check src/adapters/toutiao-adapter.js && node --check scripts/check-adapters.mjs && node --check scripts/check-pairing-invalidation.mjs && node --check scripts/check-browser-launch-order.mjs && node --check scripts/check-native-login.mjs && node --check scripts/check-job-protocol.mjs && node scripts/check-browser-launch-order.mjs && node scripts/check-native-login.mjs && node scripts/check-article-payload.mjs && node scripts/check-config-store.mjs && node scripts/check-pairing-invalidation.mjs && node scripts/check-log-buffer.mjs && node scripts/check-platform-catalog.mjs && node scripts/check-adapters.mjs && node scripts/check-export-bundle.mjs && node scripts/check-agent-result.mjs && node scripts/check-job-state-machine.mjs && node scripts/check-diagnostics.mjs && node scripts/check-version.mjs && node scripts/check-publish-policy.mjs && node scripts/check-agent-scheduler.mjs && node scripts/check-job-protocol.mjs && node --check scripts/check-all-platform-adapters.mjs && node scripts/check-all-platform-adapters.mjs && node --check scripts/check-rich-content-contract.mjs && node scripts/check-rich-content-contract.mjs",
-    "postcheck": "node scripts/check-login-sync.mjs && node scripts/check-browser-launch-order.mjs && node scripts/check-native-login.mjs",
+    "prepare:build-manifest": "node scripts/generate-build-manifest.mjs --require-clean",
+    "finalize:build-manifest": "node scripts/finalize-release-manifest.mjs",
+    "verify:release": "node scripts/check-release-artifacts.mjs",
+    "test:events": "node scripts/check-device-event-stream.mjs && node scripts/check-desired-state-platform-mode.mjs",
+    "test:login-sync": "node scripts/check-login-sync.mjs",
+    "test:acceptance-page": "node scripts/check-acceptance-page.mjs",
+    "build:desktop": "npm run prepare:build-manifest && npm run check && npm run prepare:browser-runtime && electron-builder --win nsis portable && npm run finalize:build-manifest && npm run verify:release -- --require-current-commit",
+    "precheck": "npm run check:release-scripts && node scripts/check-build-manifest.mjs --source",
+    "check": "node --check public/app.js && node --check public/test.js && node --check electron-main.mjs && node --check preload.cjs && node --check src/main.js && node --check src/agent.js && node --check src/config-store.js && node --check src/geoflow-client.js && node --check src/log-buffer.js && node --check src/platform-browser.js && node --check src/platforms.js && node --check src/platform-result.js && node --check src/job-state-machine.js && node --check src/legacy-job-checkpoint.js && node --check src/version.js && node --check src/diagnostics.js && node --check src/publish-policy.js && node --check src/export-bundle.js && node --check src/article-payload.js && node --check src/adapters/index.js && node --check src/adapters/base-adapter.js && node --check src/adapters/generic-editor-adapter.js && node --check src/adapters/fill-tools.js && node --check src/adapters/final-publish.js && node --check src/adapters/short-post-adapter.js && node --check src/adapters/zhihu-adapter.js && node --check src/adapters/wechat-mp-adapter.js && node --check src/adapters/toutiao-adapter.js && node --check scripts/check-desktop-shell-contract.mjs && node --check scripts/check-adapters.mjs && node --check scripts/check-pairing-invalidation.mjs && node --check scripts/check-browser-launch-order.mjs && node --check scripts/check-native-login.mjs && node --check scripts/check-job-protocol.mjs && node --check scripts/check-selector-telemetry.mjs && node scripts/check-desktop-shell-contract.mjs && node scripts/check-browser-launch-order.mjs && node scripts/check-native-login.mjs && node scripts/check-article-payload.mjs && node scripts/check-config-store.mjs && node scripts/check-pairing-invalidation.mjs && node scripts/check-log-buffer.mjs && node scripts/check-platform-catalog.mjs && node scripts/check-adapters.mjs && node scripts/check-export-bundle.mjs && node scripts/check-agent-result.mjs && node scripts/check-selector-telemetry.mjs && node scripts/check-job-state-machine.mjs && node scripts/check-diagnostics.mjs && node scripts/check-version.mjs && node scripts/check-publish-policy.mjs && node scripts/check-agent-scheduler.mjs && node scripts/check-legacy-job-checkpoint.mjs && node scripts/check-job-protocol.mjs && node --check scripts/check-all-platform-adapters.mjs && node scripts/check-all-platform-adapters.mjs && node --check scripts/check-rich-content-contract.mjs && node scripts/check-rich-content-contract.mjs",
+    "postcheck": "node scripts/check-login-sync.mjs && node scripts/check-browser-launch-order.mjs && node scripts/check-native-login.mjs && node scripts/check-device-event-stream.mjs && node scripts/check-desired-state-platform-mode.mjs && node scripts/check-browser-blank-cleanup.mjs && node scripts/check-geoflow-client.mjs && node scripts/check-acceptance-page.mjs && powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/check-browser-runtime-preparation.ps1",
     "test:adapters": "node scripts/check-adapters.mjs",
     "test:platforms": "node scripts/check-all-platform-adapters.mjs",
     "test:job-protocol": "node scripts/check-job-protocol.mjs",
-    "test:rich-content": "node scripts/check-rich-content-contract.mjs"
+    "test:rich-content": "node scripts/check-rich-content-contract.mjs",
+    "check:build-manifest": "node scripts/check-build-manifest.mjs --source",
+    "check:release-scripts": "node --check scripts/generate-build-manifest.mjs && node --check scripts/finalize-release-manifest.mjs && node --check scripts/check-release-artifacts.mjs && node --check scripts/check-release-toolchain.mjs && node -e \"import('./scripts/check-release-artifacts.mjs')\" && node scripts/check-release-toolchain.mjs"
   },
   "dependencies": {
     "express": "^5.1.0",
     "playwright": "1.61.1"
   },
   "devDependencies": {
+    "@electron/asar": "^3.2.18",
     "electron": "^36.3.2",
     "electron-builder": "^26.0.12"
   },
@@ -55,6 +65,10 @@
       {
         "from": "assets/tongzhuo-geo-publisher.ico",
         "to": "assets/tongzhuo-geo-publisher.ico"
+      },
+      {
+        "from": ".release-metadata/build-manifest.json",
+        "to": "build-manifest.json"
       }
     ],
     "extraMetadata": {

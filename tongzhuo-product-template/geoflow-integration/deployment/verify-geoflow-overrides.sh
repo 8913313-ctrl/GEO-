@@ -57,7 +57,11 @@ fi
 cd "$LARAVEL_ROOT"
 
 required_files=(
+  "bootstrap/app.php"
+  "config/publishing.php"
+  "app/Console/Commands/ReconcilePublisherPlatformJobsCommand.php"
   "routes/publisher-assistant.php"
+  "routes/publisher-device-sync.php"
   "routes/tongzhuo-access-api.php"
   "routes/tongzhuo-access-admin.php"
   "routes/tongzhuo-ai-api.php"
@@ -72,7 +76,13 @@ required_files=(
   "app/Http/Controllers/Admin/GeoAnswerTestController.php"
   "app/Http/Controllers/Admin/PublisherAssistantController.php"
   "app/Http/Controllers/Admin/PublisherDeviceController.php"
+  "app/Http/Controllers/Admin/PublisherDeviceControlController.php"
+  "app/Http/Controllers/Api/V1/PublisherAssistantController.php"
   "app/Http/Controllers/Api/V1/PublisherDeviceController.php"
+  "app/Http/Controllers/Api/V1/PublisherDeviceShadowController.php"
+  "app/Http/Controllers/Api/V1/PublisherDeviceEventController.php"
+  "app/Http/Controllers/Api/V1/PublisherDeviceCommandController.php"
+  "app/Http/Controllers/Api/V1/PublisherPlatformJobController.php"
   "app/Http/Controllers/Api/V1/ContentWorkflowController.php"
   "app/Http/Controllers/Api/V1/AiProviderController.php"
   "app/Http/Controllers/Api/Internal/KnowledgeDocumentController.php"
@@ -90,6 +100,12 @@ required_files=(
   "app/Models/TongzhuoGeoPlan.php"
   "app/Models/TongzhuoGeoAnswerTest.php"
   "app/Models/PublisherDevice.php"
+  "app/Models/PublisherDeviceCommand.php"
+  "app/Models/PublisherAccountGroup.php"
+  "app/Models/PublisherAccountGroupItem.php"
+  "app/Models/PublisherPlatform.php"
+  "app/Models/PublisherPlatformJob.php"
+  "app/Models/PublisherPlatformSession.php"
   "app/Models/TongzhuoContentBusinessLine.php"
   "app/Models/TongzhuoContentKeywordPack.php"
   "app/Models/TongzhuoContentManagedKeyword.php"
@@ -110,6 +126,13 @@ required_files=(
   "app/Models/TongzhuoKnowledgeChunk.php"
   "app/Models/TongzhuoRagRun.php"
   "app/Models/TongzhuoRagCitation.php"
+  "app/Services/Publishing/PublisherBatchSummaryService.php"
+  "app/Services/Publishing/PublisherDeviceCredential.php"
+  "app/Services/Publishing/PublisherPlatformCatalogService.php"
+  "app/Services/Publishing/PublisherPlatformJobLifecycleService.php"
+  "app/Services/Publishing/PublisherPreflightService.php"
+  "app/Services/Publishing/PublisherSelectorHealthService.php"
+  "app/Services/Publishing/PublishingCenterService.php"
   "app/Services/Access/AccessControlService.php"
   "app/Services/TongzhuoAi/AiModelGateway.php"
   "app/Services/Rag/KnowledgeChunker.php"
@@ -142,10 +165,15 @@ required_files=(
   "database/migrations/2026_07_21_040000_create_tongzhuo_geo_answer_tests_table.php"
   "database/migrations/2026_07_21_050000_create_tongzhuo_customer_projects_table.php"
   "database/migrations/2026_07_17_000000_create_publisher_devices_table.php"
+  "database/migrations/2026_07_21_085000_add_pairing_fields_to_publisher_devices_table.php"
+  "database/migrations/2026_07_21_090000_create_publisher_device_pairings_table.php"
+  "database/migrations/2026_07_21_091000_create_publisher_platform_sessions_table.php"
   "database/migrations/2026_07_22_100000_create_publishing_center_v2_tables.php"
   "database/migrations/2026_08_12_000000_add_publisher_shadow_and_lease_fields.php"
   "database/migrations/2026_08_13_000000_promote_verified_publisher_platforms.php"
   "database/migrations/2026_08_13_001000_harden_article_distribution_idempotency.php"
+  "database/migrations/2026_08_15_000000_add_publisher_profile_lease_index.php"
+  "database/migrations/2026_08_15_010000_add_publisher_account_group_source_fields.php"
   "database/migrations/2026_07_25_000000_create_tongzhuo_content_workflow_tables.php"
   "database/migrations/2026_07_25_000000_create_tongzhuo_access_control_tables.php"
   "database/migrations/2026_07_25_000000_create_ai_providers_table.php"
@@ -167,6 +195,8 @@ fi
 
 php_available="0"
 route_check="skipped"
+command_check="skipped"
+schedule_check="skipped"
 if command -v php >/dev/null 2>&1; then
   php_available="1"
   if php artisan route:list >/tmp/tongzhuo-route-list.$$ 2>/tmp/tongzhuo-route-list.err.$$; then
@@ -181,13 +211,21 @@ if command -v php >/dev/null 2>&1; then
       "${ADMIN_PATH}/geo-answer-tests" \
       "${ADMIN_PATH}/customer-projects" \
       "api/v1/publisher" \
+      "api/v1/publisher/devices" \
+      "api/v1/publisher/devices/{device}/shadow" \
+      "api/v1/publisher/devices/{device}/events" \
+      "api/v1/publisher/devices/{device}/sessions" \
+      "api/v1/publisher/devices/{device}/commands" \
+      "api/v1/publisher/platform-jobs" \
+      "api/v1/publisher/platform-jobs/{job}/progress" \
+      "api/v1/publisher/platform-jobs/{job}/result" \
       "api/v1/content" \
       "api/v1/access" \
       "api/v1/ai" \
       "api/internal/v1/knowledge-documents" \
       "${ADMIN_PATH}/access" \
       "${ADMIN_PATH}/ai/providers"; do
-      if ! grep -q "$route_pattern" /tmp/tongzhuo-route-list.$$; then
+      if ! grep -Fq "$route_pattern" /tmp/tongzhuo-route-list.$$; then
         echo "Route not found in php artisan route:list: $route_pattern" >&2
         route_check="failed"
       fi
@@ -197,12 +235,46 @@ if command -v php >/dev/null 2>&1; then
     cat /tmp/tongzhuo-route-list.err.$$ >&2 || true
   fi
   rm -f /tmp/tongzhuo-route-list.$$ /tmp/tongzhuo-route-list.err.$$
+
+  if php artisan list --raw >/tmp/tongzhuo-command-list.$$ 2>/tmp/tongzhuo-command-list.err.$$; then
+    command_check="passed"
+    if ! grep -Fq "publisher:reconcile" /tmp/tongzhuo-command-list.$$; then
+      echo "Artisan command not found: publisher:reconcile" >&2
+      command_check="failed"
+    fi
+  else
+    command_check="command-list-failed"
+    cat /tmp/tongzhuo-command-list.err.$$ >&2 || true
+  fi
+  rm -f /tmp/tongzhuo-command-list.$$ /tmp/tongzhuo-command-list.err.$$
+
+  if php artisan schedule:list --no-ansi >/tmp/tongzhuo-schedule-list.$$ 2>/tmp/tongzhuo-schedule-list.err.$$; then
+    schedule_check="passed"
+    if ! grep -Fq "publisher:reconcile" /tmp/tongzhuo-schedule-list.$$; then
+      echo "Scheduled command not found: publisher:reconcile" >&2
+      schedule_check="failed"
+    fi
+  else
+    schedule_check="schedule-list-failed"
+    cat /tmp/tongzhuo-schedule-list.err.$$ >&2 || true
+  fi
+  rm -f /tmp/tongzhuo-schedule-list.$$ /tmp/tongzhuo-schedule-list.err.$$
 else
-  echo "Warning: php command not found; skipping Laravel route verification." >&2
+  echo "Warning: php command not found; skipping Laravel route, command, and schedule verification." >&2
 fi
 
 if [[ "$route_check" == "failed" || "$route_check" == "route-list-failed" ]]; then
   echo "Tongzhuo GEOFlow override verification failed: route_check=$route_check" >&2
+  exit 1
+fi
+
+if [[ "$command_check" == "failed" || "$command_check" == "command-list-failed" ]]; then
+  echo "Tongzhuo GEOFlow override verification failed: command_check=$command_check" >&2
+  exit 1
+fi
+
+if [[ "$schedule_check" == "failed" || "$schedule_check" == "schedule-list-failed" ]]; then
+  echo "Tongzhuo GEOFlow override verification failed: schedule_check=$schedule_check" >&2
   exit 1
 fi
 
@@ -243,4 +315,6 @@ echo "Laravel root: $LARAVEL_ROOT"
 echo "Required files: ${#required_files[@]}"
 echo "PHP available: $php_available"
 echo "Route check: $route_check"
+echo "Command check: $command_check"
+echo "Schedule check: $schedule_check"
 echo "URL check: $url_check"

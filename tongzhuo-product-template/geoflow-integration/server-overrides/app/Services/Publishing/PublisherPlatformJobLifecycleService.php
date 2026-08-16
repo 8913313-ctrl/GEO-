@@ -72,12 +72,13 @@ class PublisherPlatformJobLifecycleService
 
             foreach ($expired as $job) {
                 $attemptsExhausted = (int) $job->attempt_count >= max(1, (int) $job->max_attempts);
+                $pinnedDeviceId = $this->pinnedDeviceId($job);
                 $candidate = $attemptsExhausted
                     ? null
                     : $this->findReadySession($job, $at, (int) ($job->publisher_device_id ?? 0));
                 $job->forceFill([
-                    'publisher_device_id' => $candidate?->publisher_device_id,
-                    'publisher_platform_session_id' => $candidate?->id,
+                    'publisher_device_id' => $candidate?->publisher_device_id ?: ($pinnedDeviceId > 0 ? $pinnedDeviceId : null),
+                    'publisher_platform_session_id' => $candidate?->id ?: ($pinnedDeviceId > 0 ? $job->publisher_platform_session_id : null),
                     'status' => $attemptsExhausted
                         ? 'failed'
                         : ($candidate instanceof PublisherPlatformSession ? 'queued' : 'waiting_for_device'),
@@ -256,12 +257,15 @@ class PublisherPlatformJobLifecycleService
 
     private function findReadySession(PublisherPlatformJob $job, Carbon $at, int $excludeDeviceId = 0): ?PublisherPlatformSession
     {
+        $pinnedDeviceId = $this->pinnedDeviceId($job);
+
         return PublisherPlatformSession::query()
             ->with('device')
             ->where('platform_id', $job->platform_id)
             ->when($job->profile_key !== null && $job->profile_key !== '', fn ($query) => $query->where('profile_key', $job->profile_key))
             ->where('login_state', 'ready')
-            ->when($excludeDeviceId > 0, fn ($query) => $query->where('publisher_device_id', '!=', $excludeDeviceId))
+            ->when($pinnedDeviceId > 0, fn ($query) => $query->where('publisher_device_id', $pinnedDeviceId))
+            ->when($pinnedDeviceId <= 0 && $excludeDeviceId > 0, fn ($query) => $query->where('publisher_device_id', '!=', $excludeDeviceId))
             ->whereHas('device', function ($query) use ($at): void {
                 $query->whereNull('disabled_at')
                     ->whereNotNull('last_seen_at')
@@ -270,6 +274,32 @@ class PublisherPlatformJobLifecycleService
             ->orderByDesc('last_verified_at')
             ->orderByDesc('last_seen_at')
             ->first();
+    }
+
+    private function pinnedDeviceId(PublisherPlatformJob $job): int
+    {
+        $distribution = $job->distribution;
+        if (! $distribution instanceof ArticleDistribution) {
+            return 0;
+        }
+
+        $isPinned = (string) $distribution->assigned_device_strategy === 'specified'
+            || $distribution->publisher_account_group_id !== null;
+        if (! $isPinned) {
+            return 0;
+        }
+
+        $jobDeviceId = max(0, (int) ($job->publisher_device_id ?? 0));
+        if ($jobDeviceId > 0) {
+            return $jobDeviceId;
+        }
+
+        $preferredDeviceId = max(0, (int) ($distribution->publisherAssistantMeta()['preferred_device_id'] ?? 0));
+        if ($preferredDeviceId > 0) {
+            return $preferredDeviceId;
+        }
+
+        return max(0, (int) ($distribution->publisherAccountGroup?->publisher_device_id ?? 0));
     }
 
     private function refreshDistributions(array $ids): void

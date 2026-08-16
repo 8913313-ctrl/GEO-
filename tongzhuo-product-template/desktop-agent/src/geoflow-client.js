@@ -27,6 +27,79 @@ export function isInvalidPairingResponse(error) {
   return /(publisher\s+device\s+(not\s+found|unauthorized)|publisher.*not\s+paired|pairing.*required|设备不存在|设备凭证无效|未完成配对|尚未配对|需要重新配对)/i.test(String(error.message || ''));
 }
 
+const retryableStatuses = new Set([408, 425, 429]);
+const retryableMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function boundedInteger(value, fallback, min, max) {
+  const parsed = Number.parseInt(String(value), 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function sleep(milliseconds) {
+  if (milliseconds <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function crashTelemetry(environment = process.env, now = Date.now()) {
+  const windowSeconds = boundedInteger(environment.TZ_AGENT_CRASH_WINDOW_SECONDS, 0, 0, 24 * 60 * 60);
+  const fallbackCount = boundedInteger(environment.TZ_AGENT_CRASH_COUNT, 0, 0, 10000);
+  const timestamps = String(environment.TZ_AGENT_CRASH_TIMESTAMPS || '')
+    .split(',')
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  if (!windowSeconds || !timestamps.length) return { count: fallbackCount, windowSeconds };
+  const cutoff = Number(now) - (windowSeconds * 1000);
+  return {
+    count: timestamps.filter((timestamp) => timestamp >= cutoff && timestamp <= Number(now) + 60000).length,
+    windowSeconds,
+  };
+}
+export function isRetryableGeoFlowError(error) {
+  if (!error) return false;
+  const code = String(error.code || '').toUpperCase();
+  if (['PUBLISHER_REQUEST_TIMEOUT', 'PUBLISHER_NETWORK_ERROR'].includes(code)) return true;
+  const status = Number(error.status || 0);
+  return retryableStatuses.has(status) || status >= 500;
+}
+
+async function fetchWithDeadline(url, init, timeoutMs, route) {
+  const controller = new AbortController();
+  const externalSignal = init.signal;
+  let timeoutId = null;
+  let externalAbortListener = null;
+  const requestInit = { ...init, signal: controller.signal };
+  const request = fetch(url, requestInit).then(async (response) => ({ response, text: await response.text() }));
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new GeoFlowRequestError(`GEOFlow request timed out after ${timeoutMs}ms`, {
+        code: 'PUBLISHER_REQUEST_TIMEOUT',
+        route,
+      }));
+    }, timeoutMs);
+  });
+  const externalAbort = externalSignal
+    ? new Promise((_, reject) => {
+      externalAbortListener = () => {
+        controller.abort(externalSignal.reason);
+        reject(new GeoFlowRequestError('GEOFlow request was cancelled', {
+          code: 'PUBLISHER_REQUEST_ABORTED',
+          route,
+        }));
+      };
+      if (externalSignal.aborted) externalAbortListener();
+      else externalSignal.addEventListener('abort', externalAbortListener, { once: true });
+    })
+    : null;
+  try {
+    return await Promise.race([request, timeout, ...(externalAbort ? [externalAbort] : [])]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (externalSignal && externalAbortListener) externalSignal.removeEventListener('abort', externalAbortListener);
+  }
+}
+
 export class GeoFlowClient {
   constructor(config, options = {}) {
     this.config = config;
@@ -49,50 +122,89 @@ export class GeoFlowClient {
     return `${base}${route}`;
   }
 
+  requestTimeoutMs(value) {
+    return boundedInteger(value ?? this.config.requestTimeoutMs, 15000, 1, 120000);
+  }
+
+  requestRetries(value) {
+    return boundedInteger(value ?? this.config.requestRetryCount, 2, 0, 5);
+  }
+
   async request(route, options = {}) {
     const token = this.authToken();
     if (!token) {
       throw new Error('请先完成设备绑定或配置连接凭证。');
     }
 
-    const response = await fetch(this.endpoint(route), {
-      ...options,
-      headers: {
-        Accept: 'application/json',
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-        Authorization: `Bearer ${token}`,
-        'X-Publisher-Worker': this.config.deviceId,
-        'X-Publisher-Connection-Mode': this.config.connectionMode || 'token',
-        ...(options.headers || {}),
-      },
-      body: options.body && typeof options.body !== 'string' ? JSON.stringify(options.body) : options.body,
-    });
-
-    const text = await response.text();
-    let body = null;
-    if (text) {
+    const {
+      timeoutMs,
+      retries,
+      retryUnsafe = false,
+      retryBaseDelayMs = 250,
+      retryMaxDelayMs = 4000,
+      signal,
+      ...requestOptions
+    } = options;
+    const method = String(requestOptions.method || 'GET').toUpperCase();
+    const retryAllowed = retryUnsafe === true || retryableMethods.has(method);
+    const retryCount = retryAllowed ? this.requestRetries(retries) : 0;
+    const deadline = this.requestTimeoutMs(timeoutMs);
+    const baseDelay = boundedInteger(retryBaseDelayMs, 250, 0, 30000);
+    const maximumDelay = boundedInteger(retryMaxDelayMs, 4000, 0, 60000);
+    let latestError = null;
+    for (let attempt = 0; attempt <= retryCount; attempt += 1) {
       try {
-        body = JSON.parse(text);
-      } catch {
-        body = { message: text };
+        const { response, text } = await fetchWithDeadline(this.endpoint(route), {
+          ...requestOptions,
+          signal,
+          headers: {
+            Accept: 'application/json',
+            ...(requestOptions.body ? { 'Content-Type': 'application/json' } : {}),
+            Authorization: `Bearer ${token}`,
+            'X-Publisher-Worker': this.config.deviceId,
+            'X-Publisher-Connection-Mode': this.config.connectionMode || 'token',
+            ...(requestOptions.headers || {}),
+          },
+          body: requestOptions.body && typeof requestOptions.body !== 'string' ? JSON.stringify(requestOptions.body) : requestOptions.body,
+        }, deadline, route);
+        let body = null;
+        if (text) {
+          try {
+            body = JSON.parse(text);
+          } catch {
+            body = { message: text };
+          }
+        }
+        if (!response.ok) {
+          throw new GeoFlowRequestError(
+            body?.message || body?.error?.message || `GEOFlow request failed: ${response.status}`,
+            {
+              status: response.status,
+              code: body?.code || body?.error?.code,
+              route,
+              details: body?.details || body?.error?.details,
+            },
+          );
+        }
+        return body;
+      } catch (error) {
+        const normalized = error instanceof GeoFlowRequestError
+          ? error
+          : new GeoFlowRequestError(`GEOFlow network request failed: ${error?.message || 'unknown error'}`, {
+            code: 'PUBLISHER_NETWORK_ERROR',
+            route,
+          });
+        if (isInvalidPairingResponse(normalized)) {
+          this.onInvalidPairing?.(normalized);
+          throw normalized;
+        }
+        latestError = normalized;
+        if (!isRetryableGeoFlowError(normalized) || attempt >= retryCount) throw normalized;
+        const delay = Math.min(maximumDelay, baseDelay * (2 ** attempt));
+        await sleep(delay);
       }
     }
-
-    if (!response.ok) {
-      const error = new GeoFlowRequestError(
-        body?.message || body?.error?.message || `GEOFlow request failed: ${response.status}`,
-        {
-          status: response.status,
-          code: body?.code || body?.error?.code,
-          route,
-          details: body?.details || body?.error?.details,
-        },
-      );
-      if (isInvalidPairingResponse(error)) this.onInvalidPairing?.(error);
-      throw error;
-    }
-
-    return body;
+    throw latestError || new GeoFlowRequestError('GEOFlow request failed without a response', { route });
   }
 
   registerDevice() {
@@ -115,6 +227,7 @@ export class GeoFlowClient {
     const route = `/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/shadow/heartbeat`;
     return this.request(route, {
       method: 'POST',
+      retryUnsafe: true,
       body: {
         status: 'online',
         connection_mode: this.config.connectionMode || 'token',
@@ -127,6 +240,7 @@ export class GeoFlowClient {
   heartbeat(extra = {}) {
     return this.request(`/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/heartbeat`, {
       method: 'POST',
+      retryUnsafe: true,
       body: {
         status: 'online',
         connection_mode: this.config.connectionMode || 'token',
@@ -134,6 +248,62 @@ export class GeoFlowClient {
         meta: { ...this.meta(), ...extra },
       },
     });
+  }
+
+  /**
+   * Open the device-initiated Server-Sent Events wake-up stream. Event data
+   * contains only state-change hints; protected task/config data is pulled
+   * through the normal authenticated API afterwards.
+   */
+  async deviceEvents(options = {}) {
+    const token = this.authToken();
+    if (!token) throw new Error('Please pair this publisher device before opening the event stream.');
+    const route = `/api/v1/publisher/devices/${encodeURIComponent(this.config.deviceId)}/events`;
+    let response;
+    try {
+      response = await fetch(this.endpoint(route), {
+        method: 'GET',
+        signal: options.signal,
+        headers: {
+          Accept: 'text/event-stream',
+          Authorization: `Bearer ${token}`,
+          'Cache-Control': 'no-cache',
+          'X-Publisher-Worker': this.config.deviceId,
+          'X-Publisher-Connection-Mode': this.config.connectionMode || 'token',
+        },
+      });
+    } catch (error) {
+      const aborted = options.signal?.aborted || error?.name === 'AbortError';
+      const normalized = new GeoFlowRequestError(
+        aborted ? 'Publisher event stream was cancelled' : `Publisher event stream connection failed: ${error?.message || 'unknown error'}`,
+        { code: aborted ? 'PUBLISHER_REQUEST_ABORTED' : 'PUBLISHER_NETWORK_ERROR', route },
+      );
+      if (isInvalidPairingResponse(normalized)) this.onInvalidPairing?.(normalized);
+      throw normalized;
+    }
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      let body = {};
+      try { body = text ? JSON.parse(text) : {}; } catch { body = { message: text }; }
+      const error = new GeoFlowRequestError(
+        body?.message || body?.error?.message || `Publisher event stream failed: ${response.status}`,
+        { status: response.status, code: body?.code || body?.error?.code, route, details: body?.details || body?.error?.details },
+      );
+      if (isInvalidPairingResponse(error)) this.onInvalidPairing?.(error);
+      throw error;
+    }
+
+    const contentType = String(response.headers?.get?.('content-type') || '');
+    if (!/text\/event-stream/i.test(contentType)) {
+      const cancellation = response.body?.cancel?.();
+      if (cancellation) await cancellation.catch(() => {});
+      throw new GeoFlowRequestError('Publisher event endpoint did not return Server-Sent Events.', {
+        code: 'PUBLISHER_EVENT_STREAM_INVALID',
+        route,
+      });
+    }
+    return response;
   }
 
   jobs(limit = 20) {
@@ -223,6 +393,7 @@ export class GeoFlowClient {
   }
 
   meta() {
+    const crash = crashTelemetry();
     return {
       version: agentVersion,
       runtime: 'node',
@@ -234,8 +405,8 @@ export class GeoFlowClient {
       paired_at: this.config.pairedAt || '',
       has_pairing_token: Boolean(this.config.pairingToken),
       has_api_token: Boolean(this.config.apiToken),
-      crash_count_last_window: Math.max(0, Number(process.env.TZ_AGENT_CRASH_COUNT || 0) || 0),
-      crash_window_seconds: Math.max(0, Number(process.env.TZ_AGENT_CRASH_WINDOW_SECONDS || 0) || 0),
+      crash_count_last_window: crash.count,
+      crash_window_seconds: crash.windowSeconds,
       active_group_id: this.config.activeGroupId || '',
       account_groups: Array.isArray(this.config.accountGroups)
         ? this.config.accountGroups.map((group) => ({

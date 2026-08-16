@@ -136,6 +136,19 @@ export function sanitizeStatus(status = {}) {
     jobCount: Array.isArray(status.jobs) ? status.jobs.length : 0,
   };
 }
+function redactUrl(value) {
+  const raw = String(value || '');
+  try {
+    const url = new URL(raw);
+    for (const key of [...url.searchParams.keys()]) {
+      if (/token|cookie|password|secret|authorization|signature|sig|key/i.test(key)) url.searchParams.set(key, '[redacted]');
+    }
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return raw.replace(/([?&](?:token|cookie|password|secret|authorization|signature|sig|key)=[^&#\s]+)/gi, '$1[redacted]');
+  }
+}
 
 function redactSensitive(value) {
   if (Array.isArray(value)) return value.map((item) => redactSensitive(item));
@@ -144,6 +157,7 @@ function redactSensitive(value) {
     if (/token|cookie|password|secret|authorization/i.test(key)) {
       return [key, '[redacted]'];
     }
+    if (/(?:url|uri|href)$/i.test(key) && typeof item === 'string') return [key, redactUrl(item)];
     return [key, redactSensitive(item)];
   }));
 }

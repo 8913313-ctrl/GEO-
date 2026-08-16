@@ -4,6 +4,7 @@ namespace App\Services\Publishing;
 
 use App\Models\ArticleDistribution;
 use App\Models\PublisherPlatformJob;
+use Illuminate\Support\Facades\DB;
 
 class PublisherBatchSummaryService
 {
@@ -14,59 +15,66 @@ class PublisherBatchSummaryService
      */
     public function refresh(ArticleDistribution $distribution): array
     {
-        $jobs = $distribution->publisherPlatformJobs()
-            ->orderBy('id')
-            ->get();
+        return DB::transaction(function () use ($distribution): array {
+            $distribution = ArticleDistribution::query()->whereKey($distribution->id)->lockForUpdate()->firstOrFail();
+            $jobs = $distribution->publisherPlatformJobs()
+                ->lockForUpdate()
+                ->orderBy('id')
+                ->get();
 
-        $platformResults = [];
-        $stateCounts = [];
-        foreach ($jobs as $job) {
-            $status = (string) $job->status;
-            $stateCounts[$status] = ($stateCounts[$status] ?? 0) + 1;
-            $platformResults[(string) $job->platform_id] = $this->platformResult($job);
-        }
+            $platformResults = [];
+            $stateCounts = [];
+            foreach ($jobs as $job) {
+                $status = (string) $job->status;
+                $stateCounts[$status] = ($stateCounts[$status] ?? 0) + 1;
+                $platformResults[(string) $job->platform_id] = $this->platformResult($job);
+            }
 
-        $summary = [
-            'total' => $jobs->count(),
-            'state_counts' => $stateCounts,
-            'published' => (int) ($stateCounts['published'] ?? 0),
-            'draft_saved' => (int) ($stateCounts['draft_saved'] ?? 0),
-            'awaiting_confirmation' => (int) ($stateCounts['awaiting_confirmation'] ?? 0),
-            'failed' => (int) ($stateCounts['failed'] ?? 0),
-            'cancelled' => (int) ($stateCounts['cancelled'] ?? 0),
-            'skipped' => (int) ($stateCounts['skipped'] ?? 0),
-            'active' => $jobs->filter(fn (PublisherPlatformJob $job): bool => ! $job->isTerminal())->count(),
-        ];
-        $state = $this->batchState($summary, $stateCounts);
-        $nextAction = $this->nextOperatorAction($jobs);
+            $summary = [
+                'total' => $jobs->count(),
+                'state_counts' => $stateCounts,
+                'published' => (int) ($stateCounts['published'] ?? 0),
+                'draft_saved' => (int) ($stateCounts['draft_saved'] ?? 0),
+                'awaiting_confirmation' => (int) ($stateCounts['awaiting_confirmation'] ?? 0),
+                'failed' => (int) ($stateCounts['failed'] ?? 0),
+                'cancelled' => (int) ($stateCounts['cancelled'] ?? 0),
+                'skipped' => (int) ($stateCounts['skipped'] ?? 0),
+                'active' => $jobs->filter(fn (PublisherPlatformJob $job): bool => ! $job->isTerminal())->count(),
+            ];
+            $state = $this->batchState($summary, $stateCounts);
+            $nextAction = $this->nextOperatorAction($jobs);
+            $completedAt = $summary['active'] === 0
+                ? ($distribution->completed_at ?? now())
+                : null;
 
-        $meta = is_array($distribution->remote_meta) ? $distribution->remote_meta : [];
-        $existingAssistant = is_array($meta['publisher_assistant'] ?? null) ? $meta['publisher_assistant'] : [];
-        $meta['publisher_assistant'] = array_replace($existingAssistant, [
-            'protocol_version' => 'v2',
-            'state' => $state,
-            'updated_at' => now()->toIso8601String(),
-            'completed_at' => $summary['active'] === 0 ? now()->toIso8601String() : null,
-            'platform_results' => $platformResults,
-            'state_summary' => $summary,
-            'next_operator_action' => $nextAction,
-        ]);
+            $meta = is_array($distribution->remote_meta) ? $distribution->remote_meta : [];
+            $existingAssistant = is_array($meta['publisher_assistant'] ?? null) ? $meta['publisher_assistant'] : [];
+            $meta['publisher_assistant'] = array_replace($existingAssistant, [
+                'protocol_version' => 'v2',
+                'state' => $state,
+                'updated_at' => now()->toIso8601String(),
+                'completed_at' => $completedAt?->toIso8601String(),
+                'platform_results' => $platformResults,
+                'state_summary' => $summary,
+                'next_operator_action' => $nextAction,
+            ]);
 
-        $distribution->forceFill([
-            'status' => $this->legacyDistributionStatus($summary, $state),
-            'started_at' => $distribution->started_at ?? ($summary['active'] < $summary['total'] ? now() : null),
-            'completed_at' => $summary['active'] === 0 ? now() : null,
-            'publisher_summary' => $summary,
-            'remote_meta' => $meta,
-            'last_error_message' => $state === 'failed' ? $this->firstError($jobs) : null,
-        ])->save();
+            $distribution->forceFill([
+                'status' => $this->legacyDistributionStatus($summary, $state),
+                'started_at' => $distribution->started_at ?? ($summary['active'] < $summary['total'] ? now() : null),
+                'completed_at' => $completedAt,
+                'publisher_summary' => $summary,
+                'remote_meta' => $meta,
+                'last_error_message' => $state === 'failed' ? $this->firstError($jobs) : null,
+            ])->save();
 
-        return [
-            'state' => $state,
-            'summary' => $summary,
-            'next_operator_action' => $nextAction,
-            'platform_results' => $platformResults,
-        ];
+            return [
+                'state' => $state,
+                'summary' => $summary,
+                'next_operator_action' => $nextAction,
+                'platform_results' => $platformResults,
+            ];
+        });
     }
 
     /** @return array<string,mixed> */

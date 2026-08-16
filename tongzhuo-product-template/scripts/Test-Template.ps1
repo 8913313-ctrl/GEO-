@@ -36,6 +36,13 @@ foreach ($path in @('product.json', 'CHANGELOG.md', 'config/client-config.exampl
     $checks += [pscustomobject]@{ path = $path; exists = Test-Path $fullPath }
 }
 
+foreach ($publisherAutomationPath in @(
+    'geoflow-integration/deployment/check-publisher-automation-contract.ps1',
+    'geoflow-integration/docs/PUBLISHER-AUTOMATION-OPERATIONS.md'
+)) {
+    $checks += [pscustomobject]@{ path = $publisherAutomationPath; exists = Test-Path (Join-Path $Root $publisherAutomationPath) }
+}
+
 $publisher = Join-Path $Root 'publisher-assistant'
 $checks += [pscustomobject]@{ path = 'publisher-assistant/node_modules'; exists = -not (Test-Path (Join-Path $publisher 'node_modules')); expected = 'excluded from product template' }
 $checks += [pscustomobject]@{ path = 'publisher-assistant/.data'; exists = -not (Test-Path (Join-Path $publisher '.data')); expected = 'excluded from product template' }

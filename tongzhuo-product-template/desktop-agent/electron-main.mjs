@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const desktopPort = Number(process.env.TZ_DESKTOP_PORT || 18280);
+const desktopStartPath = process.env.TZ_DESKTOP_START_PAGE === 'acceptance' ? '/test.html' : '/';
 const instanceId = crypto.randomUUID();
 const localToken = crypto.randomBytes(32).toString('hex');
 let masterKey = null;
@@ -45,6 +46,7 @@ function dataPath() { return path.join(app.getPath('userData'), 'data'); }
 function loadMasterKey() {
   if (!safeStorage.isEncryptionAvailable()) throw new Error('系统凭据保护不可用，无法安全启动本地服务');
   const keyPath = path.join(app.getPath('userData'), 'master.key.enc');
+  fs.mkdirSync(path.dirname(keyPath), { recursive: true });
   if (fs.existsSync(keyPath)) {
     const encrypted = fs.readFileSync(keyPath);
     masterKey = Buffer.from(safeStorage.decryptString(encrypted), 'base64');
@@ -80,12 +82,14 @@ function serviceEnvironment() {
     TZ_AGENT_MASTER_KEY: masterKey?.toString('base64') || '',
     TZ_AGENT_REQUIRE_LOCAL_TOKEN: '1',
     TZ_AGENT_CRASH_COUNT: String(restartAttempts.length),
+    TZ_AGENT_CRASH_TIMESTAMPS: restartAttempts.join(','),
     TZ_AGENT_CRASH_WINDOW_SECONDS: String(Math.round(RESTART_WINDOW_MS / 1000)),
   };
 }
 
 function startService() {
   if (quitting) return;
+  setServiceTrayState('recovering');
   desktopLog(`starting local service on ${desktopPort}`);
   const child = spawn(process.execPath, [servicePath()], {
     cwd: app.getPath('userData'), env: serviceEnvironment(), windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
@@ -97,6 +101,7 @@ function startService() {
   const scheduleRecovery = (reason) => {
     if (handled || quitting) return;
     handled = true;
+    setServiceTrayState('recovering');
     desktopLog(`service recovery requested: ${reason}`);
     restartAttempts = restartAttempts.filter((time) => Date.now() - time < RESTART_WINDOW_MS);
     if (restartAttempts.length >= MAX_RESTARTS) {
@@ -115,6 +120,11 @@ function startService() {
   };
   child.once('error', (error) => { desktopLog('service spawn error: ' + error.message); if (serviceProcess === child) serviceProcess = null; scheduleRecovery('spawn-error'); });
   child.once('exit', (code, signal) => { desktopLog('service exited: ' + (signal || code)); if (serviceProcess === child) serviceProcess = null; scheduleRecovery('exit-' + (signal || code)); });
+  void waitForService().then(() => {
+    if (!quitting && serviceProcess === child) setServiceTrayState('ready');
+  }).catch((error) => {
+    if (!quitting && serviceProcess === child) desktopLog(`service health check failed: ${error.message}`);
+  });
 }
 
 async function waitForService() {
@@ -139,6 +149,20 @@ function configureLocalHeaderInjection() {
     callback({ requestHeaders: details.requestHeaders });
   });
 }
+
+function setServiceTrayState(state) {
+  if (!tray) return;
+  const recovering = state === 'recovering';
+  const publisherName = '\u6850\u707c GEO \u53d1\u5e03\u5668';
+  tray.setToolTip(recovering ? `${publisherName}\uff08\u672c\u5730\u670d\u52a1\u6062\u590d\u4e2d\uff09` : publisherName);
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '\u6253\u5f00\u53d1\u5e03\u5668', click: () => showWindow() },
+    ...(recovering ? [{ label: '\u672c\u5730\u670d\u52a1\u6062\u590d\u4e2d', enabled: false }] : []),
+    { type: 'separator' },
+    { label: '\u9000\u51fa', click: () => app.quit() },
+  ]));
+}
+
 function buildTray() {
   tray = new Tray(trayIcon());
   tray.setToolTip('桐灼 GEO 发布器');
@@ -162,7 +186,7 @@ async function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null; });
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   mainWindow.webContents.on('will-navigate', (event, url) => { if (!url.startsWith(`${allowedOrigin}/`)) event.preventDefault(); });
-  await mainWindow.loadURL(allowedOrigin);
+  await mainWindow.loadURL(`${allowedOrigin}${desktopStartPath}`);
   mainWindow.show();
 }
 function stopService() {

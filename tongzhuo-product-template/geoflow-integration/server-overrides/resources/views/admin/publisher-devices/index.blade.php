@@ -80,6 +80,67 @@
             @endforeach
         </section>
 
+        @php
+            $selectorHealth = is_array($selectorHealth ?? null) ? $selectorHealth : [];
+            $selectorHealthRows = array_slice((array) ($selectorHealth['rows'] ?? []), 0, 40);
+            $selectorHealthAlerts = count((array) ($selectorHealth['alerts'] ?? []));
+        @endphp
+        <section class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-slate-100 px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-600">SELECTOR HEALTH</p>
+                    <h2 class="mt-2 text-2xl font-semibold text-slate-950">Selector health</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Hit and fallback telemetry from the last {{ (int) ($selectorHealth['lookback_days'] ?? 7) }} days. Small samples do not trigger alerts.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 text-xs font-semibold">
+                    <span class="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700">Samples {{ (int) ($selectorHealth['sample_count'] ?? 0) }}</span>
+                    <span class="rounded-full {{ $selectorHealthAlerts > 0 ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200' : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' }} px-3 py-1.5">Alerts {{ $selectorHealthAlerts }}</span>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                @if ($selectorHealthRows !== [])
+                    <table class="min-w-full divide-y divide-gray-100 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-5 py-3 text-left text-xs font-semibold uppercase text-gray-500">Platform / step</th>
+                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase text-gray-500">Samples</th>
+                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase text-gray-500">Hit rate</th>
+                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase text-gray-500">Avg fallbacks</th>
+                                <th class="px-5 py-3 text-left text-xs font-semibold uppercase text-gray-500">State</th>
+                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase text-gray-500">Last report</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 bg-white">
+                            @foreach ($selectorHealthRows as $healthRow)
+                                @php
+                                    $healthState = (string) ($healthRow['state'] ?? 'insufficient_data');
+                                    $healthClass = match ($healthState) {
+                                        'attention' => 'bg-amber-50 text-amber-700 ring-amber-200',
+                                        'healthy' => 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+                                        default => 'bg-slate-100 text-slate-600 ring-slate-200',
+                                    };
+                                    $healthRate = $healthRow['hit_rate'] ?? null;
+                                @endphp
+                                <tr>
+                                    <td class="px-5 py-3">
+                                        <div class="font-medium text-slate-900">{{ $healthRow['platform_id'] ?? 'unknown' }}</div>
+                                        <div class="mt-0.5 text-xs text-slate-500">{{ $healthRow['step'] ?? 'unknown' }}</div>
+                                    </td>
+                                    <td class="px-5 py-3 text-right text-slate-700">{{ (int) ($healthRow['samples'] ?? 0) }}</td>
+                                    <td class="px-5 py-3 text-right text-slate-700">{{ $healthRate === null ? '-' : number_format((float) $healthRate * 100, 1).'%' }}</td>
+                                    <td class="px-5 py-3 text-right text-slate-700">{{ ($healthRow['average_fallbacks'] ?? null) === null ? '-' : number_format((float) $healthRow['average_fallbacks'], 2) }}</td>
+                                    <td class="px-5 py-3"><span class="inline-flex rounded-full px-2.5 py-1 text-xs font-medium ring-1 {{ $healthClass }}">{{ $healthState === 'attention' ? 'Attention' : ($healthState === 'healthy' ? 'Healthy' : 'Not enough data') }}</span></td>
+                                    <td class="px-5 py-3 text-right text-xs text-slate-500">{{ $healthRow['last_seen_at'] ?? '-' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <div class="px-6 py-10 text-center text-sm text-slate-500">No selector telemetry has been reported yet.</div>
+                @endif
+            </div>
+        </section>
+
         <section class="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
             <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -260,15 +321,40 @@
                             <tr class="bg-slate-50/50">
                                 <td colspan="7" class="px-5 py-4">
                                     @php
+                                        $storedDesired = is_array($device->desired_state) ? $device->desired_state : [];
+                                        $reportedState = is_array($meta['publisher_reported_state'] ?? null) ? $meta['publisher_reported_state'] : [];
+                                        $reportedAutoRun = array_key_exists('effective_auto_run', $reportedState)
+                                            ? (bool) $reportedState['effective_auto_run']
+                                            : null;
                                         $desired = array_replace([
                                             'auto_run' => false,
                                             'poll_seconds' => 20,
                                             'login_check_seconds' => 300,
                                             'max_job_attempts' => 2,
                                             'max_concurrent_groups' => 1,
+                                            'default_daily_quota' => 5,
+                                            'default_min_delay_seconds' => 20,
+                                            'default_max_delay_seconds' => 60,
+                                            'risk_pause_threshold' => 2,
+                                            'risk_pause_minutes' => 1440,
+                                            'platform_daily_quota' => [],
                                             'enabled_platform_ids' => [],
-                                        ], is_array($device->desired_state) ? $device->desired_state : []);
+                                            'enabled_platform_ids_present' => false,
+                                            'platform_filter_mode' => 'all',
+                                        ], $storedDesired);
                                         $selectedPlatforms = array_values(array_filter((array) ($desired['enabled_platform_ids'] ?? []), 'is_string'));
+                                        $platformDailyQuota = is_array($desired['platform_daily_quota'] ?? null) ? $desired['platform_daily_quota'] : [];
+                                        $platformDailyQuotaJson = json_encode($platformDailyQuota, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
+                                        $platformFilterMode = strtolower(trim((string) ($storedDesired['platform_filter_mode'] ?? '')));
+                                        if (! in_array($platformFilterMode, ['all', 'allowlist', 'none'], true)) {
+                                            $hasExplicitFilter = array_key_exists('enabled_platform_ids_present', $storedDesired)
+                                                ? filter_var($storedDesired['enabled_platform_ids_present'], FILTER_VALIDATE_BOOLEAN)
+                                                : $selectedPlatforms !== [];
+                                            $platformFilterMode = $hasExplicitFilter ? ($selectedPlatforms === [] ? 'none' : 'allowlist') : 'all';
+                                        }
+                                        if ($platformFilterMode !== 'allowlist') {
+                                            $selectedPlatforms = [];
+                                        }
                                     @endphp
                                     <div class="grid gap-4 xl:grid-cols-[1.45fr_0.8fr]">
                                         <form method="POST" action="{{ route('admin.publisher-devices.desired-state.update', $device->id) }}" class="rounded-2xl border border-slate-200 bg-white p-4">
@@ -276,7 +362,7 @@
                                             <div class="flex flex-wrap items-center justify-between gap-2">
                                                 <div>
                                                     <div class="text-sm font-semibold text-slate-950">远程自动发布配置</div>
-                                                    <div class="mt-1 text-xs text-slate-500">期望 v{{ (int) ($device->desired_state_version ?? 0) }} / 已应用 v{{ $device->applied_state_version ?? '—' }} · 全局协议 {{ $jobProtocol ?? 'legacy' }}</div>
+                                                    <div class="mt-1 text-xs text-slate-500">期望 v{{ (int) ($device->desired_state_version ?? 0) }} / 节点已应用 v{{ $device->applied_state_version ?? '—' }} · 实际自动发布：{{ $reportedAutoRun === null ? '待回报' : ($reportedAutoRun ? '开启' : '关闭') }} · 全局协议 {{ $jobProtocol ?? 'legacy' }}</div>
                                                 </div>
                                                 @if ($device->local_override)
                                                     <label class="inline-flex items-center gap-2 text-xs font-medium text-amber-700"><input type="checkbox" name="clear_local_override" value="1">收回本地接管</label>
@@ -288,8 +374,15 @@
                                                 <label class="text-xs font-medium text-slate-600">登录检测（秒）<input name="login_check_seconds" type="number" min="60" max="86400" value="{{ (int) $desired['login_check_seconds'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
                                                 <label class="text-xs font-medium text-slate-600">最大重试次数<input name="max_job_attempts" type="number" min="1" max="10" value="{{ (int) $desired['max_job_attempts'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
                                                 <label class="text-xs font-medium text-slate-600">账号组并发数<input name="max_concurrent_groups" type="number" min="1" max="8" value="{{ (int) $desired['max_concurrent_groups'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                                <label class="text-xs font-medium text-slate-600">默认每日配额<input name="default_daily_quota" type="number" min="0" max="10000" value="{{ (int) $desired['default_daily_quota'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                                <label class="text-xs font-medium text-slate-600">随机等待最短（秒）<input name="default_min_delay_seconds" type="number" min="0" max="3600" value="{{ (int) $desired['default_min_delay_seconds'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                                <label class="text-xs font-medium text-slate-600">随机等待最长（秒）<input name="default_max_delay_seconds" type="number" min="0" max="3600" value="{{ (int) $desired['default_max_delay_seconds'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                                <label class="text-xs font-medium text-slate-600">连续风控暂停阈值<input name="risk_pause_threshold" type="number" min="1" max="100" value="{{ (int) $desired['risk_pause_threshold'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
+                                                <label class="text-xs font-medium text-slate-600">风控暂停（分钟）<input name="risk_pause_minutes" type="number" min="1" max="10080" value="{{ (int) $desired['risk_pause_minutes'] }}" class="mt-1 w-full rounded-lg border-slate-200 text-sm"></label>
                                             </div>
-                                            <div class="mt-4 text-xs font-medium text-slate-600">平台白名单（不勾选表示允许全部已适配平台）</div>
+                                            <label class="mt-3 block text-xs font-medium text-slate-600">平台每日配额（JSON）<textarea name="platform_daily_quota_json" rows="2" spellcheck="false" class="mt-1 w-full rounded-lg border-slate-200 font-mono text-xs">{{ $platformDailyQuotaJson }}</textarea><span class="mt-1 block text-[11px] text-slate-400">留空或 {} 使用默认配额；示例：{&quot;zhihu&quot;:5,&quot;wechat_mp&quot;:3}。</span></label>
+                                            <label class="mt-4 block text-xs font-medium text-slate-600">平台范围<select name="platform_filter_mode" class="mt-1 w-full rounded-lg border-slate-200 text-sm"><option value="all" @selected($platformFilterMode === 'all')>允许全部平台</option><option value="allowlist" @selected($platformFilterMode === 'allowlist')>仅允许勾选的平台</option><option value="none" @selected($platformFilterMode === 'none')>禁用全部平台</option></select></label>
+                                            <div class="mt-3 text-xs font-medium text-slate-600">平台白名单（“仅允许勾选的平台”模式下，不勾选表示禁用全部平台）</div>
                                             <input type="hidden" name="enabled_platform_ids_present" value="1">
                                             <div class="mt-2 flex max-h-36 flex-wrap gap-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
                                                 @foreach (($platformOptions ?? collect()) as $platformOption)

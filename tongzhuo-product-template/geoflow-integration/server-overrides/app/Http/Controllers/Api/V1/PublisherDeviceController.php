@@ -5,15 +5,19 @@ namespace App\Http\Controllers\Api\V1;
 use App\Exceptions\ApiException;
 use App\Models\PublisherDevice;
 use App\Models\PublisherDevicePairing;
+use App\Models\PublisherAccountGroupItem;
 use App\Models\PublisherPlatformSession;
+use App\Services\Publishing\PublisherDeviceCredential;
 use App\Services\Publishing\PublisherPlatformJobLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PublisherDeviceController extends BaseApiController
 {
     public function __construct(
         private readonly PublisherPlatformJobLifecycleService $lifecycle,
+        private readonly PublisherDeviceShadowController $shadow,
     ) {}
 
     public function register(Request $request): JsonResponse
@@ -34,37 +38,73 @@ class PublisherDeviceController extends BaseApiController
             throw new ApiException('publisher_device_secret_required', '设备秘钥不能为空。', 422);
         }
 
-        $pairing = null;
-        if (! empty($validated['pairing_code'])) {
-            $pairing = $this->validPairing((string) $validated['pairing_code']);
+        $pairingCode = trim((string) ($validated['pairing_code'] ?? ''));
+        if ($pairingCode !== '') {
+            // Preserve the existing expiry response and persist the expired
+            // status before the atomic claim transaction begins.
+            $this->validPairing($pairingCode);
         } else {
             $this->authorizeExistingDevice($request, (string) $validated['device_id']);
         }
 
-        $device = PublisherDevice::query()->updateOrCreate(
-            ['device_id' => $validated['device_id']],
-            [
+        $registration = DB::transaction(function () use ($validated, $deviceSecret, $pairingCode): array {
+            $pairing = null;
+            if ($pairingCode !== '') {
+                $pairing = PublisherDevicePairing::query()
+                    ->where('pairing_code', $pairingCode)
+                    ->where('status', 'pending')
+                    ->lockForUpdate()
+                    ->first();
+                if (! $pairing) {
+                    throw new ApiException('publisher_pairing_invalid', 'Pairing code is invalid or already in use.', 409);
+                }
+                if ($pairing->expires_at !== null && $pairing->expires_at->isPast()) {
+                    $pairing->forceFill(['status' => 'expired'])->save();
+
+                    return ['device' => null, 'pairing_expired' => true];
+                }
+            }
+
+            // Lock an existing record too, so pairing/re-registration cannot
+            // overwrite concurrent device metadata after the pairing is claimed.
+            $existing = PublisherDevice::query()
+                ->where('device_id', $validated['device_id'])
+                ->lockForUpdate()
+                ->first();
+            $now = now();
+            $device = $existing ?? new PublisherDevice(['device_id' => $validated['device_id']]);
+            $device->forceFill([
+                'device_id' => $validated['device_id'],
                 'name' => $validated['name'],
-                'public_key' => $deviceSecret,
+                'public_key' => PublisherDeviceCredential::store($deviceSecret),
                 'status' => 'online',
                 'connection_mode' => 'paired',
-                'pairing_code' => $pairing?->pairing_code ?? ($validated['pairing_code'] ?? null),
-                'pairing_issued_at' => $pairing?->issued_at,
-                'pairing_expires_at' => $pairing?->expires_at,
-                'paired_at' => $pairing ? now() : (PublisherDevice::query()->where('device_id', $validated['device_id'])->value('paired_at') ?? now()),
+                'pairing_code' => $pairing?->pairing_code ?? $existing?->pairing_code,
+                'pairing_issued_at' => $pairing?->issued_at ?? $existing?->pairing_issued_at,
+                'pairing_expires_at' => $pairing?->expires_at ?? $existing?->pairing_expires_at,
+                'paired_at' => $pairing ? $now : ($existing?->paired_at ?? $now),
                 'capabilities' => $validated['capabilities'] ?? [],
                 'meta' => $validated['meta'] ?? [],
-                'last_seen_at' => now(),
-            ],
-        );
-
-        if ($pairing instanceof PublisherDevicePairing) {
-            $pairing->forceFill([
-                'status' => 'claimed',
-                'claimed_at' => now(),
-                'claimed_device_id' => $device->device_id,
+                'last_seen_at' => $now,
             ])->save();
+
+            if ($pairing instanceof PublisherDevicePairing) {
+                $pairing->forceFill([
+                    'status' => 'claimed',
+                    'claimed_at' => $now,
+                    'claimed_device_id' => $device->device_id,
+                ])->save();
+            }
+
+            return ['device' => $device->fresh(), 'pairing_expired' => false];
+        });
+
+        if ((bool) $registration['pairing_expired']) {
+            throw new ApiException('publisher_pairing_expired', 'Pairing code has expired. Generate a new code in the admin panel.', 409);
         }
+
+        /** @var PublisherDevice $device */
+        $device = $registration['device'];
 
         return $this->success($request, [
             'device' => $this->serialize($device),
@@ -75,24 +115,10 @@ class PublisherDeviceController extends BaseApiController
 
     public function heartbeat(Request $request, string $device): JsonResponse
     {
-        $record = $this->authorizeDevice($request, $device);
-
-        $validated = $request->validate([
-            'status' => ['nullable', 'string', 'max:40'],
-            'connection_mode' => ['nullable', 'string', 'in:token,paired'],
-            'capabilities' => ['nullable', 'array'],
-            'meta' => ['nullable', 'array'],
-        ]);
-
-        $record->forceFill([
-            'status' => $validated['status'] ?? 'online',
-            'connection_mode' => $validated['connection_mode'] ?? $record->connection_mode,
-            'capabilities' => $validated['capabilities'] ?? $record->capabilities,
-            'meta' => array_replace($record->meta ?? [], $validated['meta'] ?? []),
-            'last_seen_at' => now(),
-        ])->save();
-
-        return $this->success($request, $this->serialize($record));
+        // Some installed servers already own this legacy URI. Delegate it to
+        // the shadow handler so those nodes receive desired state and report
+        // their applied version without waiting for a route replacement.
+        return $this->shadow->heartbeat($request, $device);
     }
 
     public function session(Request $request, string $device): JsonResponse
@@ -110,32 +136,47 @@ class PublisherDeviceController extends BaseApiController
             'meta' => ['nullable', 'array'],
         ]);
 
-        $sessionLookup = [
-            'publisher_device_id' => $record->id,
-            'device_id' => $record->device_id,
-            'platform_id' => $validated['platform_id'],
-            'profile_key' => $validated['profile_key'] ?? null,
-        ];
-        $previousSession = PublisherPlatformSession::query()->where($sessionLookup)->first();
-        $previousLoginState = $previousSession?->login_state;
-
-        $session = PublisherPlatformSession::query()->updateOrCreate(
-            [
+        $sessionUpdate = DB::transaction(function () use ($record, $validated): array {
+            // Serialize session upserts per device. This closes the
+            // updateOrCreate race that can otherwise produce a duplicate-key
+            // response while several platform probes finish together.
+            PublisherDevice::query()->whereKey($record->id)->lockForUpdate()->firstOrFail();
+            $sessionLookup = [
                 'publisher_device_id' => $record->id,
                 'device_id' => $record->device_id,
                 'platform_id' => $validated['platform_id'],
                 'profile_key' => $validated['profile_key'] ?? null,
-            ],
-            [
-                'account_name' => $validated['account_name'] ?? null,
-                'login_state' => $validated['login_state'],
-                'last_verified_at' => $validated['last_verified_at'] ?? null,
-                'last_seen_at' => now(),
-                'last_error_message' => $validated['last_error_message'] ?? null,
-                'auto_allowed' => $validated['auto_allowed'] ?? false,
-                'meta' => $validated['meta'] ?? [],
-            ],
-        );
+            ];
+            $previousSession = PublisherPlatformSession::query()->where($sessionLookup)->first();
+            $session = PublisherPlatformSession::query()->updateOrCreate(
+                $sessionLookup,
+                [
+                    'account_name' => $validated['account_name'] ?? null,
+                    'login_state' => $validated['login_state'],
+                    'last_verified_at' => $validated['last_verified_at'] ?? null,
+                    'last_seen_at' => now(),
+                    'last_error_message' => $validated['last_error_message'] ?? null,
+                    'auto_allowed' => $validated['auto_allowed'] ?? false,
+                    'meta' => $validated['meta'] ?? [],
+                ],
+            );
+            PublisherAccountGroupItem::query()
+                ->where('publisher_device_id', $record->id)
+                ->where('platform_id', $validated['platform_id'])
+                ->when(
+                    filled($validated['profile_key'] ?? null),
+                    fn ($query) => $query->where('profile_key', $validated['profile_key'])
+                )
+                ->update(['publisher_platform_session_id' => $session->id]);
+
+            return [
+                'session' => $session,
+                'previous_login_state' => $previousSession?->login_state,
+            ];
+        });
+        /** @var PublisherPlatformSession $session */
+        $session = $sessionUpdate['session'];
+        $previousLoginState = $sessionUpdate['previous_login_state'];
 
         $this->lifecycle->onSessionUpdated($session->fresh(['device']), $previousLoginState);
 
@@ -195,8 +236,7 @@ class PublisherDeviceController extends BaseApiController
         }
 
         $token = trim((string) $request->bearerToken());
-        $secret = trim((string) ($record->public_key ?? ''));
-        if ($token === '' || $secret === '' || ! hash_equals($secret, $token)) {
+        if (! PublisherDeviceCredential::verify($record, $token)) {
             throw new ApiException('publisher_device_unauthorized', '设备凭证无效，请重新配对。', 401);
         }
 
@@ -229,7 +269,9 @@ class PublisherDeviceController extends BaseApiController
         return $device->platformSessions()
             ->orderByDesc('last_seen_at')
             ->orderByDesc('id')
-            ->limit(24)
+            // A device can track all 28 supported platforms and multiple
+            // profiles. Limiting this to 24 hid healthy session records.
+            ->limit(100)
             ->get()
             ->map(fn (PublisherPlatformSession $session): array => $this->serializeSession($session))
             ->all();

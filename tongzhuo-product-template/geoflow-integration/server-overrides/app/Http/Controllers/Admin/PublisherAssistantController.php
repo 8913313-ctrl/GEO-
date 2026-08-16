@@ -14,7 +14,10 @@ use App\Models\PublisherDevice;
 use App\Services\GeoFlow\DistributionOrchestrator;
 use App\Support\AdminWeb;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Throwable;
 
 class PublisherAssistantController extends Controller
 {
@@ -80,6 +83,17 @@ class PublisherAssistantController extends Controller
             ->get();
 
         $onlineDevices = $devices->filter(fn (PublisherDevice $device): bool => $this->deviceState($device) === 'online')->count();
+        $publishedArticles = Article::query()
+            ->where('status', 'published')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get(['id', 'title', 'published_at']);
+        $publisherPlatforms = $this->publisherPlatforms->activePlatforms();
+        $accountGroups = PublisherAccountGroup::query()
+            ->with('device:id,name,device_id,last_seen_at')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
 
         return view('admin.publisher-assistant', [
             'pageTitle' => '发布助手',
@@ -92,8 +106,76 @@ class PublisherAssistantController extends Controller
             'pairings' => $pairings,
             'onlineDevices' => $onlineDevices,
             'attentionJobs' => $attentionJobs,
+            'publishedArticles' => $publishedArticles,
+            'publisherPlatforms' => $publisherPlatforms,
+            'accountGroups' => $accountGroups,
+            'publishingRequestKey' => (string) Str::uuid(),
             'deviceStateResolver' => fn (PublisherDevice $device): string => $this->deviceState($device),
         ]);
+    }
+
+    public function createPublishingBatch(Request $request): RedirectResponse
+    {
+        if (! (bool) config('publishing.center_v2_enabled', false)) {
+            return back()->withInput()->withErrors('发布中心 V2 尚未启用，不能创建平台子任务。');
+        }
+
+        $validated = $request->validate([
+            'article_id' => ['required', 'integer', 'exists:articles,id'],
+            'platform_ids' => ['required', 'array', 'min:1'],
+            'platform_ids.*' => ['string', 'max:80', 'exists:publisher_platforms,platform_id'],
+            'account_group_id' => ['nullable', 'integer', 'exists:publisher_account_groups,id'],
+            'publish_mode' => ['required', 'string', 'in:draft,direct,scheduled'],
+            'scheduled_at' => ['nullable', 'required_if:publish_mode,scheduled', 'date', 'after:now'],
+            'device_strategy' => ['nullable', 'string', 'in:auto,specified'],
+            'preferred_device_id' => ['nullable', 'integer', 'exists:publisher_devices,id'],
+            'idempotency_key' => ['required', 'string', 'max:120'],
+        ]);
+
+        $article = Article::query()->whereKey($validated['article_id'])->firstOrFail();
+        if ((string) $article->status !== 'published') {
+            return back()->withInput()->withErrors('只有已经发布到官网的文章才能创建平台发布任务。');
+        }
+        $accountGroup = filled($validated['account_group_id'] ?? null)
+            ? PublisherAccountGroup::query()->whereKey($validated['account_group_id'])->where('status', 'active')->firstOrFail()
+            : null;
+        $preferredDeviceId = filled($validated['preferred_device_id'] ?? null)
+            ? (int) $validated['preferred_device_id']
+            : null;
+        if ($accountGroup?->publisher_device_id !== null
+            && $preferredDeviceId !== null
+            && (int) $accountGroup->publisher_device_id !== $preferredDeviceId) {
+            return back()->withInput()->withErrors('The selected account group belongs to a different publishing device.');
+        }
+        $preferredDeviceId ??= $accountGroup?->publisher_device_id;
+        $deviceStrategy = $preferredDeviceId !== null
+            ? 'specified'
+            : ($validated['device_strategy'] ?? 'auto');
+
+        try {
+            $result = $this->publishingCenter->createBatch(
+                article: $article,
+                platformIds: array_values(array_unique($validated['platform_ids'])),
+                publishMode: $validated['publish_mode'],
+                accountGroup: $accountGroup,
+                requestedByAdminId: auth('admin')->id(),
+                scheduledAt: $validated['scheduled_at'] ?? null,
+                deviceStrategy: $deviceStrategy,
+                preferredDeviceId: $preferredDeviceId,
+                idempotencyKey: $validated['idempotency_key'],
+            );
+        } catch (Throwable $exception) {
+            return back()->withInput()->withErrors('创建发布任务失败：'.$exception->getMessage());
+        }
+
+        $distribution = $result['distribution'];
+        $summary = $result['preflight']['summary'] ?? [];
+        $ready = (int) ($summary['ready'] ?? 0) + (int) ($summary['draft_only'] ?? 0);
+        $blocked = max(0, (int) ($summary['target'] ?? 0) - $ready);
+
+        return redirect()
+            ->route('admin.publisher-assistant')
+            ->with('message', "发布批次 #{$distribution->id} 已创建：{$ready} 个平台进入队列，{$blocked} 个平台等待登录、设备或适配能力。需要人工确认的平台不会自动点击最终发布。");
     }
 
     public function bootstrapChannel(): RedirectResponse

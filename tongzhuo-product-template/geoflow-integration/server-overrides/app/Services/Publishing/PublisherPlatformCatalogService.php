@@ -8,6 +8,7 @@ use Illuminate\Support\Collection;
 class PublisherPlatformCatalogService
 {
     public const EXPECTED_EXTERNAL_PLATFORM_COUNT = 28;
+    public const HIDDEN_PLATFORM_IDS = ['x'];
 
     /**
      * @return list<array<string,mixed>>
@@ -66,6 +67,7 @@ class PublisherPlatformCatalogService
 
         return PublisherPlatform::query()
             ->where('status', 'active')
+            ->whereNotIn('platform_id', self::HIDDEN_PLATFORM_IDS)
             ->orderBy('group_key')
             ->orderBy('sort_order')
             ->get();

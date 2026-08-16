@@ -171,7 +171,7 @@ New-Item -ItemType Directory -Force -Path 'D:\Deliveries\configs'
 ```powershell
 .\scripts\Test-CustomerDeliveryPackage.ps1 `
   -PackagePath 'D:\Deliveries\acme-tongzhuo-geo-delivery.zip' `
-  -ExpectedVersion '1.6.2'
+  -ExpectedVersion 'X.Y.Z'
 ```
 
 交付包会包含 GEOFlow 服务器覆盖层部署包、Windows 本地发布助手安装包、AI 友好官网静态包、产品文档、客户实例清单和交付清单。包内不包含平台账号密码、Cookie、浏览器 Profile、客户 API Token 或 `node_modules`。
@@ -200,16 +200,16 @@ New-Item -ItemType Directory -Force -Path 'D:\Deliveries\configs'
 
 ```powershell
 .\scripts\Test-ProductReleasePackage.ps1 `
-  -PackagePath 'D:\Releases\tongzhuo-geo-growth-suite-v1.6.2.zip' `
-  -ExpectedVersion '1.6.2'
+  -PackagePath 'D:\Releases\tongzhuo-geo-growth-suite-vX.Y.Z.zip' `
+  -ExpectedVersion 'X.Y.Z'
 ```
 
 交付前总验收可以执行：
 
 ```powershell
 .\scripts\Test-ProductReadiness.ps1 `
-  -OutputPath 'D:\Releases\tongzhuo-product-readiness-1.6.2.json' `
-  -ReleaseOutputPath 'D:\Releases\tongzhuo-geo-growth-suite-v1.6.2.zip'
+  -OutputPath 'D:\Releases\tongzhuo-product-readiness-X.Y.Z.json' `
+  -ReleaseOutputPath 'D:\Releases\tongzhuo-geo-growth-suite-vX.Y.Z.zip'
 ```
 
 它会跑模板校验、客户交付烟测、母版发布包生成和最终 zip 验收，并输出 JSON 验收报告。

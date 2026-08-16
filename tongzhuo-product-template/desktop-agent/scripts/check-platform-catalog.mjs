@@ -1,4 +1,4 @@
-import { executablePlatformIds, platforms, readyPlatformIds, runnablePlatformIds } from '../src/platforms.js';
+import { directPublishPlatformIds, executablePlatformIds, hiddenPlatformIds, platforms, readyPlatformIds, runnablePlatformIds } from '../src/platforms.js';
 
 const expectedPlatformIds = [
   'wechat_mp',
@@ -35,7 +35,8 @@ const expectedPlatformIds = [
 const ids = platforms.map((platform) => platform.id);
 const missing = expectedPlatformIds.filter((id) => !ids.includes(id));
 const duplicated = ids.filter((id, index) => ids.indexOf(id) !== index);
-const automatedPlatformIds = [
+const unexpected = ids.filter((id) => !expectedPlatformIds.includes(id));
+const assistedPlatformIds = [
   'baijiahao',
   'xiaohongshu',
   'weibo',
@@ -57,12 +58,29 @@ const automatedPlatformIds = [
   'segmentfault',
   'cnblogs',
   'sohufocus',
-  'x',
   'eastmoney',
   'smzdm',
   'netease',
 ];
-const connectedPlatformIds = ['wechat_mp', 'zhihu', 'toutiao', ...automatedPlatformIds];
+const connectedPlatformIds = ['wechat_mp', 'zhihu', 'toutiao', ...assistedPlatformIds];
+const expectedRemotePlatformCount = expectedPlatformIds.length - 2;
+const wrongCatalogSize = ids.length !== expectedPlatformIds.length || executablePlatformIds.length !== expectedRemotePlatformCount;
+const invalidHiddenPlatforms = hiddenPlatformIds.length === 1 && hiddenPlatformIds[0] === 'x'
+  && !readyPlatformIds.includes('x') && !executablePlatformIds.includes('x') && !runnablePlatformIds.includes('x')
+  ? []
+  : ['x'];
+const invalidRemoteEndpoints = connectedPlatformIds.filter((id) => {
+  const platform = platforms.find((item) => item.id === id);
+  try {
+    const login = new URL(platform?.loginUrl || '');
+    const editor = new URL(platform?.editorUrl || '');
+    return login.protocol !== 'https:' || !login.hostname
+      || editor.protocol !== 'https:' || !editor.hostname
+      || editor.href === 'about:blank';
+  } catch {
+    return true;
+  }
+});
 const readyMissing = connectedPlatformIds.filter((id) => !readyPlatformIds.includes(id));
 const executableMissing = connectedPlatformIds.filter((id) => !executablePlatformIds.includes(id));
 const unexpectedExecutable = ['zip-download']
@@ -73,26 +91,45 @@ const incorrectlyPromoted = plannedIds.filter((id) => {
   const platform = platforms.find((item) => item.id === id);
   return platform?.support !== 'planned' || platform?.execution?.mode !== 'planned';
 });
-const missingAutomatedMetadata = automatedPlatformIds.filter((id) => {
+const missingAssistedMetadata = assistedPlatformIds.filter((id) => {
   const platform = platforms.find((item) => item.id === id);
-  return platform?.support !== 'ready' || platform?.execution?.mode !== 'automated';
+  return platform?.support !== 'ready' || platform?.execution?.mode !== 'assisted' || platform?.execution?.autoSubmit !== false;
 });
-const missingAutoSubmit = connectedPlatformIds.filter((id) => {
+const expectedDirectPublishIds = ['wechat_mp', 'zhihu', 'toutiao'];
+const missingDirectPublish = expectedDirectPublishIds.filter((id) => !directPublishPlatformIds.includes(id));
+const unexpectedDirectPublish = directPublishPlatformIds.filter((id) => !expectedDirectPublishIds.includes(id));
+const unexpectedAssistedAutoSubmit = assistedPlatformIds.filter((id) => {
   const platform = platforms.find((item) => item.id === id);
-  return platform?.execution?.autoSubmit !== true;
+  return platform?.execution?.autoSubmit === true;
+});
+const missingSessionSignals = connectedPlatformIds.filter((id) => {
+  const platform = platforms.find((item) => item.id === id);
+  return !Array.isArray(platform?.sessionSelectors) || platform.sessionSelectors.length === 0
+    || !Array.isArray(platform?.sessionPresenceSelectors) || platform.sessionPresenceSelectors.length === 0;
 });
 
-if (missing.length || duplicated.length || readyMissing.length || executableMissing.length || unexpectedExecutable.length || missingRunnable.length || incorrectlyPromoted.length || missingAutomatedMetadata.length || missingAutoSubmit.length) {
+if (missing.length || unexpected.length || duplicated.length || wrongCatalogSize || invalidRemoteEndpoints.length
+  || readyMissing.length || executableMissing.length || unexpectedExecutable.length || missingRunnable.length
+  || incorrectlyPromoted.length || missingAssistedMetadata.length || missingDirectPublish.length
+  || unexpectedDirectPublish.length || unexpectedAssistedAutoSubmit.length || missingSessionSignals.length
+  || invalidHiddenPlatforms.length) {
   console.error({
     missing,
+    unexpected,
     duplicated,
+    wrongCatalogSize,
+    invalidRemoteEndpoints,
     readyMissing,
     executableMissing,
     unexpectedExecutable,
     missingRunnable,
     incorrectlyPromoted,
-    missingAutomatedMetadata,
-    missingAutoSubmit,
+    missingAssistedMetadata,
+    missingDirectPublish,
+    unexpectedDirectPublish,
+    unexpectedAssistedAutoSubmit,
+    missingSessionSignals,
+    invalidHiddenPlatforms,
   });
   process.exit(1);
 }

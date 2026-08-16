@@ -1,5 +1,5 @@
 import { BaseAdapter } from './base-adapter.js';
-import { adapterResult, detectAccessBlocked, setContentEditable, typeIntoFirstVisible } from './fill-tools.js';
+import { adapterResult, detectAccessBlocked, selectorDetails, setContentEditable, typeIntoFirstVisible } from './fill-tools.js';
 import { selectorList, submitFinalPublish } from './final-publish.js';
 
 const defaultPostSelectors = [
@@ -62,7 +62,19 @@ export class ShortPostAdapter extends BaseAdapter {
       return failed(this, page, `${this.platform.name} 未识别到可发布的短帖输入区，已停止自动执行。`, 'editor_fields_not_recognized', {
         selectors: { body: null, publish: null },
         fill: { body: false, published: false },
+        selector_details: selectorDetails({ body: filled }),
       });
+    }
+
+    const base = {
+      execution_mode: this.platform.execution?.mode || 'automated',
+      next_action: 'operator_confirm_publish',
+      selectors: { body: filled.selector, publish: null },
+      fill: { body: true, published: false, draft_saved: false },
+      selector_details: selectorDetails({ body: filled }),
+    };
+    if (this.platform.execution?.autoSubmit !== true) {
+      return adapterResult(this.platform.id, 'awaiting_confirmation', `${this.platform.name} content is ready; operator confirmation is required before public submission.`, page, base);
     }
 
     return submitFinalPublish(this, page, {
@@ -70,6 +82,7 @@ export class ShortPostAdapter extends BaseAdapter {
       next_action: 'none',
       selectors: { body: filled.selector },
       fill: { body: true, draft_saved: false },
+      selector_details: selectorDetails({ body: filled }),
     });
   }
 }

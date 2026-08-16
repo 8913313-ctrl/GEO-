@@ -10,9 +10,9 @@ export const rootDir = path.resolve(__dirname, '..');
 export const dataDir = path.resolve(process.env.TZ_AGENT_DATA_DIR || path.join(rootDir, '.data'));
 const configPath = path.join(dataDir, 'config.json');
 
-// Schema v3 stores credentials as field-scoped AES-256-GCM envelopes. The
+// Schema v4 stores credentials as field-scoped AES-256-GCM envelopes. The
 // envelope is versioned so migrations stay explicit and fail safely.
-export const configSchemaVersion = 3;
+export const configSchemaVersion = 4;
 const sensitiveFields = Object.freeze(['apiToken', 'pairingToken', 'deviceSecret', 'pairingCode']);
 const encryptionAlgorithm = 'aes-256-gcm';
 const encryptionVersion = 1;
@@ -52,6 +52,7 @@ const defaults = {
   appliedStateVersion: 0,
   localOverride: false,
   enabledPlatforms: [],
+  platformFilterMode: 'unrestricted',
   platformPolicy: {},
   publishPolicy: { maxConcurrentGroups: 2 },
   publishPolicyState: {},
@@ -150,6 +151,17 @@ function decodeStoredConfig(stored) {
     throw new Error(`Invalid encrypted configuration: ${invalidStructuredFields.join(', ')}`);
   }
   if (!encryptedFields.length) return { decoded, encrypted: false };
+
+  // A complete legacy configuration is migrated on first read. Once any
+  // credential has been protected, however, accepting a plaintext sibling
+  // would let a file edit bypass AES-GCM integrity protection for that field.
+  // Atomic writes always produce a complete set of envelopes, so mixed states
+  // are corruption/tampering and must fail closed.
+  const plaintextFields = sensitiveFields.filter((field) => !isEncryptedEnvelope(stored?.[field]));
+  if (plaintextFields.length) {
+    throw new Error(`Invalid encrypted configuration: mixed plaintext fields (${plaintextFields.join(', ')})`);
+  }
+
   const key = masterKey({ encrypted: true });
   encryptedFields.forEach((field) => {
     decoded[field] = decryptField(field, stored[field], key);
@@ -293,9 +305,26 @@ function normalizeConfig(raw = {}) {
   merged.publishPolicyState = merged.publishPolicyState && typeof merged.publishPolicyState === 'object' && !Array.isArray(merged.publishPolicyState)
     ? merged.publishPolicyState
     : {};
+  const rawHasEnabledPlatforms = Object.prototype.hasOwnProperty.call(raw, 'enabledPlatforms');
   merged.enabledPlatforms = Array.isArray(merged.enabledPlatforms)
     ? [...new Set(merged.enabledPlatforms.map((id) => String(id || '').trim()).filter(Boolean))]
     : [];
+  const configuredFilterMode = String(raw.platformFilterMode || '').trim().toLowerCase();
+  if (['unrestricted', 'allowlist', 'none'].includes(configuredFilterMode)) {
+    merged.platformFilterMode = configuredFilterMode;
+  } else if (rawHasEnabledPlatforms && merged.enabledPlatforms.length > 0) {
+    // Older settings with a non-empty list were already behaving as an allowlist.
+    merged.platformFilterMode = 'allowlist';
+  } else {
+    // Older empty lists meant no remote policy had been supplied yet. Keep that
+    // migration compatible; new explicit empty lists are written as none.
+    merged.platformFilterMode = 'unrestricted';
+  }
+  if (merged.platformFilterMode === 'none') merged.enabledPlatforms = [];
+  if (merged.platformFilterMode === 'allowlist' && !merged.enabledPlatforms.length) {
+    // Fail closed if a malformed remote desired state asks for an empty allowlist.
+    merged.platformFilterMode = 'none';
+  }
   merged.desiredStateVersion = normalizeInteger(merged.desiredStateVersion, 0, 0, Number.MAX_SAFE_INTEGER);
   merged.appliedStateVersion = normalizeInteger(merged.appliedStateVersion, 0, 0, Number.MAX_SAFE_INTEGER);
   merged.localOverride = Boolean(merged.localOverride);
@@ -330,7 +359,13 @@ export function readConfig() {
 export function writeConfig(next) {
   fs.mkdirSync(dataDir, { recursive: true });
   const cleaned = Object.fromEntries(Object.entries(next || {}).filter(([, value]) => value !== undefined));
-  const config = normalizeConfig({ ...readConfig(), ...cleaned });
+  const current = readConfig();
+  const merged = { ...current, ...cleaned };
+  if (Object.prototype.hasOwnProperty.call(cleaned, 'enabledPlatforms')
+    && !Object.prototype.hasOwnProperty.call(cleaned, 'platformFilterMode')) {
+    merged.platformFilterMode = Array.isArray(cleaned.enabledPlatforms) && cleaned.enabledPlatforms.length ? 'allowlist' : 'none';
+  }
+  const config = normalizeConfig(merged);
   atomicWriteConfig(config);
   return config;
 }

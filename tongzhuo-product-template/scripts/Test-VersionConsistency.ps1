@@ -65,9 +65,13 @@ if ($desktopVersionSource -notmatch $versionPattern) {
     throw "Version mismatch in desktop-agent/src/version.js. Expected agentVersion $version."
 }
 
-$changelogPattern = "## \[$([regex]::Escape($version))\]"
-if ($changelog -notmatch $changelogPattern) {
-    throw "CHANGELOG.md must contain an entry for version $version."
+$latestChangelogMatch = [regex]::Match($changelog, '(?m)^## \[([^\]]+)\]')
+if (-not $latestChangelogMatch.Success) {
+    throw 'CHANGELOG.md does not contain a version entry.'
+}
+$latestChangelogVersion = [string] $latestChangelogMatch.Groups[1].Value
+if ($latestChangelogVersion -ne $version) {
+    throw "CHANGELOG.md latest entry must be version $version. Got: $latestChangelogVersion"
 }
 
 Write-Host "Version consistency passed: $version"

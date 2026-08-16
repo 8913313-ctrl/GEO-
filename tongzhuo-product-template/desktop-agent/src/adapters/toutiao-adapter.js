@@ -6,6 +6,7 @@ import {
   detectAccessBlocked,
   fillFirstVisible,
   fillRichContent,
+  selectorDetails,
 } from './fill-tools.js';
 import { submitFinalPublish } from './final-publish.js';
 
@@ -49,6 +50,7 @@ export class ToutiaoAdapter extends BaseAdapter {
       return failed(this, page, '头条号未识别到可靠的标题或正文输入区，已停止自动执行。', 'editor_fields_not_recognized', {
         selectors: { title: title.selector || null, body: body.selector || null, draft: null },
         fill: { title: Boolean(title.ok), body: Boolean(body.ok), draft_saved: false },
+        selector_details: selectorDetails({ title, body }),
       });
     }
 
@@ -61,6 +63,7 @@ export class ToutiaoAdapter extends BaseAdapter {
       return failed(this, page, '头条号未取得草稿保存成功信号，未将任务标记为成功。', `draft_${saved.reason || 'save_failed'}`, {
         selectors: { title: title.selector, body: body.selector, draft: saved.action?.selector || null },
         fill: { title: true, body: true, draft_saved: false },
+        selector_details: selectorDetails({ title, body, draft: saved.action, draft_success: saved.confirmation }),
       });
     }
 
@@ -74,6 +77,7 @@ export class ToutiaoAdapter extends BaseAdapter {
         draft_success: saved.confirmation.selector,
       },
       fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: true },
+      selector_details: selectorDetails({ title, body, draft: saved.action, draft_success: saved.confirmation }),
     };
 
     if (this.platform.execution?.autoSubmit === true) {
@@ -90,6 +94,7 @@ export class ToutiaoAdapter extends BaseAdapter {
         draft_success: saved.confirmation.selector,
       },
       fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: true },
+      selector_details: selectorDetails({ title, body, draft: saved.action, draft_success: saved.confirmation }),
     });
   }
 }

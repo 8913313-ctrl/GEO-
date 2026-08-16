@@ -16,6 +16,74 @@ assert.deepEqual(
   ['toutiao'],
 );
 
+scheduler.config = {
+  capabilities: ['zhihu', 'wechat_mp', 'toutiao'],
+  enabledPlatforms: [],
+  platformFilterMode: 'none',
+  maxJobAttempts: 2,
+};
+assert.deepEqual(
+  scheduler.choosePlatforms({ platforms: ['zhihu', 'wechat_mp', 'toutiao'] }, []),
+  [],
+  'an explicit empty remote allowlist must stop every remote platform',
+);
+assert.equal(scheduler.isPlatformEnabled('zhihu'), false);
+const skippedByPolicy = await scheduler.runPlatformWithRetry('zhihu', {}, 41, { id: 'group-a' });
+assert.equal(skippedByPolicy.state, 'skipped');
+assert.equal(skippedByPolicy.failure_category, 'platform_disabled_by_policy');
+
+scheduler.config = {
+  capabilities: ['zhihu', 'wechat_mp', 'toutiao'],
+  enabledPlatforms: [],
+  platformFilterMode: 'unrestricted',
+};
+assert.deepEqual(
+  scheduler.choosePlatforms({ platforms: ['zhihu', 'wechat_mp', 'toutiao'] }, []),
+  ['zhihu', 'wechat_mp', 'toutiao'],
+);
+
+const directJob = {
+  publish_mode: 'direct',
+  manual_confirmation: false,
+  platform: { supports_direct_publish: true },
+  payload: { article: { title: 'mode safety', text: 'body' } },
+};
+assert.equal(scheduler.allowsFinalSubmit('zhihu', directJob), true);
+assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 'draft' }), false);
+assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 'scheduled' }), false);
+assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 'DIRECT' }), false);
+assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, manual_confirmation: true }), false);
+assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, platform: { supports_direct_publish: false } }), false);
+assert.equal(scheduler.allowsFinalSubmit('baijiahao', directJob), false, 'an unverified local adapter must never final-submit');
+
+const executor = Object.create(TongzhuoDesktopAgent.prototype);
+executor.config = {
+  capabilities: ['zhihu'],
+  enabledPlatforms: [],
+  platformFilterMode: 'unrestricted',
+  maxJobAttempts: 1,
+  platformPolicy: {},
+};
+executor.publishPolicy = {
+  acquireProfile: () => ({ allowed: true }),
+  waitBeforePublish: async () => 0,
+  recordOutcome: () => ({}),
+  releaseProfile: () => {},
+};
+const finalSubmitOptions = [];
+executor.browser = {
+  openEditor: async (_platformId, _payload, options) => {
+    finalSubmitOptions.push(options.allowFinalSubmit);
+    return { state: options.allowFinalSubmit ? 'published' : 'draft_saved', message: 'ok', windowId: 'test-window' };
+  },
+};
+executor.syncPlatformSession = async () => {};
+executor.log = () => {};
+executor.persistPublishPolicy = () => {};
+await executor.runPlatformWithRetry('zhihu', directJob, 51, { id: 'group-a' });
+await executor.runPlatformWithRetry('zhihu', { ...directJob, publish_mode: 'draft' }, 52, { id: 'group-a' });
+assert.deepEqual(finalSubmitOptions, [true, false], 'runPlatformWithRetry must pass the task-level final-submit gate to the browser');
+
 const resumed = scheduler.completedPlatformResults({
   result: {
     platform_results: {
@@ -26,6 +94,24 @@ const resumed = scheduler.completedPlatformResults({
 }, ['zhihu', 'wechat_mp']);
 assert.deepEqual(Object.keys(resumed), ['zhihu']);
 assert.equal(resumed.zhihu.state, 'published');
+
+const nestedResumed = scheduler.completedPlatformResults({
+  platform_results: {},
+  assistant: {
+    platform_results: {
+      zhihu: { state: 'published', remote_url: 'https://example.test/assistant/zhihu' },
+    },
+  },
+  remote_meta: {
+    publisher_assistant: {
+      platform_results: {
+        wechat_mp: { state: 'draft_saved', remote_url: 'https://example.test/assistant/wechat' },
+      },
+    },
+  },
+}, ['zhihu', 'wechat_mp']);
+assert.deepEqual(Object.keys(nestedResumed), ['zhihu', 'wechat_mp'],
+  'empty top-level results must not hide persisted assistant platform outcomes');
 
 assert.equal(scheduler.platformJobStatus({ state: 'awaiting_login' }), 'login_required');
 assert.equal(scheduler.platformJobStatus({ state: 'draft_saved' }), 'draft_saved');

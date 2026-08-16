@@ -86,31 +86,52 @@ function Test-TextFile {
 
 try {
     New-Item -ItemType Directory -Force -Path $scanRoot | Out-Null
-    Expand-Archive -LiteralPath $resolvedPackage -DestinationPath $scanRoot -Force
 
     $findings = [System.Collections.Generic.List[object]]::new()
     $nestedQueue = [System.Collections.Queue]::new()
     $nestedScanRoot = Join-Path $scanRoot '_nested-zips'
+    $outerScanRoot = Join-Path $scanRoot '_outer-entries'
     New-Item -ItemType Directory -Force -Path $nestedScanRoot | Out-Null
+    New-Item -ItemType Directory -Force -Path $outerScanRoot | Out-Null
 
     $blockedNames = @('.env', 'cookies.json', 'localstorage.json')
-    $files = @(Get-ChildItem -LiteralPath $scanRoot -Recurse -Force -File -ErrorAction SilentlyContinue)
-    foreach ($file in $files) {
-        $relativePath = $file.FullName.Substring($scanRoot.Length).TrimStart('\', '/') -replace '\\', '/'
-        if ($relativePath -like '_nested-zips/*') {
-            continue
-        }
+    $binaryExtensions = @(
+        '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico',
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+        '.exe', '.dll', '.bin', '.woff', '.woff2', '.ttf'
+    )
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [IO.Compression.ZipFile]::OpenRead($resolvedPackage)
+    try {
+        $outerIndex = 0
+        foreach ($entry in $archive.Entries) {
+            if ([string]::IsNullOrWhiteSpace($entry.Name)) {
+                continue
+            }
+            $outerIndex += 1
+            $relativePath = ($entry.FullName -replace '\\', '/').TrimStart('/')
+            $extension = [IO.Path]::GetExtension($entry.Name).ToLowerInvariant()
 
-        if ($blockedNames -contains $file.Name.ToLowerInvariant()) {
-            Add-Finding -Findings $findings -Path $relativePath -Rule 'blocked_secret_filename' -Detail $file.Name
-        }
+            if ($blockedNames -contains $entry.Name.ToLowerInvariant()) {
+                Add-Finding -Findings $findings -Path $relativePath -Rule 'blocked_secret_filename' -Detail $entry.Name
+            }
 
-        if ($file.Extension.ToLowerInvariant() -eq '.zip') {
-            $nestedQueue.Enqueue($file.FullName)
-            continue
-        }
+            if ($extension -eq '.zip') {
+                $nestedPath = Join-Path $outerScanRoot ("nested-{0:D6}.zip" -f $outerIndex)
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $nestedPath, $true)
+                $nestedQueue.Enqueue($nestedPath)
+                continue
+            }
+            if ($entry.Length -gt $MaxTextBytes -or $binaryExtensions -contains $extension) {
+                continue
+            }
 
-        Test-TextFile -Path $file.FullName -RelativePath $relativePath -Findings $findings
+            $textPath = Join-Path $outerScanRoot ("text-{0:D6}{1}" -f $outerIndex, $extension)
+            [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $textPath, $true)
+            Test-TextFile -Path $textPath -RelativePath $relativePath -Findings $findings
+        }
+    } finally {
+        $archive.Dispose()
     }
 
     $nestedIndex = 0

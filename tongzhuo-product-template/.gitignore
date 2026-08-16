@@ -7,3 +7,6 @@ config/*.json
 *.zip
 .env
 customer-manifest.json
+desktop-agent/.release-metadata/
+.codex-staging/
+.tmp-*

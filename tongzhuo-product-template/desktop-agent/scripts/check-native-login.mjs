@@ -72,6 +72,7 @@ try {
 
     await assert.rejects(
       busyBrowser.openLogin('zhihu', { profileKey }),
+      /平台人工登录/,
       `native login must reject an active managed ${kind} page`,
     );
     assert.equal(managedCloseCalls, 0, `native login must not close an active managed ${kind} context`);
@@ -82,7 +83,10 @@ try {
 
   const calls = [];
   const children = [];
+  let nextDebugPort = 43123;
   const browser = new PlatformBrowser({
+    allocateNativeDebugPort: async () => nextDebugPort++,
+    connectOverCDP: async () => { throw new Error('simulated unavailable CDP endpoint'); },
     spawnNativeBrowser: (executablePath, args) => {
       const child = new FakeChild(8000 + calls.length);
       calls.push({ executablePath, args: [...args] });
@@ -95,19 +99,22 @@ try {
   assert.equal(first.driver, 'native');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].executablePath, candidate.executablePath);
-  assert.equal(calls[0].args.length, 3);
+  assert.equal(calls[0].args.length, 5);
   assert.match(calls[0].args[0], /^--user-data-dir=/);
   assert.ok(calls[0].args[0].endsWith(path.join('profiles', 'group-default--zhihu')));
-  assert.equal(calls[0].args[1], '--new-window');
-  assert.match(calls[0].args[2], /^https:\/\/www\.zhihu\.com\/signin/);
+  assert.equal(calls[0].args[1], '--remote-debugging-address=127.0.0.1');
+  assert.equal(calls[0].args[2], '--remote-debugging-port=43123');
+  assert.equal(calls[0].args[3], '--new-window');
+  assert.match(calls[0].args[4], /^https:\/\/www\.zhihu\.com\/signin/);
   const serializedArgs = calls[0].args.join(' ').toLowerCase();
-  for (const forbidden of ['remote-debugging', 'enable-automation', 'automationcontrolled', 'user-agent', 'about:blank']) {
+  for (const forbidden of ['--remote-debugging-port=0', 'enable-automation', 'automationcontrolled', 'user-agent', 'about:blank']) {
     assert.equal(serializedArgs.includes(forbidden), false, `native login must not contain ${forbidden}`);
   }
 
   const status = browser.status();
   assert.equal(status.windowCount, 1);
   assert.equal(status.windows[0].driver, 'native');
+  assert.equal(status.windows[0].liveInspection, true);
   assert.equal(status.windows[0].canClose, false);
   assert.notEqual(status.windows[0].url, 'about:blank');
 
@@ -119,8 +126,12 @@ try {
   assert.equal(inProgress.manualLoginInProgress, true);
   assert.equal(inProgress.reason, 'manual_login_in_progress');
   await assert.rejects(
+    browser.inspectLoginPages('missing-platform'),
+    /不支持的平台：missing-platform/,
+  );
+  await assert.rejects(
     browser.openEditor('zhihu', { article: { title: 'x', text: 'x' } }, { profileKey: 'group-default--zhihu' }),
-    /人工登录窗口仍在打开/,
+    /平台人工登录窗口仍在打开/,
   );
 
   const secondProfile = await browser.openLogin('zhihu', { profileKey: 'group-second--zhihu' });

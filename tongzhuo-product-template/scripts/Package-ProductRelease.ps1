@@ -50,6 +50,7 @@ $excludedDirectories = @(
     '.git',
     '.agents',
     '.codex',
+    '.codex-staging',
     'node_modules',
     '.data',
     'dist',
@@ -61,6 +62,7 @@ $excludedDirectories = @(
 $excludedFiles = @(
     '.env',
     'customer-manifest.json',
+    '.tmp-*',
     '*.log',
     '*.tmp',
     '*.zip',
@@ -81,10 +83,40 @@ function Test-ExcludedName {
     return $false
 }
 
+function Copy-ReleaseTree {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Source,
+        [Parameter(Mandatory = $true)] [string]$Destination
+    )
+
+    New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+    $configRoot = [IO.Path]::GetFullPath((Join-Path $rootPath 'config'))
+    foreach ($item in Get-ChildItem -LiteralPath $Source -Force) {
+        if ($item.PSIsContainer) {
+            if ($excludedDirectories -contains $item.Name) {
+                continue
+            }
+            Copy-ReleaseTree -Source $item.FullName -Destination (Join-Path $Destination $item.Name)
+            continue
+        }
+
+        if (Test-ExcludedName -Name $item.Name -Patterns $excludedFiles) {
+            continue
+        }
+        if ([IO.Path]::GetFullPath($Source) -eq $configRoot -and
+            $item.Extension -eq '.json' -and
+            $item.Name -ne 'client-config.example.json') {
+            continue
+        }
+
+        Copy-Item -LiteralPath $item.FullName -Destination (Join-Path $Destination $item.Name) -Force
+    }
+}
+
 function Assert-ReleaseClean {
     param([Parameter(Mandatory = $true)] [string]$Path)
 
-    $blockedNames = @('.git', '.agents', '.codex', 'node_modules', '.data', 'dist', 'logs', 'tmp', 'temp', 'vendor')
+    $blockedNames = @('.git', '.agents', '.codex', '.codex-staging', 'node_modules', '.data', 'dist', 'logs', 'tmp', 'temp', 'vendor')
     foreach ($name in $blockedNames) {
         $matches = @(Get-ChildItem -LiteralPath $Path -Recurse -Force -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $name })
         if ($matches.Count -gt 0) {
@@ -95,6 +127,7 @@ function Assert-ReleaseClean {
     $blockedFiles = @(Get-ChildItem -LiteralPath $Path -Recurse -Force -File -ErrorAction SilentlyContinue | Where-Object {
         $_.Name -eq '.env' -or
         $_.Name -eq 'customer-manifest.json' -or
+        $_.Name -like '.tmp-*' -or
         $_.Name -like '*.log' -or
         $_.Name -like '*.tmp' -or
         $_.Name -like '*.zip'
@@ -116,26 +149,7 @@ function Assert-ReleaseClean {
 try {
     New-Item -ItemType Directory -Force -Path $releaseRoot | Out-Null
 
-    Get-ChildItem -LiteralPath $rootPath -Force | ForEach-Object {
-        if ($_.PSIsContainer) {
-            if ($excludedDirectories -contains $_.Name) {
-                return
-            }
-            if ($_.Name -eq 'config') {
-                $targetConfig = Join-Path $releaseRoot 'config'
-                New-Item -ItemType Directory -Force -Path $targetConfig | Out-Null
-                Copy-Item -LiteralPath (Join-Path $_.FullName 'client-config.example.json') -Destination (Join-Path $targetConfig 'client-config.example.json') -Force
-                return
-            }
-            Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $releaseRoot $_.Name) -Recurse -Force
-            return
-        }
-
-        if (Test-ExcludedName -Name $_.Name -Patterns $excludedFiles) {
-            return
-        }
-        Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $releaseRoot $_.Name) -Force
-    }
+    Copy-ReleaseTree -Source $rootPath -Destination $releaseRoot
 
     foreach ($directory in $excludedDirectories) {
         Get-ChildItem -LiteralPath $releaseRoot -Recurse -Force -Directory -ErrorAction SilentlyContinue |
@@ -202,6 +216,7 @@ try {
             test_template_secrets = 'scripts/Test-TemplateSecrets.ps1'
             test_desktop_agent_package = 'scripts/Test-DesktopAgentPackage.ps1'
             test_geoflow_server_package = 'scripts/Test-GeoFlowServerPackage.ps1'
+            test_publisher_automation_contract = 'geoflow-integration/deployment/check-publisher-automation-contract.ps1'
             test_website_package = 'scripts/Test-WebsitePackage.ps1'
             test_template = 'scripts/Test-Template.ps1'
             test_product_delivery_console = 'scripts/Test-ProductDeliveryConsole.ps1'
@@ -230,6 +245,7 @@ try {
             excludes_secrets = $true
             package_secret_scan = $true
             product_architecture_contract = $true
+            publisher_automation_contract = -not [bool]$SkipChecks
             template_cleanliness = -not [bool]$SkipChecks
             version_consistency = -not [bool]$SkipChecks
         }

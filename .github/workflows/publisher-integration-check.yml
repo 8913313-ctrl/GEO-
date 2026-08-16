@@ -1,0 +1,98 @@
+name: Publisher integration check
+
+on:
+  push:
+    paths:
+      - 'tongzhuo-product-template/geoflow-integration/server-overrides/**'
+      - 'tongzhuo-product-template/geoflow-integration/deployment/**'
+      - 'tongzhuo-product-template/geoflow-integration/docs/PUBLISHER-AUTOMATION-OPERATIONS.md'
+      - 'tongzhuo-product-template/scripts/Package-GeoFlowServer.ps1'
+      - 'tongzhuo-product-template/scripts/Package-ProductRelease.ps1'
+      - 'tongzhuo-product-template/scripts/Test-PackageSecrets.ps1'
+      - 'tongzhuo-product-template/scripts/Test-PackageSecretsNegative.ps1'
+      - 'tongzhuo-product-template/scripts/Test-ProductReleasePackage.ps1'
+      - 'tongzhuo-product-template/scripts/Test-GeoFlowServerPackage.ps1'
+      - 'tongzhuo-product-template/scripts/Test-ServerOverrides.ps1'
+      - 'tongzhuo-product-template/scripts/Test-Template.ps1'
+      - 'tongzhuo-product-template/scripts/Test-VersionConsistency.ps1'
+      - '.github/workflows/publisher-integration-check.yml'
+  pull_request:
+    paths:
+      - 'tongzhuo-product-template/geoflow-integration/server-overrides/**'
+      - 'tongzhuo-product-template/geoflow-integration/deployment/**'
+      - 'tongzhuo-product-template/geoflow-integration/docs/PUBLISHER-AUTOMATION-OPERATIONS.md'
+      - 'tongzhuo-product-template/scripts/Package-GeoFlowServer.ps1'
+      - 'tongzhuo-product-template/scripts/Package-ProductRelease.ps1'
+      - 'tongzhuo-product-template/scripts/Test-PackageSecrets.ps1'
+      - 'tongzhuo-product-template/scripts/Test-PackageSecretsNegative.ps1'
+      - 'tongzhuo-product-template/scripts/Test-ProductReleasePackage.ps1'
+      - 'tongzhuo-product-template/scripts/Test-GeoFlowServerPackage.ps1'
+      - 'tongzhuo-product-template/scripts/Test-ServerOverrides.ps1'
+      - 'tongzhuo-product-template/scripts/Test-Template.ps1'
+      - 'tongzhuo-product-template/scripts/Test-VersionConsistency.ps1'
+      - '.github/workflows/publisher-integration-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publisher-integration-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publisher-contract:
+    name: PHP and publisher contract
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Check publisher automation contract
+        working-directory: tongzhuo-product-template
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File geoflow-integration/deployment/check-publisher-automation-contract.ps1
+
+      - name: Check complete server overrides
+        working-directory: tongzhuo-product-template
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/Test-ServerOverrides.ps1
+
+      - name: Check package secret scanner negative cases
+        working-directory: tongzhuo-product-template
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/Test-PackageSecretsNegative.ps1
+
+      - name: Build and verify server delivery package
+        working-directory: tongzhuo-product-template
+        run: |
+          $outputPath = Join-Path $env:RUNNER_TEMP 'tongzhuo-geoflow-server-overrides.zip'
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/Package-GeoFlowServer.ps1 -OutputPath $outputPath
+
+      - name: Build and verify product manifest smoke package
+        working-directory: tongzhuo-product-template
+        run: |
+          $outputPath = Join-Path $env:RUNNER_TEMP 'tongzhuo-product-release-smoke.zip'
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/Package-ProductRelease.ps1 -SkipChecks -OutputPath $outputPath
+
+
+  deployment-shells:
+    name: Deployment shell syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Check deployment scripts
+        working-directory: tongzhuo-product-template
+        run: |
+          bash -n geoflow-integration/deployment/install-geoflow-overrides.sh
+          bash -n geoflow-integration/deployment/verify-geoflow-overrides.sh
+          bash -n geoflow-integration/deployment/smoke-geoflow-workbench.sh

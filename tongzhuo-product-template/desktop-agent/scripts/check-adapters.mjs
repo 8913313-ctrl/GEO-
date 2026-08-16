@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { createAdapter } from '../src/adapters/index.js';
 import { normalizeArticle } from '../src/article-payload.js';
+import { buildSelectorTelemetry } from '../src/platform-result.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 const article = normalizeArticle({
@@ -143,7 +144,7 @@ try {
     const result = await adapter.publishDraft(page, article);
 
     assert.equal(result.state, item.expectedState, `${item.id} should return ${item.expectedState}`);
-    assert.equal(result.next_action, 'none', `${item.id} should not wait for a separate confirmation after automatic execution`);
+    assert.equal(result.next_action, item.execution?.autoSubmit === true ? 'none' : 'operator_confirm_publish', `${item.id} should expose the safe next action for its execution mode`);
     assert.notEqual(result.state, 'awaiting_confirmation', `${item.id} must not emit the retired manual-confirmation state`);
     await expectValue(page, item.titleSelector, article.title);
     await expectText(page, item.bodySelector, '第一段内容');
@@ -155,7 +156,30 @@ try {
     } else {
       assert.notEqual(result.state, 'published', `${item.id} must not report final publication from a draft-save flow`);
     }
+    const telemetry = buildSelectorTelemetry({ ...result, adapter: adapter.constructor.name });
+    assert.equal(telemetry.platform_id, item.id, `${item.id} telemetry must retain platform identity`);
+    assert.equal(telemetry.adapter, adapter.constructor.name, `${item.id} telemetry must retain adapter identity`);
+    assert.equal(telemetry.steps.title.status, 'hit', `${item.id} title selector must report a hit`);
+    assert.equal(telemetry.steps.body.status, 'hit', `${item.id} body selector must report a hit`);
+    assert.ok(Number.isInteger(telemetry.steps.body.candidate_index), `${item.id} body telemetry must retain the matched fallback index`);
+    assert.ok(telemetry.steps.body.attempted >= telemetry.steps.body.candidate_index + 1, `${item.id} body telemetry attempts must include the matched candidate`);
+    assert.ok(telemetry.steps.body.candidate_count >= telemetry.steps.body.attempted, `${item.id} body telemetry candidate count must bound attempts for one-pass fills`);
     await page.close();
+
+    if (item.execution?.mode === 'dedicated') {
+      const guardedPage = await browser.newPage();
+      const guardedPlatform = platformFor({
+        ...item,
+        execution: { ...item.execution, autoSubmit: false },
+      }, editorUrl);
+      const guardedAdapter = createAdapter(guardedPlatform);
+      const guardedResult = await guardedAdapter.publishDraft(guardedPage, article);
+      assert.equal(guardedResult.state, 'draft_saved', `${item.id} must stay at a saved draft when the task-level submit gate is closed`);
+      assert.equal(guardedResult.fill?.draft_saved, true, `${item.id} must still verify its draft save`);
+      assert.notEqual(guardedResult.fill?.published, true, `${item.id} must not click the final publish action when the task-level submit gate is closed`);
+      assert.equal(await guardedPage.locator(item.publishSuccessSelector).isVisible(), false, `${item.id} must not expose a final publish acknowledgement on a guarded task`);
+      await guardedPage.close();
+    }
   }
 
   {

@@ -39,7 +39,20 @@
 生成安装包：
 
 ```powershell
+npm.cmd run check
 npm.cmd run build:desktop
 ```
 
-安装版输出在 `release/tongzhuo-geo-publisher-setup-1.8.18-x64.exe`，便捷版输出在 `release/tongzhuo-geo-publisher-portable-1.8.18-x64.exe`。安装后会创建桌面快捷方式和开始菜单入口；安装包已内置自动发布所需的浏览器运行时。知乎验证码等人工登录流程使用本机普通 Google Chrome 或 Microsoft Edge，至少需要安装其中一种。账号组、平台 Profile 和登录态写入 Electron 的用户数据目录，安装包不包含客户账号数据。
+正式构建要求 Git 工作树干净。`build:desktop` 会先生成包含 commit SHA、构建时间和源码 SHA-256 的 build manifest，再构建安装版与便捷版，最后生成 release manifest 并离线核对 EXE、ASAR 和嵌入 manifest。
+
+安装版输出在 `release/tongzhuo-geo-publisher-setup-1.8.19-x64.exe`，便捷版输出在 `release/tongzhuo-geo-publisher-portable-1.8.19-x64.exe`。发布清单输出在 `release/tongzhuo-geo-publisher-v1.8.19-release-manifest.json`。
+
+已有构建产物可以单独复验：
+
+```powershell
+npm.cmd run verify:release -- --require-current-commit
+```
+
+完整发布验收步骤见 `docs/RELEASE-ACCEPTANCE.md`。离线适配器测试只能验证本地 fixture 和协议契约，不能替代 28 个真实平台账号的登录、验证码、草稿与最终发布 E2E 验收。
+
+安装后会创建桌面快捷方式和开始菜单入口；安装包已内置自动发布所需的浏览器运行时。验证码等人工登录流程使用本机普通 Google Chrome 或 Microsoft Edge，至少需要安装其中一种。账号组、平台 Profile 和登录态写入 Electron 的用户数据目录，安装包不包含客户账号数据。

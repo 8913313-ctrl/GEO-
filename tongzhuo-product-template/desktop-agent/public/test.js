@@ -87,10 +87,11 @@ function setNotice(message = '', kind = '') {
 function renderChecks(health, status, windows) {
   const healthy = Boolean(health?.ok);
   const version = text(status.agentVersion);
+  const versionAvailable = Boolean(version && version !== '-');
   const hasBlank = windows.some((item) => String(item.url || '') === 'about:blank');
   const rows = [
     { label: '本地服务', state: healthy ? 'ok' : 'error', message: healthy ? `127.0.0.1:${status.port || 18280} 正常响应` : '本地服务未返回健康状态' },
-    { label: '版本一致性', state: version === '1.8.18' ? 'ok' : 'warn', message: version === '1.8.18' ? '当前运行版本为 v1.8.18' : `当前运行版本为 v${version}，期望 v1.8.18` },
+    { label: '\u8FD0\u884C\u7248\u672C', state: versionAvailable ? 'ok' : 'error', message: versionAvailable ? `\u672C\u5730\u670D\u52A1\u8FD4\u56DE v${version}` : '\u672C\u5730\u670D\u52A1\u672A\u8FD4\u56DE\u7248\u672C' },
     { label: '设备绑定', state: status.isPaired ? 'ok' : 'warn', message: status.isPaired ? '设备已绑定 GEO 后台' : '设备尚未绑定；本地登录检测仍可使用，但后台同步会等待重新绑定' },
     { label: '受管窗口', state: hasBlank ? 'error' : 'ok', message: hasBlank ? '发现受管窗口 URL 为 about:blank' : `已检查 ${windows.length} 个受管窗口，未发现 about:blank` },
   ];
@@ -147,8 +148,9 @@ function renderLoginChoices() {
 
 function renderSummary(health, status, windows) {
   const hasBlank = windows.some((item) => String(item.url || '') === 'about:blank');
+  const versionAvailable = Boolean(text(status.agentVersion, '') && text(status.agentVersion, '') !== '-');
   setCard('#serviceCard', health?.ok ? '正常' : '失败', `127.0.0.1:${status.port || 18280}`, health?.ok ? 'ok' : 'error');
-  setCard('#versionCard', `v${text(status.agentVersion)}`, status.agentVersion === '1.8.18' ? '与本次修复版本一致' : '请确认运行的是新版', status.agentVersion === '1.8.18' ? 'ok' : 'warn');
+  setCard('#versionCard', versionAvailable ? `v${text(status.agentVersion)}` : '-', versionAvailable ? '\u5DF2\u4ECE\u672C\u5730\u670D\u52A1\u8BFB\u53D6\u7248\u672C' : '\u672C\u5730\u670D\u52A1\u672A\u8FD4\u56DE\u7248\u672C', versionAvailable ? 'ok' : 'error');
   setCard('#pairingCard', status.isPaired ? '已绑定' : '未绑定', status.hasCredential ? '具有后台凭证' : '暂无后台凭证', status.isPaired ? 'ok' : 'warn');
   setCard('#windowCard', String(windows.length), hasBlank ? '发现 about:blank' : '未发现 about:blank', hasBlank ? 'error' : 'ok');
 }
@@ -215,19 +217,17 @@ async function openLoginAndVerify() {
     const current = windows.find((item) => item.id === windowId);
     const isBlank = String(current?.url || opened.result?.url || '') === 'about:blank';
     const delta = windows.length - (Array.isArray(before.browser?.windows) ? before.browser.windows.length : 0);
-    const nativeExpected = platformId === 'zhihu';
-    const nativeValid = !nativeExpected || (opened.result?.driver === 'native' && current?.driver === 'native');
-    const windowValid = Boolean(windowId && current && !isBlank && nativeValid);
+    const nativeLogin = opened.result?.driver === 'native';
+    const driverMatches = Boolean(opened.result?.driver && current?.driver === opened.result.driver);
+    const windowValid = Boolean(windowId && current && !isBlank && driverMatches);
     elements.loginResult.className = `action-result ${windowValid ? 'ok' : 'error'}`;
     elements.loginResult.textContent = windowValid
-      ? nativeExpected
-        ? `通过：知乎已由普通系统浏览器打开（新增 ${delta} 个窗口）。请人工验证短信验证码，完成后正常关闭窗口。`
-        : `通过：新增 ${delta} 个受管窗口，登录页 URL 为 ${current.url || opened.result?.url || '-'}。`
+      ? nativeLogin
+        ? `\u901A\u8FC7\uFF1A\u5DF2\u7531\u666E\u901A\u7CFB\u7EDF\u6D4F\u89C8\u5668\u6253\u5F00\uFF08\u65B0\u589E ${delta} \u4E2A\u7A97\u53E3\uFF09\u3002\u8BF7\u5B8C\u6210\u767B\u5F55\u5E76\u6B63\u5E38\u5173\u95ED\u6D4F\u89C8\u5668\u7A97\u53E3\u3002`
+        : `\u901A\u8FC7\uFF1A\u65B0\u589E ${delta} \u4E2A\u53D7\u7BA1\u7A97\u53E3\uFF0C\u767B\u5F55\u9875 URL \u4E3A ${current.url || opened.result?.url || '-'}\u3002`
       : isBlank
         ? '失败：打开后窗口仍为 about:blank。'
-        : nativeExpected
-          ? '失败：知乎登录页未以普通系统浏览器方式启动。'
-          : '失败：未找到与返回 windowId 匹配的活动登录窗口。';
+        : '\u5931\u8D25\uFF1A\u672A\u627E\u5230\u4E0E\u8FD4\u56DE windowId \u53CA\u9A71\u52A8\u7C7B\u578B\u5339\u914D\u7684\u6D3B\u52A8\u767B\u5F55\u7A97\u53E3\u3002';
     await refresh();
   } catch (error) {
     elements.loginResult.className = 'action-result error';

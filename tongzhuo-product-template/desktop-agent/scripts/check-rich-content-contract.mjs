@@ -25,7 +25,7 @@ assert.equal(article.assets.images[0].alt, '测试图片', 'normalized image mus
 assert.equal(article.assets.images[0].caption, '图片说明', 'normalized image must retain its caption');
 assert.deepEqual(article.images, article.assets.images, 'top-level images and assets.images must expose one shared normalized contract');
 
-assert.equal(executablePlatformIds.length, 28, 'rich-content contract must cover all 28 remote platforms');
+assert.equal(executablePlatformIds.length, 27, 'rich-content contract must cover all 27 currently visible remote platforms');
 for (const platformId of executablePlatformIds) {
   const platform = findPlatform(platformId);
   const adapter = createAdapter(platform);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PublisherDevice;
 use App\Models\PublisherDevicePairing;
 use App\Services\Publishing\PublisherPlatformCatalogService;
+use App\Services\Publishing\PublisherSelectorHealthService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,6 +16,7 @@ class PublisherDeviceController extends Controller
 {
     public function __construct(
         private readonly PublisherPlatformCatalogService $platformCatalog,
+        private readonly PublisherSelectorHealthService $selectorHealth,
     ) {}
 
     public function index(Request $request): View
@@ -64,6 +66,7 @@ class PublisherDeviceController extends Controller
             'counts' => $counts,
             'stateResolver' => fn (PublisherDevice $device): string => $this->displayState($device),
             'platformOptions' => $this->platformCatalog->activePlatforms(),
+            'selectorHealth' => $this->selectorHealth->summary(),
             'jobProtocol' => $this->jobProtocol(),
             'deviceCommandsEnabled' => (bool) config('publishing.device_commands_enabled', false),
         ]);

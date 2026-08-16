@@ -74,6 +74,11 @@ class PublisherPlatformJob extends Model
         return $this->belongsTo(PublisherPlatformSession::class, 'publisher_platform_session_id');
     }
 
+    public function platform(): BelongsTo
+    {
+        return $this->belongsTo(PublisherPlatform::class, 'platform_id', 'platform_id');
+    }
+
     public function isTerminal(): bool
     {
         return in_array((string) $this->status, self::TERMINAL_STATUSES, true);

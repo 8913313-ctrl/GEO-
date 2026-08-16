@@ -33,6 +33,7 @@ function pollFixture(mode, { platformItems = [], legacyItems = [], platformError
   });
   agent.log = () => {};
   agent.loadSessions = async () => [];
+  agent.processCommands = async () => [];
   return { agent, calls };
 }
 
@@ -111,6 +112,21 @@ function pollFixture(mode, { platformItems = [], legacyItems = [], platformError
   assert.equal(heartbeatReport.job_protocol, 'auto');
   assert.equal(heartbeatMeta.job_protocol, 'auto');
   assert.equal(agent.jobProtocol, 'dual');
+}
+
+{
+  const { agent } = pollFixture('legacy', { legacyItems: [] });
+  let commandCalls = 0;
+  agent.processCommands = async () => {
+    commandCalls += 1;
+    return [];
+  };
+  await agent.pollOnce();
+  assert.equal(commandCalls, 1,
+    'remote device commands must be polled even while auto publishing is disabled');
+  await agent.pollOnce({ skipCommands: true });
+  assert.equal(commandCalls, 1,
+    'the command-originated poll guard must prevent recursive command processing');
 }
 
 console.log('job protocol checks passed');

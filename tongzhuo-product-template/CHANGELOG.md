@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.19] - 2026-08-14
+
+- Add traceable desktop build metadata with the source commit, timestamp, and SHA-256 file inventory.
+- Add offline ASAR/release-manifest verification before a desktop installer is handed off.
+- Add a Windows CI quality gate for the desktop-agent source checks.
+- Run the full desktop integration regressions and backend publisher contract in repository CI.
+- Include the publisher automation contract, scheduler prerequisites, feature flags, and SSE proxy requirements in the GEOFlow server package manifest.
+- Verify new publisher commands, services, routes, migrations, and scheduler registration after server installation, while excluding internal staging and temporary source files from releases.
+
 ## [1.8.18] - 2026-08-12
 
 - Use a normal installed Chrome or Edge process for Zhihu verification-code login, without Playwright, CDP, or automation flags.

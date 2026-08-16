@@ -47,6 +47,7 @@ const bundle = buildSupportBundle({
     context: {
       token: 'not-a-real-token',
       nested: { cookie: 'cookie-value', ok: true },
+      remote_url: 'https://example.test/x?token=abc&safe=1#secret',
     },
   }],
 }, healthy, platforms);
@@ -57,5 +58,8 @@ assert.ok(Array.isArray(bundle.logs));
 assert.equal(bundle.logs[0].context.token, '[redacted]');
 assert.equal(bundle.logs[0].context.nested.cookie, '[redacted]');
 assert.equal(bundle.logs[0].context.nested.ok, true);
+assert.equal(bundle.logs[0].context.remote_url.includes('token=abc'), false);
+assert.equal(bundle.logs[0].context.remote_url.includes('safe=1'), true);
+assert.equal(bundle.logs[0].context.remote_url.includes('#'), false);
 
 console.log('Diagnostics behavior passed.');

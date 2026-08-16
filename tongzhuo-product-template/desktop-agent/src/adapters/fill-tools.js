@@ -1,5 +1,5 @@
 const verificationUrlPattern = /(?:login|signin|passport|auth|verify|captcha)/i;
-const verificationTextPattern = /(?:请先)?登录|扫码登录|登录后(?:继续|发布)|验证码|人机验证|安全验证|身份验证|账户验证|账号验证|风险(?:验证|提示|控制)|访问(?:受限|异常)|操作(?:过于频繁|频繁)|账号(?:异常|受限)|请完成验证/;
+const verificationTextPattern = /请先登录|立即登录|重新登录|扫码登录|(?:手机|手机号|账号|账户|密码|验证码)登录|登录后(?:继续|发布)|验证码|人机验证|安全验证|身份验证|账户验证|账号验证|风险(?:验证|提示|控制)|访问(?:受限|异常)|操作(?:过于频繁|频繁)|账号(?:异常|受限)|请完成验证/;
 const verificationSelectors = [
   '[class*="captcha" i]',
   '[id*="captcha" i]',
@@ -101,8 +101,63 @@ export const defaultPublishConfirmSelectors = Object.freeze([
   '.arco-modal button:has-text("确定")',
 ]);
 
+function selectorCandidates(selectors) {
+  const values = Array.isArray(selectors) ? selectors : [selectors];
+  return [...new Set(values.map((selector) => String(selector || '').trim()).filter(Boolean))];
+}
+
+function numericOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function selectorAttempt(ok, candidates, candidateIndex = -1, attempted = 0, extra = {}) {
+  return {
+    ok,
+    selector: candidateIndex >= 0 ? candidates[candidateIndex] || null : null,
+    // Candidate indexes are zero-based; `attempted` is the total number of
+    // visibility probes, so backend health reports can also show retry cost.
+    candidate_index: candidateIndex >= 0 ? candidateIndex : null,
+    attempted,
+    candidate_count: candidates.length,
+    ...extra,
+  };
+}
+
+function preferredSelectorDetail(value) {
+  if (!value || typeof value !== 'object') return value;
+  // `fillRichContent` may make a text fallback after an HTML pass. A later
+  // success must retain the original selector match instead of hiding it.
+  if (value.initial_attempt?.ok) return value.initial_attempt;
+  return value;
+}
+
+/**
+ * Adapt low-level selector operation results to the stable result contract
+ * consumed by platform-result.js. Adapter results expose metadata, not the
+ * complete fallback selector lists, to keep job telemetry compact.
+ */
+export function selectorDetails(steps = {}) {
+  return Object.fromEntries(Object.entries(steps).flatMap(([name, value]) => {
+    const step = preferredSelectorDetail(Array.isArray(value) ? value.at(-1) : value);
+    if (!step || typeof step !== 'object') return [];
+    const hasMetadata = ['candidate_index', 'candidateIndex', 'attempted', 'candidate_count', 'candidateCount']
+      .some((key) => Object.prototype.hasOwnProperty.call(step, key));
+    if (!hasMetadata) return [];
+    return [[name, {
+      candidate_index: numericOrNull(step.candidate_index ?? step.candidateIndex),
+      attempted: numericOrNull(step.attempted),
+      candidate_count: numericOrNull(step.candidate_count ?? step.candidateCount),
+    }]];
+  }));
+}
+
 export async function fillFirstVisible(page, selectors, value, options = {}) {
-  for (const selector of selectors) {
+  const candidates = selectorCandidates(selectors);
+  let attempted = 0;
+  for (const [candidateIndex, selector] of candidates.entries()) {
+    attempted += 1;
     const locator = page.locator(selector).first();
     if (!await locator.isVisible({ timeout: options.timeout || 1200 }).catch(() => false)) continue;
     await locator.click({ timeout: 3000 }).catch(() => {});
@@ -110,21 +165,24 @@ export async function fillFirstVisible(page, selectors, value, options = {}) {
       await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
       await page.keyboard.type(value, { delay: options.delay || 0 });
     });
-    return { ok: true, selector };
+    return selectorAttempt(true, candidates, candidateIndex, attempted);
   }
-  return { ok: false };
+  return selectorAttempt(false, candidates, -1, attempted);
 }
 
 export async function typeIntoFirstVisible(page, selectors, value, options = {}) {
-  for (const selector of selectors) {
+  const candidates = selectorCandidates(selectors);
+  let attempted = 0;
+  for (const [candidateIndex, selector] of candidates.entries()) {
+    attempted += 1;
     const locator = page.locator(selector).first();
     if (!await locator.isVisible({ timeout: options.timeout || 1200 }).catch(() => false)) continue;
     await locator.click({ timeout: 3000 });
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A').catch(() => {});
     await page.keyboard.type(value, { delay: options.delay || 0 });
-    return { ok: true, selector };
+    return selectorAttempt(true, candidates, candidateIndex, attempted);
   }
-  return { ok: false };
+  return selectorAttempt(false, candidates, -1, attempted);
 }
 
 function sanitizeRichHtml(value = '') {
@@ -158,7 +216,10 @@ export function articleRichHtml(article = {}) {
 export async function setContentEditable(page, selectors, value, options = {}) {
   const mode = options.mode === 'html' ? 'html' : 'text';
   const content = mode === 'html' ? sanitizeRichHtml(value) : String(value || '');
-  for (const selector of selectors) {
+  const candidates = selectorCandidates(selectors);
+  let attempted = 0;
+  for (const [candidateIndex, selector] of candidates.entries()) {
+    attempted += 1;
     const locator = page.locator(selector).first();
     if (!await locator.isVisible({ timeout: 1200 }).catch(() => false)) continue;
     await locator.evaluate((element, payload) => {
@@ -172,9 +233,9 @@ export async function setContentEditable(page, selectors, value, options = {}) {
       }));
       element.dispatchEvent(new Event('change', { bubbles: true }));
     }, { mode, content });
-    return { ok: true, selector, format: mode };
+    return selectorAttempt(true, candidates, candidateIndex, attempted, { format: mode });
   }
-  return { ok: false };
+  return selectorAttempt(false, candidates, -1, attempted);
 }
 
 export async function fillRichContent(page, selectors, article = {}) {
@@ -185,6 +246,12 @@ export async function fillRichContent(page, selectors, article = {}) {
       const images = await page.locator(rich.selector).first().locator('img').count().catch(() => 0);
       return { ...rich, images };
     }
+    const text = String(article.text || article.excerpt || '').trim();
+    const fallback = await setContentEditable(page, selectors, text, { mode: 'text' });
+    if (fallback.ok) {
+      return { ...fallback, format: 'text', images: 0, initial_attempt: rich };
+    }
+    return { ...fallback, initial_attempt: rich };
   }
   const text = String(article.text || article.excerpt || '').trim();
   const fallback = await setContentEditable(page, selectors, text, { mode: 'text' });
@@ -192,13 +259,16 @@ export async function fillRichContent(page, selectors, article = {}) {
 }
 
 export async function clickFirstVisible(page, selectors) {
-  for (const selector of selectors) {
+  const candidates = selectorCandidates(selectors);
+  let attempted = 0;
+  for (const [candidateIndex, selector] of candidates.entries()) {
+    attempted += 1;
     const locator = page.locator(selector).first();
     if (!await locator.isVisible({ timeout: 1200 }).catch(() => false)) continue;
     await locator.click({ timeout: 5000 });
-    return { ok: true, selector };
+    return selectorAttempt(true, candidates, candidateIndex, attempted);
   }
-  return { ok: false };
+  return selectorAttempt(false, candidates, -1, attempted);
 }
 
 /**
@@ -207,22 +277,29 @@ export async function clickFirstVisible(page, selectors) {
  * accepted the content.
  */
 export async function waitForAnyVisible(page, selectors, options = {}) {
+  const candidates = selectorCandidates(selectors);
   const timeout = Math.max(0, Number(options.timeout) || 0);
   const interval = Math.max(50, Number(options.interval) || 125);
   const deadline = Date.now() + timeout;
+  let attempted = 0;
+  let polls = 0;
+
+  if (!candidates.length) return selectorAttempt(false, candidates, -1, attempted, { poll_count: polls });
 
   do {
-    for (const selector of selectors || []) {
+    polls += 1;
+    for (const [candidateIndex, selector] of candidates.entries()) {
+      attempted += 1;
       const locator = page.locator(selector).first();
       if (await locator.isVisible({ timeout: Math.min(600, interval) }).catch(() => false)) {
-        return { ok: true, selector };
+        return selectorAttempt(true, candidates, candidateIndex, attempted, { poll_count: polls });
       }
     }
     if (Date.now() >= deadline) break;
     await page.waitForTimeout(Math.min(interval, Math.max(0, deadline - Date.now()))).catch(() => {});
   } while (Date.now() < deadline);
 
-  return { ok: false };
+  return selectorAttempt(false, candidates, -1, attempted, { poll_count: polls });
 }
 
 export async function clickAndConfirm(page, actionSelectors, successSelectors, options = {}) {
@@ -287,9 +364,18 @@ export async function detectAccessBlocked(page) {
   // Exclude editor contents so an article that happens to discuss "验证码"
   // cannot be mistaken for a platform verification challenge.
   const text = await page.locator('body').evaluate((body) => {
-    const clone = body.cloneNode(true);
-    clone.querySelectorAll('input, textarea, [contenteditable="true"], script, style').forEach((node) => node.remove());
-    return clone.innerText || clone.textContent || '';
+    const chunks = [];
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const parent = node.parentElement;
+      if (!parent || parent.closest('input, textarea, [contenteditable="true"], script, style, [hidden], [aria-hidden="true"]')) continue;
+      const style = getComputedStyle(parent);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      if (!parent.getClientRects().length) continue;
+      const value = String(node.nodeValue || '').trim();
+      if (value) chunks.push(value);
+    }
+    return chunks.join(' ');
   }).catch(() => '');
   if (verificationTextPattern.test(text)) {
     return { blocked: true, reason: 'verification_message', url };

@@ -94,15 +94,24 @@ function groupName(id) { return groupById(id)?.name || id || '未指定账号组
 function accountFor(groupId, platformId) { return groupById(groupId)?.accounts?.[platformId] || null; }
 
 function sessionFor(groupId, platformId) {
-  return state.sessions.find((session) => {
-    if (session?.platform_id !== platformId) return false;
-    const sessionGroup = session.meta?.group_id || session.group_id || (session.profile_key || '').split('--')[0];
-    return !sessionGroup || sessionGroup === groupId;
-  }) || null;
+  const profileKey = profileKeyFor(groupId, platformId);
+  const candidates = state.sessions.filter((session) => session?.platform_id === platformId);
+  const exact = candidates.find((session) => String(session.profile_key || '').trim() === profileKey);
+  if (exact) return exact;
+  // Old GEOFlow deployments may omit profile_key. Such snapshots are usable
+  // only when group metadata identifies this account, or when exactly one
+  // local account can possibly own the legacy session. Never borrow a session
+  // with another explicit profile_key: two groups can use the same platform.
+  const legacy = candidates.filter((session) => !String(session.profile_key || '').trim());
+  const groupMatched = legacy.filter((session) => String(session.meta?.group_id || session.group_id || '').trim() === groupId);
+  if (groupMatched.length === 1) return groupMatched[0];
+  const boundGroups = accountGroups().filter((group) => Boolean(group?.accounts?.[platformId]));
+  return boundGroups.length <= 1 && legacy.length === 1 ? legacy[0] : null;
 }
 
 function profileKeyFor(groupId, platformId) {
-  return accountFor(groupId, platformId)?.profileKey || `${groupId || 'group-default'}--${platformId}`;
+  const configured = String(accountFor(groupId, platformId)?.profileKey || '').trim();
+  return configured || `${groupId || 'group-default'}--${platformId}`;
 }
 
 function windowsFor(groupId, platformId) {
@@ -140,6 +149,7 @@ function syncStateLabel(account) {
   return {
     synced: '后台已同步',
     pending: '后台待同步',
+    backend_incompatible: '后台版本不兼容',
     waiting_for_pairing: '等待绑定后台',
   }[account.syncState] || (account.pendingSession ? '后台待同步' : '后台未记录');
 }
@@ -164,8 +174,17 @@ function platformState(platform, groupId = state.activeGroupId) {
     && !account?.lastVerifiedAt
     && !account?.lastErrorMessage
     && !account?.syncState;
+  // Keep a fresh local login result visible until its session update has
+  // reached GEOFlow; a later remote heartbeat timestamp is not proof that
+  // the remote login_state is newer.
+  const localSessionUpdatePending = Boolean(account?.pendingSession)
+    || ['pending', 'backend_incompatible', 'waiting_for_pairing'].includes(account?.syncState);
+  const localStateAuthoritative = localSessionUpdatePending
+    || Boolean(account?.lastErrorMessage)
+    || ['open', 'needs_verification', 'needs_captcha'].includes(localState);
   let mergedState = localState || remoteState || 'needs_login';
-  if (remoteState && localState !== 'disabled' && (!localState || localIsFallback || remoteObservedAt > localObservedAt)) {
+  if (remoteState && localState !== 'disabled' && !localStateAuthoritative
+    && (!localState || localIsFallback || remoteObservedAt > localObservedAt)) {
     mergedState = remoteState;
   }
   return { state: windows.length && mergedState !== 'ready' ? 'open' : mergedState, account, session, windows };
@@ -360,6 +379,15 @@ function groupField(groupId, name) {
   return [...document.querySelectorAll(`[data-group-field="${name}"]`)].find((element) => element.dataset.groupId === groupId) || null;
 }
 
+function accountRowState(groupId, account) {
+  const platform = platformById(account.platformId) || { id: account.platformId, support: 'ready' };
+  const current = platformState(platform, groupId);
+  return {
+    status: current.state,
+    nativeLoginOpen: current.windows.some((item) => item.driver === 'native'),
+  };
+}
+
 function renderAccountGroups() {
   const list = $('#accountGroupList');
   const groups = accountGroups();
@@ -367,8 +395,8 @@ function renderAccountGroups() {
   list.innerHTML = groups.map((group) => {
     const accounts = Object.values(group.accounts || {});
     const rows = accounts.length ? accounts.map((account) => {
-      const nativeLoginOpen = windowsFor(group.id, account.platformId).some((item) => item.driver === 'native');
-      return `<div class="account-row"><div class="account-main"><strong>${escapeHtml(platformName(account.platformId))}</strong><span>${escapeHtml(account.accountName || '未设置账号别名')}</span><span class="state-badge ${stateBadgeClass(account.status)}">${escapeHtml(accountStatusLabel(account.status))}</span></div><div class="account-actions"><button class="button button-secondary" type="button" data-group-login="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}" ${nativeLoginOpen ? 'disabled' : ''}>${nativeLoginOpen ? '请完成并关闭登录窗口' : '打开新窗口'}</button><button class="button button-secondary" type="button" data-group-confirm="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}" ${nativeLoginOpen ? 'disabled' : ''}>${account.status === 'ready' ? '重新检测' : '检测登录'}</button><button class="button button-secondary danger-text" type="button" data-group-remove="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}">移除</button></div></div>`;
+      const current = accountRowState(group.id, account);
+      return `<div class="account-row"><div class="account-main"><strong>${escapeHtml(platformName(account.platformId))}</strong><span>${escapeHtml(account.accountName || '未设置账号别名')}</span><span class="state-badge ${stateBadgeClass(current.status)}">${escapeHtml(accountStatusLabel(current.status))}</span></div><div class="account-actions"><button class="button button-secondary" type="button" data-group-login="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}" ${current.nativeLoginOpen ? 'disabled' : ''}>${current.nativeLoginOpen ? '登录完成后请关闭窗口（将自动确认）' : '打开新窗口'}</button><button class="button button-secondary" type="button" data-group-confirm="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}" ${current.nativeLoginOpen ? 'disabled' : ''}>${current.status === 'ready' ? '重新检测' : '检测登录'}</button><button class="button button-secondary danger-text" type="button" data-group-remove="${escapeHtml(group.id)}" data-platform-id="${escapeHtml(account.platformId)}">移除</button></div></div>`;
     }).join('') : '<div class="empty-state">还没有绑定平台账号。</div>';
     const options = availablePlatformOptions(group).map((platform) => `<option value="${escapeHtml(platform.id)}">${escapeHtml(platform.name)}</option>`).join('');
     return `<article class="account-group-card ${group.id === state.activeGroupId ? 'is-active' : ''}"><div class="account-group-head"><div><div class="account-group-title"><strong>${escapeHtml(group.name)}</strong>${group.id === state.activeGroupId ? '<span class="state-badge is-ready">当前使用</span>' : ''}</div><div class="account-group-meta">${accounts.length} 个平台账号 · ${escapeHtml(group.id)}</div></div><button class="button button-secondary" type="button" data-group-rename="${escapeHtml(group.id)}">重命名</button></div><div class="account-list">${rows}</div><div class="account-add"><select data-group-field="platform" data-group-id="${escapeHtml(group.id)}"><option value="">选择要绑定的平台</option>${options}</select><input data-group-field="name" data-group-id="${escapeHtml(group.id)}" placeholder="账号别名（可选）"><button class="button button-primary" type="button" data-group-add="${escapeHtml(group.id)}">加入账号组</button></div></article>`;
@@ -450,7 +478,7 @@ async function openPlatform(platformId, groupId = state.activeGroupId, button = 
     const result = await api(`/api/platforms/${encodeURIComponent(platformId)}/login`, { method: 'POST', body: JSON.stringify({ groupId, accountName: account?.accountName || '' }) });
     const nativeLogin = result.result?.driver === 'native';
     setNotice(nativeLogin
-      ? `${platformName(platformId)} 已在普通系统浏览器打开。完成验证码登录后，请正常关闭该窗口，再点击“检测登录”。`
+      ? `${platformName(platformId)} 已在普通系统浏览器打开。完成验证码登录后请正常关闭该窗口，发布器会自动确认登录状态。`
       : `${platformName(platformId)} 已打开新窗口${result.result?.windowId ? ` · 窗口 ${result.result.windowId.slice(-8)}` : ''}`, 'success');
     await loadStatus();
   } catch (error) { setNotice(error.message, 'error'); } finally { if (button) button.disabled = false; }
@@ -462,6 +490,13 @@ async function checkPlatform(platformId, groupId = state.activeGroupId, button =
     const account = accountFor(groupId, platformId);
     const result = await api(`/api/platforms/${encodeURIComponent(platformId)}/login/check`, { method: 'POST', body: JSON.stringify({ groupId, accountName: account?.accountName || '', recheck: account?.status === 'ready' }) });
     const details = result.result || {};
+    const visibleWindowRequired = details.reason === 'native_window_probe_required'
+      || details.probeReason === 'native_window_probe_required';
+    if (visibleWindowRequired) {
+      setNotice(platformName(platformId) + ' 为避免平台风控，不能在后台无头检测。请点“打开新窗口”，保持普通浏览器窗口打开，发布器会自动确认已登录。', 'info');
+      renderStatus({ status: result.status, platforms: state.platforms });
+      return;
+    }
     setNotice(details.manualLoginInProgress
       ? `${platformName(platformId)} 正在普通系统浏览器中登录。请完成验证码并关闭该窗口后再检测。`
       : `${platformName(platformId)} ${details.loggedIn ? '登录检测通过' : '尚未检测到登录'}`, details.loggedIn ? 'success' : 'info');

@@ -3,6 +3,7 @@
 namespace App\Services\Publishing;
 
 use App\Models\PublisherDevice;
+use App\Models\PublisherAccountGroup;
 use App\Models\PublisherPlatform;
 use App\Models\PublisherPlatformSession;
 use Illuminate\Support\Collection;
@@ -13,14 +14,19 @@ class PublisherPreflightService
      * @param list<string> $platformIds
      * @return array{items:list<array<string,mixed>>,summary:array<string,int>}
      */
-    public function inspect(array $platformIds, string $requestedMode = 'draft', ?int $preferredDeviceId = null): array
+    public function inspect(
+        array $platformIds,
+        string $requestedMode = 'draft',
+        ?int $preferredDeviceId = null,
+        ?PublisherAccountGroup $accountGroup = null,
+    ): array
     {
         $platformIds = array_values(array_unique(array_filter($platformIds, 'is_string')));
         $platforms = PublisherPlatform::query()
             ->whereIn('platform_id', $platformIds)
             ->get()
             ->keyBy('platform_id');
-        $sessions = $this->sessionsFor($platformIds, $preferredDeviceId)
+        $sessions = $this->sessionsFor($platformIds, $preferredDeviceId, $accountGroup)
             ->groupBy('platform_id');
 
         $items = [];
@@ -46,11 +52,32 @@ class PublisherPreflightService
     }
 
     /** @return Collection<int, PublisherPlatformSession> */
-    private function sessionsFor(array $platformIds, ?int $preferredDeviceId): Collection
+    private function sessionsFor(
+        array $platformIds,
+        ?int $preferredDeviceId,
+        ?PublisherAccountGroup $accountGroup,
+    ): Collection
     {
+        $sessionIds = null;
+        if ($accountGroup instanceof PublisherAccountGroup) {
+            $sessionIds = $accountGroup->items()
+                ->where('enabled', true)
+                ->whereIn('platform_id', $platformIds)
+                ->whereNotNull('publisher_platform_session_id')
+                ->pluck('publisher_platform_session_id')
+                ->map(fn ($id): int => (int) $id)
+                ->filter()
+                ->values()
+                ->all();
+            if ($sessionIds === []) {
+                return collect();
+            }
+        }
+
         return PublisherPlatformSession::query()
             ->with('device')
             ->whereIn('platform_id', $platformIds)
+            ->when($sessionIds !== null, fn ($query) => $query->whereIn('id', $sessionIds))
             ->when($preferredDeviceId !== null, fn ($query) => $query->where('publisher_device_id', $preferredDeviceId))
             ->orderByDesc('last_verified_at')
             ->orderByDesc('last_seen_at')
@@ -90,12 +117,31 @@ class PublisherPreflightService
             );
         }
 
-        if ($requestedMode === 'direct' && ! $platform->supports_direct_publish) {
+        $requestsPublicPublish = in_array($requestedMode, ['direct', 'scheduled'], true);
+        if ($requestsPublicPublish && ! $platform->supports_direct_publish) {
             if (! $platform->supports_draft) {
-                return $this->item($platformId, $platform, 'unsupported', '该平台暂不支持自动直接发布或草稿保存。', $ready);
+                return $this->item(
+                    $platformId,
+                    $platform,
+                    'unsupported',
+                    $requestedMode === 'scheduled'
+                        ? '该平台尚未通过自动发布验收，不能创建无人值守定时任务。'
+                        : '该平台暂不支持自动直接发布或草稿保存。',
+                    $ready,
+                );
             }
 
-            return $this->item($platformId, $platform, 'draft_only', '该平台会降级为保存草稿，需人工确认后发布。', $ready, true, 'draft');
+            return $this->item(
+                $platformId,
+                $platform,
+                'draft_only',
+                $requestedMode === 'scheduled'
+                    ? '该平台尚未通过定时直发验收，将在设定时间保存草稿并等待人工确认。'
+                    : '该平台会降级为保存草稿，需人工确认后发布。',
+                $ready,
+                true,
+                'draft',
+            );
         }
 
         $manualConfirmation = $platform->support_level === 'manual' || ! $ready->auto_allowed;
@@ -106,7 +152,7 @@ class PublisherPreflightService
             $manualConfirmation ? '可打开编辑器并等待人工确认。' : '账号已就绪，可进入发布队列。',
             $ready,
             $manualConfirmation,
-            $requestedMode
+            $requestedMode === 'scheduled' ? 'direct' : $requestedMode
         );
     }
 
@@ -123,6 +169,10 @@ class PublisherPreflightService
         return [
             'platform_id' => $platformId,
             'platform_name' => $platform?->name ?? $platformId,
+            'support_level' => (string) ($platform?->support_level ?? 'unknown'),
+            'supports_draft' => (bool) ($platform?->supports_draft ?? false),
+            'supports_direct_publish' => (bool) ($platform?->supports_direct_publish ?? false),
+            'supports_scheduled' => (bool) ($platform?->supports_scheduled ?? false),
             'state' => $state,
             'message' => $message,
             'effective_mode' => $effectiveMode,

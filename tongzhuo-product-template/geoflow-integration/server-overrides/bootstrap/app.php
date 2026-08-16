@@ -4,6 +4,7 @@
  * Laravel 11 搴旂敤鍏ュ彛锛氳矾鐢便€佷腑闂翠欢鍒悕銆丄PI 寮傚父娓叉煋涓虹粺涓€ JSON 淇″皝銆? *
  * API 璺敱锛歚routes/api.php`锛堝墠缂€ /api锛夛紱`ApiException` 鍦?api/* 璇锋眰涓嬭浆涓?{@see ApiResponse::error}銆? */
 
+use App\Console\Commands\ReconcilePublisherPlatformJobsCommand;
 use App\Exceptions\ApiException;
 use App\Http\Middleware\AdminWebLocale;
 use App\Http\Middleware\AssignApiRequestId;
@@ -20,6 +21,7 @@ use App\Http\Middleware\LogAdminActivity;
 use App\Http\Middleware\RecordSiteViewLog;
 use App\Http\Middleware\SiteWebLocale;
 use App\Support\ApiResponse;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -49,11 +51,18 @@ return Application::configure(basePath: dirname(__DIR__))
                     require __DIR__.'/../routes/tongzhuo-content-api.php';
                 });
             }
-            if (Route::getRoutes()->getByName('api.v1.publisher.jobs.index') === null) {
-                Route::prefix('api')->middleware('api')->group(function (): void {
-                    require __DIR__.'/../routes/publisher-assistant.php';
-                });
-            }
+            // Device synchronization must not share the legacy jobs route's
+            // registration sentinel. Existing V1 jobs are common on partially
+            // upgraded servers, while device sessions, shadows, commands, and
+            // SSE events may still be absent. Both route files make their
+            // individual registrations idempotent, so loading them separately
+            // preserves V1/V2 routes and fills only missing endpoints.
+            Route::prefix('api')->middleware('api')->group(function (): void {
+                require __DIR__.'/../routes/publisher-device-sync.php';
+            });
+            Route::prefix('api')->middleware('api')->group(function (): void {
+                require __DIR__.'/../routes/publisher-assistant.php';
+            });
             if (Route::getRoutes()->getByName('admin.ai.providers.index') === null) {
                 require base_path('routes/tongzhuo-ai-api.php');
             }
@@ -62,6 +71,15 @@ return Application::configure(basePath: dirname(__DIR__))
             }
         },
     )
+    ->withCommands([
+        ReconcilePublisherPlatformJobsCommand::class,
+    ])
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('publisher:reconcile')
+            ->everyMinute()
+            ->withoutOverlapping(5)
+            ->when(fn (): bool => (bool) config('publishing.job_reconcile_schedule_enabled', true));
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             // 鐢熸垚/閫忎紶 X-Request-Id锛屽苟鍐欏叆鍝嶅簲澶?            'api.request_id' => AssignApiRequestId::class,

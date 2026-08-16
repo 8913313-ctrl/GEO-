@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { TongzhuoDesktopAgent } from './agent.js';
-import { platforms } from './platforms.js';
+import { visiblePlatforms } from './platforms.js';
 import { agentVersion } from './version.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -23,8 +23,6 @@ app.use((_request, response, next) => {
   response.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
   next();
 });
-app.use(express.json({ limit: '2mb' }));
-app.use(express.static(publicDir));
 
 app.get('/healthz', (_request, response) => {
   response.json({ ok: true, service: 'tongzhuo-geo-desktop-agent', version: agentVersion, instanceId });
@@ -59,9 +57,16 @@ function requireLocalToken(request, response, next) {
   next();
 }
 
-app.use('/api', requireLocalToken);
+// Keep the health endpoint available to local process monitors, but require the
+// per-run Electron token for every diagnostic asset and API route. In
+// particular, do this before body parsing so an unauthenticated process cannot
+// make the local service spend work parsing a request body.
+app.use(requireLocalToken);
+app.use(express.json({ limit: '2mb' }));
+app.use(express.static(publicDir));
+
 app.get('/api/status', (_request, response) => {
-  response.json({ ok: true, status: agent.publicStatus(), platforms });
+  response.json({ ok: true, status: agent.publicStatus(), platforms: visiblePlatforms });
 });
 
 app.get('/api/account-groups', (_request, response) => {

@@ -4,6 +4,7 @@ import {
   defaultPublishConfirmSelectors,
   defaultPublishSelectors,
   defaultPublishSuccessSelectors,
+  selectorDetails,
 } from './fill-tools.js';
 
 export function selectorList(primary, fallback) {
@@ -23,6 +24,10 @@ export function publishSuccessSelectors(platform = {}) {
   return selectorList(platform.editorHints?.publishSuccessSelectors, defaultPublishSuccessSelectors);
 }
 
+function mergedSelectorDetails(base, extra) {
+  return { ...(base || {}), ...selectorDetails(extra) };
+}
+
 export async function submitFinalPublish(adapter, page, base = {}) {
   const platform = adapter.platform;
   const hints = platform.editorHints || {};
@@ -39,6 +44,7 @@ export async function submitFinalPublish(adapter, page, base = {}) {
         execution_mode: platform.execution?.mode || base.execution_mode || 'automated',
         verification_reason: submitted.blocked?.reason || 'verification_after_submit',
         next_action: 'operator_login_or_verify_platform',
+        selector_details: mergedSelectorDetails(base.selector_details, { publish: submitted.action }),
       });
     }
     return adapterResult(platform.id, 'failed', `${platform.name} 未取得发布成功信号，未将任务标记为已发布。`, page, {
@@ -52,6 +58,7 @@ export async function submitFinalPublish(adapter, page, base = {}) {
         publish: submitted.action?.selector || null,
         publish_confirm: submitted.confirmActions?.map((item) => item.selector) || [],
       },
+      selector_details: mergedSelectorDetails(base.selector_details, { publish: submitted.action, publish_confirm: submitted.confirmActions, publish_success: submitted.confirmation }),
     });
   }
 
@@ -65,6 +72,7 @@ export async function submitFinalPublish(adapter, page, base = {}) {
       publish_confirm: submitted.confirmActions?.map((item) => item.selector) || [],
       publish_success: submitted.confirmation.selector,
     },
+    selector_details: mergedSelectorDetails(base.selector_details, { publish: submitted.action, publish_confirm: submitted.confirmActions, publish_success: submitted.confirmation }),
     fill: { ...(base.fill || {}), published: true },
   });
 }

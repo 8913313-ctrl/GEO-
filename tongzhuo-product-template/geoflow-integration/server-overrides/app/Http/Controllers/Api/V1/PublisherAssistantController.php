@@ -6,6 +6,7 @@ use App\Exceptions\ApiException;
 use App\Models\ArticleDistribution;
 use App\Models\DistributionLog;
 use App\Models\PublisherDevice;
+use App\Services\Publishing\PublisherDeviceCredential;
 use App\Services\GeoFlow\DistributionPayloadBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,13 +43,15 @@ class PublisherAssistantController extends BaseApiController
                     ->where('status', 'active');
             })
             ->whereHas('article')
+            ->whereDoesntHave('publisherPlatformJobs')
             ->where('action', '!=', 'delete')
             ->whereIn('status', ['queued', 'sending', 'synced', 'failed'])
             ->orderByDesc('id')
             ->limit($limit * 3);
 
         $items = $query->get()
-            ->filter(fn (ArticleDistribution $distribution): bool => ! $this->assistantFinished($distribution))
+            ->filter(fn (ArticleDistribution $distribution): bool => ! $this->assistantFinished($distribution)
+                && ! $this->isV2PublisherDistribution($distribution))
             ->take($limit)
             ->map(fn (ArticleDistribution $distribution): array => $this->serializeDistribution($distribution))
             ->values()
@@ -81,7 +84,7 @@ class PublisherAssistantController extends BaseApiController
                 ->lockForUpdate()
                 ->first();
 
-            if (! $record || ! $record->article || ! $record->channel || ! $record->channel->isLocalPublisher()) {
+            if (! $record || ! $record->article || ! $record->channel || ! $record->channel->isLocalPublisher() || $this->isV2PublisherDistribution($record)) {
                 throw new ApiException('publisher_job_not_found', '发布任务不存在。', 404);
             }
 
@@ -204,7 +207,7 @@ class PublisherAssistantController extends BaseApiController
             ->whereKey($distribution)
             ->first();
 
-        if (! $record || ! $record->article || ! $record->channel || ! $record->channel->isLocalPublisher()) {
+        if (! $record || ! $record->article || ! $record->channel || ! $record->channel->isLocalPublisher() || $this->isV2PublisherDistribution($record)) {
             throw new ApiException('publisher_job_not_found', '发布任务不存在。', 404);
         }
 
@@ -241,6 +244,8 @@ class PublisherAssistantController extends BaseApiController
     }
 
     private function assistantFinished(ArticleDistribution $distribution): bool
+
+
     {
         $assistant = $this->remoteMeta($distribution)['publisher_assistant'] ?? [];
         $state = is_array($assistant) ? (string) ($assistant['state'] ?? '') : '';
@@ -253,6 +258,19 @@ class PublisherAssistantController extends BaseApiController
         $value = trim((string) $request->header('X-Publisher-Worker', ''));
 
         return $value !== '' ? Str::limit($value, 120, '') : 'worker-'.Str::lower(Str::random(12));
+    }
+
+    private function isV2PublisherDistribution(ArticleDistribution $distribution): bool
+    {
+        $assistant = $this->remoteMeta($distribution)['publisher_assistant'] ?? [];
+        $protocol = is_array($assistant) ? strtolower(trim((string) ($assistant['protocol_version'] ?? ''))) : '';
+        if ($protocol === 'v2') {
+            return true;
+        }
+
+        // Child platform jobs are the durable V2 marker. This also protects
+        // records created before protocol_version was introduced.
+        return $distribution->publisherPlatformJobs()->exists();
     }
 
     private function authorizeWorker(Request $request): PublisherDevice
@@ -271,8 +289,7 @@ class PublisherAssistantController extends BaseApiController
         }
 
         $token = trim((string) $request->bearerToken());
-        $secret = trim((string) ($record->public_key ?? ''));
-        if ($token === '' || $secret === '' || ! hash_equals($secret, $token)) {
+        if (! PublisherDeviceCredential::verify($record, $token)) {
             throw new ApiException('publisher_device_unauthorized', '发布节点凭证无效，请重新配对。', 401);
         }
 

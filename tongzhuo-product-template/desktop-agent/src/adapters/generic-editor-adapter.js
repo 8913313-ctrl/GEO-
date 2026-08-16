@@ -6,6 +6,7 @@ import {
   detectAccessBlocked,
   fillFirstVisible,
   fillRichContent,
+  selectorDetails,
 } from './fill-tools.js';
 import { selectorList, submitFinalPublish } from './final-publish.js';
 
@@ -124,7 +125,7 @@ export class GenericEditorAdapter extends BaseAdapter {
 
     const editable = await fillRichContent(page, this.bodySelectors(), article);
     if (editable.ok) return { ...editable, kind: 'contenteditable' };
-    return { ok: false };
+    return editable;
   }
 
   async publishDraft(page, article) {
@@ -144,6 +145,7 @@ export class GenericEditorAdapter extends BaseAdapter {
       return failure(this, page, `${this.platform.name} 未识别到可靠的标题或正文输入区，已停止自动执行。`, 'editor_fields_not_recognized', {
         selectors: { title: title.selector || null, body: body.selector || null, draft: null },
         fill: { title: Boolean(title.ok), body: Boolean(body.ok), draft_saved: false },
+        selector_details: selectorDetails({ title, body }),
       });
     }
 
@@ -161,12 +163,13 @@ export class GenericEditorAdapter extends BaseAdapter {
           draft: saved.action?.selector || null,
         },
         fill: { title: true, body: true, draft_saved: false },
+        selector_details: selectorDetails({ title, body, draft: saved.action, draft_success: saved.confirmation }),
       });
     }
 
     const base = {
       execution_mode: this.platform.execution?.mode || 'automated',
-      next_action: 'none',
+      next_action: wantsFinalPublish ? 'none' : 'operator_confirm_publish',
       selectors: {
         title: title.selector,
         body: body.selector,
@@ -174,6 +177,7 @@ export class GenericEditorAdapter extends BaseAdapter {
         draft_success: saved.confirmation?.selector || null,
       },
       fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: Boolean(saved.ok) },
+      selector_details: selectorDetails({ title, body, draft: saved.action, draft_success: saved.confirmation }),
     };
 
     if (!wantsFinalPublish) {
@@ -181,31 +185,5 @@ export class GenericEditorAdapter extends BaseAdapter {
     }
 
     return submitFinalPublish(this, page, base);
-
-    if (!this.hasAutoSubmitConfiguration()) {
-      return failure(this, page, `${this.platform.name} 未配置已验证的自动提交选择器，草稿已保存但未冒充发布成功。`, 'auto_submit_not_configured', base);
-    }
-
-    const hints = this.platform.editorHints;
-    const submitted = await clickAndConfirm(page, hints.publishSelectors, hints.publishSuccessSelectors, {
-      timeout: hints.publishSuccessTimeout ?? 3000,
-    });
-    if (!submitted.ok) {
-      if (submitted.reason === 'verification_required') return loginRequired(this, page, submitted.blocked?.reason || 'verification_after_submit');
-      return failure(this, page, `${this.platform.name} 未取得发布成功信号，未将任务标记为已发布。`, `publish_${submitted.reason || 'submit_failed'}`, {
-        ...base,
-        selectors: { ...base.selectors, publish: submitted.action?.selector || null },
-      });
-    }
-
-    return adapterResult(this.platform.id, 'published', `${this.platform.name} 已自动提交并确认平台返回成功。`, page, {
-      ...base,
-      selectors: {
-        ...base.selectors,
-        publish: submitted.action.selector,
-        publish_success: submitted.confirmation.selector,
-      },
-      fill: { ...base.fill, published: true },
-    });
   }
 }

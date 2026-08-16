@@ -65,6 +65,7 @@ try {
     Assert-Condition ([bool] $manifest.gates.excludes_secrets) 'Release manifest must declare secret exclusion.'
     Assert-Condition ([bool] $manifest.gates.package_secret_scan) 'Release manifest must declare package secret scanning.'
     Assert-Condition ([bool] $manifest.gates.product_architecture_contract) 'Release manifest must declare product architecture contract validation.'
+    Assert-Condition ($null -ne $manifest.gates.PSObject.Properties['publisher_automation_contract']) 'Release manifest must declare publisher automation contract validation status.'
     Assert-Condition ([string] $manifest.entrypoints.product_delivery_console -eq 'scripts/Start-ProductDelivery.ps1') 'Release manifest must declare the product delivery console entrypoint.'
     Assert-Condition ([string] $manifest.entrypoints.customer_delivery_wizard -eq 'scripts/Start-CustomerDeliveryWizard.ps1') 'Release manifest must declare the customer delivery wizard entrypoint.'
     Assert-Condition ([string] $manifest.entrypoints.generate_product_release_notes -eq 'scripts/New-ProductReleaseNotes.ps1') 'Release manifest must declare the product release notes generator entrypoint.'
@@ -90,6 +91,7 @@ try {
     Assert-Condition ([string] $manifest.entrypoints.test_first_two_stages_pilot_checklist -eq 'scripts/Test-FirstTwoStagesPilotChecklist.ps1') 'Release manifest must declare the first two stages pilot checklist test.'
     Assert-Condition ([string] $manifest.entrypoints.test_product_version_updater -eq 'scripts/Test-ProductVersionUpdater.ps1') 'Release manifest must declare the product version updater test.'
     Assert-Condition ([string] $manifest.entrypoints.test_product_architecture -eq 'scripts/Test-ProductArchitecture.ps1') 'Release manifest must declare the product architecture contract test.'
+    Assert-Condition ([string] $manifest.entrypoints.test_publisher_automation_contract -eq 'geoflow-integration/deployment/check-publisher-automation-contract.ps1') 'Release manifest must declare the publisher automation contract test.'
     Assert-Condition ([string] $manifest.entrypoints.test_customer_handoff_checklist -eq 'scripts/Test-CustomerHandoffChecklist.ps1') 'Release manifest must declare the customer handoff checklist test.'
     Assert-Condition ([string] $manifest.entrypoints.test_product_delivery_console -eq 'scripts/Test-ProductDeliveryConsole.ps1') 'Release manifest must declare the product delivery console test.'
     Assert-Condition ([string] $manifest.entrypoints.test_ai_visibility_audit -eq 'scripts/Test-AIVisibilityAudit.ps1') 'Release manifest must declare the AI visibility audit test.'
@@ -198,6 +200,7 @@ try {
         '*/desktop-agent/preflight.ps1',
         '*/desktop-agent/src/version.js',
         '*/geoflow-integration/deployment/install-geoflow-overrides.sh',
+        '*/geoflow-integration/deployment/check-publisher-automation-contract.ps1',
         '*/website/llms.txt'
     )) {
         Assert-ZipHas -Entries $entries -Pattern $pattern
@@ -208,6 +211,7 @@ try {
     Assert-Condition ($configEntries[0] -like '*/config/client-config.example.json') "Release package contains unexpected config JSON: $($configEntries[0])"
 
     foreach ($pattern in @(
+        '*/.codex-staging/*',
         '*/node_modules/*',
         '*/.data/*',
         '*/dist/*',
@@ -217,6 +221,7 @@ try {
         '*/vendor/*',
         '*/.env',
         '*/customer-manifest.json',
+        '*/.tmp-*',
         '*.log',
         '*.tmp',
         '*.zip'

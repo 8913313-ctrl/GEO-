@@ -8,6 +8,7 @@ use App\Models\DistributionChannel;
 use App\Models\PublisherAccountGroup;
 use App\Models\PublisherPlatformJob;
 use App\Services\GeoFlow\DistributionPayloadBuilder;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -42,22 +43,37 @@ class PublishingCenterService
         }
 
         $platformIds = array_values(array_unique(array_filter($platformIds, 'is_string')));
+        $hiddenPlatformIds = array_values(array_intersect(
+            $platformIds,
+            PublisherPlatformCatalogService::HIDDEN_PLATFORM_IDS,
+        ));
+        if ($hiddenPlatformIds !== []) {
+            throw new InvalidArgumentException(
+                'Hidden publisher platforms cannot receive tasks: '.implode(', ', $hiddenPlatformIds)
+            );
+        }
+        $accountGroupItems = collect();
         if ($accountGroup instanceof PublisherAccountGroup) {
-            $groupPlatforms = $accountGroup->items()
+            $accountGroupItems = $accountGroup->items()
                 ->where('enabled', true)
-                ->pluck('platform_id')
+                ->get()
+                ->keyBy('platform_id');
+            $groupPlatforms = $accountGroupItems->keys()
                 ->filter(fn ($id): bool => is_string($id) && $id !== '')
                 ->values()
                 ->all();
-            if ($groupPlatforms !== []) {
-                $platformIds = array_values(array_intersect($platformIds, $groupPlatforms));
+            $missingPlatforms = array_values(array_diff($platformIds, $groupPlatforms));
+            if ($missingPlatforms !== []) {
+                throw new InvalidArgumentException(
+                    'Selected account group does not enable platforms: '.implode(', ', $missingPlatforms)
+                );
             }
         }
         if ($platformIds === []) {
             throw new InvalidArgumentException('请至少选择一个发布平台。');
         }
 
-        $preflight = $this->preflight->inspect($platformIds, $publishMode, $preferredDeviceId);
+        $preflight = $this->preflight->inspect($platformIds, $publishMode, $preferredDeviceId, $accountGroup);
         $channel = $this->ensureDesktopPublisherChannel();
         $payload = $this->payloadBuilder->build($article);
         $payloadHash = hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '');
@@ -71,62 +87,122 @@ class PublishingCenterService
             return ['distribution' => $existing, 'preflight' => $preflight, 'idempotent_replay' => true];
         }
 
-        $distribution = DB::transaction(function () use ($article, $platformIds, $publishMode, $accountGroup, $requestedByAdminId, $scheduledAt, $deviceStrategy, $preflight, $channel, $payload, $payloadHash, $idempotencyKey): ArticleDistribution {
-            $distribution = ArticleDistribution::query()->create([
-                'article_id' => (int) $article->id,
-                'distribution_channel_id' => (int) $channel->id,
-                'publisher_account_group_id' => $accountGroup?->id,
-                'action' => 'publish',
-                'publish_mode' => $publishMode,
-                'assigned_device_strategy' => $deviceStrategy,
-                'requested_by_admin_id' => $requestedByAdminId,
-                'status' => 'queued',
-                'scheduled_at' => $scheduledAt,
-                'next_retry_at' => now(),
-                'payload_hash' => $payloadHash,
-                'idempotency_key' => $idempotencyKey,
-                'remote_meta' => [
-                    'publisher_assistant' => [
-                        'protocol_version' => 'v2',
-                        'state' => 'queued',
-                        'created_at' => now()->toIso8601String(),
+        try {
+            $distribution = DB::transaction(function () use ($article, $platformIds, $publishMode, $accountGroup, $accountGroupItems, $requestedByAdminId, $scheduledAt, $deviceStrategy, $preferredDeviceId, $preflight, $channel, $payload, $payloadHash, $idempotencyKey): ArticleDistribution {
+                $distribution = ArticleDistribution::query()->create([
+                    'article_id' => (int) $article->id,
+                    'distribution_channel_id' => (int) $channel->id,
+                    'publisher_account_group_id' => $accountGroup?->id,
+                    'action' => 'publish',
+                    'publish_mode' => $publishMode,
+                    'assigned_device_strategy' => $deviceStrategy,
+                    'requested_by_admin_id' => $requestedByAdminId,
+                    'status' => 'queued',
+                    'scheduled_at' => $scheduledAt,
+                    'next_retry_at' => now(),
+                    'payload_hash' => $payloadHash,
+                    'idempotency_key' => $idempotencyKey,
+                    'remote_meta' => [
+                        'publisher_assistant' => [
+                            'protocol_version' => 'v2',
+                            'state' => 'queued',
+                            'preferred_device_id' => $preferredDeviceId,
+                            'created_at' => now()->toIso8601String(),
+                        ],
                     ],
-                ],
-            ]);
-
-            foreach ($preflight['items'] as $item) {
-                $jobStatus = match ($item['state']) {
-                    'ready', 'draft_only' => $publishMode === 'scheduled' ? 'waiting_for_schedule' : 'queued',
-                    'waiting_for_device' => 'waiting_for_device',
-                    'login_required' => 'login_required',
-                    default => 'skipped',
-                };
-
-                PublisherPlatformJob::query()->create([
-                    'article_distribution_id' => (int) $distribution->id,
-                    'platform_id' => $item['platform_id'],
-                    'publisher_device_id' => $item['device_id'],
-                    'publisher_platform_session_id' => $item['session_id'],
-                    'profile_key' => $item['profile_key'],
-                    'publish_mode' => $item['effective_mode'] ?? ($publishMode === 'scheduled' ? 'draft' : $publishMode),
-                    'status' => $jobStatus,
-                    'progress_step' => $jobStatus === 'skipped' ? '发布预检未通过' : '等待发布节点',
-                    'progress_percent' => 0,
-                    'next_retry_at' => $jobStatus === 'queued' ? now() : null,
-                    'error_category' => $jobStatus === 'skipped' ? 'unsupported' : null,
-                    'error_message' => $jobStatus === 'skipped' ? $item['message'] : null,
-                    'next_operator_action' => $item['manual_confirmation'] ? '请在本地发布窗口检查并确认。' : null,
-                    'payload_snapshot' => $payload,
-                    'result' => ['preflight_message' => $item['message']],
                 ]);
+
+                foreach ($preflight['items'] as $item) {
+                    $groupItem = $accountGroupItems->get($item['platform_id']);
+                    $targetDeviceId = $item['device_id']
+                        ?? $groupItem?->publisher_device_id
+                        ?? $accountGroup?->publisher_device_id
+                        ?? ($deviceStrategy === 'specified' ? $preferredDeviceId : null);
+                    $targetSessionId = $item['session_id'] ?? $groupItem?->publisher_platform_session_id;
+                    $targetProfileKey = $item['profile_key'] ?? $groupItem?->profile_key;
+                    $jobStatus = match ($item['state']) {
+                        'ready', 'draft_only' => $publishMode === 'scheduled' ? 'waiting_for_schedule' : 'queued',
+                        'waiting_for_device' => 'waiting_for_device',
+                        'login_required' => 'login_required',
+                        default => 'skipped',
+                    };
+
+                    PublisherPlatformJob::query()->create([
+                        'article_distribution_id' => (int) $distribution->id,
+                        'platform_id' => $item['platform_id'],
+                        'publisher_device_id' => $targetDeviceId,
+                        'publisher_platform_session_id' => $targetSessionId,
+                        'profile_key' => $targetProfileKey,
+                        // Backend scheduling controls when the task is made
+                        // leaseable. Once due, a verified platform executes a
+                        // normal direct publish; unverified channels retain the
+                        // explicit draft/manual-confirmation downgrade from
+                        // preflight.
+                        'publish_mode' => $item['effective_mode'] ?? ($publishMode === 'scheduled' ? 'direct' : $publishMode),
+                        'status' => $jobStatus,
+                        'progress_step' => $jobStatus === 'skipped' ? '发布预检未通过' : '等待发布节点',
+                        'progress_percent' => 0,
+                        'next_retry_at' => $jobStatus === 'queued' ? now() : null,
+                        'error_category' => $jobStatus === 'skipped' ? 'unsupported' : null,
+                        'error_message' => $jobStatus === 'skipped' ? $item['message'] : null,
+                        'next_operator_action' => $item['manual_confirmation'] ? '请在本地发布窗口检查并确认。' : null,
+                        'payload_snapshot' => $payload,
+                        'result' => [
+                            'preflight_message' => $item['message'],
+                            'account_group_external_id' => $accountGroup?->external_id,
+                            // Keep this capability snapshot with the task. A
+                            // platform can be reconfigured later, while an
+                            // already-created task still needs the policy it had
+                            // at creation time.
+                            'preflight' => [
+                                'state' => $item['state'],
+                                'support_level' => $item['support_level'] ?? 'unknown',
+                                'supports_draft' => (bool) ($item['supports_draft'] ?? false),
+                                'supports_direct_publish' => (bool) ($item['supports_direct_publish'] ?? false),
+                                'supports_scheduled' => (bool) ($item['supports_scheduled'] ?? false),
+                                'manual_confirmation' => (bool) $item['manual_confirmation'],
+                                'effective_mode' => $item['effective_mode'] ?? ($publishMode === 'scheduled' ? 'direct' : $publishMode),
+                            ],
+                        ],
+                    ]);
+                }
+
+                return $distribution;
+            });
+        } catch (QueryException $exception) {
+            // The initial lookup is intentionally outside the transaction so
+            // normal idempotent replays stay cheap. A second, simultaneous
+            // request can still race it; the unique index is the final guard.
+            if (! $this->isIdempotencyUniqueViolation($exception)) {
+                throw $exception;
             }
 
-            return $distribution;
-        });
+            $existing = ArticleDistribution::query()
+                ->with('publisherPlatformJobs')
+                ->where('idempotency_key', $idempotencyKey)
+                ->first();
+            if (! $existing instanceof ArticleDistribution) {
+                throw $exception;
+            }
 
+            return ['distribution' => $existing, 'preflight' => $preflight, 'idempotent_replay' => true];
+        }
         $this->summary->refresh($distribution);
 
         return ['distribution' => $distribution->fresh(['publisherPlatformJobs']), 'preflight' => $preflight];
+    }
+
+    private function isIdempotencyUniqueViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) $exception->getCode();
+        if (! in_array($sqlState, ['23000', '23505'], true)) {
+            return false;
+        }
+
+        $message = strtolower($exception->getMessage());
+
+        return str_contains($message, 'idempotency_key')
+            || str_contains($message, 'idempotency_unique');
     }
 
     /**

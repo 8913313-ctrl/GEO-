@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Exceptions\ApiException;
+use App\Models\ArticleDistribution;
 use App\Models\PublisherDevice;
 use App\Models\PublisherPlatformJob;
+use App\Services\Publishing\PublisherDeviceCredential;
 use App\Services\Publishing\PublisherBatchSummaryService;
 use App\Services\Publishing\PublisherPlatformJobLifecycleService;
 use Illuminate\Http\JsonResponse;
@@ -37,7 +39,7 @@ class PublisherPlatformJobController extends BaseApiController
         $limit = max(1, min(50, $request->integer('limit', 20)));
         $now = now();
         $items = PublisherPlatformJob::query()
-            ->with(['distribution.article', 'session'])
+            ->with(['distribution.article', 'session', 'platform'])
             ->where(function ($query) use ($device): void {
                 $query->whereNull('publisher_device_id')->orWhere('publisher_device_id', $device->id);
             })
@@ -101,7 +103,7 @@ class PublisherPlatformJobController extends BaseApiController
         $claimed = DB::transaction(function () use ($job, $device): PublisherPlatformJob {
             /** @var PublisherPlatformJob|null $item */
             $item = PublisherPlatformJob::query()
-                ->with(['distribution.article', 'session'])
+                ->with(['distribution.article', 'session', 'platform'])
                 ->whereKey($job)
                 ->lockForUpdate()
                 ->first();
@@ -126,6 +128,18 @@ class PublisherPlatformJobController extends BaseApiController
                 // creating a second attempt for the same device.
                 return $item;
             }
+            $expiredLeaseCanBeReclaimed = in_array((string) $item->status, ['processing', 'claimed'], true)
+                && ($item->lease_expires_at === null || $item->lease_expires_at->lte($now));
+            if (! in_array((string) $item->status, ['queued', 'waiting_for_device'], true)
+                && ! $expiredLeaseCanBeReclaimed) {
+                // Direct calls must not bypass the scheduler or a login/
+                // verification hold merely because the job ID is known.
+                throw new ApiException(
+                    'publisher_platform_job_not_claimable',
+                    'Publisher platform job is not ready to claim.',
+                    409,
+                );
+            }
             if ($item->next_retry_at !== null && $item->next_retry_at->isFuture()) {
                 throw new ApiException('publisher_platform_job_not_ready', '平台子任务尚未到重试时间。', 409);
             }
@@ -143,8 +157,11 @@ class PublisherPlatformJobController extends BaseApiController
                 throw new ApiException('publisher_platform_job_claimed', '平台子任务正在由其他节点处理。', 409);
             }
 
-            // A profile is a strict serialization boundary.  Different
+            // A profile is a strict serialization boundary. Different
             // account groups may run concurrently, but one profile never does.
+            // The database mutex lasts only through this claim transaction;
+            // it serializes check-and-claim without serializing execution.
+            $this->lockProfileClaimBoundary($item, $device);
             if ($this->profileHasActiveLease($item, $device)) {
                 throw new ApiException('publisher_profile_busy', '该账号资料正在执行其他平台任务。', 409);
             }
@@ -153,7 +170,7 @@ class PublisherPlatformJobController extends BaseApiController
                 'publisher_device_id' => $device->id,
                 'status' => 'processing',
                 'attempt_count' => (int) $item->attempt_count + 1,
-                'claimed_at' => $item->claimed_at ?? $now,
+                'claimed_at' => $expiredLeaseCanBeReclaimed ? $now : ($item->claimed_at ?? $now),
                 'claimed_by' => $device->device_id,
                 'lease_token' => bin2hex(random_bytes(32)),
                 'lease_expires_at' => $now->copy()->addMinutes($this->leaseMinutes()),
@@ -163,7 +180,7 @@ class PublisherPlatformJobController extends BaseApiController
                 'progress_step' => $item->progress_step ?: '已领取，等待本地执行器处理',
             ])->save();
 
-            return $item->fresh(['distribution.article', 'session']);
+            return $item->fresh(['distribution.article', 'session', 'platform']);
         });
 
         return $this->success($request, [
@@ -201,7 +218,7 @@ class PublisherPlatformJobController extends BaseApiController
                 'result' => array_replace($this->sanitizeResult(is_array($item->result) ? $item->result : []), $progressResult),
             ])->save();
 
-            return $item->fresh(['distribution.article', 'session']);
+            return $item->fresh(['distribution.article', 'session', 'platform']);
         });
 
         return $this->success($request, [
@@ -253,9 +270,31 @@ class PublisherPlatformJobController extends BaseApiController
         $retryable = filter_var($request->input('retryable', $providedResult['retryable'] ?? false), FILTER_VALIDATE_BOOLEAN);
 
         $updated = DB::transaction(function () use ($job, $device, $lease, $status, $result, $message, $remoteUrl, $failureCategory, $nextOperatorAction, $progressStep, $progressPercent, $retryable): array {
+            $reference = PublisherPlatformJob::query()->whereKey($job)->first(['article_distribution_id']);
+            if (! $reference) {
+                throw new ApiException('publisher_platform_job_not_found', 'Publisher platform job not found.', 404);
+            }
+            $distribution = ArticleDistribution::query()
+                ->whereKey($reference->article_distribution_id)
+                ->lockForUpdate()
+                ->first();
+            if (! $distribution) {
+                throw new ApiException('publisher_platform_job_not_found', 'Publisher platform job not found.', 404);
+            }
             $item = $this->lockedJob($job, $device, $lease);
-            if ($item->isTerminal() && (string) $item->status !== $status) {
-                throw new ApiException('publisher_platform_job_completed', '平台子任务已完成，不能用旧租约改写结果。', 409);
+            if ($item->isTerminal()) {
+                if ((string) $item->status !== $status) {
+                    throw new ApiException('publisher_platform_job_completed', '平台子任务已完成，不能用旧租约改写结果。', 409);
+                }
+
+                // A worker may retry after losing the HTTP response. The same
+                // terminal report is an idempotent read and cannot rewrite the
+                // stored result, error, or remote URL.
+
+                return [
+                    'job' => $item->fresh(['distribution.article', 'session', 'platform']),
+                    'batch' => $this->summary->refresh($distribution),
+                ];
             }
             $now = now();
             $shouldRetry = $status === 'failed'
@@ -300,11 +339,10 @@ class PublisherPlatformJobController extends BaseApiController
                 'lease_heartbeat_at' => $shouldRetry ? null : $now,
             ])->save();
 
-            $distribution = $item->distribution()->lockForUpdate()->firstOrFail();
             $summary = $this->summary->refresh($distribution);
 
             return [
-                'job' => $item->fresh(['distribution.article', 'session']),
+                'job' => $item->fresh(['distribution.article', 'session', 'platform']),
                 'batch' => $summary,
             ];
         });
@@ -372,8 +410,7 @@ class PublisherPlatformJobController extends BaseApiController
             throw new ApiException('publisher_device_disabled', '发布设备已被禁用。', 403);
         }
         $token = trim((string) $request->bearerToken());
-        $secret = trim((string) ($record->public_key ?? ''));
-        if ($token === '' || $secret === '' || ! hash_equals($secret, $token)) {
+        if (! PublisherDeviceCredential::verify($record, $token)) {
             throw new ApiException('publisher_device_unauthorized', '设备凭证无效，请重新配对。', 401);
         }
 
@@ -397,6 +434,9 @@ class PublisherPlatformJobController extends BaseApiController
     {
         $capabilities = is_array($device->capabilities) ? $device->capabilities : [];
         $platformId = (string) $job->platform_id;
+        if (! $this->desiredStateAllowsPlatform($device, $platformId)) {
+            return false;
+        }
         if ($capabilities !== [] && ! in_array($platformId, $capabilities, true)) {
             return false;
         }
@@ -412,6 +452,23 @@ class PublisherPlatformJobController extends BaseApiController
         return true;
     }
 
+    /**
+     * Serializes the active-lease check and the subsequent claim for a device.
+     * This is intentionally a short-lived row lock: jobs for different
+     * profiles can still execute in parallel once their leases are issued.
+     */
+    private function lockProfileClaimBoundary(PublisherPlatformJob $job, PublisherDevice $device): void
+    {
+        if (! filled($job->profile_key)) {
+            return;
+        }
+
+        PublisherDevice::query()
+            ->whereKey($device->id)
+            ->lockForUpdate()
+            ->first();
+    }
+
     private function profileHasActiveLease(PublisherPlatformJob $job, PublisherDevice $device): bool
     {
         if (! filled($job->profile_key)) {
@@ -423,7 +480,10 @@ class PublisherPlatformJobController extends BaseApiController
             ->whereIn('status', ['processing', 'claimed'])
             ->where('id', '!=', $job->id)
             ->where('lease_expires_at', '>', now())
-            ->exists();
+            // Force a current read after obtaining the per-device mutex.
+            // This avoids an older MySQL REPEATABLE READ snapshot.
+            ->lockForUpdate()
+            ->first(['id']) !== null;
     }
 
     /** @return array<string,mixed> */
@@ -433,11 +493,20 @@ class PublisherPlatformJobController extends BaseApiController
         $article = $distribution?->article;
         $payload = is_array($job->payload_snapshot) ? $job->payload_snapshot : [];
         $result = $this->sanitizeResult(is_array($job->result) ? $job->result : []);
+        $preflight = is_array($result['preflight'] ?? null) ? $result['preflight'] : [];
+        $platform = $job->platform;
+        $supportLevel = trim((string) ($preflight['support_level'] ?? $platform?->support_level ?? 'unknown')) ?: 'unknown';
+        $manualConfirmation = array_key_exists('manual_confirmation', $preflight)
+            ? (bool) $preflight['manual_confirmation']
+            : ($supportLevel === 'manual' || ! (bool) ($job->session?->auto_allowed ?? false));
+        $sessionMeta = is_array($job->session?->meta) ? $job->session->meta : [];
+        $localGroupId = trim((string) ($result['account_group_external_id'] ?? $sessionMeta['group_id'] ?? ''));
         $data = [
             'id' => (int) $job->id,
             'article_distribution_id' => (int) $job->article_distribution_id,
             'distribution_id' => (int) $job->article_distribution_id,
             'platform_id' => (string) $job->platform_id,
+            'group_id' => $localGroupId !== '' ? $localGroupId : null,
             'publisher_device_id' => $job->publisher_device_id !== null ? (int) $job->publisher_device_id : null,
             'publisher_platform_session_id' => $job->publisher_platform_session_id !== null ? (int) $job->publisher_platform_session_id : null,
             'profile_key' => $job->profile_key,
@@ -457,6 +526,19 @@ class PublisherPlatformJobController extends BaseApiController
             'error_category' => $job->error_category,
             'error_message' => $job->error_message,
             'next_operator_action' => $job->next_operator_action,
+            // Let the desktop distinguish unattended adapters from tasks
+            // that must stop at the editor for operator confirmation.
+            'support_level' => $supportLevel,
+            'manual_confirmation' => $manualConfirmation,
+            'platform' => [
+                'id' => (string) $job->platform_id,
+                'name' => (string) ($platform?->name ?? $job->platform_id),
+                'support_level' => $supportLevel,
+                'supports_draft' => (bool) ($preflight['supports_draft'] ?? $platform?->supports_draft ?? false),
+                'supports_direct_publish' => (bool) ($preflight['supports_direct_publish'] ?? $platform?->supports_direct_publish ?? false),
+                'supports_scheduled' => (bool) ($preflight['supports_scheduled'] ?? $platform?->supports_scheduled ?? false),
+                'manual_confirmation' => $manualConfirmation,
+            ],
             'payload' => $payload,
             'payload_snapshot' => $payload,
             'result' => $result,
@@ -469,6 +551,38 @@ class PublisherPlatformJobController extends BaseApiController
 
         return $data;
     }
+
+    /**
+     * A missing legacy field means no server-side platform restriction. Once
+     * enabled_platform_ids_present is true, an empty list is deliberately a
+     * deny-all policy instead of falling back to every platform.
+     */
+    private function desiredStateAllowsPlatform(PublisherDevice $device, string $platformId): bool
+    {
+        $desired = is_array($device->desired_state) ? $device->desired_state : [];
+        $ids = array_values(array_unique(array_filter(
+            (array) ($desired['enabled_platform_ids'] ?? []),
+            'is_string'
+        )));
+        $legacyAllowlist = ! array_key_exists('enabled_platform_ids_present', $desired) && $ids !== [];
+        $hasExplicitFilter = array_key_exists('enabled_platform_ids_present', $desired)
+            ? filter_var($desired['enabled_platform_ids_present'], FILTER_VALIDATE_BOOLEAN)
+            : $legacyAllowlist;
+        $mode = (string) ($desired['platform_filter_mode'] ?? '');
+
+        if ($mode === 'all') {
+            return true;
+        }
+        if ($mode === 'none') {
+            return false;
+        }
+        if (! $hasExplicitFilter) {
+            return true;
+        }
+
+        return in_array($platformId, $ids, true);
+    }
+
     private function normalizeJobStatus(string $status): ?string
     {
         return match ($status) {

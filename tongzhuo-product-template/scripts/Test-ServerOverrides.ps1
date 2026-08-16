@@ -14,6 +14,7 @@ $overridesRoot = Join-Path $rootPath 'geoflow-integration\server-overrides'
 $installerPath = Join-Path $rootPath 'geoflow-integration\deployment\install-geoflow-overrides.sh'
 $verifierPath = Join-Path $rootPath 'geoflow-integration\deployment\verify-geoflow-overrides.sh'
 $smokePath = Join-Path $rootPath 'geoflow-integration\deployment\smoke-geoflow-workbench.sh'
+$publisherContractPath = Join-Path $rootPath 'geoflow-integration\deployment\check-publisher-automation-contract.ps1'
 $deployScriptPath = Join-Path $rootPath 'scripts\Deploy-GeoFlowServer.ps1'
 
 if (-not (Test-Path $overridesRoot)) {
@@ -28,6 +29,9 @@ if (-not (Test-Path $verifierPath)) {
 if (-not (Test-Path $smokePath)) {
     throw "Linux smoke test not found: $smokePath"
 }
+if (-not (Test-Path $publisherContractPath)) {
+    throw "Publisher automation contract check not found: $publisherContractPath"
+}
 if (-not (Test-Path $deployScriptPath)) {
     throw "Windows deployment helper not found: $deployScriptPath"
 }
@@ -39,10 +43,26 @@ foreach ($requiredText in @('--dry-run', 'Tongzhuo GEOFlow overrides dry run pas
     }
 }
 
+& $publisherContractPath -PackageRoot (Join-Path $rootPath 'geoflow-integration')
+
 $verifierText = Get-Content -LiteralPath $verifierPath -Raw -Encoding UTF8
 foreach ($requiredText in @('--base-url', 'Tongzhuo GEOFlow override verification passed', 'php artisan route:list', 'llms.txt', 'publisher-devices', 'tongzhuo-cms', 'geo-growth', 'geo-opportunities', 'geo-plans', 'geo-answer-tests', 'customer-projects', 'handoff-report.blade.php')) {
     if ($verifierText -notlike "*$requiredText*") {
         throw "Linux verifier is missing required support text: $requiredText"
+    }
+}
+foreach ($requiredText in @(
+    'publisher:reconcile',
+    'schedule:list',
+    'devices/{device}/shadow',
+    'devices/{device}/events',
+    'devices/{device}/sessions',
+    'devices/{device}/commands',
+    'platform-jobs/{job}/progress',
+    '2026_08_15_000000_add_publisher_profile_lease_index.php'
+)) {
+    if ($verifierText -notlike "*$requiredText*") {
+        throw "Linux verifier is missing publisher automation support text: $requiredText"
     }
 }
 $smokeText = Get-Content -LiteralPath $smokePath -Raw -Encoding UTF8

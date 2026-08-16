@@ -229,6 +229,7 @@ Route::prefix($adminPrefix)->name('admin.')->middleware(['admin.locale'])->group
         });
 
         Route::get('publisher-assistant', [PublisherAssistantController::class, 'index'])->name('publisher-assistant');
+        Route::post('publisher-assistant/batches', [PublisherAssistantController::class, 'createPublishingBatch'])->name('publisher-assistant.batches.store');
         Route::post('publisher-assistant/bootstrap-channel', [PublisherAssistantController::class, 'bootstrapChannel'])->name('publisher-assistant.bootstrap-channel');
         Route::post('publisher-assistant/enqueue-published', [PublisherAssistantController::class, 'enqueuePublishedArticles'])->name('publisher-assistant.enqueue-published');
 

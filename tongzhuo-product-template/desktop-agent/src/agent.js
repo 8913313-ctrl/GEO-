@@ -1,4 +1,4 @@
-﻿import { EventEmitter } from 'node:events';
+import { EventEmitter } from 'node:events';
 import { readConfig, writeConfig } from './config-store.js';
 import { GeoFlowClient } from './geoflow-client.js';
 import { RuntimeLogBuffer } from './log-buffer.js';
@@ -9,6 +9,8 @@ import { buildDiagnostics, buildSupportBundle } from './diagnostics.js';
 import { findPlatform, platforms } from './platforms.js';
 import { agentVersion } from './version.js';
 import { PublishPolicy } from './publish-policy.js';
+import { consumeSseResponse } from './device-event-stream.js';
+import { LegacyJobCheckpointStore } from './legacy-job-checkpoint.js';
 
 const jobProtocolAliases = Object.freeze({
   auto: 'auto',
@@ -58,11 +60,25 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       policy: { ...(this.config.publishPolicy || {}), platformPolicy: this.config.platformPolicy || {} },
       state: this.config.publishPolicyState,
     });
+    this.legacyJobCheckpoints = new LegacyJobCheckpointStore();
     this.pollTimer = null;
     this.heartbeatTimer = null;
     this.loginSyncTimer = null;
+    this.eventStreamController = null;
+    this.eventStreamTask = null;
+    this.eventStreamRetryTimer = null;
+    this.eventStreamSupported = null;
+    this.eventStreamConnected = false;
+    this.eventStreamRetryAttempt = 0;
+    this.lastEventAt = null;
     this.loginSyncInFlight = false;
     this.loginWatchers = new Map();
+    this.pendingSessionFlushInFlight = null;
+    this.pendingSessionRetryTimer = null;
+    this.pendingSessionRetryAttempt = 0;
+    this.pendingSessionRetryAt = null;
+    this.sessionSyncApiSupported = null;
+    this.heartbeatFailureStreak = 0;
     this.logBuffer = new RuntimeLogBuffer();
     this.log('info', 'agent.started', '发布节点已启动。', {
       device_id: this.config.deviceId,
@@ -115,6 +131,13 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       lastPollAt: this.lastPollAt,
       lastHeartbeatAt: this.lastHeartbeatAt,
       lastError: this.lastError,
+      lastEventAt: this.lastEventAt,
+      eventStream: {
+        supported: this.eventStreamSupported,
+        connected: this.eventStreamConnected,
+      },
+      pendingSessionRetryAt: this.pendingSessionRetryAt,
+      sessionSyncApiSupported: this.sessionSyncApiSupported,
       logs: this.logBuffer.list(),
     };
   }
@@ -164,7 +187,9 @@ export class TongzhuoDesktopAgent extends EventEmitter {
 
   accountGroupById(groupId = '') {
     const groups = this.listAccountGroups();
-    return groups.find((group) => group.id === groupId) || groups.find((group) => group.id === this.config.activeGroupId) || groups[0] || null;
+    const requestedId = String(groupId || '').trim();
+    if (requestedId) return groups.find((group) => group.id === requestedId) || null;
+    return groups.find((group) => group.id === this.config.activeGroupId) || groups[0] || null;
   }
 
   saveAccountGroups(groups, activeGroupId = this.config.activeGroupId) {
@@ -197,7 +222,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     const group = this.accountGroupById(groupId);
     if (!group || group.id !== groupId) throw new Error('账号组不存在。');
     const platform = platforms.find((item) => item.id === platformId);
-    if (!platform || platform.support === 'export') throw new Error('该平台不能绑定本地账号。');
+    if (!platform || platform.support === 'export' || platform.hidden === true) throw new Error('该平台当前不能绑定本地账号。');
     const now = new Date().toISOString();
     const groups = this.listAccountGroups().map((item) => {
       if (item.id !== groupId) return item;
@@ -268,18 +293,23 @@ export class TongzhuoDesktopAgent extends EventEmitter {
   }
 
   sessionPayload(groupId, platformId, payload = {}) {
-    const account = this.accountGroupById(groupId)?.accounts?.[platformId] || {};
+    const group = this.accountGroupById(groupId);
+    const account = group?.accounts?.[platformId] || {};
     const meta = payload.meta && typeof payload.meta === 'object' && !Array.isArray(payload.meta)
       ? payload.meta
       : {};
     return {
-      profile_key: String(payload.profile_key || this.profileKeyFor(groupId, platformId)).trim(),
+      profile_key: this.profileKeyFor(group?.id || groupId, platformId),
       account_name: String(payload.account_name || account.accountName || '').trim(),
       login_state: String(payload.login_state || account.status || 'unknown').trim(),
       last_verified_at: payload.last_verified_at || null,
       last_error_message: String(payload.last_error_message || '').trim(),
       auto_allowed: Boolean(payload.auto_allowed),
-      meta,
+      meta: {
+        ...meta,
+        group_id: group?.id || String(groupId || ''),
+        group_name: group?.name || '',
+      },
     };
   }
 
@@ -306,6 +336,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
 
     try {
       await this.client.reportSession(platformId, session);
+      this.sessionSyncApiSupported = true;
       const syncedAt = new Date().toISOString();
       this.updateAccountStatus(groupId, platformId, localStatus, {
         syncState: 'synced',
@@ -327,33 +358,87 @@ export class TongzhuoDesktopAgent extends EventEmitter {
         return { synced: false, queued: true, syncState: 'waiting_for_pairing', error };
       }
 
-      const message = String(error?.message || '后台会话同步失败。');
+      const status = Number(error?.status || 0) || 0;
+      const unavailable = [404, 405].includes(status);
+      const syncState = unavailable ? 'backend_incompatible' : 'pending';
+      const message = unavailable
+        ? '后台版本不兼容：账号会话同步接口未提供（HTTP ' + status + '）。本地登录状态已保存，后台升级后会自动补传。'
+        : String(error?.message || '后台会话同步失败。');
+      if (unavailable) this.sessionSyncApiSupported = false;
       this.updateAccountStatus(groupId, platformId, localStatus, {
-        syncState: 'pending',
+        syncState,
         lastSyncError: message,
         pendingSession: session,
       });
-      this.log('warn', 'platform.session.sync.pending', `${platformId} 本地登录状态已保存，后台同步将在稍后重试。`, {
+      this.schedulePendingSessionFlush({ incompatible: unavailable });
+      this.log('warn', 'platform.session.sync.pending', platformId + ' 本地登录状态已保存，后台同步将在稍后重试。', {
         platform_id: platformId,
         group_id: groupId,
-        status: Number(error?.status || 0) || null,
+        status: status || null,
         code: error?.code || null,
         error: message,
       });
-      return { synced: false, queued: true, syncState: 'pending', error };
+      return { synced: false, queued: true, syncState, error };
     }
   }
 
-  async flushPendingSessions() {
-    if (!this.hasCredential()) return [];
-    const results = [];
+  pendingSessionEntries() {
+    const entries = [];
     for (const group of this.listAccountGroups()) {
       for (const [platformId, account] of Object.entries(group.accounts || {})) {
-        if (!account?.pendingSession || account.status === 'disabled') continue;
-        results.push(await this.syncAccountSession(group.id, platformId, account.pendingSession));
+        if (account?.pendingSession && account.status !== 'disabled') {
+          entries.push({ groupId: group.id, platformId, session: account.pendingSession, syncState: account.syncState || '' });
+        }
       }
     }
-    return results;
+    return entries;
+  }
+
+  schedulePendingSessionFlush(options = {}) {
+    if (!this.hasCredential() || this.pendingSessionRetryTimer || !this.pendingSessionEntries().length) return;
+    const incompatible = Boolean(options.incompatible)
+      || this.pendingSessionEntries().some((entry) => entry.syncState === 'backend_incompatible');
+    const baseDelay = incompatible ? 30000 : 2000;
+    const maxDelay = incompatible ? 300000 : 60000;
+    const delay = Math.min(maxDelay, baseDelay * (2 ** this.pendingSessionRetryAttempt));
+    this.pendingSessionRetryAttempt = Math.min(this.pendingSessionRetryAttempt + 1, 16);
+    this.pendingSessionRetryAt = new Date(Date.now() + delay).toISOString();
+    this.pendingSessionRetryTimer = setTimeout(() => {
+      this.pendingSessionRetryTimer = null;
+      this.pendingSessionRetryAt = null;
+      this.flushPendingSessions({ source: 'retry_timer' }).catch((error) => {
+        this.log('warn', 'platform.session.flush.failed', '后台会话补传失败：' + String(error?.message || ''));
+      });
+    }, delay);
+  }
+
+  async flushPendingSessions(options = {}) {
+    if (!this.hasCredential()) return [];
+    if (options.force && this.pendingSessionRetryTimer) {
+      clearTimeout(this.pendingSessionRetryTimer);
+      this.pendingSessionRetryTimer = null;
+      this.pendingSessionRetryAt = null;
+    }
+    if (this.pendingSessionFlushInFlight) return this.pendingSessionFlushInFlight;
+    this.pendingSessionFlushInFlight = (async () => {
+      const results = [];
+      const entries = this.pendingSessionEntries();
+      for (let index = 0; index < entries.length; index += 3) {
+        const batch = entries.slice(index, index + 3);
+        const batchResults = await Promise.all(batch.map((entry) => this.syncAccountSession(entry.groupId, entry.platformId, entry.session)));
+        results.push(...batchResults);
+      }
+      if (!this.pendingSessionEntries().length) {
+        this.pendingSessionRetryAttempt = 0;
+        this.pendingSessionRetryAt = null;
+      } else {
+        this.schedulePendingSessionFlush();
+      }
+      return results;
+    })().finally(() => {
+      this.pendingSessionFlushInFlight = null;
+    });
+    return this.pendingSessionFlushInFlight;
   }
 
   configure(next) {
@@ -402,7 +487,6 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       .map((id) => Number(String(id).replace(/^[^:]+:/, '')))
       .filter(Number.isFinite);
   }
-
   activeJobRefs() {
     return [...this.activeJobs.entries()].map(([key, entry]) => ({
       id: Number(String(key).replace(/^[^:]+:/, '')),
@@ -416,7 +500,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     const changed = protocol !== this.jobProtocol;
     this.jobProtocol = protocol;
     if (['dual', 'platform-jobs'].includes(protocol)) this.platformJobsSupported = null;
-    if (changed) this.log('info', 'jobs.protocol.changed', `任务协议已切换为 ${protocol}。`, { protocol, source });
+    if (changed) this.log('info', 'jobs.protocol.changed', `\u4efb\u52a1\u534f\u8bae\u5df2\u5207\u6362\u4e3a ${protocol}\u3002`, { protocol, source });
     return changed;
   }
 
@@ -437,7 +521,6 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     }
     return null;
   }
-
   async heartbeat(extra = {}) {
     if (!this.hasCredential()) return null;
     const activeJobIds = this.activeJobIds();
@@ -449,9 +532,9 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       local_override: Boolean(this.config.localOverride),
       effective_auto_run: Boolean(this.config.autoRun),
       active_job_ids: activeJobIds,
-      publish_policy: this.publishPolicy.snapshot(),
       job_protocol: this.jobProtocol,
       active_job_refs: activeJobRefs,
+      publish_policy: this.publishPolicy.snapshot(),
     };
     const protocolMeta = {
       job_protocol: this.jobProtocol,
@@ -459,6 +542,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       active_job_refs: activeJobRefs,
     };
     let result;
+    const recovered = this.heartbeatFailureStreak > 0;
     try {
       result = await this.client.shadowHeartbeat(reportedState, {
         active_job_id: this.activeJobId || activeJobIds[0] || null,
@@ -469,21 +553,34 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     } catch (error) {
       // A deployed backend can be upgraded independently of the node. Keep
       // its legacy heartbeat functioning until the shadow route is available.
-      if (![404, 405].includes(Number(error?.status || 0))) throw error;
-      result = await this.client.heartbeat({
-        active_job_id: this.activeJobId || activeJobIds[0] || null,
-        active_job_ids: activeJobIds,
-        ...protocolMeta,
-        desired_state_report: reportedState,
-        ...extra,
-      });
+      if (![404, 405].includes(Number(error?.status || 0))) {
+        this.heartbeatFailureStreak += 1;
+        throw error;
+      }
+      try {
+        result = await this.client.heartbeat({
+          active_job_id: this.activeJobId || activeJobIds[0] || null,
+          active_job_ids: activeJobIds,
+          ...protocolMeta,
+          desired_state_report: reportedState,
+          ...extra,
+        });
+      } catch (legacyError) {
+        this.heartbeatFailureStreak += 1;
+        throw legacyError;
+      }
     }
     const body = result?.data || result || {};
     this.setJobProtocol(this.heartbeatJobProtocol(body), 'heartbeat');
     await this.applyDesiredState(body.desired_state || body.device?.desired_state);
     this.lastHeartbeatAt = new Date().toISOString();
     this.lastError = null;
+    this.heartbeatFailureStreak = 0;
     if (Number(body?.commands_hint?.queued || 0) > 0) this.processCommands({ triggerPoll: false }).catch((error) => this.log('warn', 'device.commands.failed', error.message));
+    if (recovered && this.pendingSessionEntries().length) {
+      await this.flushPendingSessions({ force: true, source: 'heartbeat_recovered' })
+        .catch((error) => this.log('warn', 'platform.session.flush.failed', error.message));
+    }
     return result;
   }
 
@@ -536,14 +633,19 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     if (desiredProtocol) this.setJobProtocol(desiredProtocol, 'desired_state');
     const version = Number(desired.version || desired.desired_state_version || 0) || 0;
     const applied = Number(this.config.appliedStateVersion || 0) || 0;
-    const takeoverRequired = Boolean(desired.takeover) && Boolean(this.config.localOverride);
+    const isNewerVersion = version > applied;
+    // A takeover is a one-shot command bound to a newer desired-state
+    // version. Without the version guard, a historic `takeover: true` flag
+    // would keep erasing every future local override on each heartbeat.
+    const takeoverRequired = Boolean(desired.takeover)
+      && Boolean(this.config.localOverride)
+      && isNewerVersion;
     if (Boolean(this.config.localOverride) && !takeoverRequired) {
       return { appliedVersion: applied, status: 'local_override' };
     }
     // Version zero is the server's unconfigured/default shadow. It must not
-    // overwrite local settings or restart timers on every heartbeat. A
-    // takeover-only response is still allowed to clear a real local override.
-    if (version <= applied && !takeoverRequired) {
+    // overwrite local settings or restart timers on every heartbeat.
+    if (!isNewerVersion) {
       return { appliedVersion: applied, status: 'unchanged' };
     }
     const next = {};
@@ -551,19 +653,66 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     if (Object.prototype.hasOwnProperty.call(desired, 'poll_seconds')) next.pollSeconds = desired.poll_seconds;
     if (Object.prototype.hasOwnProperty.call(desired, 'login_check_seconds')) next.loginCheckSeconds = desired.login_check_seconds;
     if (Object.prototype.hasOwnProperty.call(desired, 'max_job_attempts')) next.maxJobAttempts = desired.max_job_attempts;
-    if (Object.prototype.hasOwnProperty.call(desired, 'max_concurrent_groups')) {
-      next.publishPolicy = { ...(this.config.publishPolicy || {}), maxConcurrentGroups: desired.max_concurrent_groups };
+
+    const nextPublishPolicy = { ...(this.config.publishPolicy || {}) };
+    let publishPolicyChanged = false;
+    const policyFields = [
+      ['max_concurrent_groups', 'maxConcurrentGroups'],
+      ['default_daily_quota', 'defaultDailyQuota'],
+      ['default_min_delay_seconds', 'defaultMinDelaySeconds'],
+      ['default_max_delay_seconds', 'defaultMaxDelaySeconds'],
+      ['risk_pause_threshold', 'riskPauseThreshold'],
+      ['risk_pause_minutes', 'riskPauseMinutes'],
+    ];
+    for (const [remoteName, localName] of policyFields) {
+      if (Object.prototype.hasOwnProperty.call(desired, remoteName)) {
+        nextPublishPolicy[localName] = desired[remoteName];
+        publishPolicyChanged = true;
+      }
     }
+    if (publishPolicyChanged) next.publishPolicy = nextPublishPolicy;
+
+    let nextPlatformPolicy = { ...(this.config.platformPolicy || {}) };
+    let platformPolicyChanged = false;
     if (desired.platform_policy && typeof desired.platform_policy === 'object' && !Array.isArray(desired.platform_policy)) {
-      next.platformPolicy = desired.platform_policy;
+      nextPlatformPolicy = desired.platform_policy;
+      platformPolicyChanged = true;
     }
-    if (Array.isArray(desired.enabled_platform_ids)) next.enabledPlatforms = desired.enabled_platform_ids;
+    const platformDailyQuota = desired.platform_daily_quota ?? desired.platformDailyQuota;
+    if (platformDailyQuota && typeof platformDailyQuota === 'object' && !Array.isArray(platformDailyQuota)) {
+      nextPlatformPolicy = { ...nextPlatformPolicy };
+      for (const [platformId, quota] of Object.entries(platformDailyQuota)) {
+        const normalizedPlatformId = String(platformId || '').trim();
+        if (!normalizedPlatformId) continue;
+        const existing = nextPlatformPolicy[normalizedPlatformId];
+        nextPlatformPolicy[normalizedPlatformId] = {
+          ...(existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {}),
+          daily_quota: quota,
+        };
+        platformPolicyChanged = true;
+      }
+    }
+    if (platformPolicyChanged) next.platformPolicy = nextPlatformPolicy;
+
+    const requestedPlatformMode = String(desired.platform_filter_mode ?? desired.platformFilterMode ?? '').trim().toLowerCase();
+    if (Array.isArray(desired.enabled_platform_ids)) {
+      next.enabledPlatforms = desired.enabled_platform_ids;
+      if (['all', 'unrestricted'].includes(requestedPlatformMode)) next.platformFilterMode = 'unrestricted';
+      else if (requestedPlatformMode === 'none') next.platformFilterMode = 'none';
+      else next.platformFilterMode = desired.enabled_platform_ids.length ? 'allowlist' : 'none';
+    } else if (['all', 'unrestricted'].includes(requestedPlatformMode)) {
+      next.platformFilterMode = 'unrestricted';
+    } else if (requestedPlatformMode === 'none') {
+      next.platformFilterMode = 'none';
+    } else if (requestedPlatformMode === 'allowlist') {
+      next.platformFilterMode = 'none';
+    }
     if (version > 0) {
       next.desiredStateVersion = version;
       next.appliedStateVersion = version;
     }
     if (takeoverRequired) next.localOverride = false;
-    const changed = Object.keys(next).length > 0 && (version > applied || takeoverRequired);
+    const changed = Object.keys(next).length > 0 && isNewerVersion;
     if (changed) {
       this.config = writeConfig(next);
       this.client.updateConfig(this.config);
@@ -630,8 +779,8 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     } catch (error) {
       const unsupported = [404, 405].includes(Number(error?.status || 0));
       if (protocol === 'platform-jobs' && unsupported) this.platformJobsSupported = false;
-      // Authentication invalidation also uses 404 on older servers. Never
-      // hide that condition behind protocol fallback after credentials clear.
+      // A deployed backend can be upgraded independently of the node. Keep
+      // its legacy heartbeat functioning until the shadow route is available.
       if (!this.hasCredential()) throw error;
       if (unsupported && options.allowUnsupported) return { protocol, items: [], unsupported: true };
       throw error;
@@ -676,8 +825,11 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     this.lastError = null;
     this.log('info', 'jobs.poll.done', `已读取 ${items.length} 个任务。`, { protocol: requestedProtocol, polled_protocols: protocols });
     await this.loadSessions().catch(() => {});
+    // Device commands (notably remote login checks and desired-state refresh)
+    // are management actions, not publishing actions. They must remain
+    // available when automatic publishing is intentionally disabled.
+    if (!options.skipCommands) this.processCommands().catch((error) => this.log('warn', 'device.commands.failed', error.message));
     if (this.config.autoRun) {
-      if (!options.skipCommands) this.processCommands().catch((error) => this.log('warn', 'device.commands.failed', error.message));
       const pending = items.filter((job) => ['queued', 'pending', 'ready', 'waiting_for_device'].includes(String(job.status || '').toLowerCase()));
       const activeKeys = new Set([...this.activeJobs.keys()].map(String));
       const scheduledGroups = new Set([...this.activeJobs.values()].map((entry) => entry?.groupId).filter(Boolean));
@@ -727,7 +879,6 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     }
     return this.runJob(jobNumber, selectedPlatforms, { automatic: false, jobHint: matching || undefined });
   }
-
   async runPlatformJob(jobHint, options = {}) {
     const automatic = options.automatic === true;
     const id = Number(jobHint?.id);
@@ -739,7 +890,8 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     const hintedGroupId = jobHint?.account_group_id || jobHint?.group_id || jobHint?.payload?.account_group_id || jobHint?.payload?.group_id || this.groupIdForProfile(jobHint?.profile_key) || this.config.activeGroupId;
     const groupPermit = this.publishPolicy.acquireGroup(hintedGroupId, automatic);
     if (!groupPermit.allowed) throw new Error(`任务暂缓执行：${groupPermit.reason}`);
-    this.activeJobs.set(taskKey, { groupId: hintedGroupId, startedAt: new Date().toISOString(), automatic, protocol: 'platform-jobs' });
+    const permitGroupId = groupPermit.groupId || hintedGroupId;
+    this.activeJobs.set(taskKey, { groupId: hintedGroupId, permitGroupId, startedAt: new Date().toISOString(), automatic, protocol: 'platform-jobs' });
     try {
       const claimed = await this.client.claimPlatformJob(id);
       leaseToken = claimed?.lease_token || claimed?.leaseToken || '';
@@ -748,7 +900,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       const groupId = claimed?.account_group_id || claimed?.group_id || claimed?.payload?.account_group_id || claimed?.payload?.group_id || this.groupIdForProfile(claimed.profile_key) || hintedGroupId;
       const group = this.accountGroupById(groupId);
       if (!group || !platformId) throw new Error('平台子任务缺少可用账号组或平台。');
-      this.activeJobs.set(taskKey, { groupId, startedAt: this.activeJobs.get(taskKey)?.startedAt, automatic, protocol: 'platform-jobs' });
+      this.activeJobs.set(taskKey, { groupId, permitGroupId, startedAt: this.activeJobs.get(taskKey)?.startedAt, automatic, protocol: 'platform-jobs' });
       await this.client.heartbeatPlatformJob(id, leaseToken, { progress_step: 'local_executor_started', progress_percent: 10 }).catch(() => {});
       const leaseTimer = setInterval(() => this.client.heartbeatPlatformJob(id, leaseToken, { progress_step: 'local_executor_running' }).catch(() => {}), 60000);
       let result;
@@ -772,7 +924,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       throw error;
     } finally {
       const entry = this.activeJobs.get(taskKey);
-      this.publishPolicy.releaseGroup(entry?.groupId || hintedGroupId);
+      this.publishPolicy.releaseGroup(entry?.permitGroupId || permitGroupId);
       this.activeJobs.delete(taskKey);
       this.persistPublishPolicy();
       await this.heartbeat().catch(() => {});
@@ -830,7 +982,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       url: result.url,
       sync_state: sync.syncState,
     });
-    return { ...result, loginDetection: result.driver === 'native' ? 'after_native_window_close' : 'automatic', syncState: sync.syncState };
+    return { ...result, loginDetection: result.driver === 'native' ? 'live_native_or_after_close' : 'automatic', syncState: sync.syncState };
   }
 
   browserWindows() {
@@ -881,9 +1033,15 @@ export class TongzhuoDesktopAgent extends EventEmitter {
         reason: 'manual_login_in_progress',
         localStatePreserved: account.status === 'ready',
       };
-    }    if (options.existingWindowOnly && probe.windowOpen === false) {
+    }
+    if (options.existingWindowOnly && probe.windowOpen === false) {
       // Closing a visible login tab does not clear the persistent profile.
-      const preservedState = account.status === 'ready' ? 'ready' : 'unknown';
+      // Keep `open` while the close watcher waits for Chrome/Edge to release
+      // its profile. Downgrading it to `unknown` here left the UI permanently
+      // at "待检测" when the first post-close probe hit the profile lock.
+      const preservedState = ['ready', 'open', 'needs_login', 'needs_verification', 'unknown'].includes(account.status)
+        ? account.status
+        : 'open';
       this.updateAccountStatus(groupId, platformId, preservedState, {
         lastErrorMessage: preservedState === 'ready' ? '' : (probe.reason || 'login_window_closed'),
       });
@@ -900,9 +1058,118 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     }
     if (!probe.loggedIn) {
       const reason = String(probe.reason || 'login_not_detected').toLowerCase();
-      if (reason === 'probe_failed' && account.status === 'ready' && !options._profileReleaseRetry) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        return this.checkLogin(platformId, { ...options, _profileReleaseRetry: true });
+      const inconclusiveProbe = probe.inconclusive === true
+        || ['authenticated_signal_not_found', 'login_not_detected', 'session_signal_not_observed'].includes(reason);
+      if (inconclusiveProbe) {
+        const inconclusiveReason = reason === 'native_window_probe_required'
+          ? reason
+          : 'session_signal_inconclusive';
+        const profileReleaseExhausted = options.afterLoginWindowClose
+          && options._profileReleaseRetryExhausted === true;
+        const staleOpenState = options.source === 'scheduled_probe' && account.status === 'open';
+        const preservedState = (profileReleaseExhausted || staleOpenState) && account.status !== 'ready'
+          ? 'needs_verification'
+          : ['ready', 'open', 'unknown', 'needs_verification', 'needs_login'].includes(account.status)
+            ? account.status : 'unknown';
+        this.updateAccountStatus(groupId, platformId, preservedState, {
+          lastErrorMessage: inconclusiveReason,
+          lastVerifiedAt: account.lastVerifiedAt || '',
+        });
+        return {
+          platformId,
+          groupId,
+          profileKey,
+          loginState: preservedState,
+          loggedIn: false,
+          reason: inconclusiveReason,
+          probeReason: reason,
+          inconclusiveProbe: true,
+          profileReleaseRetryExhausted: profileReleaseExhausted,
+          localStatePreserved: preservedState === account.status,
+          syncState: account.syncState || '',
+          url: probe.url || '',
+        };
+      }
+      const transientProbe = ['probe_failed', 'profile_locked'].includes(reason);
+      const retryAttempt = Number(options._profileReleaseRetryAttempt || 0);
+      const retryDelays = [750, 1500, 3000];
+      if (transientProbe
+        && (options.afterLoginWindowClose || account.status === 'ready')
+        && options._skipProfileReleaseRetries !== true
+        && retryAttempt < retryDelays.length) {
+        await new Promise((resolve) => setTimeout(resolve, retryDelays[retryAttempt]));
+        return this.checkLogin(platformId, {
+          ...options,
+          _profileReleaseRetry: true,
+          _profileReleaseRetryAttempt: retryAttempt + 1,
+        });
+      }
+      if (transientProbe) {
+        const profileReleaseExhausted = options.afterLoginWindowClose
+          && options._profileReleaseRetryExhausted === true;
+        const preservedState = profileReleaseExhausted && account.status !== 'ready'
+          ? 'needs_verification'
+          : ['ready', 'open', 'unknown', 'needs_verification', 'needs_login'].includes(account.status)
+            ? account.status : 'open';
+        this.updateAccountStatus(groupId, platformId, preservedState, {
+          lastErrorMessage: profileReleaseExhausted ? 'profile_release_timeout' : reason,
+          lastVerifiedAt: account.lastVerifiedAt || '',
+        });
+        return {
+          platformId,
+          groupId,
+          profileKey,
+          loginState: preservedState,
+          loggedIn: false,
+          reason: profileReleaseExhausted ? 'profile_release_timeout' : reason,
+          transientProbeFailure: true,
+          profileReleaseRetryExhausted,
+          syncState: account.syncState || '',
+        };
+      }
+      // A challenge rendered on an authenticated/editor URL does not prove
+      // that the saved account session logged out. Keep an already-confirmed
+      // login visible, but report auto_allowed=false so GEOFlow cannot dispatch
+      // an unattended final publish while the platform is asking for human
+      // verification. Explicit login/verification URL redirects are handled by
+      // the normal downgrade below and are never preserved as ready.
+      const sessionChallenge = ['verification_overlay', 'verification_message'].includes(reason);
+      if (sessionChallenge && account.status === 'ready') {
+        const lastVerifiedAt = account.lastVerifiedAt || '';
+        this.updateAccountStatus(groupId, platformId, 'ready', {
+          lastErrorMessage: reason,
+          lastVerifiedAt,
+        });
+        const sync = await this.syncAccountSession(groupId, platformId, {
+          profile_key: profileKey,
+          account_name: account.accountName || '',
+          login_state: 'ready',
+          last_verified_at: lastVerifiedAt || null,
+          last_error_message: reason,
+          auto_allowed: false,
+          meta: {
+            event: 'login_probe_challenge',
+            group_id: groupId,
+            group_name: group.name || '',
+            reason,
+            url: probe.url || '',
+            login_state_preserved: true,
+            risk_verification_required: true,
+          },
+        });
+        if (sync.synced) await this.loadSessions().catch(() => {});
+        return {
+          platformId,
+          groupId,
+          profileKey,
+          loginState: 'ready',
+          loggedIn: false,
+          reason,
+          url: probe.url || '',
+          riskVerificationRequired: true,
+          localStatePreserved: true,
+          syncState: sync.syncState,
+        };
       }
       const loginState = reason === 'probe_failed'
         ? 'unknown'
@@ -954,37 +1221,80 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     const key = `${groupId}:${platformId}`;
     if (this.loginWatchers.has(key)) return this.loginWatchers.get(key);
     const task = (async () => {
+      const configuredRetryDelays = Array.isArray(this.loginWatchRetryDelays)
+        ? this.loginWatchRetryDelays
+        : [1200, 2000, 3500, 5000, 8000, 12000, 15000];
+      const postCloseRetryDelays = configuredRetryDelays
+        .map((value) => Math.max(0, Number(value) || 0))
+        .slice(0, 12);
+      if (!postCloseRetryDelays.length) postCloseRetryDelays.push(0);
+      let postCloseAttempt = 0;
+      let loginWindowClosed = false;
       for (let attempt = 0; attempt < 1200; attempt += 1) {
         const group = this.accountGroupById(groupId);
         const account = group?.accounts?.[platformId];
         if (!account || !['open', 'needs_verification', 'needs_login', 'unknown', 'ready'].includes(account.status)) return null;
         let result;
         try {
-          result = await this.checkLogin(platformId, {
-            groupId,
-            source: 'automatic_open_window',
-            existingWindowOnly: true,
-          });
-          if (result?.manualLoginInProgress) {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-            continue;
-          }
-          if (platformId === 'zhihu' && result?.windowOpen === false) {
-            // The native browser has released the profile. Probe the editor
-            // once before claiming that login succeeded or failed.
-            await new Promise((resolve) => setTimeout(resolve, 1200));
+          if (!loginWindowClosed) {
             result = await this.checkLogin(platformId, {
               groupId,
-              source: 'automatic_probe',
+              source: 'automatic_open_window',
+              existingWindowOnly: true,
             });
+            if (result?.loggedIn) {
+              this.log('info', 'platform.login.detected', `${platformId} 本地登录已确认。`, {
+                platform_id: platformId,
+                group_id: groupId,
+                profile_key: this.profileKeyFor(groupId, platformId),
+                sync_state: result.syncState || 'synced',
+              });
+              return result;
+            }
+            if (result?.manualLoginInProgress) {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              continue;
+            }
+            loginWindowClosed = result?.windowOpen === false;
+            if (!loginWindowClosed) {
+              await new Promise((resolve) => setTimeout(resolve, 1500));
+              continue;
+            }
           }
+
+          const retryIndex = Math.min(postCloseAttempt, postCloseRetryDelays.length - 1);
+          await new Promise((resolve) => setTimeout(resolve, postCloseRetryDelays[retryIndex]));
+          const retryExhausted = postCloseAttempt >= postCloseRetryDelays.length - 1;
+          postCloseAttempt += 1;
+          result = await this.checkLogin(platformId, {
+            groupId,
+            source: 'automatic_probe',
+            afterLoginWindowClose: true,
+            _skipProfileReleaseRetries: true,
+            _profileReleaseRetryExhausted: retryExhausted,
+          });
         } catch (error) {
           this.log('warn', 'platform.login.watch.failed', `${platformId} 登录窗口检测失败，将继续重试。`, {
             platform_id: platformId,
             group_id: groupId,
             error: error.message,
           });
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+          if (loginWindowClosed && postCloseAttempt >= postCloseRetryDelays.length) {
+            if (typeof this.updateAccountStatus === 'function') {
+              this.updateAccountStatus(groupId, platformId, 'needs_verification', {
+                lastErrorMessage: 'post_close_probe_failed',
+              });
+            }
+            return {
+              platformId,
+              groupId,
+              loginState: 'needs_verification',
+              loggedIn: false,
+              reason: 'post_close_probe_failed',
+              error: error.message,
+            };
+          }
+          await new Promise((resolve) => setTimeout(resolve, loginWindowClosed ? 0 : 3000));
           continue;
         }
         if (result?.loggedIn) {
@@ -996,8 +1306,16 @@ export class TongzhuoDesktopAgent extends EventEmitter {
           });
           return result;
         }
-        if (platformId === 'zhihu' || result?.windowOpen === false) return result;
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+        if (loginWindowClosed) {
+          const reason = String(result?.reason || '').toLowerCase();
+          const retryable = result?.transientProbeFailure === true
+            || result?.inconclusiveProbe === true
+            || ['authenticated_signal_not_found', 'session_signal_inconclusive', 'login_window_closed'].includes(reason);
+          if (retryable && postCloseAttempt < postCloseRetryDelays.length) continue;
+          return result;
+        }
+        if (result?.windowOpen === false) return result;
+        await new Promise((resolve) => setTimeout(resolve, 1500));
       }
       return null;
     })().finally(() => this.loginWatchers.delete(key));
@@ -1014,11 +1332,18 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     this.loginSyncInFlight = true;
     try {
       const targets = [];
+      const openWindows = this.browser.status()?.windows || [];
       for (const group of this.listAccountGroups()) {
         for (const [platformId, account] of Object.entries(group.accounts || {})) {
           if (account?.status === 'disabled') continue;
           if (this.loginWatchers.has(`${group.id}:${platformId}`)) continue;
-          targets.push({ platformId, groupId: group.id });
+          const profileKey = this.profileKeyFor(group.id, platformId);
+          const hasOpenWindow = openWindows.some((window) => {
+            if (window?.closed === true) return false;
+            if (window?.profileKey) return window.profileKey === profileKey;
+            return window?.platformId === platformId;
+          });
+          targets.push({ platformId, groupId: group.id, hasOpenWindow });
         }
       }
 
@@ -1029,6 +1354,11 @@ export class TongzhuoDesktopAgent extends EventEmitter {
           results.push(await this.checkLogin(target.platformId, {
             groupId: target.groupId,
             source: 'scheduled_probe',
+            // Read an attached native/managed login page when it exists. Once
+            // the operator has closed it, periodically probe the persisted
+            // profile headlessly so ready sessions and expired sessions both
+            // have a chance to converge without another manual click.
+            existingWindowOnly: target.hasOpenWindow,
           }));
         } catch (error) {
           this.log('warn', 'platform.login.probe.failed', `${target.platformId} 登录状态检测失败。`, {
@@ -1055,7 +1385,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     if (!group) throw new Error('当前没有可用账号组，请先创建账号组。');
 
     const platform = findPlatform(platformId);
-    if (!platform || platform.support === 'export') {
+    if (!platform || platform.support === 'export' || platform.hidden === true) {
       throw new Error('该平台不支持本地账号登录确认。');
     }
 
@@ -1142,36 +1472,100 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     const hint = options.jobHint || this.jobs.find((item) => Number(item.id) === jobNumber && this.jobProtocolFor(item) === 'legacy') || {};
     const hintedGroupId = hint?.account_group_id || hint?.group_id || hint?.payload?.account_group_id || hint?.payload?.group_id || this.config.activeGroupId;
     const groupPermit = this.publishPolicy.acquireGroup(hintedGroupId, automatic);
-    if (!groupPermit.allowed) throw new Error(`任务暂缓执行：${groupPermit.reason}`);
-    this.activeJobs.set(taskKey, { groupId: hintedGroupId, startedAt: new Date().toISOString(), automatic, protocol: 'legacy' });
+    if (!groupPermit.allowed) throw new Error('任务暂缓执行：' + groupPermit.reason);
+    // Keep the permit identity separate from the group resolved by claim. A
+    // backend hint can be stale; releasing the claimed group would otherwise
+    // leave the pre-claim concurrency slot permanently occupied.
+    const permitGroupId = groupPermit.groupId || hintedGroupId;
+    this.activeJobs.set(taskKey, {
+      groupId: hintedGroupId,
+      permitGroupId,
+      startedAt: new Date().toISOString(),
+      automatic,
+      protocol: 'legacy',
+    });
     this.activeJobId = jobNumber;
+    let results = {};
+    let targetPlatforms = [];
     try {
-      this.log('info', 'job.start', `开始执行任务 #${id}。`, { job_id: jobNumber, selected_platforms: selectedPlatforms, automatic });
+      this.log('info', 'job.start', '开始执行任务 #' + id + '。', { job_id: jobNumber, selected_platforms: selectedPlatforms, automatic });
       await this.heartbeat().catch(() => {});
       const job = await this.client.claimJob(id);
       const groupId = job?.account_group_id || job?.group_id || job?.payload?.account_group_id || job?.payload?.group_id || hintedGroupId;
       const group = this.accountGroupById(groupId);
       if (!group) throw new Error('当前任务没有可用账号组，请先在本地发布器创建账号组。');
-      this.activeJobs.set(taskKey, { groupId, startedAt: this.activeJobs.get(taskKey)?.startedAt, automatic, protocol: 'legacy' });
-      const targetPlatforms = this.choosePlatforms(job, selectedPlatforms);
+      this.activeJobs.set(taskKey, {
+        groupId,
+        permitGroupId,
+        startedAt: this.activeJobs.get(taskKey)?.startedAt,
+        automatic,
+        protocol: 'legacy',
+      });
+      targetPlatforms = this.choosePlatforms(job, selectedPlatforms);
       if (!targetPlatforms.length) throw new Error('当前发布节点没有可处理的平台。请检查分发渠道或升级执行器适配器。');
-      const results = this.completedPlatformResults(job, targetPlatforms);
+
+      // V1 aggregate jobs have no server-side per-platform lease/progress
+      // record. Merge a durable local checkpoint after the server's own
+      // results so an interrupted process never repeats a known publication.
+      const checkpointResults = this.legacyJobCheckpoints.completed(this.config, jobNumber, targetPlatforms);
+      results = {
+        ...this.completedPlatformResults(job, targetPlatforms),
+        ...checkpointResults,
+      };
+      if (Object.keys(checkpointResults).length) {
+        this.log('info', 'job.checkpoint.resumed', '任务 #' + id + ' 已恢复 ' + Object.keys(checkpointResults).length + ' 个已完成平台，跳过重复发布。', {
+          job_id: jobNumber,
+          platforms: Object.keys(checkpointResults),
+        });
+      }
+
       for (const platformId of targetPlatforms) {
         if (results[platformId] && ['published', 'draft_saved'].includes(String(results[platformId].state || ''))) continue;
-        results[platformId] = await this.runPlatformWithRetry(platformId, job, jobNumber, group, { automatic });
+        const result = await this.runPlatformWithRetry(platformId, job, jobNumber, group, { automatic });
+        results[platformId] = result;
+        // This synchronous atomic write is immediately after the platform
+        // outcome. If the desktop process is killed before aggregate report,
+        // the next V1 claim resumes from this terminal platform state.
+        this.legacyJobCheckpoints.record(this.config, jobNumber, result);
       }
       const payload = buildResultPayload({ workerId: this.config.deviceId, platformResults: results });
       await this.client.reportResult(id, payload.state, payload.message, payload);
-      this.log('info', 'job.reported', `任务 #${id} 已回写 GEOFlow：${payload.state}。`, { job_id: jobNumber, state: payload.state, next_operator_action: payload.next_operator_action, state_counts: payload.state_summary.state_counts });
+      const terminalAggregate = ['published', 'draft_saved', 'cancelled'].includes(String(payload.state || '').toLowerCase());
+      if (terminalAggregate) {
+        try {
+          this.legacyJobCheckpoints.clear(this.config, jobNumber);
+        } catch (checkpointError) {
+          // Reporting succeeded, so do not turn a cleanup failure into a second
+          // contradictory V1 result. Retaining the checkpoint is conservative.
+          this.log('warn', 'job.checkpoint.clear.failed', '任务 #' + id + ' 回写成功后无法清理本地 checkpoint：' + checkpointError.message, { job_id: jobNumber });
+        }
+      } else if (Object.keys(results).some((platformId) => ['published', 'draft_saved'].includes(String(results[platformId]?.state || '').toLowerCase()))) {
+        // A mixed aggregate failure may still contain a real publication. Keep
+        // it until the backend requeues only unresolved platforms, otherwise
+        // the next V1 attempt could publish that platform twice.
+        this.log('info', 'job.checkpoint.retained', '任务 #' + id + ' 存在未完成平台，保留已完成平台 checkpoint。', { job_id: jobNumber });
+      }
+      this.log('info', 'job.reported', '任务 #' + id + ' 已回写 GEOFlow：' + payload.state + '。', { job_id: jobNumber, state: payload.state, next_operator_action: payload.next_operator_action, state_counts: payload.state_summary.state_counts });
       await this.poll().catch(() => {});
       return { jobId: id, state: payload.state, platformResults: results, stateSummary: payload.state_summary };
     } catch (error) {
-      this.log('error', 'job.failed', `任务 #${id} 执行失败：${error.message}`, { job_id: jobNumber });
-      await this.client.reportResult(id, 'failed', error.message).catch(() => {});
+      this.log('error', 'job.failed', '任务 #' + id + ' 执行失败：' + error.message, { job_id: jobNumber });
+      // Include already-checkpointed platform outcomes in an ordinary failure
+      // response too. Older backends may not retain incremental V1 state, but
+      // a backend that does can display a precise retry target immediately.
+      const partialPayload = Object.keys(results).length
+        ? buildResultPayload({ workerId: this.config.deviceId, platformResults: results })
+        : null;
+      await this.client.reportResult(id, 'failed', error.message, partialPayload
+        ? {
+          platform_results: partialPayload.platform_results,
+          state_summary: partialPayload.state_summary,
+        }
+        : {}).catch(() => {});
       throw error;
     } finally {
       const entry = this.activeJobs.get(taskKey);
-      this.publishPolicy.releaseGroup(entry?.groupId || hintedGroupId);
+      this.publishPolicy.releaseGroup(entry?.permitGroupId || permitGroupId);
       this.activeJobs.delete(taskKey);
       this.activeJobId = this.activeJobIds()[0] || null;
       this.persistPublishPolicy();
@@ -1179,6 +1573,16 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     }
   }
   async runPlatformWithRetry(platformId, job, jobId, group = this.accountGroupById(), options = {}) {
+    if (!this.isPlatformEnabled(platformId)) {
+      return {
+        platform: platformId,
+        state: 'skipped',
+        message: '平台已被设备远程策略禁用。',
+        failure_category: 'platform_disabled_by_policy',
+        retryable: false,
+        next_action: 'enable_platform_in_device_policy',
+      };
+    }
     const maxAttempts = Math.max(1, Number(this.config.maxJobAttempts) || 1);
     const profileKey = this.profileKeyFor(group?.id, platformId);
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -1195,7 +1599,8 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       this.log('info', 'platform.run.start', `开始处理平台 ${platformId}。`, { job_id: jobId, platform_id: platformId, attempt, max_attempts: maxAttempts });
       try {
         const delayMs = await this.publishPolicy.waitBeforePublish(platformId, this.config.platformPolicy || this.config.publishPolicy?.platformPolicy, options);
-        const result = await this.browser.openEditor(platformId, job?.payload || {}, { profileKey });
+        const allowFinalSubmit = this.allowsFinalSubmit(platformId, job);
+        const result = await this.browser.openEditor(platformId, job?.payload || {}, { profileKey, allowFinalSubmit });
         const serialized = { ...serializePlatformResult(result), platform: platformId, window_id: result.windowId || null, attempt, max_attempts: maxAttempts, ...(delayMs ? { policy_delay_ms: delayMs } : {}) };
         this.publishPolicy.recordOutcome(platformId, serialized, this.config.platformPolicy || this.config.publishPolicy?.platformPolicy);
         await this.syncPlatformSession(platformId, serialized, group).catch(() => {});
@@ -1216,10 +1621,45 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     return { platform: platformId, state: 'failed', message: 'Platform execution failed after retry policy ended.', attempt: maxAttempts, max_attempts: maxAttempts, failure_category: 'retry_exhausted', retryable: false, next_action: 'operator_inspect_failed_platforms' };
   }
 
+  allowsFinalSubmit(platformId, job = {}) {
+    const platform = findPlatform(platformId);
+    return job?.publish_mode === 'direct'
+      && job?.manual_confirmation === false
+      && job?.platform?.supports_direct_publish === true
+      && platform?.execution?.autoSubmit === true;
+  }
+
   completedPlatformResults(job, targetPlatforms = []) {
-    const source = job?.platform_results || job?.platformResults || job?.result?.platform_results || job?.result?.platformResults || job?.payload?.platform_results || job?.payload?.platformResults || {};
-    const normalized = Array.isArray(source) ? Object.fromEntries(source.filter((item) => item?.platform).map((item) => [item.platform, item])) : (source && typeof source === 'object' ? source : {});
-    return Object.fromEntries((targetPlatforms || []).filter((platformId) => normalized[platformId] && ['published', 'draft_saved'].includes(String(normalized[platformId].state || ''))).map((platformId) => [platformId, { platform: platformId, ...normalized[platformId] }]));
+    // V1 deployments have used several result envelopes over time. Merge
+    // every known persisted location instead of letting an empty top-level
+    // object hide results retained by the assistant metadata.
+    const sources = [
+      job?.remote_meta?.publisher_assistant?.platform_results,
+      job?.remote_meta?.publisher_assistant?.platformResults,
+      job?.remoteMeta?.publisherAssistant?.platform_results,
+      job?.remoteMeta?.publisherAssistant?.platformResults,
+      job?.assistant?.platform_results,
+      job?.assistant?.platformResults,
+      job?.payload?.platform_results,
+      job?.payload?.platformResults,
+      job?.result?.platform_results,
+      job?.result?.platformResults,
+      job?.platform_results,
+      job?.platformResults,
+    ];
+    const normalized = {};
+    for (const source of sources) {
+      const entries = Array.isArray(source)
+        ? source.filter((item) => item?.platform).map((item) => [item.platform, item])
+        : (source && typeof source === 'object' ? Object.entries(source) : []);
+      for (const [platformId, result] of entries) {
+        const platform = String(platformId || result?.platform || '').trim();
+        if (platform) normalized[platform] = { ...(result || {}), platform };
+      }
+    }
+    return Object.fromEntries((targetPlatforms || [])
+      .filter((platformId) => normalized[platformId] && ['published', 'draft_saved'].includes(String(normalized[platformId].state || '').toLowerCase()))
+      .map((platformId) => [platformId, normalized[platformId]]));
   }
 
   persistPublishPolicy() {
@@ -1230,14 +1670,20 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       this.log('warn', 'publish.policy.persist.failed', `保存发布策略状态失败：${error.message}`);
     }
   }
+  isPlatformEnabled(platformId) {
+    const capabilities = Array.isArray(this.config.capabilities) ? this.config.capabilities : [];
+    if (!capabilities.includes(platformId)) return false;
+    const enabled = Array.isArray(this.config.enabledPlatforms) ? this.config.enabledPlatforms : [];
+    const mode = String(this.config.platformFilterMode || (enabled.length ? 'allowlist' : 'unrestricted')).toLowerCase();
+    if (mode === 'none') return false;
+    return mode !== 'allowlist' || enabled.includes(platformId);
+  }
+
   choosePlatforms(job, selectedPlatforms) {
     const jobPlatforms = Array.isArray(job?.platforms) ? job.platforms : [];
     const selected = Array.isArray(selectedPlatforms) ? selectedPlatforms : [];
     const allowed = selected.length ? selected.filter((id) => jobPlatforms.includes(id)) : jobPlatforms;
-    const remotelyEnabled = Array.isArray(this.config.enabledPlatforms) && this.config.enabledPlatforms.length
-      ? new Set(this.config.enabledPlatforms)
-      : null;
-    return allowed.filter((id) => this.config.capabilities.includes(id) && (!remotelyEnabled || remotelyEnabled.has(id)));
+    return allowed.filter((id) => this.isPlatformEnabled(id));
   }
 
   async syncPlatformSession(platformId, result = {}, group = this.accountGroupById()) {
@@ -1326,6 +1772,121 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     return buildSupportBundle(status, diagnostics, platforms);
   }
 
+  async handleDeviceEvent(event = {}) {
+    const type = String(event?.event || event?.type || '').trim().toLowerCase();
+    if (!type || ['keepalive', 'ping', 'ready', 'message'].includes(type)) return;
+    this.lastEventAt = new Date().toISOString();
+    if (['jobs_available', 'jobs_changed', 'jobs_avail', 'jobs_change'].includes(type)) {
+      this.log('info', 'device.events.jobs', '收到后台任务变更通知，立即拉取队列。');
+      await this.poll();
+      return;
+    }
+    if (['desired_state_changed', 'device_shadow_changed', 'shadow_changed'].includes(type)) {
+      this.log('info', 'device.events.shadow', '收到后台配置变更通知，立即同步设备配置。');
+      await this.heartbeat();
+      return;
+    }
+    if (['commands_available', 'commands_changed'].includes(type)) {
+      this.log('info', 'device.events.commands', '收到后台命令通知，立即执行命令队列。');
+      await this.processCommands();
+    }
+  }
+
+  scheduleEventStreamRetry() {
+    if (this.eventStreamSupported === false || this.eventStreamRetryTimer || !this.hasCredential()) return;
+    const delay = Math.min(60000, 1000 * (2 ** this.eventStreamRetryAttempt));
+    this.eventStreamRetryAttempt = Math.min(this.eventStreamRetryAttempt + 1, 8);
+    this.eventStreamRetryTimer = setTimeout(() => {
+      this.eventStreamRetryTimer = null;
+      this.startEventStream();
+    }, delay);
+  }
+
+  async runEventStream(controller) {
+    let retry = false;
+    let idleTimedOut = false;
+    let idleTimer = null;
+    const configuredIdleTimeout = Number(this.eventStreamIdleTimeoutMs);
+    const idleTimeoutMs = Number.isFinite(configuredIdleTimeout) && configuredIdleTimeout > 0
+      ? Math.max(1000, Math.trunc(configuredIdleTimeout))
+      : 90000;
+    const resetIdleWatchdog = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        idleTimer = null;
+        if (controller.signal.aborted) return;
+        idleTimedOut = true;
+        this.log('warn', 'device.events.idle_timeout', '设备事件流长时间没有响应，将重新连接。', {
+          idle_timeout_ms: idleTimeoutMs,
+        });
+        controller.abort(new Error('event_stream_idle_timeout'));
+      }, idleTimeoutMs);
+    };
+    try {
+      // Cover both a stalled initial HTTP connection and a half-open stream.
+      // Every valid SSE frame, including a backend keepalive, refreshes this
+      // watchdog below.
+      resetIdleWatchdog();
+      const response = await this.client.deviceEvents({ signal: controller.signal });
+      this.eventStreamSupported = true;
+      this.eventStreamConnected = true;
+      this.eventStreamRetryAttempt = 0;
+      resetIdleWatchdog();
+      await consumeSseResponse(response, async (event) => {
+        resetIdleWatchdog();
+        await this.handleDeviceEvent(event);
+      }, { signal: controller.signal });
+      retry = !controller.signal.aborted || idleTimedOut;
+    } catch (error) {
+      // A caller-initiated abort is a normal shutdown. An abort caused by the
+      // watchdog is different: it deliberately tears down a silent half-open
+      // connection and must schedule a replacement stream.
+      if (controller.signal.aborted && !idleTimedOut) return;
+      const status = Number(error?.status || 0);
+      if ([404, 405].includes(status)) {
+        this.eventStreamSupported = false;
+        this.log('info', 'device.events.unsupported', '后台暂未提供事件通知接口，继续使用轮询兜底。', { status });
+        return;
+      }
+      retry = true;
+      this.log('warn', 'device.events.failed', '设备事件连接中断，将自动重连。', {
+        status: status || null,
+        error: String(error?.message || error),
+      });
+    } finally {
+      if (idleTimer) clearTimeout(idleTimer);
+      this.eventStreamConnected = false;
+      if (this.eventStreamController === controller) this.eventStreamController = null;
+    }
+    if (retry) this.scheduleEventStreamRetry();
+  }
+
+  startEventStream() {
+    if (!this.hasCredential() || this.eventStreamSupported === false || this.eventStreamTask) return this.eventStreamTask;
+    const controller = new AbortController();
+    this.eventStreamController = controller;
+    let task;
+    task = this.runEventStream(controller)
+      .catch((error) => this.log('warn', 'device.events.unhandled', String(error?.message || error)))
+      .finally(() => {
+        if (this.eventStreamTask === task) this.eventStreamTask = null;
+      });
+    this.eventStreamTask = task;
+    return task;
+  }
+
+  stopEventStream() {
+    if (this.eventStreamRetryTimer) clearTimeout(this.eventStreamRetryTimer);
+    this.eventStreamRetryTimer = null;
+    const controller = this.eventStreamController;
+    const task = this.eventStreamTask;
+    this.eventStreamController = null;
+    this.eventStreamTask = null;
+    this.eventStreamConnected = false;
+    if (controller && !controller.signal.aborted) controller.abort(new Error('agent_shutdown'));
+    return task;
+  }
+
   restartTimers() {
     if (this.pollTimer) clearInterval(this.pollTimer);
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
@@ -1333,6 +1894,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     this.pollTimer = null;
     this.heartbeatTimer = null;
     this.loginSyncTimer = null;
+    const previousEventStream = this.stopEventStream();
 
     const loginSyncMs = Math.max(60, Number(this.config.loginCheckSeconds) || 300) * 1000;
     this.loginSyncTimer = setInterval(() => this.syncLoginStates().catch((error) => {
@@ -1340,12 +1902,11 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       this.log('warn', 'platform.login.probe.loop.failed', `登录状态同步失败：${error.message}`);
     }), loginSyncMs);
 
-    for (const group of this.listAccountGroups()) {
-      for (const [platformId, account] of Object.entries(group.accounts || {})) {
-        if (account.status === 'open' || account.status === 'needs_verification') {
-          this.startLoginWatch(platformId, group.id);
-        }
-      }
+    const openLoginWindows = this.browser?.status?.()?.windows || [];
+    for (const window of openLoginWindows) {
+      if (window?.kind !== 'login' || window.closed) continue;
+      const groupId = this.groupIdForProfile(window.profileKey);
+      if (groupId) this.startLoginWatch(window.platformId, groupId);
     }
     this.syncLoginStates().catch((error) => {
       this.lastError = error.message;
@@ -1366,14 +1927,23 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     }), pollMs);
     this.heartbeatTimer = setInterval(() => this.heartbeat().catch((error) => {
       this.lastError = error.message;
-      this.log('error', 'device.heartbeat.failed', `设备心跳失败：${error.message}`);
+      this.log('error', 'device.heartbeat.failed', '设备心跳失败：' + error.message);
     }), 30000);
+    if (previousEventStream) {
+      previousEventStream.finally(() => this.startEventStream());
+    } else {
+      this.startEventStream();
+    }
   }
 
   async shutdown() {
     if (this.pollTimer) clearInterval(this.pollTimer);
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     if (this.loginSyncTimer) clearInterval(this.loginSyncTimer);
+    if (this.pendingSessionRetryTimer) clearTimeout(this.pendingSessionRetryTimer);
+    this.pendingSessionRetryTimer = null;
+    const eventStream = this.stopEventStream();
+    if (eventStream) await eventStream.catch(() => {});
     this.loginWatchers.clear();
     await this.browser.closeAll();
   }

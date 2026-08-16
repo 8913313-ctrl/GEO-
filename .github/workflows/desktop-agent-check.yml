@@ -1,0 +1,64 @@
+name: Desktop agent check
+
+on:
+  push:
+    paths:
+      - 'tongzhuo-product-template/desktop-agent/**'
+      - 'tongzhuo-product-template/product.json'
+      - 'tongzhuo-product-template/CHANGELOG.md'
+      - 'tongzhuo-product-template/scripts/Test-VersionConsistency.ps1'
+      - '.github/workflows/desktop-agent-check.yml'
+  pull_request:
+    paths:
+      - 'tongzhuo-product-template/desktop-agent/**'
+      - 'tongzhuo-product-template/product.json'
+      - 'tongzhuo-product-template/CHANGELOG.md'
+      - 'tongzhuo-product-template/scripts/Test-VersionConsistency.ps1'
+      - '.github/workflows/desktop-agent-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-agent-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Windows source checks
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: tongzhuo-product-template/desktop-agent
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tongzhuo-product-template/desktop-agent/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium
+
+      - name: Check version consistency
+        working-directory: tongzhuo-product-template
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/Test-VersionConsistency.ps1
+
+      - name: Check release tooling and source manifest
+        run: npm run precheck
+
+      - name: Run desktop checks
+        run: npm run check
+
+      - name: Run desktop integration regressions
+        run: npm run postcheck

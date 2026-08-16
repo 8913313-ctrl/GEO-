@@ -15,13 +15,15 @@
 
 如果这次是新版本发布，先用版本升级助手统一更新版本号。默认 dry-run 只输出计划，确认无误后再加 `-Apply`：
 
+?????? `X.Y.Z` ??????????????????????
+
 ```powershell
 .\scripts\Update-ProductVersion.ps1 `
-  -Version '1.6.3' `
+  -Version 'X.Y.Z' `
   -ChangelogItem 'Describe the release change here.'
 
 .\scripts\Update-ProductVersion.ps1 `
-  -Version '1.6.3' `
+  -Version 'X.Y.Z' `
   -ChangelogItem 'Describe the release change here.' `
   -Apply
 ```
@@ -112,8 +114,8 @@ The dry-run output must be archived with acceptance evidence when implementation
 
 ```powershell
 .\scripts\Test-ProductReleasePackage.ps1 `
-  -PackagePath 'D:\Releases\tongzhuo-geo-growth-suite-v1.6.2.zip' `
-  -ExpectedVersion '1.6.2'
+  -PackagePath 'D:\Releases\tongzhuo-geo-growth-suite-vX.Y.Z.zip' `
+  -ExpectedVersion 'X.Y.Z'
 ```
 
 `Package-ProductRelease.ps1` 默认会在生成 zip 后自动执行这一步，确认发布包包含必要入口、文档、配置样例和版本清单，并排除客户配置、运行目录、依赖目录和敏感文件。
@@ -124,8 +126,8 @@ The dry-run output must be archived with acceptance evidence when implementation
 
 ```powershell
 .\scripts\Test-ProductReadiness.ps1 `
-  -OutputPath 'D:\Releases\tongzhuo-product-readiness-1.6.2.json' `
-  -ReleaseOutputPath 'D:\Releases\tongzhuo-geo-growth-suite-v1.6.2.zip'
+  -OutputPath 'D:\Releases\tongzhuo-product-readiness-X.Y.Z.json' `
+  -ReleaseOutputPath 'D:\Releases\tongzhuo-geo-growth-suite-vX.Y.Z.zip'
 ```
 
 总验收会执行：
@@ -148,7 +150,7 @@ Full 模式使用正式客户交付 release 归档作为客户交付证明，不
 ```powershell
 .\scripts\New-ProductRelease.ps1 `
   -OutputRoot 'D:\Releases' `
-  -ReleaseSlug 'tongzhuo-geo-growth-suite-v1.6.2'
+  -ReleaseSlug 'tongzhuo-geo-growth-suite-vX.Y.Z'
 ```
 
 这个入口会先运行完整 readiness gate，然后在输出目录生成：
@@ -172,7 +174,7 @@ Full 模式使用正式客户交付 release 归档作为客户交付证明，不
 默认会先执行模板校验和客户交付烟测，然后在 `dist/` 目录生成版本化 zip，例如：
 
 ```text
-tongzhuo-geo-growth-suite-v1.6.2-YYYYMMDD-HHMMSS.zip
+tongzhuo-geo-growth-suite-vX.Y.Z-YYYYMMDD-HHMMSS.zip
 ```
 
 发布包根目录包含 `release-manifest.json`，记录产品名、版本、组件、入口脚本、校验门禁和排除规则。
