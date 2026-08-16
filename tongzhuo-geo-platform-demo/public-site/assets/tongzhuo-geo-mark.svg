@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title description">
+  <title id="title">桐灼 GEO</title>
+  <desc id="description">由灼见原标识的环形动势与圆点提炼而成的桐灼 GEO 企业信源印记</desc>
+  <rect x="1" y="1" width="62" height="62" rx="17" fill="#f3ecdc"/>
+  <rect x="1.75" y="1.75" width="60.5" height="60.5" rx="16.25" fill="none" stroke="#b89859" stroke-opacity=".72" stroke-width="1.5"/>
+  <path d="M14.5 42.5c.55-13.6 3.15-27.8 10.15-30.05 6.6-2.15 10.2 9.6 14.95 17.05 3.85 6.05 8.15 8.85 12.9 2.6-1.45 7.7-6.15 12.55-11.85 11.4-7.35-1.45-10.75-12.25-13.8-19.55-1.45-3.45-2.65-4.85-3.85-4-2.15 1.55-2.45 12.6-2.7 22.55" fill="none" stroke="#7b2038" stroke-linecap="round" stroke-linejoin="round" stroke-width="5.4"/>
+  <path d="M29.4 17.85c7.8-4.05 17.95-5.4 22.05-1.8 4.35 3.8.55 11.65-8.25 18.2" fill="none" stroke="#a13a49" stroke-linecap="round" stroke-width="4.3"/>
+  <path d="M11.8 41.7 24.2 31.2" fill="none" stroke="#a13a49" stroke-linecap="round" stroke-width="3.4"/>
+  <circle cx="14.2" cy="49.6" r="3.8" fill="#b89859"/>
+  <circle cx="14.2" cy="49.6" r="1.4" fill="#f3ecdc"/>
+</svg>

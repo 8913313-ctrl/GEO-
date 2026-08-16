@@ -38,6 +38,64 @@ const FRONTEND_DEMO_ARTICLE_SLUGS = Object.freeze([
   "ai-readable-content-structure"
 ]);
 
+function refreshSiteAssetVersion(body) {
+  return String(body || "")
+    .replaceAll("site-v8.css?v=20260810-passport3", "site-v8.css?v=20260810-passport5")
+    .replaceAll("site-v8.css?v=20260810-passport4", "site-v8.css?v=20260810-passport5")
+    .replaceAll("site-v8.js?v=20260810-passport3", "site-v8.js?v=20260810-passport5")
+    .replaceAll("site-v8.js?v=20260810-passport4", "site-v8.js?v=20260810-passport5")
+    .replaceAll("site-v8.css?v=20260810-passport5", "site-v8.css?v=20260810-passport6")
+    .replaceAll("site-v8.js?v=20260810-passport5", "site-v8.js?v=20260810-passport6")
+    .replaceAll("site-v8.css?v=20260810-passport6", "site-v8.css?v=20260810-passport7")
+    .replaceAll("site-v8.js?v=20260810-passport6", "site-v8.js?v=20260810-passport7")
+    .replaceAll("site-v8.css?v=20260810-passport7", "site-v8.css?v=20260810-passport8")
+    .replaceAll("site-v8.js?v=20260810-passport7", "site-v8.js?v=20260810-passport8")
+    .replaceAll("site-v8.css?v=20260810-passport8", "site-v8.css?v=20260810-passport9")
+    .replaceAll("site-v8.js?v=20260810-passport8", "site-v8.js?v=20260810-passport9")
+    .replaceAll("site-v8.css?v=20260810-passport9", "site-v8.css?v=20260810-passport10")
+    .replaceAll("site-v8.js?v=20260810-passport9", "site-v8.js?v=20260810-passport10")
+    .replaceAll("site-v8.css?v=20260810-passport10", "site-v8.css?v=20260810-passport11")
+    .replaceAll("site-v8.js?v=20260810-passport10", "site-v8.js?v=20260810-passport11")
+    .replaceAll("site-v8.css?v=20260810-passport11", "site-v8.css?v=20260810-passport12")
+    .replaceAll("site-v8.js?v=20260810-passport11", "site-v8.js?v=20260810-passport12")
+    .replaceAll("site-v8.css?v=20260810-passport12", "site-v8.css?v=20260810-passport13")
+    .replaceAll("site-v8.js?v=20260810-passport12", "site-v8.js?v=20260810-passport13")
+    .replaceAll("site-v8.css?v=20260810-passport13", "site-v8.css?v=20260810-passport14")
+    .replaceAll("site-v8.js?v=20260810-passport13", "site-v8.js?v=20260810-passport14")
+    .replaceAll("site-v8.css?v=20260810-passport14", "site-v8.css?v=20260810-passport15")
+    .replaceAll("site-v8.js?v=20260810-passport14", "site-v8.js?v=20260810-passport15")
+    .replaceAll("site-v8.css?v=20260810-passport15", "site-v8.css?v=20260810-passport16")
+    .replaceAll("site-v8.js?v=20260810-passport15", "site-v8.js?v=20260810-passport16")
+    .replaceAll("site-v8.css?v=20260810-passport16", "site-v8.css?v=20260810-passport17")
+    .replaceAll("site-v8.js?v=20260810-passport16", "site-v8.js?v=20260810-passport17")
+    .replaceAll("site-v8.css?v=20260810-passport17", "site-v8.css?v=20260810-passport18")
+    .replaceAll("site-v8.js?v=20260810-passport17", "site-v8.js?v=20260810-passport18")
+    .replaceAll("site-v8.css?v=20260810-passport18", "site-v8.css?v=20260810-passport19")
+    .replaceAll("site-v8.js?v=20260810-passport18", "site-v8.js?v=20260810-passport19")
+    .replaceAll("site-v8.css?v=20260810-passport19", "site-v8.css?v=20260810-passport20")
+    .replaceAll("site-v8.js?v=20260810-passport19", "site-v8.js?v=20260810-passport20")
+    .replaceAll("site-v8.css?v=20260810-passport20", "site-v8.css?v=20260810-passport21")
+    .replaceAll("site-v8.js?v=20260810-passport20", "site-v8.js?v=20260810-passport21")
+    .replaceAll("site-v8.css?v=20260810-passport21", "site-v8.css?v=20260810-passport22")
+    .replaceAll("site-v8.js?v=20260810-passport21", "site-v8.js?v=20260810-passport22")
+    .replaceAll("site-v8.css?v=20260810-passport22", "site-v8.css?v=20260810-passport23")
+    .replaceAll("site-v8.js?v=20260810-passport22", "site-v8.js?v=20260810-passport23")
+    .replaceAll("site-v8.css?v=20260810-passport23", "site-v8.css?v=20260810-passport24")
+    .replaceAll("site-v8.js?v=20260810-passport23", "site-v8.js?v=20260810-passport24")
+    .replaceAll("site-v8.css?v=20260810-passport24", "site-v8.css?v=20260810-passport25")
+    .replaceAll("site-v8.js?v=20260810-passport24", "site-v8.js?v=20260810-passport25")
+    .replaceAll("site-v8.css?v=20260810-passport25", "site-v8.css?v=20260810-passport26")
+    .replaceAll("site-v8.js?v=20260810-passport25", "site-v8.js?v=20260810-passport26")
+    .replaceAll("site-v8.css?v=20260810-passport26", "site-v8.css?v=20260810-passport27")
+    .replaceAll("site-v8.js?v=20260810-passport26", "site-v8.js?v=20260810-passport27")
+    .replaceAll("site-v8.css?v=20260810-passport27", "site-v8.css?v=20260811-passport28")
+    .replaceAll("site-v8.js?v=20260810-passport27", "site-v8.js?v=20260811-passport28")
+    .replaceAll("site-v8.css?v=20260811-passport28", "site-v8.css?v=20260811-passport29")
+    .replaceAll("site-v8.js?v=20260811-passport28", "site-v8.js?v=20260811-passport29")
+    .replaceAll("site-v8.css?v=20260811-passport29", "site-v8.css?v=20260811-passport30")
+    .replaceAll("site-v8.js?v=20260811-passport29", "site-v8.js?v=20260811-passport30");
+}
+
 const BUILT_IN_SITE_ASSETS = Object.freeze({
   "/site-assets/site.css": "site.css",
   "/site-assets/site.js": "site.js",
@@ -56,7 +114,23 @@ const BUILT_IN_SITE_ASSETS = Object.freeze({
   "/site-assets-r6/favicon.svg": "favicon.svg",
   "/site-assets-r6/geo-signal-hero.svg": "geo-signal-hero.svg",
   "/site-assets-r6/geo-answer-hero.svg": "geo-answer-hero.svg",
-  "/site-assets-r6/geo-network-hero.svg": "geo-network-hero.svg"
+  "/site-assets-r6/geo-network-hero.svg": "geo-network-hero.svg",
+  "/site-assets-r7/site-v7.css": "site-v7.css",
+  "/site-assets-r7/site-v7.js": "site-v7.js",
+  "/site-assets-r8/site-v8.css": "site-v8.css",
+  "/site-assets-r8/site-v8.js": "site-v8.js",
+  "/site-assets-r9/site-v8.css": "site-v8.css",
+  "/site-assets-r9/site-v8.js": "site-v8.js",
+  "/site-assets-r9/gsap.min.js": "gsap.min.js",
+  "/site-assets-r9/tz-display.woff2": "fonts/tz-display.woff2",
+  "/site-assets-r9/OFL-Smiley-Sans.txt": "fonts/OFL-Smiley-Sans.txt",
+  "/assets/tongzhuo-geo-mark.svg": "tongzhuo-geo-mark.svg",
+  "/assets/tongzhuo-official-mark.png": "tongzhuo-official-mark.png",
+  "/assets/tongzhuo-mark-gold.png": "tongzhuo-mark-gold.png",
+  "/assets/tongzhuo-mark-wine.png": "tongzhuo-mark-wine.png",
+  "/assets/zhuojian-ai-official-logo.png": "zhuojian-ai-official-logo.png",
+  "/assets/zhuojian-ai-lockup-gold.png": "zhuojian-ai-lockup-gold.png",
+  "/assets/zhuojian-ai-brand.png": "zhuojian-ai-brand.png"
 });
 
 const LEGACY_REDIRECTS = Object.freeze({
@@ -302,7 +376,7 @@ function publishedRuntimeSnapshot(snapshot, production) {
 
 function displayedArticles(site, articles) {
   if (articles.length || site.frontendDemo !== true) return articles;
-  return FRONTEND_DEMO_ARTICLE_SLUGS.map((slug) => findFrontendArticle(slug)).filter(Boolean);
+  return FRONTEND_DEMO_ARTICLE_SLUGS.map((slug) => findFrontendArticle(slug)).filter(Boolean).map((article) => ({ ...article, isDemo: true }));
 }
 
 function paginationState(url, itemCount, pageSize = INSIGHTS_PAGE_SIZE) {
@@ -327,7 +401,7 @@ function frontendDemoPageForPath(site, pathname) {
 }
 
 function redirectLocation(site, pathname, search = "") {
-  if (RESERVED_REDIRECT_PATHS.has(pathname) || pathname.startsWith("/api/") || pathname.startsWith("/assets/") || pathname.startsWith("/site-assets/") || pathname.startsWith("/site-assets-r5/") || pathname.startsWith("/site-assets-r6/")) return "";
+  if (RESERVED_REDIRECT_PATHS.has(pathname) || pathname.startsWith("/api/") || pathname.startsWith("/assets/") || pathname.startsWith("/site-assets/") || pathname.startsWith("/site-assets-r5/") || pathname.startsWith("/site-assets-r6/") || pathname.startsWith("/site-assets-r7/") || pathname.startsWith("/site-assets-r8/") || pathname.startsWith("/site-assets-r9/")) return "";
   const key = routeKey(pathname);
   if (!key) return "";
   const configured = (site.redirects || []).find((item) => item?.status === "active" && routeKey(item.from) === key);
@@ -488,7 +562,7 @@ export function createSiteRuntime(options = {}) {
     if ((cmsPage || demoPage) && (cmsPage?.id !== "insights")) {
       const page = demoPage || cmsPage;
       if (!demoPage && cmsPage.status !== "published") return response(request, responseObject, { status: 404, body: renderNotFound({ site, origin, pathname }) }, { pathname });
-      const body = renderFixedPage({ site, page, articles: visibleArticles, categories, origin });
+      const body = refreshSiteAssetVersion(renderFixedPage({ site, page, articles: visibleArticles, categories, origin }));
       return response(request, responseObject, { status: 200, body, canonical: new URL(page.path, origin).href }, { pathname: page.path });
     }
     const problemMatch = pathname.match(/^\/problem-map\/([^/]+)\/?$/);
@@ -504,7 +578,7 @@ export function createSiteRuntime(options = {}) {
       if (pathname !== canonicalPath) {
         return response(request, responseObject, { status: 301, body: "", headers: { Location: `${canonicalPath}${url.search}` }, cacheControl: "public, max-age=300" }, { pathname });
       }
-      const body = renderProblemPage({ site, problem: found.problem, group: found.group, articles: visibleArticles, origin });
+      const body = refreshSiteAssetVersion(renderProblemPage({ site, problem: found.problem, group: found.group, articles: visibleArticles, origin }));
       return response(request, responseObject, { status: 200, body, canonical: new URL(canonicalPath, origin).href }, { pathname });
     }
     if (pathname === "/insights" || pathname === "/insights/") {
@@ -513,7 +587,7 @@ export function createSiteRuntime(options = {}) {
       if (!pagination.valid) return response(request, responseObject, { status: 404, body: renderNotFound({ site, origin, pathname }) }, { pathname });
       const canonicalBase = safeInternalPath(insightsPage.path) || "/insights/";
       const canonicalPath = pagedPath(canonicalBase, pagination.page);
-      return response(request, responseObject, { status: 200, body: renderInsightsPage({ site, articles: visibleArticles, categories, origin, page: pagination.page }), canonical: new URL(canonicalPath, origin).href }, { pathname: canonicalBase });
+       return response(request, responseObject, { status: 200, body: refreshSiteAssetVersion(renderInsightsPage({ site, articles: visibleArticles, categories, origin, page: pagination.page })), canonical: new URL(canonicalPath, origin).href }, { pathname: canonicalBase });
     }
     const categoryMatch = pathname.match(/^\/insights\/category\/([^/]+)\/?$/);
     if (categoryMatch) {
@@ -528,14 +602,14 @@ export function createSiteRuntime(options = {}) {
       }
       const pagination = paginationState(url, categoryArticles.length);
       if (!pagination.valid) return response(request, responseObject, { status: 404, body: renderNotFound({ site, origin, pathname }) }, { pathname });
-      const body = renderInsightsPage({
-        site,
-        articles: categoryArticles,
-        categories,
-        selectedCategory: category,
-        origin,
-        page: pagination.page
-      });
+       const body = refreshSiteAssetVersion(renderInsightsPage({
+         site,
+         articles: categoryArticles,
+         categories,
+         selectedCategory: category,
+         origin,
+         page: pagination.page
+       }));
       const canonical = new URL(pagedPath(canonicalBase, pagination.page), origin).href;
       return response(request, responseObject, { status: 200, body, canonical }, { pathname });
     }
@@ -550,8 +624,8 @@ export function createSiteRuntime(options = {}) {
         return response(request, responseObject, { status: 301, body: "", headers: { Location: `${canonicalPath}${url.search}` }, cacheControl: "public, max-age=300" }, { pathname, articleId: article.id });
       }
       const related = visibleArticles.filter((item) => item.id !== article.id && (item.categoryId === article.categoryId || item.categorySlug === article.categorySlug)).slice(0, 3);
-      const rendered = renderArticlePage({ site, article, origin, relatedArticles: related, compatibility: articleMatch[1] === "article" });
-      return response(request, responseObject, { status: 200, body: rendered.html, canonical: new URL(canonicalPath, origin).href }, { pathname, articleId: article.id });
+       const rendered = renderArticlePage({ site, article, origin, relatedArticles: related, compatibility: articleMatch[1] === "article" });
+       return response(request, responseObject, { status: 200, body: refreshSiteAssetVersion(rendered.html), canonical: new URL(canonicalPath, origin).href }, { pathname, articleId: article.id });
     }
     return false;
   }
@@ -565,7 +639,7 @@ export function createSiteRuntime(options = {}) {
       status: 200,
       body: file.body,
       contentType: contentType(relativePath),
-      cacheControl: "public, max-age=3600"
+      cacheControl: "no-cache"
     }, { pathname, track: false });
   }
 
