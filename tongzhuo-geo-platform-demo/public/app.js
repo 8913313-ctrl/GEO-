@@ -3492,6 +3492,7 @@ const ui = {
   selectedPackId: state.keywordPacks[0]?.id || null,
   expanding: false,
   topicGenerating: false,
+  topicGenerationProgress: null,
   contentView: "articles",
   studioWorkspaceId: null,
   studioArticleId: null,
@@ -4454,19 +4455,24 @@ function renderQuestionLibrary() {
   const line = activeBusinessLine();
   const questions = state.questionLibrary.filter((question) => question.businessLineId === line?.id && question.status === "active" && !planningQuestionTopics(question).some((topic) => topic.status !== "archived"));
   const selected = questions.filter((question) => question.selected);
+  const generationProgress = ui.topicGenerating ? ui.topicGenerationProgress : null;
+  const generatingQuestionIds = new Set(generationProgress?.questionIds || []);
+  const generationPercent = generationProgress?.total ? Math.min(100, Math.round(generationProgress.completed / generationProgress.total * 100)) : 0;
+  const generationProgressMarkup = generationProgress ? `<div class="topic-generation-progress" role="status" aria-live="polite"><div class="topic-generation-progress-copy"><span class="topic-generation-progress-icon"><span class="loading-spinner dark"></span></span><span><b>正在生成选题</b><small>已处理 ${generationProgress.completed} / ${generationProgress.total} 个问题${generationProgress.failed ? ` · ${generationProgress.failed} 个待重试` : ""}</small></span><strong>${generationPercent}%</strong></div><div class="topic-generation-progress-track" role="progressbar" aria-label="选题生成进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${generationPercent}"><i style="width:${generationPercent}%"></i></div></div>` : "";
   const rows = questions.map((question) => {
     const refs = planningQuestionReferences(question);
     const activeTopics = refs.topics.filter((topic) => topic.status !== "archived");
     const archivedTopics = refs.topics.filter((topic) => topic.status === "archived");
-    const topicState = activeTopics.length ? `<span class="status-badge status-approved">${activeTopics.length} 个选题</span>` : archivedTopics.length ? `<span class="status-badge status-archived">${archivedTopics.length} 个已归档</span>` : '<span class="status-badge status-review">待生成</span>';
+    const questionGenerating = generatingQuestionIds.has(String(question.id));
+    const topicState = activeTopics.length ? `<span class="status-badge status-approved">${activeTopics.length} 个选题</span>` : archivedTopics.length ? `<span class="status-badge status-archived">${archivedTopics.length} 个已归档</span>` : questionGenerating ? '<span class="status-badge status-running"><span class="loading-spinner dark"></span>生成中</span>' : '<span class="status-badge status-review">待生成</span>';
     const referenceText = refs.plans.length || refs.articles.length ? `${refs.plans.length} 计划 · ${refs.articles.length} 文章` : "暂无引用";
-    const topicAction = activeTopics.length ? "" : `<button class="link-button" type="button" data-action="question-to-topic" data-question-id="${escapeHtml(question.id)}">生成选题</button>`;
+    const topicAction = activeTopics.length ? "" : `<button class="link-button" type="button" data-action="question-to-topic" data-question-id="${escapeHtml(question.id)}" ${ui.topicGenerating ? "disabled" : ""}>${questionGenerating ? "生成中" : "生成选题"}</button>`;
     const coreKeywordText = (question.sourceCoreKeywords || []).join("、");
     return `<tr><td><input class="checkbox" type="checkbox" data-question-select="${question.id}" aria-label="选择问题 ${escapeHtml(question.question)}" ${question.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(question.question)}</b><small>${escapeHtml(question.id)} · v${escapeHtml(question.version || 1)} · ${escapeHtml(question.source)}</small></td><td><b>${escapeHtml(question.sourceSeedKeyword || question.sourceKeyword)}</b>${coreKeywordText ? `<small style="display:block;color:var(--muted-2);margin-top:4px">核心词：${escapeHtml(coreKeywordText)}</small>` : ""}</td><td><span class="small-tag ${question.coverage === "未覆盖" ? "teal" : ""}">${escapeHtml(question.coverage)}</span></td><td>${topicState}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${topicAction}<button class="link-button" type="button" data-action="edit-question" data-question-id="${escapeHtml(question.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-question" data-question-id="${escapeHtml(question.id)}">归档</button></div></td></tr>`;
   }).join("");
   return `
     <section class="card toolbar-card question-add-bar"><div class="field grow"><label for="question-input">手动添加客户问题</label><input class="input ${ui.questionError ? "input-error" : ""}" id="question-input" value="${escapeHtml(ui.questionInput)}" placeholder="例如：制造企业如何开始做 AI 搜索优化？" autocomplete="off" />${ui.questionError ? '<small class="error-text">' + escapeHtml(ui.questionError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="add-question"><span data-icon="plus"></span>添加问题</button></section>
-    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 问题词库</h3><p>关键词拓展、人工录入和监测缺口统一沉淀在这里；已归档问题可在归档管理中恢复。</p></div><span class="small-tag blue">${questions.length} 个问题</span></div>${questions.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("question-library", questions.length, selected.length, "全选问题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>标准问题</th><th>来源种子词 / 核心词</th><th>覆盖</th><th>选题状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="help"></span><h3>还没有问题</h3><p>先到关键词拓展生成问题，或在上方手动添加。</p></div></div>'}</section>
+    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 问题词库</h3><p>关键词拓展、人工录入和监测缺口统一沉淀在这里；已归档问题可在归档管理中恢复。</p></div><span class="small-tag blue">${questions.length} 个问题</span></div>${generationProgressMarkup}${questions.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("question-library", questions.length, selected.length, "全选问题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>标准问题</th><th>来源种子词 / 核心词</th><th>覆盖</th><th>选题状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="help"></span><h3>还没有问题</h3><p>先到关键词拓展生成问题，或在上方手动添加。</p></div></div>'}</section>
     ${selected.length ? '<div class="selection-bar"><span>已选择 <b>' + selected.length + '</b> 个问题</span><button class="primary-button button-small" type="button" data-action="questions-to-topics" ' + (ui.topicGenerating ? "disabled" : "") + '><span data-icon="arrow"></span>' + (ui.topicGenerating ? "正在生成…" : "生成选题") + '</button></div>' : ""}
   `;
 }
@@ -4809,7 +4815,8 @@ function renderStudioChat(workspace, conversation, article) {
   const selectedAgent = writingAgentById(conversation?.selectedAgentId) || writingAgentById(workspace.writingAgentId);
   const agents = activeWritingAgents(line?.id, workspace.contentType || article?.category || null);
   const agentOptions = agents.map((agent) => `<option value="${agent.id}" ${agent.id === selectedAgent?.id ? "selected" : ""}>${escapeHtml(agent.name)} · v${escapeHtml(agent.version)}</option>`).join("");
-  const messages = (conversation?.messages || []).map((message) => renderStudioMessage(message, conversation)).join("");
+  let messages = (conversation?.messages || []).map((message) => renderStudioMessage(message, conversation)).join("");
+  if (ui.studioGenerating && !article) messages += '<div class="studio-message assistant studio-generating-message"><span class="studio-message-avatar">AI</span><div class="studio-message-card is-thinking"><span>正在检索企业知识并撰写初稿</span></div></div>';
   const knowledgeChips = (conversation?.selectedKnowledgeItemIds || []).map((itemId) => knowledgeItemById(itemId)).filter(Boolean).map((item) => `<span class="studio-selection-chip"><span data-icon="book"></span><b>${escapeHtml(item.title || item.question)}</b><button type="button" data-action="remove-studio-context" data-kind="knowledge" data-id="${item.id}"><span data-icon="x"></span></button></span>`).join("");
   const attachmentChips = (workspace.attachmentIds || []).map((assetId) => (state.contentAssets || []).find((asset) => asset.id === assetId)).filter(Boolean).map((asset) => `<span class="studio-selection-chip"><span data-icon="paperclip"></span><b>${escapeHtml(asset.name)}</b><button type="button" data-action="remove-studio-context" data-kind="attachment" data-id="${asset.id}"><span data-icon="x"></span></button></span>`).join("");
   const imageChips = (conversation?.imageIds || []).map((assetId) => (state.contentAssets || []).find((asset) => asset.id === assetId)).filter(Boolean).map((asset) => `<span class="studio-selection-chip"><span data-icon="image"></span><b>${escapeHtml(asset.name)}</b><button type="button" data-action="remove-studio-context" data-kind="image" data-id="${asset.id}"><span data-icon="x"></span></button></span>`).join("");
@@ -4831,6 +4838,9 @@ function renderStudioTextEditor(workspace) {
   const draftTitle = workspace.draftTitle || workspace.topic?.title || "";
   const draftContent = workspace.draftContent || "";
   const bodyHtml = workspace.draftContentHtml || escapeHtml(draftContent).replace(/\n/g, "<br>");
+  if (ui.studioGenerating) {
+    return `<main class="studio-editor-panel studio-generating-editor" aria-busy="true"><div class="studio-editor-head"><div><h3>文章编辑器</h3><p>系统正在基于选题与企业知识生成初稿</p></div><span class="status-badge status-running"><span class="loading-spinner dark"></span>生成中</span></div><div class="studio-generation-stage" role="status" aria-live="polite"><div class="studio-generation-visual" aria-hidden="true"><span data-icon="file"></span><i></i><i></i><i></i></div><h3>正在生成文章初稿</h3><p>正在核对企业知识、组织回答结构并写入可编辑正文。</p><div class="studio-generation-steps" aria-hidden="true"><span class="done"><i></i>读取选题</span><span class="active"><i></i>检索知识</span><span><i></i>生成正文</span></div><div class="studio-generation-track" aria-hidden="true"><i></i></div></div></main>`;
+  }
   return `<main class="studio-editor-panel studio-quick-editor"><div class="studio-editor-head"><div><h3>文章编辑器</h3><p>直接编辑标题和正文；写作与修改要求请在右侧 AI 协作中沟通</p></div><span class="status-badge status-draft">编辑中</span></div>${renderStudioRichToolbar()}<textarea class="studio-title-input" id="studio-title-editor" rows="2" placeholder="请输入标题">${escapeHtml(draftTitle)}</textarea><article class="studio-editor-body studio-quick-content" id="studio-content-editor" contenteditable="true" spellcheck="true" data-placeholder="请输入文章内容…">${bodyHtml}</article><section class="studio-publication-setting"><strong>发布展示</strong>${renderPublicCitationSetting(workspace.showPublicCitationMarkers === true, "studio-show-public-citations")}</section></main>`;
 }
 
@@ -14278,6 +14288,7 @@ async function questionsToTopics(questionIds = null) {
     return showToast("选题已经存在", "所选问题都已关联选题，已切换到选题库。");
   }
   ui.topicGenerating = true;
+  ui.topicGenerationProgress = { total: pending.length, completed: 0, failed: 0, questionIds: pending.map((question) => String(question.id)) };
   render();
   const batches = [];
   for (let index = 0; index < pending.length; index += 20) batches.push(pending.slice(index, index + 20));
@@ -14325,6 +14336,9 @@ async function questionsToTopics(questionIds = null) {
       if (!Array.isArray(rawTopics) || !rawTopics.length) throw new Error("模型没有返回可用选题");
     } catch (error) {
       batch.forEach((question) => addFailure(question, error.message || "本批选题生成失败"));
+      ui.topicGenerationProgress.completed += batch.length;
+      ui.topicGenerationProgress.failed = failures.length;
+      render();
       continue;
     }
 
@@ -14360,13 +14374,14 @@ async function questionsToTopics(questionIds = null) {
       }
     });
     batch.filter((question) => !completedQuestionIds.has(question.id)).forEach((question) => addFailure(question, "模型没有为该问题返回选题"));
-    if (completedQuestionIds.size) {
-      saveState();
-      render();
-    }
+    ui.topicGenerationProgress.completed += batch.length;
+    ui.topicGenerationProgress.failed = failures.length;
+    if (completedQuestionIds.size) saveState();
+    render();
   }
 
   ui.topicGenerating = false;
+  ui.topicGenerationProgress = null;
   if (created.length) ui.planningTab = "topics";
   saveState();
   render();
@@ -15234,7 +15249,7 @@ function openTopicDirectStudio(topicId) {
     conversation.selectedKnowledgeBaseIds = cloneData(inheritedBaseIds);
     conversation.selectedKnowledgeItemIds = [];
     conversation.webSearchEnabled = false;
-    conversation.messages = [{ id: uid("MSG"), role: "assistant", text: `已带入选题「${topic.title}」。核心回答问题是「${coreQuestion}」。你可以直接发送下方写作要求生成初稿，也可以先补充文章结构、语气或受众。`, createdAt: now, agentSnapshot, contextSnapshot: { businessLineId: line.id, sourceTopicId: topic.id, knowledgeBaseIds: cloneData(inheritedBaseIds), webSearchEnabled: false } }];
+    conversation.messages = [{ id: uid("MSG"), role: "assistant", text: `已带入选题「${topic.title}」。正在核对企业知识并生成文章初稿，完成后可继续调整结构、语气或受众。`, createdAt: now, agentSnapshot, contextSnapshot: { businessLineId: line.id, sourceTopicId: topic.id, knowledgeBaseIds: cloneData(inheritedBaseIds), webSearchEnabled: false } }];
     conversation.updatedAt = now;
   }
   ui.studioWorkspaceId = workspace.id;
@@ -15244,13 +15259,22 @@ function openTopicDirectStudio(topicId) {
   ui.studioAgentId = agent?.id || null;
   ui.studioWebSearch = false;
   ui.studioPicker = null;
-  ui.studioComposerDraft = "请基于这个选题和企业知识生成文章初稿";
+  ui.studioComposerDraft = "";
   ui.contentView = "studio";
   ui.studioPane = "editor";
   saveState();
   closeModal();
   navigate("content");
-  window.setTimeout(() => document.getElementById("studio-composer-input")?.focus(), 40);
+  window.setTimeout(async () => {
+    const instruction = `请基于选题「${topic.title}」和企业知识生成文章初稿。核心回答问题：${coreQuestion}`;
+    const generated = await generateStudioArticle(instruction, { autoStart: true });
+    if (!generated && !studioArticleForWorkspace(workspace)) {
+      ui.studioComposerDraft = instruction;
+      saveState();
+      render();
+      document.getElementById("studio-composer-input")?.focus();
+    }
+  }, 40);
 }
 
 function openTopicPlanPicker(topicId) {
@@ -15781,6 +15805,7 @@ async function sendStudioChat() {
   const workspace = studioWorkspaceById(ui.studioWorkspaceId);
   const conversation = studioConversationForWorkspace(workspace);
   if (!workspace || !conversation) return;
+  if (ui.studioGenerating) return showToast("文章正在生成", "初稿完成后可以继续通过 AI 协作调整内容。", "warning");
   const input = document.getElementById("studio-composer-input");
   const prompt = (input?.value || ui.studioComposerDraft).trim();
   if (!prompt) return showToast("请输入调整要求", "例如：改成采购决策结构，并保留知识引用。", "error");
@@ -15990,12 +16015,17 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   const sourceTopicSnapshot = cloneData(workspace.sourceTopicSnapshot || null);
   let remoteGeneration = null;
   if (!options.manualOnly) {
-    const providerId = await ensureSelectedTextProviderId();
-    if (!providerId) return showToast("尚未配置文本模型", "请先在系统设置 → 模型与 API 中绑定默认文本模型。", "error");
-    const approvedEvidence = aiEvidencePayload(evidence);
     ui.studioGenerating = true;
     saveState();
     render();
+    const providerId = await ensureSelectedTextProviderId();
+    if (!providerId) {
+      ui.studioGenerating = false;
+      saveState();
+      render();
+      return showToast("尚未配置文本模型", "请先在系统设置 → 模型与 API 中绑定默认文本模型。", "error");
+    }
+    const approvedEvidence = aiEvidencePayload(evidence);
     try {
       const modelQuestion = /[？?]/.test(topic.geoBrief.coreQuestion || "")
         ? topic.geoBrief.coreQuestion
@@ -18895,7 +18925,7 @@ document.addEventListener("input", (event) => {
   if (event.target.id === "studio-composer-input") {
     ui.studioComposerDraft = event.target.value;
     const sendButton = document.querySelector('[data-action="send-studio-chat"]');
-    if (sendButton) sendButton.disabled = !event.target.value.trim();
+    if (sendButton) sendButton.disabled = ui.studioGenerating || !event.target.value.trim();
   }
   if (event.target.id === "studio-title-editor" || event.target.id === "studio-content-editor") {
     const workspace = studioWorkspaceById(ui.studioWorkspaceId);
