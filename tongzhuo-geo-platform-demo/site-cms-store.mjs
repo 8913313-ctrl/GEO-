@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { appendAuditLog } from "./production-audit.mjs";
-import { DEFAULT_SITE_TEMPLATE_KEY, isSiteTemplateKey } from "./site-template-registry.mjs";
+import { DEFAULT_SITE_TEMPLATE_KEY, isSiteTemplateKey, SITE_TEMPLATES } from "./site-template-registry.mjs";
 
 const CORE_PAGE_IDS = new Set(["home", "services", "about", "contact", "insights", "cases", "problem-map"]);
 const OPTIONAL_PATHS = new Set(["/cases/", "/faq/", "/team/", "/honors/", "/jobs/"]);
@@ -40,6 +40,59 @@ function cleanPublicUrl(value, { allowRelative = false } = {}) {
 
 function cleanOptionalImage(value) {
   return cleanPublicUrl(value, { allowRelative: true });
+}
+
+function cleanFooterHref(value) {
+  const candidate = cleanText(value, "", 1_000);
+  if (!candidate) return "";
+  if (candidate.startsWith("/") && !candidate.startsWith("//")) return normalizeCmsPath(candidate);
+  if (/^(?:mailto:|tel:)[^\s]+$/i.test(candidate)) return candidate;
+  return cleanPublicUrl(candidate);
+}
+
+function normalizeFooterLinks(value, maximum = 8) {
+  return (Array.isArray(value) ? value : []).slice(0, maximum).map((item, index) => ({
+    id: cleanId(item?.id, `footer-link-${index + 1}`),
+    label: cleanText(item?.label, `链接 ${index + 1}`, 120),
+    href: cleanFooterHref(item?.href || item?.path || "/")
+  })).filter((item) => item.label && item.href);
+}
+
+function normalizeFooter(value = {}) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const rawColumns = Array.isArray(source.columns) ? source.columns : [];
+  return {
+    description: cleanText(source.description, "企业公开信息、产品服务与行业内容。", 800),
+    copyright: cleanText(source.copyright, "版权所有", 200),
+    icpNumber: cleanText(source.icpNumber, "", 120),
+    icpUrl: cleanPublicUrl(source.icpUrl),
+    policeRecordNumber: cleanText(source.policeRecordNumber, "", 160),
+    policeRecordUrl: cleanPublicUrl(source.policeRecordUrl),
+    showIcp: source.showIcp !== false,
+    showPoliceRecord: source.showPoliceRecord !== false,
+    showCopyright: source.showCopyright !== false,
+    showSocial: source.showSocial !== false,
+    columns: rawColumns.slice(0, 6).map((column, index) => ({
+      id: cleanId(column?.id, `footer-column-${index + 1}`),
+      title: cleanText(column?.title, `栏目 ${index + 1}`, 120),
+      links: normalizeFooterLinks(column?.links)
+    })).filter((column) => column.title && column.links.length),
+    socialLinks: normalizeFooterLinks(source.socialLinks, 12)
+  };
+}
+
+function normalizeTemplateConfigs(value = {}) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return Object.fromEntries(SITE_TEMPLATES.map((template) => {
+    const current = source[template.key] && typeof source[template.key] === "object" ? source[template.key] : {};
+    return [template.key, {
+      defaultImageUrl: cleanOptionalImage(current.defaultImageUrl || (template.defaultImage ? `/assets/${template.defaultImage}` : "")),
+      defaultImageAlt: cleanText(current.defaultImageAlt, `${template.shortName}默认图片`, 180),
+      logoUrl: cleanOptionalImage(current.logoUrl),
+      faviconUrl: cleanOptionalImage(current.faviconUrl),
+      updatedAt: current.updatedAt || null
+    }];
+  }));
 }
 
 function cleanPublicUrlList(value, maximum = 12) {
@@ -313,6 +366,13 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
     sameAs: cleanPublicUrlList(settingsSource.sameAs),
     allowAiCrawl: settingsSource.allowAiCrawl !== false, updatedAt: settingsSource.updatedAt || null
   };
+  const assetsSource = cms.assets && typeof cms.assets === "object" ? cms.assets : {};
+  const assets = {
+    logoUrl: cleanOptionalImage(assetsSource.logoUrl || settings.logoUrl),
+    faviconUrl: cleanOptionalImage(assetsSource.faviconUrl),
+    defaultImageUrl: cleanOptionalImage(assetsSource.defaultImageUrl || "/assets/template-01-default.png"),
+    defaultImageAlt: cleanText(assetsSource.defaultImageAlt, "企业默认图片", 180)
+  };
   const rawPages = Array.isArray(cms.pages) && cms.pages.length ? cms.pages : defaultPages();
   const pages = rawPages.filter((item) => item && typeof item === "object").slice(0, 60).map(normalizePage);
   for (const fallback of defaultPages()) if (!pages.some((page) => page.id === fallback.id)) pages.push(normalizePage(fallback, pages.length));
@@ -375,7 +435,7 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const standardRedirects = [["/index.html", "/"], ["/products.html", "/services/"], ["/products/", "/services/"], ["/about.html", "/about/"], ["/contact.html", "/contact/"], ["/insights.html", "/insights/"]];
   for (const [from, to] of standardRedirects) if (!redirects.some((item) => item.from === from)) redirects.push({ id: `standard-${slugify(from, "redirect")}`, from, to, status: "active", reason: "统一官网规范地址", updatedAt: null });
   return {
-    schemaVersion: 3, templateKey, settings, theme: { ...theme, templateKey }, pages, modules, categories, navItems, redirects,
+    schemaVersion: 4, templateKey, settings, assets, templateConfigs: normalizeTemplateConfigs(cms.templateConfigs), footer: normalizeFooter(cms.footer), theme: { ...theme, templateKey }, pages, modules, categories, navItems, redirects,
     services: normalizeServices(cms.services), cases: normalizeCases(cms.cases), problemGroups: normalizeProblemGroups(cms.problemGroups),
     businessLines: normalizeBusinessLines(state), generatedAt: cleanText(cms.generatedAt, new Date().toISOString(), 80)
   };

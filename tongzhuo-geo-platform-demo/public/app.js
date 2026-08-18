@@ -980,6 +980,12 @@ function defaultState() {
           allowAiCrawl: true,
           updatedAt: "2026-07-24T09:20:00.000Z"
         },
+        assets: {
+          logoUrl: "",
+          faviconUrl: "",
+          defaultImageUrl: "/assets/template-01-default.png",
+          defaultImageAlt: "企业默认图片"
+        },
         pages: [
           { id: "home", type: "首页", title: "首页", path: "/", status: "published", description: "企业定位、核心服务、案例与咨询入口", seoDescription: "桐灼科技为企业提供 GEO 优化、内容运营与 AI 落地服务。", schemaEnabled: true, sitemapEnabled: true, version: 3, savedAt: "2026-07-24T09:20:00.000Z", publishedAt: "2026-07-24T09:20:00.000Z", versions: [{ version: 2, title: "首页", path: "/", description: "企业定位、核心服务、案例与咨询入口", seoDescription: "桐灼科技为企业提供 GEO 优化、内容运营与 AI 落地服务。", savedAt: "2026-07-16T09:20:00.000Z", note: "首页信源结构更新" }] },
           { id: "about", type: "关于页", title: "关于我们", path: "/about/", status: "published", description: "企业主体、团队与发展信息", seoDescription: "了解桐灼科技的企业主体、团队与服务理念。", schemaEnabled: true, sitemapEnabled: true, version: 2, savedAt: "2026-07-21T09:20:00.000Z", publishedAt: "2026-07-21T09:20:00.000Z", versions: [] },
@@ -1038,6 +1044,21 @@ function defaultState() {
           { id: "nav-contact", label: "联系我们", path: "/contact/", type: "固定页面", visible: true }
         ],
         theme: { name: "桐灼企业官网 · 标准版", primaryColor: "#1D5CFF", cta: "预约业务诊断", version: 1, updatedAt: "2026-07-24T09:20:00.000Z" },
+        templateConfigs: {},
+        footer: {
+          description: "企业公开信息、产品服务与行业内容。",
+          copyright: "版权所有",
+          icpNumber: "",
+          icpUrl: "",
+          policeRecordNumber: "",
+          policeRecordUrl: "",
+          showIcp: true,
+          showPoliceRecord: true,
+          showCopyright: true,
+          showSocial: true,
+          columns: [],
+          socialLinks: []
+        },
         leads: [
           { id: "LEAD-001", name: "李先生", company: "山东某机械制造企业", service: "GEO 优化服务", createdAt: "今天 10:06", sourcePage: "服务页", status: "new", owner: "王宁", nextFollowAt: "今天 16:00", notes: "客户关注制造业 AI 搜索场景。", history: [] },
           { id: "LEAD-002", name: "刘经理", company: "淄博某新材料公司", service: "企业 AI 落地", createdAt: "昨天 16:34", sourcePage: "服务页", status: "contacted", owner: "王宁", nextFollowAt: "2026-07-25 10:00", notes: "已电话沟通，待补充现有资料。", history: [{ at: "昨天 17:10", note: "完成首次电话沟通", status: "contacted" }] },
@@ -1552,6 +1573,9 @@ function migrateState(parsed) {
     ...cloneData(defaultCms),
     ...savedCms,
     settings: { ...cloneData(defaultCms.settings), ...(savedCms.settings || {}) },
+    assets: { ...cloneData(defaultCms.assets || { logoUrl: "", faviconUrl: "", defaultImageUrl: "", defaultImageAlt: "企业默认图片" }), ...(savedCms.assets || {}) },
+    templateConfigs: savedCms.templateConfigs && typeof savedCms.templateConfigs === "object" ? savedCms.templateConfigs : cloneData(defaultCms.templateConfigs || {}),
+    footer: { ...cloneData(defaultCms.footer || { columns: [], socialLinks: [] }), ...(savedCms.footer || {}), columns: Array.isArray(savedCms.footer?.columns) ? savedCms.footer.columns : cloneData(defaultCms.footer?.columns || []), socialLinks: Array.isArray(savedCms.footer?.socialLinks) ? savedCms.footer.socialLinks : cloneData(defaultCms.footer?.socialLinks || []) },
     pages: Array.isArray(savedCms.pages) ? savedCms.pages : cloneData(defaultCms.pages),
     modules: savedCms.modules && typeof savedCms.modules === "object" ? savedCms.modules : cloneData(defaultCms.modules),
     categories: Array.isArray(savedCms.categories) ? savedCms.categories : cloneData(defaultCms.categories),
@@ -10429,6 +10453,33 @@ function siteCms() {
   return state.site.cms;
 }
 
+function siteCmsAssets() {
+  const cms = siteCms();
+  if (!cms.assets || typeof cms.assets !== "object" || Array.isArray(cms.assets)) cms.assets = {};
+  if (!cms.assets.defaultImageUrl) cms.assets.defaultImageUrl = "/assets/template-01-default.png";
+  if (!cms.assets.defaultImageAlt) cms.assets.defaultImageAlt = "企业默认图片";
+  return cms.assets;
+}
+
+function siteCmsFooter() {
+  const cms = siteCms();
+  if (!cms.footer || typeof cms.footer !== "object" || Array.isArray(cms.footer)) cms.footer = {};
+  if (!Array.isArray(cms.footer.columns)) cms.footer.columns = [];
+  if (!Array.isArray(cms.footer.socialLinks)) cms.footer.socialLinks = [];
+  return cms.footer;
+}
+
+function siteTemplateConfigs() {
+  const cms = siteCms();
+  if (!cms.templateConfigs || typeof cms.templateConfigs !== "object" || Array.isArray(cms.templateConfigs)) cms.templateConfigs = {};
+  SITE_TEMPLATE_REGISTRY.forEach((template) => {
+    if (!cms.templateConfigs[template.key] || typeof cms.templateConfigs[template.key] !== "object") cms.templateConfigs[template.key] = {};
+    if (!cms.templateConfigs[template.key].defaultImageUrl && template.defaultImage) cms.templateConfigs[template.key].defaultImageUrl = `/assets/${template.defaultImage}`;
+    if (!cms.templateConfigs[template.key].defaultImageAlt) cms.templateConfigs[template.key].defaultImageAlt = `${template.shortName}默认图片`;
+  });
+  return cms.templateConfigs;
+}
+
 function sitePages() {
   const cms = siteCms();
   if (!Array.isArray(cms.pages)) cms.pages = [];
@@ -10690,11 +10741,23 @@ function renderSiteNavigation() {
   const modules = siteModules("home");
   const navItems = siteNavItems();
   const theme = siteCms().theme;
+  const assets = siteCmsAssets();
+  const footer = siteCmsFooter();
+  const templateConfigs = siteTemplateConfigs();
+  const templateDefaultImageRows = SITE_TEMPLATE_REGISTRY.map((template) => {
+    const config = templateConfigs[template.key] || {};
+    return `<div class="site-template-image-setting"><div><b>${escapeHtml(template.shortName)}</b><small>${escapeHtml(template.name)}</small></div><input class="input" id="site-template-default-image-${escapeHtml(template.key)}" value="${escapeHtml(config.defaultImageUrl || "")}" placeholder="留空则使用全站默认图片" /></div>`;
+  }).join("");
+  const footerColumnRows = (footer.columns || []).map((column) => `<div class="site-footer-config-row"><div><b>${escapeHtml(column.title || "未命名栏目")}</b><small>${(column.links || []).length} 个链接</small></div><div class="site-footer-config-actions"><button class="link-button" type="button" data-action="site-footer-edit-column" data-column-id="${escapeHtml(column.id)}">编辑</button><button class="icon-button" type="button" data-action="site-footer-delete-column" data-column-id="${escapeHtml(column.id)}" aria-label="删除页脚栏目"><span data-icon="trash"></span></button></div></div>`).join("");
+  const footerSocialRows = (footer.socialLinks || []).map((link) => `<div class="site-footer-config-row"><div><b>${escapeHtml(link.label || "未命名链接")}</b><small>${escapeHtml(link.href || "/")}</small></div><div class="site-footer-config-actions"><button class="link-button" type="button" data-action="site-footer-edit-social" data-social-id="${escapeHtml(link.id)}">编辑</button><button class="icon-button" type="button" data-action="site-footer-delete-social" data-social-id="${escapeHtml(link.id)}" aria-label="删除页脚链接"><span data-icon="trash"></span></button></div></div>`).join("");
+  const footerManagement = `<section class="site-footer-management-grid"><section class="card"><div class="card-header"><div><h3>页脚栏目</h3><p>模板只负责布局，栏目标题和链接由这里统一维护。</p></div><button class="secondary-button button-small" type="button" data-action="site-footer-add-column"><span data-icon="plus"></span>添加栏目</button></div><div class="site-footer-config-list">${footerColumnRows || '<div class="empty-state compact"><div><h3>使用模板默认栏目</h3><p>添加自定义栏目后，官网会优先使用你的配置。</p></div></div>'}</div></section><section class="card"><div class="card-header"><div><h3>页脚入口</h3><p>可维护官网、公众号或其他公开入口地址。</p></div><button class="secondary-button button-small" type="button" data-action="site-footer-add-social"><span data-icon="plus"></span>添加入口</button></div><div class="site-footer-config-list">${footerSocialRows || '<div class="empty-state compact"><div><h3>使用模板默认入口</h3><p>添加后会替换模板默认的联系、资讯和案例入口。</p></div></div>'}</div></section></section>`;
   return `
     <div class="site-page-toolbar"><div><h2>导航与外观</h2><p>一处维护模板、品牌、导航、首页模块和公共信息，不改变文章事实内容。</p></div><button class="primary-button button-small" type="button" data-action="site-nav-save"><span data-icon="check"></span>保存外观设置</button></div>
     ${renderSiteTemplates()}
+    ${footerManagement}
     <div class="site-navigation-grid"><section class="card"><div class="card-header"><div><h3>主导航</h3><p>顺序、名称、地址与显示状态均可维护。</p></div><button class="secondary-button button-small" type="button" data-action="site-nav-add"><span data-icon="plus"></span>添加导航项</button></div><div class="site-nav-list">${navItems.map((item, index) => `<div class="site-nav-row"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><span class="site-module-grip">⋮⋮</span><div><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.path)} · ${escapeHtml(item.type)}</small></div><span class="status-badge ${item.visible ? "status-approved" : "status-draft"}">${item.visible ? "显示" : "隐藏"}</span><button class="icon-button" type="button" data-action="site-nav-edit" data-nav-id="${escapeHtml(item.id)}" aria-label="编辑导航"><span data-icon="edit"></span></button></div>`).join("")}</div></section><section class="card"><div class="card-header"><div><h3>首页语义模块</h3><p>每个模块均可关联知识、产品、案例或资讯。</p></div></div><div class="site-nav-list">${modules.slice(0, 5).map((module, index) => `<div class="site-nav-row compact"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><div><b>${escapeHtml(module.title)}</b><small>${escapeHtml(module.description)}</small></div><span>${module.status === "published" ? statusBadge("published") : statusBadge("draft")}</span><button class="link-button" type="button" data-action="site-module-edit" data-page-id="home" data-module-id="${escapeHtml(module.id)}">编辑</button></div>`).join("")}</div></section></div>
     <section class="card site-theme-card"><div class="card-header"><div><h3>品牌与公共信息</h3><p>维护品牌主色和默认 CTA；Logo、联系方式、页脚与备案信息等公共字段也统一由这里承载。当前版本 v${escapeHtml(theme.version || 1)}。</p></div></div><div class="field-row"><div class="field"><label for="site-theme-color">品牌主色</label><div class="color-setting"><i style="background:${escapeHtml(theme.primaryColor)}"></i><input class="input" id="site-theme-color" value="${escapeHtml(theme.primaryColor)}" /></div></div><div class="field"><label for="site-theme-cta">默认 CTA 文案</label><input class="input" id="site-theme-cta" value="${escapeHtml(theme.cta)}" /></div></div></section>
+    <div class="site-public-settings-grid"><section class="card site-public-assets-card"><div class="card-header"><div><h3>品牌素材与默认图片</h3><p>有内容图片时显示内容图片；没有时按当前模板、全站默认图片的顺序兜底。</p></div></div><div class="field-row"><div class="field"><label for="site-assets-logo">官网 Logo 图片地址</label><input class="input" id="site-assets-logo" value="${escapeHtml(assets.logoUrl || siteCms().settings?.logoUrl || "")}" placeholder="/assets/logo.png 或 https://..." /></div><div class="field"><label for="site-assets-favicon">浏览器图标地址</label><input class="input" id="site-assets-favicon" value="${escapeHtml(assets.faviconUrl || "")}" placeholder="/assets/favicon.png" /></div></div><div class="field-row"><div class="field"><label for="site-assets-default-image">全站默认图片</label><input class="input" id="site-assets-default-image" value="${escapeHtml(assets.defaultImageUrl || "")}" placeholder="/assets/default-cover.webp" /></div><div class="field"><label for="site-assets-default-image-alt">默认图片说明</label><input class="input" id="site-assets-default-image-alt" value="${escapeHtml(assets.defaultImageAlt || "企业默认图片")}" placeholder="用于无障碍说明" /></div></div><div class="site-template-image-list"><div class="site-template-image-list-head"><b>模板专属默认图片</b><small>每套模板可以有自己的图片；留空时继承全站默认图片。</small></div>${templateDefaultImageRows}</div></section><section class="card site-public-footer-card"><div class="card-header"><div><h3>页脚与备案</h3><p>这些内容属于企业公开信息，发布后会同步到所有已适配模板。</p></div></div><div class="field"><label for="site-footer-description">页脚说明</label><textarea class="textarea" id="site-footer-description" rows="3" placeholder="一句话说明企业和官网定位">${escapeHtml(footer.description || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-footer-copyright">版权文字</label><input class="input" id="site-footer-copyright" value="${escapeHtml(footer.copyright || "")}" placeholder="版权所有" /></div><div class="field"><label for="site-footer-icp">ICP备案号</label><input class="input" id="site-footer-icp" value="${escapeHtml(footer.icpNumber || "")}" placeholder="例如：京ICP备XXXXXXXX号" /></div></div><div class="field-row"><div class="field"><label for="site-footer-icp-url">ICP备案链接</label><input class="input" id="site-footer-icp-url" value="${escapeHtml(footer.icpUrl || "")}" placeholder="https://beian.miit.gov.cn/" /></div><div class="field"><label for="site-footer-police">公安备案号</label><input class="input" id="site-footer-police" value="${escapeHtml(footer.policeRecordNumber || "")}" placeholder="例如：京公网安备XXXXXXXX号" /></div></div><div class="field"><label for="site-footer-police-url">公安备案链接</label><input class="input" id="site-footer-police-url" value="${escapeHtml(footer.policeRecordUrl || "")}" placeholder="https://beian.mps.gov.cn/" /></div><div class="site-footer-switches"><label class="toggle ${footer.showIcp !== false ? "on" : ""}"><input type="checkbox" id="site-footer-show-icp" ${footer.showIcp !== false ? "checked" : ""} /><span></span><b>显示 ICP</b></label><label class="toggle ${footer.showPoliceRecord !== false ? "on" : ""}"><input type="checkbox" id="site-footer-show-police" ${footer.showPoliceRecord !== false ? "checked" : ""} /><span></span><b>显示公安备案</b></label><label class="toggle ${footer.showCopyright !== false ? "on" : ""}"><input type="checkbox" id="site-footer-show-copyright" ${footer.showCopyright !== false ? "checked" : ""} /><span></span><b>显示版权</b></label></div></section></div>
   `;
 }
 
@@ -10711,7 +10774,7 @@ function renderSiteSettings() {
   const settings = siteCms().settings;
   const redirects = siteCms().redirects || [];
   const outputs = [["Organization / WebSite", "企业主体、品牌名和官方域名", "已生成"], ["Service / CaseStudy", "产品服务与公开案例结构化表达", "已开启"], ["CollectionPage / FAQPage", "问题地图与权威答案的机器可读结构", "已开启"], ["Article / Breadcrumb", "文章页自动输出结构化数据", "已开启"], ["sitemap / RSS / llms.txt", "发布后同步更新机器入口", "已生成"]];
-  return `<div class="site-settings-grid"><section class="card"><div class="card-header"><div><h2>站点与企业主体</h2><p>域名、企业实体和公开描述是全站信源的基础。</p></div><button class="primary-button button-small" type="button" data-action="save-site">保存设置</button></div><div class="card-body"><div class="field-row"><div class="field"><label for="site-setting-name">网站名称</label><input class="input" id="site-setting-name" value="${escapeHtml(settings.siteName)}" /></div><div class="field"><label for="site-setting-domain">主域名</label><input class="input" id="site-setting-domain" value="${escapeHtml(settings.officialDomain || state.site.domain)}" /></div></div><div class="field"><label for="site-setting-company">企业主体</label><input class="input" id="site-setting-company" value="${escapeHtml(settings.companyName)}" /></div><div class="field"><label for="site-setting-description">网站描述</label><textarea class="textarea" id="site-setting-description" rows="3">${escapeHtml(settings.description)}</textarea></div><div class="field"><label for="site-setting-logo">企业 Logo 地址</label><input class="input" id="site-setting-logo" value="${escapeHtml(settings.logoUrl || "")}" placeholder="https://www.example.com/assets/logo.png 或 /assets/logo.png" /></div><div class="field"><label for="site-setting-same-as">权威主体链接</label><textarea class="textarea" id="site-setting-same-as" rows="3" placeholder="每行一个已认证的企业主页或权威主体地址">${escapeHtml((settings.sameAs || []).join("\n"))}</textarea><small>用于 Organization.sameAs，最多 12 个；请勿填写未认证或无关账号。</small></div><div class="setting-row"><div><b>允许 AI 抓取已发布内容</b><small>仅公开已审核、已发布的官网页面</small></div><label class="toggle ${settings.allowAiCrawl !== false ? "on" : ""}"><input type="checkbox" id="site-setting-ai-crawl" ${settings.allowAiCrawl !== false ? "checked" : ""} /><span></span></label></div></div></section><section class="card"><div class="card-header"><div><h2>AI 信源输出</h2><p>系统自动生成，不需要每篇文章手动配置。</p></div><span class="small-tag blue">信源完整度 92%</span></div><div class="site-output-list">${outputs.map((item) => `<div class="site-output-row"><span class="check-dot ok">✓</span><div><b>${item[0]}</b><small>${item[1]}</small></div><span class="status-badge status-approved">${item[2]}</span></div>`).join("")}</div><div class="site-settings-footnote"><span data-icon="info"></span><span>页面发布时自动检查标题、摘要、作者、发布日期、canonical、内部链接和栏目主题一致性。</span></div></section><section class="card site-advanced-card"><div class="card-header"><div><h2>高级设置</h2><p>低频维护入口：重定向、发布历史和网站诊断。</p></div></div><div class="advanced-setting-row"><div><b>官网发布机制</b><small>后台保存 CMS 草稿后，通过顶部“发布官网”生成不可变正式版本；官网服务从同一数据库即时读取。</small></div><span class="status-badge status-online">已连接</span><button class="link-button" type="button" data-action="site-show-releases">查看历史</button></div><div class="advanced-setting-row"><div><b>URL 重定向</b><small>栏目或页面 slug 修改时自动生成 301</small></div><span class="small-tag">${redirects.filter((item) => item.status === "active").length} 条生效</span><button class="link-button" type="button" data-action="site-redirects">管理</button></div><div class="site-health site-health-quiet"><div class="site-health-head"><h4>网站诊断：${escapeHtml(state.site.diagnosticStatus || "正常")}</h4>${statusBadge("healthy")}</div><p>首次上线或配置变更后复查即可，不作为日常运营工具。</p><button class="secondary-button button-small" type="button" data-action="run-diagnostic"><span data-icon="refresh"></span>重新检测</button></div></section></div>`;
+  return `<div class="site-settings-grid"><section class="card"><div class="card-header"><div><h2>站点与企业主体</h2><p>域名、企业实体和公开描述是全站信源的基础。</p></div><button class="primary-button button-small" type="button" data-action="save-site">保存设置</button></div><div class="card-body"><div class="field-row"><div class="field"><label for="site-setting-name">网站名称</label><input class="input" id="site-setting-name" value="${escapeHtml(settings.siteName)}" /></div><div class="field"><label for="site-setting-domain">主域名</label><input class="input" id="site-setting-domain" value="${escapeHtml(settings.officialDomain || state.site.domain)}" /></div></div><div class="field"><label for="site-setting-company">企业主体</label><input class="input" id="site-setting-company" value="${escapeHtml(settings.companyName)}" /></div><div class="field"><label for="site-setting-description">网站描述</label><textarea class="textarea" id="site-setting-description" rows="3">${escapeHtml(settings.description)}</textarea></div><div class="field"><label for="site-setting-same-as">权威主体链接</label><textarea class="textarea" id="site-setting-same-as" rows="3" placeholder="每行一个已认证的企业主页或权威主体地址">${escapeHtml((settings.sameAs || []).join("\n"))}</textarea><small>用于 Organization.sameAs，最多 12 个；请勿填写未认证或无关账号。</small></div><div class="setting-row"><div><b>允许 AI 抓取已发布内容</b><small>仅公开已审核、已发布的官网页面</small></div><label class="toggle ${settings.allowAiCrawl !== false ? "on" : ""}"><input type="checkbox" id="site-setting-ai-crawl" ${settings.allowAiCrawl !== false ? "checked" : ""} /><span></span></label></div></div></section><section class="card"><div class="card-header"><div><h2>AI 信源输出</h2><p>系统自动生成，不需要每篇文章手动配置。</p></div><span class="small-tag blue">信源完整度 92%</span></div><div class="site-output-list">${outputs.map((item) => `<div class="site-output-row"><span class="check-dot ok">✓</span><div><b>${item[0]}</b><small>${item[1]}</small></div><span class="status-badge status-approved">${item[2]}</span></div>`).join("")}</div><div class="site-settings-footnote"><span data-icon="info"></span><span>页面发布时自动检查标题、摘要、作者、发布日期、canonical、内部链接和栏目主题一致性。</span></div></section><section class="card site-advanced-card"><div class="card-header"><div><h2>高级设置</h2><p>低频维护入口：重定向、发布历史和网站诊断。</p></div></div><div class="advanced-setting-row"><div><b>官网发布机制</b><small>后台保存 CMS 草稿后，通过顶部“发布官网”生成不可变正式版本；官网服务从同一数据库即时读取。</small></div><span class="status-badge status-online">已连接</span><button class="link-button" type="button" data-action="site-show-releases">查看历史</button></div><div class="advanced-setting-row"><div><b>URL 重定向</b><small>栏目或页面 slug 修改时自动生成 301</small></div><span class="small-tag">${redirects.filter((item) => item.status === "active").length} 条生效</span><button class="link-button" type="button" data-action="site-redirects">管理</button></div><div class="site-health site-health-quiet"><div class="site-health-head"><h4>网站诊断：${escapeHtml(state.site.diagnosticStatus || "正常")}</h4>${statusBadge("healthy")}</div><p>首次上线或配置变更后复查即可，不作为日常运营工具。</p><button class="secondary-button button-small" type="button" data-action="run-diagnostic"><span data-icon="refresh"></span>重新检测</button></div></section></div>`;
 }
 
 function renderSiteContactSettings() {
@@ -11186,6 +11249,90 @@ function renderSiteNavModal() {
   return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "添加导航项" : "编辑导航项"}</h2><p>导航可以指向固定页面、资讯栏目或自定义站内地址。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-nav-label">导航名称 *</label><input class="input" id="site-nav-label" value="${escapeHtml(navItem?.label || "")}" /></div><div class="field"><label for="site-nav-type">链接类型</label><select class="select" id="site-nav-type"><option ${navItem?.type === "固定页面" ? "selected" : ""}>固定页面</option><option ${navItem?.type === "资讯列表" ? "selected" : ""}>资讯列表</option><option ${navItem?.type === "资讯栏目" ? "selected" : ""}>资讯栏目</option><option ${navItem?.type === "自定义链接" ? "selected" : ""}>自定义链接</option></select></div></div><div class="field"><label for="site-nav-path">站内地址 *</label><input class="input" id="site-nav-path" value="${escapeHtml(navItem?.path || "/")}" /></div><label class="field"><span>显示状态</span><span style="display:flex;align-items:center;gap:8px;padding-top:8px"><input type="checkbox" id="site-nav-visible" ${navItem?.visible !== false ? "checked" : ""} /> 在主导航显示</span></label></div><div class="modal-foot"><span>导航顺序按列表保存，新增项会排在末尾</span><div class="modal-foot-right">${!isNew ? `<button class="danger-button" type="button" data-action="site-delete-nav" data-nav-id="${escapeHtml(navItem.id)}">删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-nav" data-nav-id="${escapeHtml(navItem?.id || "")}"><span data-icon="check"></span>保存导航</button></div></div>`, { wide: true });
 }
 
+function footerLinkText(links = []) {
+  return links.map((link) => `${link.label || "链接"} | ${link.href || "/"}`).join("\n");
+}
+
+function parseFooterLinkText(value) {
+  const rows = String(value || "").split(/\r?\n/).map((row) => row.trim()).filter(Boolean);
+  const links = [];
+  for (const row of rows.slice(0, 12)) {
+    const separator = row.indexOf("|");
+    if (separator < 1) return { error: "每行请按“名称 | 地址”填写。" };
+    const label = row.slice(0, separator).trim();
+    const href = row.slice(separator + 1).trim();
+    if (!label || !href) return { error: "链接名称和地址都不能为空。" };
+    if (!(/^(?:\/|https?:\/\/|mailto:|tel:)/i.test(href)) || href.startsWith("//")) return { error: `“${label}”的地址格式不正确。` };
+    links.push({ id: uid("FOOTER-LINK"), label, href });
+  }
+  return { links };
+}
+
+function renderSiteFooterColumnModal() {
+  const footer = siteCmsFooter();
+  const column = footer.columns.find((item) => item.id === ui.modal?.columnId) || null;
+  const isNew = !column;
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "添加页脚栏目" : "编辑页脚栏目"}</h2><p>每行一个链接，格式为“显示名称 | /站内地址”或完整 HTTPS 地址。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field"><label for="site-footer-column-title">栏目标题 *</label><input class="input" id="site-footer-column-title" value="${escapeHtml(column?.title || "")}" placeholder="例如：服务项目" /></div><div class="field"><label for="site-footer-column-links">栏目链接 *</label><textarea class="textarea" id="site-footer-column-links" rows="8" placeholder="建筑工程 | /services/\n项目案例 | /cases/">${escapeHtml(footerLinkText(column?.links || []))}</textarea><small class="field-help">支持站内地址、HTTPS、mailto: 和 tel: 链接，最多 12 条。</small></div></div><div class="modal-foot"><span>发布官网后，已适配模板会同步显示这个栏目。</span><div class="modal-foot-right">${!isNew ? `<button class="danger-button" type="button" data-action="site-footer-delete-column" data-column-id="${escapeHtml(column.id)}">删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-footer-save-column" data-column-id="${escapeHtml(column?.id || "")}"><span data-icon="check"></span>保存栏目</button></div></div>`, { wide: true });
+}
+
+function saveSiteFooterColumn(columnId) {
+  const title = siteValue("site-footer-column-title");
+  const parsed = parseFooterLinkText(siteValue("site-footer-column-links"));
+  if (!title) return showToast("请填写栏目标题", "页脚栏目标题不能为空。", "error");
+  if (parsed.error) return showToast("页脚链接格式不正确", parsed.error, "error");
+  if (!parsed.links.length) return showToast("请至少填写一个链接", "栏目需要至少一个公开入口。", "error");
+  const footer = siteCmsFooter();
+  const existing = footer.columns.find((item) => item.id === columnId);
+  const next = { id: columnId || uid("FOOTER-COLUMN"), title, links: parsed.links, updatedAt: siteNow() };
+  if (existing) Object.assign(existing, next);
+  else footer.columns.push(next);
+  saveState();
+  closeModal();
+  render();
+  showToast(existing ? "页脚栏目已更新" : "页脚栏目已添加", "发布官网后，模板页脚会使用这组链接。", "success");
+}
+
+function deleteSiteFooterColumn(columnId) {
+  const footer = siteCmsFooter();
+  footer.columns = footer.columns.filter((item) => item.id !== columnId);
+  saveState();
+  closeModal();
+  render();
+  showToast("页脚栏目已删除", "官网会恢复使用模板默认栏目。", "success");
+}
+
+function renderSiteFooterSocialModal() {
+  const footer = siteCmsFooter();
+  const link = footer.socialLinks.find((item) => item.id === ui.modal?.socialId) || null;
+  const isNew = !link;
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "添加页脚入口" : "编辑页脚入口"}</h2><p>维护公众号、视频号、企业主页或其他允许公开访问的入口。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field"><label for="site-footer-social-label">入口名称 *</label><input class="input" id="site-footer-social-label" value="${escapeHtml(link?.label || "")}" placeholder="例如：企业公众号" /></div><div class="field"><label for="site-footer-social-href">入口地址 *</label><input class="input" id="site-footer-social-href" value="${escapeHtml(link?.href || "")}" placeholder="https://... 或 /contact/" /></div></div><div class="modal-foot"><span>地址会在官网页脚以可访问入口展示。</span><div class="modal-foot-right">${!isNew ? `<button class="danger-button" type="button" data-action="site-footer-delete-social" data-social-id="${escapeHtml(link.id)}">删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-footer-save-social" data-social-id="${escapeHtml(link?.id || "")}"><span data-icon="check"></span>保存入口</button></div></div>`, { wide: true });
+}
+
+function saveSiteFooterSocial(socialId) {
+  const label = siteValue("site-footer-social-label");
+  const href = siteValue("site-footer-social-href");
+  if (!label || !href) return showToast("请填写入口名称和地址", "两项都不能为空。", "error");
+  if (!(/^(?:\/|https?:\/\/|mailto:|tel:)/i.test(href)) || href.startsWith("//")) return showToast("入口地址格式不正确", "请填写站内地址、HTTPS、mailto: 或 tel: 地址。", "error");
+  const footer = siteCmsFooter();
+  const existing = footer.socialLinks.find((item) => item.id === socialId);
+  const next = { id: socialId || uid("FOOTER-SOCIAL"), label, href, updatedAt: siteNow() };
+  if (existing) Object.assign(existing, next);
+  else footer.socialLinks.push(next);
+  saveState();
+  closeModal();
+  render();
+  showToast(existing ? "页脚入口已更新" : "页脚入口已添加", "发布官网后，模板页脚会同步更新。", "success");
+}
+
+function deleteSiteFooterSocial(socialId) {
+  const footer = siteCmsFooter();
+  footer.socialLinks = footer.socialLinks.filter((item) => item.id !== socialId);
+  saveState();
+  closeModal();
+  render();
+  showToast("页脚入口已删除", "官网会恢复使用模板默认入口。", "success");
+}
+
 function saveSiteNav(navId) {
   const label = siteValue("site-nav-label");
   const path = sitePath(siteValue("site-nav-path"));
@@ -11210,18 +11357,53 @@ function deleteSiteNav(navId) {
 }
 
 function saveSiteAppearance() {
-  const theme = siteCms().theme;
+  const cms = siteCms();
+  const theme = cms.theme;
+  const assets = siteCmsAssets();
+  const footer = siteCmsFooter();
+  const templateConfigs = siteTemplateConfigs();
   const color = siteValue("site-theme-color");
   if (color && !/^#[0-9a-f]{6}$/i.test(color)) return showToast("品牌主色格式不正确", "请输入类似 #1D5CFF 的 6 位十六进制颜色。", "error");
+  const validPublicAsset = (value) => !value || (/^\/(?!\/)/.test(value) || /^https?:\/\/[^\s]+$/i.test(value));
+  const assetValues = [
+    ["Logo", siteValue("site-assets-logo")],
+    ["favicon", siteValue("site-assets-favicon")],
+    ["默认图片", siteValue("site-assets-default-image")],
+    ["ICP备案链接", siteValue("site-footer-icp-url")],
+    ["公安备案链接", siteValue("site-footer-police-url")]
+  ];
+  const invalidAsset = assetValues.find(([, value]) => value && !validPublicAsset(value));
+  if (invalidAsset) return showToast(`${invalidAsset[0]}地址格式不正确`, "请填写 HTTPS 图片/网页地址，或以 / 开头的站内地址。", "error");
+  const templateImageValues = SITE_TEMPLATE_REGISTRY.map((template) => [template, document.getElementById(`site-template-default-image-${template.key}`)?.value.trim() || ""]);
+  const invalidTemplateImage = templateImageValues.find(([, value]) => value && !validPublicAsset(value));
+  if (invalidTemplateImage) return showToast(`${invalidTemplateImage[0].shortName}默认图片地址不正确`, "请填写 HTTPS 图片地址，或以 / 开头的站内地址。", "error");
   theme.name = siteValue("site-theme-name") || theme.name;
   theme.primaryColor = color || theme.primaryColor;
   theme.cta = siteValue("site-theme-cta") || theme.cta;
   theme.version = (Number(theme.version) || 1) + 1;
   theme.updatedAt = siteNow();
+  assets.logoUrl = siteValue("site-assets-logo");
+  assets.faviconUrl = siteValue("site-assets-favicon");
+  assets.defaultImageUrl = siteValue("site-assets-default-image");
+  assets.defaultImageAlt = siteValue("site-assets-default-image-alt") || "企业默认图片";
+  cms.settings.logoUrl = assets.logoUrl;
+  templateImageValues.forEach(([template, value]) => {
+    templateConfigs[template.key] = { ...(templateConfigs[template.key] || {}), defaultImageUrl: value, defaultImageAlt: `${template.shortName}默认图片`, updatedAt: siteNow() };
+  });
+  footer.description = siteValue("site-footer-description");
+  footer.copyright = siteValue("site-footer-copyright");
+  footer.icpNumber = siteValue("site-footer-icp");
+  footer.icpUrl = siteValue("site-footer-icp-url");
+  footer.policeRecordNumber = siteValue("site-footer-police");
+  footer.policeRecordUrl = siteValue("site-footer-police-url");
+  footer.showIcp = siteChecked("site-footer-show-icp");
+  footer.showPoliceRecord = siteChecked("site-footer-show-police");
+  footer.showCopyright = siteChecked("site-footer-show-copyright");
+  cms.theme = theme;
   state.site.theme = theme.name;
   saveState();
   render();
-  showToast("导航与外观已保存", `已创建主题版本 v${theme.version}，所有页面将使用新的公共样式。`, "success");
+  showToast("导航与外观已保存", `已创建主题版本 v${theme.version}，公共素材和页脚配置已写入官网草稿。`, "success");
 }
 
 function renderSiteLeadFollowModal() {
@@ -11314,14 +11496,12 @@ function saveSiteSettings() {
   const domain = siteValue("site-setting-domain").replace(/^https?:\/\//i, "").replace(/\/+$/, "");
   const companyName = siteValue("site-setting-company");
   const description = siteValue("site-setting-description");
-  const logoUrl = siteValue("site-setting-logo");
   const sameAs = [...new Set(siteValue("site-setting-same-as").split(/[\r\n,，;；]+/).map((item) => item.trim()).filter(Boolean))].slice(0, 12);
   if (!name || !domain || !companyName) return showToast("请补全站点基础信息", "网站名称、主域名和企业主体不能为空。", "error");
   if (!/^[a-z0-9.-]+(?::\d+)?$/i.test(domain)) return showToast("主域名格式不正确", "请填写不带协议和路径的域名，例如 www.example.com。", "error");
   const validPublicUrl = (value, allowRelative = false) => !value || (allowRelative && /^\/(?!\/)/.test(value)) || /^https?:\/\/[^\s/$.?#].[^\s]*$/i.test(value);
-  if (!validPublicUrl(logoUrl, true)) return showToast("Logo 地址格式不正确", "请填写 HTTPS 图片地址或以 / 开头的站内地址。", "error");
   if (sameAs.some((value) => !validPublicUrl(value))) return showToast("权威主体链接格式不正确", "每一行都应是完整的 http:// 或 https:// 地址。", "error");
-  Object.assign(siteCms().settings, { siteName: name, companyName, description, officialDomain: domain, logoUrl, sameAs, allowAiCrawl: siteChecked("site-setting-ai-crawl"), updatedAt: siteNow() });
+  Object.assign(siteCms().settings, { siteName: name, companyName, description, officialDomain: domain, sameAs, allowAiCrawl: siteChecked("site-setting-ai-crawl"), updatedAt: siteNow() });
   state.site.domain = domain;
   saveState();
   render();
@@ -11985,6 +12165,8 @@ function renderModal() {
     siteCategory: renderSiteCategoryModal,
     siteArticlePreview: renderSiteArticlePreviewModal,
     siteNav: renderSiteNavModal,
+    siteFooterColumn: renderSiteFooterColumnModal,
+    siteFooterSocial: renderSiteFooterSocialModal,
     siteLeadFollow: renderSiteLeadFollowModal,
     siteDeployment: renderSiteDeploymentModal,
     siteRedirects: renderSiteRedirectsModal,
@@ -18563,6 +18745,14 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "site-save-nav") return saveSiteNav(actionElement.dataset.navId);
   if (action === "site-delete-nav") return deleteSiteNav(actionElement.dataset.navId);
+  if (action === "site-footer-add-column") { ui.modal = { type: "siteFooterColumn" }; return renderModal(); }
+  if (action === "site-footer-edit-column") { ui.modal = { type: "siteFooterColumn", columnId: actionElement.dataset.columnId }; return renderModal(); }
+  if (action === "site-footer-save-column") return saveSiteFooterColumn(actionElement.dataset.columnId);
+  if (action === "site-footer-delete-column") return deleteSiteFooterColumn(actionElement.dataset.columnId);
+  if (action === "site-footer-add-social") { ui.modal = { type: "siteFooterSocial" }; return renderModal(); }
+  if (action === "site-footer-edit-social") { ui.modal = { type: "siteFooterSocial", socialId: actionElement.dataset.socialId }; return renderModal(); }
+  if (action === "site-footer-save-social") return saveSiteFooterSocial(actionElement.dataset.socialId);
+  if (action === "site-footer-delete-social") return deleteSiteFooterSocial(actionElement.dataset.socialId);
   if (action === "site-lead-follow") {
     ui.modal = { type: "siteLeadFollow", leadId: actionElement.dataset.leadId };
     return renderModal();

@@ -973,6 +973,41 @@ img {
 
 /* ============ CMS Template Adapter ============ */
 /* Kept last so CMS media and interaction states can extend the source CSS. */
+body.template-source-02 .logo-icon.logo-image {
+    display: flex;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+}
+
+body.template-source-02 .logo-icon.logo-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+body.template-source-02 .about-image-main img,
+body.template-source-02 .about-intro-image img,
+body.template-source-02 .footer-brand-logo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+body.template-source-02 .footer-brand-logo {
+    display: block;
+    width: min(180px, 100%);
+    height: 58px;
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+
+body.template-source-02 .footer-brand-logo img {
+    object-position: left center;
+}
+
 body.template-source-02 .template-skip {
     position: fixed;
     top: 12px;
@@ -1054,6 +1089,15 @@ body.template-source-02 .template-service-media img {
 
 body.template-source-02 .template-service-media img {
     object-fit: cover;
+}
+
+body.template-source-02 .service-media > .service-icon {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    background: transparent;
+    border-radius: 0;
 }
 
 body.template-source-02 .template-service-media.no-template-image {

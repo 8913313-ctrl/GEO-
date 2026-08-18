@@ -5011,3 +5011,37 @@ body {
 @media (max-width: 640px) {
   .studio-publication-setting { grid-template-columns: 1fr; gap: 8px; padding: 12px 14px; }
 }
+
+/* Public website settings stay grouped with template and navigation controls. */
+.site-public-settings-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); gap: 16px; margin-top: 16px; }
+.site-public-assets-card, .site-public-footer-card { min-width: 0; }
+.site-template-image-list { display: grid; gap: 8px; margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--line); }
+.site-template-image-list-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 2px; }
+.site-template-image-list-head b { color: var(--ink); font-size: 11px; }
+.site-template-image-list-head small { color: var(--muted); font-size: 9px; line-height: 1.45; text-align: right; }
+.site-template-image-setting { display: grid; grid-template-columns: minmax(130px, .4fr) minmax(0, 1fr); align-items: center; gap: 12px; min-width: 0; }
+.site-template-image-setting > div { display: grid; min-width: 0; gap: 3px; }
+.site-template-image-setting b { overflow: hidden; color: var(--ink); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.site-template-image-setting small { overflow: hidden; color: var(--muted-2); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.site-footer-switches { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.site-footer-switches .toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 28px; cursor: pointer; }
+.site-footer-switches .toggle b { color: var(--ink); font-size: 10px; font-weight: 600; }
+.site-footer-management-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.site-footer-config-list { display: grid; gap: 0; }
+.site-footer-config-row { display: flex; align-items: center; gap: 12px; min-height: 58px; padding: 10px 18px; border-top: 1px solid var(--line); }
+.site-footer-config-row > div:first-child { display: grid; min-width: 0; flex: 1; gap: 3px; }
+.site-footer-config-row b, .site-footer-config-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.site-footer-config-row b { color: var(--ink); font-size: 10px; }
+.site-footer-config-row small { color: var(--muted); font-size: 8px; }
+.site-footer-config-actions { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+
+@media (max-width: 1050px) {
+  .site-public-settings-grid { grid-template-columns: 1fr; }
+  .site-footer-management-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .site-template-image-list-head { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .site-template-image-list-head small { text-align: left; }
+  .site-template-image-setting { grid-template-columns: 1fr; gap: 5px; }
+  .site-footer-switches { align-items: flex-start; flex-direction: column; gap: 6px; }
+}

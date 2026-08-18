@@ -133,7 +133,17 @@ const BUILT_IN_SITE_ASSETS = Object.freeze({
   "/assets/tongzhuo-mark-wine.png": "tongzhuo-mark-wine.png",
   "/assets/zhuojian-ai-official-logo.png": "zhuojian-ai-official-logo.png",
   "/assets/zhuojian-ai-lockup-gold.png": "zhuojian-ai-lockup-gold.png",
-  "/assets/zhuojian-ai-brand.png": "zhuojian-ai-brand.png"
+  "/assets/zhuojian-ai-brand.png": "zhuojian-ai-brand.png",
+  "/assets/template-01-default.png": "template-01-default.png",
+  "/assets/template-02-default.png": "template-02-default.png",
+  "/assets/template-03-default.png": "template-03-default.png",
+  "/assets/template-04-default.png": "template-04-default.png",
+  "/assets/template-05-default.png": "template-05-default.png",
+  "/assets/template-06-default.png": "template-06-default.png",
+  "/assets/template-07-default.png": "template-07-default.png",
+  "/assets/template-08-default.png": "template-08-default.png",
+  "/assets/template-09-default.png": "template-09-default.png",
+  "/assets/template-10-default.png": "template-10-default.png"
 });
 
 const LEGACY_REDIRECTS = Object.freeze({

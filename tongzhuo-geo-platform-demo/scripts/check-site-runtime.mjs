@@ -96,6 +96,12 @@ try {
   assert.equal(result.response.status, 200); assert.match(result.response.headers.get("content-type"), /text\/css/);
   result = await request(base, "/site-assets/site.css");
   assert.equal(result.response.status, 200); assert.match(result.response.headers.get("content-type"), /text\/css/);
+  for (let templateNumber = 1; templateNumber <= 10; templateNumber += 1) {
+    const defaultImagePath = `/assets/template-${String(templateNumber).padStart(2, "0")}-default.png`;
+    result = await request(base, defaultImagePath);
+    assert.equal(result.response.status, 200, `${defaultImagePath} should be publicly readable`);
+    assert.match(result.response.headers.get("content-type"), /image\/png/, `${defaultImagePath} should be served as PNG`);
+  }
 
   result = await request(base, "/insights");
   assert.equal(result.response.status, 200); assert.match(result.text, /企业如何建立 AI 可读取的 GEO 信源/); assert.doesNotMatch(result.text, /草稿文章绝不能公开/); assert.doesNotMatch(result.text, /未冻结的文章/);

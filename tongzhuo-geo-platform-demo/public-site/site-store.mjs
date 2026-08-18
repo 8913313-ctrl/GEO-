@@ -103,6 +103,9 @@ export class PublicSiteStore {
     const cms = cmsSnapshot && typeof cmsSnapshot === "object" ? cmsSnapshot : parseJson(site.cms, {});
     const settings = parseJson(cms.settings, {});
     const theme = parseJson(cms.theme, {});
+    const cmsAssets = parseJson(cms.assets, {});
+    const templateConfigs = parseJson(cms.templateConfigs, {});
+    const templateKey = text(cms.templateKey || theme.templateKey, "01-industry", 80);
     const pages = Array.isArray(cms.pages) ? cms.pages : defaults.pages;
     const navItems = Array.isArray(cms.navItems) ? cms.navItems : defaults.navItems;
     return {
@@ -110,11 +113,19 @@ export class PublicSiteStore {
       companyName: text(settings.companyName, defaults.companyName, 300),
       officialDomain: text(settings.officialDomain, "", 300),
       logoUrl: text(settings.logoUrl, "", 1_000),
+      assets: {
+        logoUrl: text(cmsAssets.logoUrl || settings.logoUrl, "", 1_000),
+        faviconUrl: text(cmsAssets.faviconUrl, "", 1_000),
+        defaultImageUrl: text(cmsAssets.defaultImageUrl, "", 1_000),
+        defaultImageAlt: text(cmsAssets.defaultImageAlt, "企业默认图片", 180)
+      },
+      templateConfig: parseJson(templateConfigs[templateKey], {}),
+      footer: parseJson(cms.footer, {}),
       sameAs: Array.isArray(settings.sameAs) ? [...new Set(settings.sameAs.map((item) => text(item, "", 1_000)).filter(Boolean))].slice(0, 12) : [],
       description: text(settings.description, defaults.description, 500),
       allowAiCrawl: settings.allowAiCrawl !== false,
       cta: text(theme.cta, defaults.cta, 80),
-      templateKey: text(cms.templateKey || theme.templateKey, "01-industry", 80),
+      templateKey,
       // Local front-end walkthroughs may show clearly marked presentation
       // fallbacks. Production deployments disable them by default; the CMS
       // publication remains the only official content source.
@@ -126,7 +137,7 @@ export class PublicSiteStore {
         name: text(theme.name, "企业官网 · 标准版", 160),
         primaryColor: /^#[0-9a-f]{6}$/i.test(theme.primaryColor || "") ? theme.primaryColor : "#155eef",
         version: Math.max(1, Number(theme.version) || 1),
-        templateKey: text(cms.templateKey || theme.templateKey, "01-industry", 80)
+        templateKey
       },
       modules: parseJson(cms.modules, {}),
       // Keep null distinct from an explicitly empty collection. Null means an
