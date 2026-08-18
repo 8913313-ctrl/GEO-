@@ -27,9 +27,29 @@
     if (event.key === "Escape") document.querySelectorAll(".header.menu-open").forEach((header) => setMenu(header, false));
   });
 
-  window.addEventListener("scroll", () => {
-    document.querySelectorAll(".header").forEach((header) => header.classList.toggle("scrolled", window.scrollY > 40));
-  }, { passive: true });
+  let scrollFrame = 0;
+  let backToTop = null;
+  const syncScrollState = () => {
+    scrollFrame = 0;
+    const headerScrolled = window.scrollY > 40;
+    document.querySelectorAll(".header").forEach((header) => {
+      if (header.classList.contains("scrolled") !== headerScrolled) {
+        header.classList.toggle("scrolled", headerScrolled);
+      }
+    });
+    if (backToTop) {
+      const visible = window.scrollY > 420;
+      if (backToTop.classList.contains("is-visible") !== visible) {
+        backToTop.classList.toggle("is-visible", visible);
+      }
+    }
+  };
+  const scheduleScrollState = () => {
+    if (scrollFrame) return;
+    scrollFrame = window.requestAnimationFrame(syncScrollState);
+  };
+  window.addEventListener("scroll", scheduleScrollState, { passive: true });
+  syncScrollState();
 
   document.querySelectorAll("[data-case-filter]").forEach((group) => {
     const cards = document.querySelectorAll("[data-case-industry], [data-category]");
@@ -136,12 +156,12 @@
     statNodes.forEach((node) => observer.observe(node));
   } else statNodes.forEach(animateStat);
 
-  const backToTop = document.createElement("button");
+  backToTop = document.createElement("button");
   backToTop.type = "button";
   backToTop.className = "template-back-to-top";
   backToTop.setAttribute("aria-label", "返回顶部");
   backToTop.innerHTML = "<svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 19V5m-6 6 6-6 6 6\"/></svg>";
   backToTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" }));
   document.body.append(backToTop);
-  window.addEventListener("scroll", () => backToTop.classList.toggle("is-visible", window.scrollY > 420), { passive: true });
+  syncScrollState();
 })();

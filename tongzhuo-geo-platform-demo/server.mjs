@@ -861,12 +861,23 @@ async function handleSiteCmsApi(request, response, parts) {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const fileName = path.basename(decodeURIComponent(parts[5]));
     const previewAssetBase = "/api/v1/site-cms/preview/assets";
+    const previewAssetFiles = Object.freeze({
+      "template-03-software-ai.css": "03-software-ai.css",
+      "template-04-logistics.css": "04-logistics.css",
+      "template-05-business-services.css": "05-business-services.css",
+      "template-06-finance.css": "06-finance.css",
+      "template-07-healthcare.css": "07-healthcare.css",
+      "template-08-education.css": "08-education.css",
+      "template-09-travel-hotel.css": "09-travel-hotel.css",
+      "template-10-food-consumer.css": "10-food-consumer.css"
+    });
     const previewAssets = new Set([
       "site.css",
       "site.js",
       "site-v8.css",
       "template-01-industry.css",
       "template-02-construction.css",
+      ...Object.keys(previewAssetFiles),
       "template-runtime.js",
       "site-v8.js",
       "gsap.min.js",
@@ -881,12 +892,23 @@ async function handleSiteCmsApi(request, response, parts) {
       "tongzhuo-official-mark.png",
       "zhuojian-ai-brand.png",
       "zhuojian-ai-lockup-gold.png",
-      "zhuojian-ai-official-logo.png"
+      "zhuojian-ai-official-logo.png",
+      "template-01-default.png",
+      "template-02-default.png",
+      "template-03-default.png",
+      "template-04-default.png",
+      "template-05-default.png",
+      "template-06-default.png",
+      "template-07-default.png",
+      "template-08-default.png",
+      "template-09-default.png",
+      "template-10-default.png"
     ]);
     if (!previewAssets.has(fileName)) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
+    const relativeFile = previewAssetFiles[fileName] || fileName;
     const filePath = fileName === "tz-display.woff2"
       ? path.join(siteAssetRoot, "fonts", fileName)
-      : path.join(siteAssetRoot, fileName);
+      : path.join(siteAssetRoot, relativeFile);
     let body = await readFile(filePath);
     if (fileName === "site-v8.css" || fileName === "site-v8.js") {
       body = body.toString("utf8")

@@ -14,7 +14,7 @@ body.template-source-02 {
     --border-color: #e2e8f0;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    --transition: all 0.3s ease;
+    --transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
 }
 
 /* ============ Reset & Base ============ */
@@ -38,7 +38,7 @@ body {
 a {
     text-decoration: none;
     color: inherit;
-    transition: var(--transition);
+    transition: background-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, transform 0.3s ease;
 }
 
 ul {
@@ -1117,6 +1117,10 @@ body.template-source-02 .news-image,
 body.template-source-02 .about-image-main,
 body.template-source-02 .about-intro-image {
     overflow: hidden;
+}
+
+body.template-source-02 .news-image {
+    position: relative;
 }
 
 body.template-source-02 .project-card,

@@ -239,11 +239,20 @@
     targets.forEach((target, index) => {
       target.classList.add("reveal-item");
       target.style.setProperty("--reveal-delay", `${Math.min(index % 6, 5) * 70}ms`);
-      observer?.observe(target);
+      if (observer) observer.observe(target);
     });
-    window.addEventListener("scroll", revealVisible, { passive: true });
-    window.addEventListener("resize", revealVisible);
-    window.requestAnimationFrame(revealVisible);
+    if (observer) return;
+    let revealFrame = 0;
+    const scheduleReveal = () => {
+      if (revealFrame) return;
+      revealFrame = window.requestAnimationFrame(() => {
+        revealFrame = 0;
+        revealVisible();
+      });
+    };
+    window.addEventListener("scroll", scheduleReveal, { passive: true });
+    window.addEventListener("resize", scheduleReveal);
+    scheduleReveal();
   }
 
   installHeroVisualCarousel();
