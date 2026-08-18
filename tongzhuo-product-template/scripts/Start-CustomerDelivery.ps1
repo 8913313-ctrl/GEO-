@@ -42,7 +42,7 @@ if (-not (Test-Path $manifestPath)) {
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $expectedVersion = [string] $manifest.version
-$desktopAgentPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 18280 }
+$desktopAgentPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 19380 }
 
 function Resolve-PackagePath {
     param([Parameter(Mandatory = $true)] [string]$RelativePath)

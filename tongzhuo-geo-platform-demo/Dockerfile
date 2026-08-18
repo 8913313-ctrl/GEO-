@@ -4,7 +4,7 @@ RUN apk add --no-cache su-exec
 
 ENV NODE_ENV=production \
     TZ_BIND_HOST=0.0.0.0 \
-    PORT=43127 \
+    PORT=44127 \
     TZ_DATA_DIR=/app/data \
     TZ_DATABASE_PATH=/app/data/tongzhuo-production.sqlite \
     TZ_LOG_DIR=/app/data/logs \
@@ -21,11 +21,11 @@ RUN chmod 755 /app/deploy/geo-admin-entrypoint.sh \
     && chown -R node:node /app
 
 USER node
-EXPOSE 43127
+EXPOSE 44127
 VOLUME ["/app/data"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:43127/health/ready >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:44127/health/ready >/dev/null || exit 1
 
 ENTRYPOINT ["/app/deploy/geo-admin-entrypoint.sh"]
 CMD ["npm", "start"]

@@ -16,7 +16,7 @@ npm.cmd run mcp:serve
 
 ```dotenv
 # 若适配器与中央站不在同一进程/主机，使用反向代理后的 HTTPS 地址。
-# 本地开发可省略，默认 http://127.0.0.1:43280。
+# 本地开发可省略，默认 http://127.0.0.1:44280。
 TZ_RELAY_MCP_URL=https://relay.example.com
 TZ_RELAY_MCP_TIMEOUT_MS=10000
 

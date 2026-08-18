@@ -103,7 +103,7 @@ export function loadRelayRuntimeConfig(environment = process.env) {
     nodeEnvironment,
     production,
     host: String(environment.HOST || environment.TZ_RELAY_BIND_HOST || "127.0.0.1").trim(),
-    port: integerEnv(environment.PORT, 43280, 1, 65535),
+    port: integerEnv(environment.PORT, 44280, 1, 65535),
     dataDir,
     databasePath,
     masterKey: secretFromEnvironment(environment, "TZ_RELAY_MASTER_KEY", "TZ_RELAY_MASTER_KEY_FILE"),

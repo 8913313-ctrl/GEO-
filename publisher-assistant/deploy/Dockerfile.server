@@ -11,7 +11,7 @@ RUN apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https
 WORKDIR /app
 ENV NODE_ENV=production \
     PUBLISHER_HOST=0.0.0.0 \
-    PUBLISHER_PORT=18181 \
+    PUBLISHER_PORT=19181 \
     BROWSER_HEADLESS=false \
     BROWSER_CHANNEL=chrome \
     PUBLISHER_AUTO_RUN=true
@@ -26,5 +26,5 @@ COPY server.mjs ./server.mjs
 COPY deploy/start-server.sh ./start-server.sh
 RUN chmod +x ./start-server.sh
 
-EXPOSE 18181 6080
+EXPOSE 19181 6080
 CMD ["./start-server.sh"]

@@ -59,7 +59,7 @@ try {
     $readyReview = Get-Content -LiteralPath $readyReviewJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-Condition ([string] $readyReview.review_type -eq 'tongzhuo_customer_config_review') "Config review type mismatch: $($readyReview.review_type)"
     Assert-Condition ([string] $readyReview.endpoints.llms_txt -eq 'https://ready-client.test/llms.txt') 'Config review should include llms.txt endpoint.'
-    Assert-Condition ([string] $readyReview.endpoints.desktop_health -eq 'http://127.0.0.1:18280/healthz') 'Config review should include default desktop health endpoint.'
+    Assert-Condition ([string] $readyReview.endpoints.desktop_health -eq 'http://127.0.0.1:19380/healthz') 'Config review should include default desktop health endpoint.'
     Assert-Condition ([bool] $readyReview.validation.api_token_empty) 'Config review should declare API Token is empty.'
 
     $warningConfigPath = Join-Path $testRoot 'warning-client.json'
@@ -73,7 +73,7 @@ try {
         -AlternateName 'Warning Client AI' `
         -Description 'Warning client config review fixture.' `
         -SiteUrl 'https://warning.example.com' `
-        -GeoFlowBaseUrl 'http://127.0.0.1:18080' `
+        -GeoFlowBaseUrl 'http://127.0.0.1:19080' `
         -DesktopAgentPort 19280 `
         -OutputPath $warningConfigPath `
         -Force | Out-Null

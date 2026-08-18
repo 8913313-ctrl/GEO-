@@ -9,7 +9,7 @@ services:
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
-      PORT: 43280
+      PORT: 44280
       TZ_RELAY_DATA_DIR: /srv/tongzhuo-relay/data
       TZ_RELAY_DATABASE_PATH: /srv/tongzhuo-relay/data/tongzhuo-relay.sqlite
       TZ_RELAY_SEED_DEMO: "0"
@@ -17,7 +17,7 @@ services:
       TZ_RELAY_ALLOW_INSECURE_ADMIN: "0"
       TZ_RELAY_REQUIRE_HTTPS_FOR_ADMIN: "1"
     ports:
-      - "${TZ_RELAY_BIND_ADDRESS:-127.0.0.1}:43280:43280"
+      - "${TZ_RELAY_BIND_ADDRESS:-127.0.0.1}:44280:44280"
     volumes:
       - relay-data:/srv/tongzhuo-relay/data
       # Keep recovery artifacts outside the read-only container filesystem and
@@ -45,7 +45,7 @@ services:
         - node
         - -e
         - >-
-          fetch('http://127.0.0.1:43280/health/ready')
+          fetch('http://127.0.0.1:44280/health/ready')
           .then((response) => process.exit(response.ok ? 0 : 1))
           .catch(() => process.exit(1))
       interval: 30s

@@ -1,7 +1,7 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-if "%PUBLISHER_PORT%"=="" set "PUBLISHER_PORT=18180"
+if "%PUBLISHER_PORT%"=="" set "PUBLISHER_PORT=19180"
 if not exist ".data" mkdir ".data"
 
 :watch

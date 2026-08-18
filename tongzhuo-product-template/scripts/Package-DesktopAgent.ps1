@@ -84,9 +84,9 @@ try {
         $emptyConfigPath = Join-Path $stagingAgent '.data\config.json'
         New-Item -ItemType Directory -Force -Path (Split-Path $emptyConfigPath) | Out-Null
         $emptyConfig = @{
-            geoflowBaseUrl = 'http://127.0.0.1:18080'
+            geoflowBaseUrl = 'http://127.0.0.1:19080'
             apiToken = ''
-            port = 18280
+            port = 19380
             pollSeconds = 20
             autoRun = $false
             maxJobAttempts = 2
@@ -115,7 +115,7 @@ try {
         preflight_command = 'powershell -ExecutionPolicy Bypass -File .\preflight.ps1'
         install_command = 'double-click .\一键安装发布器.cmd (calls install-desktop.ps1)'
         silent_start_command = 'powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File .\run-agent.ps1'
-        health_endpoint = 'http://127.0.0.1:18280/healthz'
+        health_endpoint = 'http://127.0.0.1:19380/healthz'
         include_empty_config = [bool]$IncludeEmptyConfig
         excluded = $excludedDirectories
         operating_model = @{

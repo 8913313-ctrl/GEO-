@@ -90,7 +90,7 @@ function renderChecks(health, status, windows) {
   const versionAvailable = Boolean(version && version !== '-');
   const hasBlank = windows.some((item) => String(item.url || '') === 'about:blank');
   const rows = [
-    { label: '本地服务', state: healthy ? 'ok' : 'error', message: healthy ? `127.0.0.1:${status.port || 18280} 正常响应` : '本地服务未返回健康状态' },
+    { label: '本地服务', state: healthy ? 'ok' : 'error', message: healthy ? `127.0.0.1:${status.port || 19380} 正常响应` : '本地服务未返回健康状态' },
     { label: '\u8FD0\u884C\u7248\u672C', state: versionAvailable ? 'ok' : 'error', message: versionAvailable ? `\u672C\u5730\u670D\u52A1\u8FD4\u56DE v${version}` : '\u672C\u5730\u670D\u52A1\u672A\u8FD4\u56DE\u7248\u672C' },
     { label: '设备绑定', state: status.isPaired ? 'ok' : 'warn', message: status.isPaired ? '设备已绑定 GEO 后台' : '设备尚未绑定；本地登录检测仍可使用，但后台同步会等待重新绑定' },
     { label: '受管窗口', state: hasBlank ? 'error' : 'ok', message: hasBlank ? '发现受管窗口 URL 为 about:blank' : `已检查 ${windows.length} 个受管窗口，未发现 about:blank` },
@@ -149,7 +149,7 @@ function renderLoginChoices() {
 function renderSummary(health, status, windows) {
   const hasBlank = windows.some((item) => String(item.url || '') === 'about:blank');
   const versionAvailable = Boolean(text(status.agentVersion, '') && text(status.agentVersion, '') !== '-');
-  setCard('#serviceCard', health?.ok ? '正常' : '失败', `127.0.0.1:${status.port || 18280}`, health?.ok ? 'ok' : 'error');
+  setCard('#serviceCard', health?.ok ? '正常' : '失败', `127.0.0.1:${status.port || 19380}`, health?.ok ? 'ok' : 'error');
   setCard('#versionCard', versionAvailable ? `v${text(status.agentVersion)}` : '-', versionAvailable ? '\u5DF2\u4ECE\u672C\u5730\u670D\u52A1\u8BFB\u53D6\u7248\u672C' : '\u672C\u5730\u670D\u52A1\u672A\u8FD4\u56DE\u7248\u672C', versionAvailable ? 'ok' : 'error');
   setCard('#pairingCard', status.isPaired ? '已绑定' : '未绑定', status.hasCredential ? '具有后台凭证' : '暂无后台凭证', status.isPaired ? 'ok' : 'warn');
   setCard('#windowCard', String(windows.length), hasBlank ? '发现 about:blank' : '未发现 about:blank', hasBlank ? 'error' : 'ok');

@@ -148,7 +148,7 @@ Assert-Condition ([string] $archiveIndex.release_slug -eq ([string] $manifest.re
 Assert-Condition ([string] $archiveIndex.customer.slug -eq ([string] $manifest.customer_slug)) 'Archive index customer slug does not match release manifest.'
 $archiveSiteUrl = ([string] $manifest.site_url).TrimEnd('/')
 $archiveGeoflowUrl = ([string] $manifest.geoflow_base_url).TrimEnd('/')
-$manifestDesktopAgentPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 18280 }
+$manifestDesktopAgentPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 19380 }
 Assert-AbsoluteHttpUrl -Value $archiveSiteUrl -Name 'Release manifest site_url'
 Assert-AbsoluteHttpUrl -Value $archiveGeoflowUrl -Name 'Release manifest geoflow_base_url'
 Assert-Condition ([string] $archiveIndex.customer.site_url -eq $archiveSiteUrl) 'Archive index customer site_url does not match release manifest.'

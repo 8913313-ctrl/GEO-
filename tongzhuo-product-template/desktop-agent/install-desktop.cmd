@@ -21,6 +21,6 @@ if errorlevel 1 (
 )
 echo.
 echo 安装完成，发布器已在后台运行。
-echo 后台地址：http://127.0.0.1:18280
+echo 后台地址：http://127.0.0.1:19380
 pause
 endlocal

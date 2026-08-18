@@ -28,7 +28,7 @@ try {
   assert.equal(readConfig().platformFilterMode, 'unrestricted');
 
   fs.writeFileSync(configPath, JSON.stringify({
-    geoflowBaseUrl: 'http://127.0.0.1:43127',
+    geoflowBaseUrl: 'http://127.0.0.1:44127',
     apiToken: 'legacy-token',
     enabledPlatforms: ['zhihu'],
   }), 'utf8');
@@ -63,14 +63,14 @@ try {
     deviceSecret: 'device-secret',
     pairingCode: 'pairing-code',
   });
-  writeConfig({ apiToken: 'keep-me', geoflowBaseUrl: 'http://127.0.0.1:18080' });
+  writeConfig({ apiToken: 'keep-me', geoflowBaseUrl: 'http://127.0.0.1:19080' });
   writeConfig({ apiToken: undefined, deviceName: '配置测试设备' });
   const config = readConfig();
   assert.equal(config.pairingToken, 'pairing-token');
   assert.equal(config.deviceSecret, 'device-secret');
   assert.equal(config.pairingCode, 'pairing-code');
   assert.equal(config.apiToken, 'keep-me');
-  assert.equal(config.geoflowBaseUrl, 'http://127.0.0.1:18080');
+  assert.equal(config.geoflowBaseUrl, 'http://127.0.0.1:19080');
   assert.equal(config.deviceName, '配置测试设备');
   assert.ok(config.capabilities.includes('baijiahao'));
   assert.ok(config.capabilities.includes('sohufocus'));
@@ -95,8 +95,8 @@ try {
   delete process.env.TZ_AGENT_MASTER_KEY;
   assert.equal(readConfig().apiToken, 'keep-me');
 
-  writeConfig({ geoflowBaseUrl: 'http://127.0.0.1:43127' });
-  assert.equal(readConfig().geoflowBaseUrl, 'http://127.0.0.1:43127');
+  writeConfig({ geoflowBaseUrl: 'http://127.0.0.1:44127' });
+  assert.equal(readConfig().geoflowBaseUrl, 'http://127.0.0.1:44127');
 
   process.env.GEOFLOW_BASE_URL = 'https://customer.example.com/geo/';
   assert.equal(readConfig().geoflowBaseUrl, 'https://customer.example.com/geo');

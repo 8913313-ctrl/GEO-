@@ -1,6 +1,6 @@
 param(
     [string]$GeoFlowBaseUrl = '',
-    [int]$PublisherPort = 18180,
+    [int]$PublisherPort = 19180,
     [string]$PublisherHost = '127.0.0.1',
     [switch]$BrowserHeadless
 )
@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
 if ([string]::IsNullOrWhiteSpace($GeoFlowBaseUrl)) {
-    $GeoFlowBaseUrl = if ($env:GEOFLOW_BASE_URL) { $env:GEOFLOW_BASE_URL } else { 'http://127.0.0.1:18080' }
+    $GeoFlowBaseUrl = if ($env:GEOFLOW_BASE_URL) { $env:GEOFLOW_BASE_URL } else { 'http://127.0.0.1:19080' }
 }
 if ($env:PUBLISHER_PORT) {
     $PublisherPort = [int]$env:PUBLISHER_PORT

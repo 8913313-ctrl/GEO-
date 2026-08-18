@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-const baseUrl = String(process.env.TZ_RELAY_URL || process.env.TZ_RELAY_PUBLIC_ORIGIN || "http://127.0.0.1:43280").replace(/\/+$/, "");
+const baseUrl = String(process.env.TZ_RELAY_URL || process.env.TZ_RELAY_PUBLIC_ORIGIN || "http://127.0.0.1:44280").replace(/\/+$/, "");
 const adminToken = String(process.env.TZ_RELAY_ADMIN_TOKEN || (process.env.TZ_RELAY_ADMIN_TOKEN_FILE
   ? await readFile(process.env.TZ_RELAY_ADMIN_TOKEN_FILE, "utf8").catch(() => "")
   : "")).trim();

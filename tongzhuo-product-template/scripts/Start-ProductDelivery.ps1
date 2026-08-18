@@ -508,7 +508,7 @@ function Write-CustomerOperationsBundle {
                 short_name = [string] $manifest.short_name
                 site_url = [string] $manifest.site_url
                 geoflow_base_url = [string] $manifest.geoflow_base_url
-                desktop_agent_port = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 18280 }
+                desktop_agent_port = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 19380 }
             }
             artifact_inventory = @([ordered]@{ role = 'release_manifest'; file = Split-Path $manifestPath -Leaf; path = $manifestPath })
             lifecycle = @([ordered]@{ stage = 'intake'; owner = 'sales'; status = 'ready'; evidence = $manifestPath; next_action = 'Archive the customer dossier.' })

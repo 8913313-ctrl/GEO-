@@ -24,11 +24,14 @@
   });
 
   for (const group of document.querySelectorAll("[data-case-filter]")) {
-    const cards = document.querySelectorAll(".case-card[data-case-industry]");
+    const cards = document.querySelectorAll("[data-case-industry]");
     for (const button of group.querySelectorAll("[data-case-value]")) {
       button.addEventListener("click", () => {
         const value = button.dataset.caseValue || "all";
-        for (const sibling of group.querySelectorAll("[data-case-value]")) sibling.classList.toggle("is-active", sibling === button);
+        for (const sibling of group.querySelectorAll("[data-case-value]")) {
+          sibling.classList.toggle("is-active", sibling === button);
+          sibling.classList.toggle("active", sibling === button);
+        }
         for (const card of cards) card.hidden = value !== "all" && card.dataset.caseIndustry !== value;
       });
     }

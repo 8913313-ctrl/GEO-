@@ -7,7 +7,7 @@ services:
       - .env
     environment:
       TZ_BIND_HOST: 0.0.0.0
-      PORT: 43127
+      PORT: 44127
       TZ_DATA_DIR: /app/data
       TZ_DATABASE_PATH: /app/data/tongzhuo-production.sqlite
       TZ_LOG_DIR: /app/data/logs
@@ -15,9 +15,9 @@ services:
     volumes:
       - geo-data:/app/data
     expose:
-      - "43127"
+      - "44127"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:43127/health/ready"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:44127/health/ready"]
       interval: 30s
       timeout: 5s
       retries: 3

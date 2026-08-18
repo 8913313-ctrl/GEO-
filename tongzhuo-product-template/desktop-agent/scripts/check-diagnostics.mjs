@@ -6,7 +6,7 @@ const healthy = buildLocalDiagnostics({
   geoflowBaseUrl: 'https://flow.example.com',
   hasToken: true,
   deviceId: 'tz-device-test',
-  port: 18280,
+  port: 19380,
   capabilities: ['zhihu', 'wechat_mp', 'toutiao', 'zip-download'],
   lastHeartbeatAt: new Date().toISOString(),
 }, platforms);

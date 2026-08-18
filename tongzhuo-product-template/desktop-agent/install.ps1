@@ -1,13 +1,13 @@
 param(
     [string]$GeoFlowBaseUrl = '',
-    [int]$AgentPort = 18280
+    [int]$AgentPort = 19380
 )
 
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 
 if ([string]::IsNullOrWhiteSpace($GeoFlowBaseUrl)) {
-    $GeoFlowBaseUrl = if ($env:GEOFLOW_BASE_URL) { $env:GEOFLOW_BASE_URL } else { 'http://127.0.0.1:43127' }
+    $GeoFlowBaseUrl = if ($env:GEOFLOW_BASE_URL) { $env:GEOFLOW_BASE_URL } else { 'http://127.0.0.1:44127' }
 }
 if ($env:TZ_AGENT_PORT) {
     $AgentPort = [int]$env:TZ_AGENT_PORT

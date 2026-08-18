@@ -17,8 +17,8 @@
                    },
     "publisherDeployment":  {
                                 "mode":  "cloud-workbench-with-windows-desktop-agent",
-                                "desktopAgentPort":  18280,
-                                "legacyAssistantPort":  18180,
+                                "desktopAgentPort":  19380,
+                                "legacyAssistantPort":  19180,
                                 "healthPath":  "/healthz",
                                 "restartPolicy":  "tray-autostart",
                                 "adminDeviceActions":  [

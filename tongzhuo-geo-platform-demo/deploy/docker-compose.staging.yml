@@ -1,4 +1,4 @@
-# Staging only.  It deliberately does not bind host port 18080, so the
+# Staging only.  It deliberately does not bind host port 19080, so the
 # currently serving website remains untouched during acceptance testing.
 name: tongzhuo-geo-staging
 
@@ -24,7 +24,7 @@ services:
     environment:
       <<: *common-env
       TZ_BIND_HOST: 0.0.0.0
-      PORT: 43127
+      PORT: 44127
       TZ_COOKIE_SECURE: "1"
       # Staging never receives production Relay/ad-hoc credentials and must
       # not create billable central tasks while release acceptance runs.
@@ -38,9 +38,9 @@ services:
     volumes:
       - geo-staging-data:/app/data
     ports:
-      - "${TZ_STAGING_ADMIN_BIND_ADDRESS:-127.0.0.1}:${TZ_STAGING_ADMIN_PORT:-18183}:43127"
+      - "${TZ_STAGING_ADMIN_BIND_ADDRESS:-127.0.0.1}:${TZ_STAGING_ADMIN_PORT:-18183}:44127"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:43127/health/ready >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:44127/health/ready >/dev/null 2>&1"]
       interval: 20s
       timeout: 5s
       retries: 6
@@ -58,7 +58,7 @@ services:
     environment:
       <<: *common-env
       TZ_SITE_BIND_HOST: 0.0.0.0
-      TZ_SITE_PORT: 18080
+      TZ_SITE_PORT: 19080
       TZ_SITE_STATIC_ROOT: /site
       TZ_SITE_BASE_URL: ${TZ_STAGING_SITE_BASE_URL:-http://127.0.0.1:18182}
       TZ_SITE_WORKSPACE_ID: ${TZ_SITE_WORKSPACE_ID:-default}
@@ -66,9 +66,9 @@ services:
       - geo-staging-data:/app/data
       - "${TZ_SITE_STATIC_HOST_PATH:-../../demo-company-homepage}:/site:ro"
     ports:
-      - "${TZ_STAGING_SITE_BIND_ADDRESS:-127.0.0.1}:${TZ_STAGING_SITE_PORT:-18182}:18080"
+      - "${TZ_STAGING_SITE_BIND_ADDRESS:-127.0.0.1}:${TZ_STAGING_SITE_PORT:-18182}:19080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:18080/health/ready >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:19080/health/ready >/dev/null 2>&1"]
       interval: 20s
       timeout: 5s
       retries: 6

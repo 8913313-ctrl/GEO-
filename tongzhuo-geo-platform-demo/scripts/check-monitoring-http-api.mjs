@@ -38,14 +38,14 @@ try {
   const cookie = cookies(result.response); const csrf = result.body.data.csrfToken; const auth = headers(cookie, csrf);
   const html = `<html lang="zh-CN"><head><title>GEO</title><meta name="description" content="GEO"><script type="application/ld+json">{"@type":"Organization"}</script></head><body><h1>企业 GEO</h1><p>上传的 HTML 快照可安全用于本地官网诊断，不会让服务端请求本机或内网地址。</p></body></html>`;
 
-  result = await request("/api/v1/monitoring/diagnostics", { method: "POST", headers: auth, body: JSON.stringify({ html, baseUrl: "http://127.0.0.1:18080/", sourceLabel: "本地官网快照" }) });
+  result = await request("/api/v1/monitoring/diagnostics", { method: "POST", headers: auth, body: JSON.stringify({ html, baseUrl: "http://127.0.0.1:19080/", sourceLabel: "本地官网快照" }) });
   assert.equal(result.response.status, 202, JSON.stringify(result.body));
   assert.equal(result.body.data.diagnostic.status, "pending");
   const reportId = result.body.data.diagnostic.id;
   result = await waitForDiagnostic(reportId, cookie);
   assert.equal(result.response.status, 200, JSON.stringify(result.body));
   assert.equal(result.body.data.diagnostic.status, "completed", JSON.stringify(result.body));
-  assert.equal(result.body.data.diagnostic.url, "http://127.0.0.1:18080/");
+  assert.equal(result.body.data.diagnostic.url, "http://127.0.0.1:19080/");
   assert.equal(result.body.data.diagnostic.meta.previewScore, 33);
   assert.equal(result.body.data.diagnostic.recommendationSource, "rules");
 

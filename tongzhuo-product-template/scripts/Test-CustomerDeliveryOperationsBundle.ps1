@@ -43,7 +43,7 @@ try {
         company_name = 'Ops Smoke Co., Ltd.'
         site_url = 'https://ops-smoke.example.com'
         geoflow_base_url = 'https://work.ops-smoke.example.com'
-        desktop_agent_port = 18280
+        desktop_agent_port = 19380
         package_integrity = [ordered]@{}
     })
     foreach ($artifact in @(

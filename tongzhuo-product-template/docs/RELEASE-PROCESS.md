@@ -237,7 +237,7 @@ Copy-Item .\config\client-config.example.json 'D:\Deliveries\configs\customer-a.
 
 正式客户交付 release 还会自动生成 `*-HANDOFF-CHECKLIST.md` 和 `*-HANDOFF-CHECKLIST.json`，用于客户交接签收。清单会列出必交文件、SHA256、配置评审 warning、交付前检查、安装后检查、验收命令、签收负责人和安全边界。
 
-客户配置中 `desktop_agent.port` 是主线 Windows 桌面发布执行器端口，默认 `18280`；`publisher_assistant.port` 是旧版兼容发布助手端口，默认 `18180`。两个端口必须不同。正式客户 release、部署档案、支持诊断包和桌面端健康检查都会读取 `desktop_agent.port`。
+客户配置中 `desktop_agent.port` 是主线 Windows 桌面发布执行器端口，默认 `19380`；`publisher_assistant.port` 是旧版兼容发布助手端口，默认 `19180`。两个端口必须不同。正式客户 release、部署档案、支持诊断包和桌面端健康检查都会读取 `desktop_agent.port`。
 
 然后从客户实例生成完整交付包：
 

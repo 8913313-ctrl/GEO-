@@ -10,7 +10,7 @@ INSTALL_ROOT="${TZ_INSTALL_ROOT:-$PD_DEFAULT_INSTALL_ROOT}"
 SOURCE_ROOT=""
 SITE_SOURCE=""
 CHECK_PORTS=0
-SITE_PORT=18080
+SITE_PORT=19080
 ADMIN_PORT=18183
 
 usage() {
@@ -25,7 +25,7 @@ Options:
   --source PATH        Application source root to validate
   --site-source PATH   Static website directory to validate
   --check-ports        Require website/admin ports to be unused
-  --site-port PORT     Website host port checked with --check-ports (18080)
+  --site-port PORT     Website host port checked with --check-ports (19080)
   --admin-port PORT    Admin HTTPS host port checked with --check-ports (18183)
   -h, --help           Show this help
 EOF

@@ -24,8 +24,8 @@ let warnedAboutDevelopmentKey = false;
 // Existing local config values are preserved by normalizeConfig below.
 export const defaultGeoFlowBaseUrl = 'https://geoflow.local';
 const legacyManagedBaseUrls = new Set([
-  'http://127.0.0.1:43127',
-  'http://localhost:43127',
+  'http://127.0.0.1:44127',
+  'http://localhost:44127',
 ]);
 
 function environmentGeoFlowBaseUrl() {
@@ -43,7 +43,7 @@ const defaults = {
   deviceSecret: '',
   pairedAt: '',
   pairingCode: '',
-  port: 18280,
+  port: 19380,
   pollSeconds: 20,
   loginCheckSeconds: 300,
   autoRun: false,

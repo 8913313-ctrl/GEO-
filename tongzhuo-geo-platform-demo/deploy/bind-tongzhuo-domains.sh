@@ -30,7 +30,7 @@ SITE_DOMAIN="${SITE_DOMAIN:-tongzhuo.ink}"
 WWW_DOMAIN="${WWW_DOMAIN:-www.tongzhuo.ink}"
 ADMIN_DOMAIN="${ADMIN_DOMAIN:-admin.tongzhuo.ink}"
 EXPECTED_IP="${EXPECTED_IP:-124.221.70.55}"
-SITE_PORT="${SITE_PORT:-18080}"
+SITE_PORT="${SITE_PORT:-19080}"
 ADMIN_PORT="${ADMIN_PORT:-18183}"
 
 fail() { printf '[domain-bind] ERROR: %s\n' "$*" >&2; exit 1; }
@@ -96,7 +96,7 @@ docker compose --env-file "$CUTOVER_ENV" -f "$COMPOSE_FILE" up -d --no-deps --fo
 if [[ "$(docker port "$ADMIN_TLS_CONTAINER" 8443/tcp)" != "127.0.0.1:$ADMIN_PORT" ]]; then
   fail "Admin TLS proxy is not bound to 127.0.0.1:$ADMIN_PORT"
 fi
-if [[ "$(docker port "$SITE_CONTAINER" 18080/tcp)" != "127.0.0.1:$SITE_PORT" ]]; then
+if [[ "$(docker port "$SITE_CONTAINER" 19080/tcp)" != "127.0.0.1:$SITE_PORT" ]]; then
   fail "Site proxy is not bound to 127.0.0.1:$SITE_PORT"
 fi
 
@@ -147,7 +147,7 @@ http://$SITE_DOMAIN http://$WWW_DOMAIN http://$ADMIN_DOMAIN {
 
 https://$SITE_DOMAIN {
   encode zstd gzip
-  reverse_proxy $SITE_CONTAINER:18080
+  reverse_proxy $SITE_CONTAINER:19080
 }
 
 https://$WWW_DOMAIN {

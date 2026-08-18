@@ -89,7 +89,7 @@ New-Item -ItemType Directory -Force -Path (Split-Path $resolvedJsonOutputPath -P
 $siteUrl = ([string] $manifest.site_url).TrimEnd('/')
 $geoflowBaseUrl = ([string] $manifest.geoflow_base_url).TrimEnd('/')
 $adminBase = "$geoflowBaseUrl/geo_admin"
-$desktopPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 18280 }
+$desktopPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 19380 }
 
 $checks = @(
     New-PilotStep -Stage 'stage_1_cloud_workbench_ai_website' -Owner 'server_engineer' -Item 'Extract the delivery package and verify the package hash.' -Evidence 'SHA256 matches release manifest and .sha256 file.' -Command '.\Start-CustomerDelivery.ps1 -Action Verify'

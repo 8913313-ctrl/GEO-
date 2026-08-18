@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { appendAuditLog } from "./production-audit.mjs";
+import { DEFAULT_SITE_TEMPLATE_KEY, isSiteTemplateKey } from "./site-template-registry.mjs";
 
 const CORE_PAGE_IDS = new Set(["home", "services", "about", "contact", "insights", "cases", "problem-map"]);
 const OPTIONAL_PATHS = new Set(["/cases/", "/faq/", "/team/", "/honors/", "/jobs/"]);
@@ -35,6 +36,10 @@ function cleanPublicUrl(value, { allowRelative = false } = {}) {
   } catch {
     return "";
   }
+}
+
+function cleanOptionalImage(value) {
+  return cleanPublicUrl(value, { allowRelative: true });
 }
 
 function cleanPublicUrlList(value, maximum = 12) {
@@ -129,6 +134,7 @@ function normalizeServices(value) {
     id: cleanId(item.id, `service-${index + 1}`), title: cleanText(item.title, `服务 ${index + 1}`, 160),
     eyebrow: cleanText(item.eyebrow, "SERVICE", 80), description: cleanText(item.description, "", 1_500),
     audience: cleanText(item.audience, "", 800), focus: cleanText(item.focus, "", 800),
+    image: cleanOptionalImage(item.image), imageAlt: cleanText(item.imageAlt, item.title || "服务图片", 180),
     href: normalizeCmsHref(item.href, "/contact/"), status: normalizePublishedStatus(item.status, "draft"),
     order: Math.max(1, Number.parseInt(item.order, 10) || index + 1), updatedAt: item.updatedAt || null
   })).sort((a, b) => a.order - b.order);
@@ -140,6 +146,7 @@ function normalizeCases(value) {
     id: cleanId(item.id, `case-${index + 1}`), title: cleanText(item.title, `案例 ${index + 1}`, 200),
     serviceId: cleanId(item.serviceId, ""), service: cleanText(item.service, "企业服务", 120), industry: cleanText(item.industry, "中小企业", 120),
     summary: cleanText(item.summary, "", 1_500), result: cleanText(item.result, "", 1_500),
+    image: cleanOptionalImage(item.image), imageAlt: cleanText(item.imageAlt, item.title || "案例图片", 180),
     href: normalizeCmsHref(item.href, "/contact/"),
     status: normalizePublishedStatus(item.status, "draft"), order: Math.max(1, Number.parseInt(item.order, 10) || index + 1),
     updatedAt: item.updatedAt || null
@@ -248,10 +255,11 @@ function normalizeModule(item, pageId, index) {
     content: cleanText(item?.content, item?.description || "", 10_000), source: cleanText(item?.source, "CMS 页面内容", 160),
     status: ["published", "draft", "hidden"].includes(item?.status) ? item.status : "draft",
     ctaLabel: cleanText(item?.ctaLabel, "", 80), ctaHref: normalizeCmsPath(item?.ctaHref, "/contact/"),
-    image: cleanText(item?.image, "", 500),
+    image: cleanOptionalImage(item?.image), imageAlt: cleanText(item?.imageAlt, title || "模块图片", 180),
     items: (Array.isArray(item?.items) ? item.items : []).slice(0, 24).map((entry, itemIndex) => ({
       id: cleanId(entry?.id, `${pageId}-${type}-item-${itemIndex + 1}`), title: cleanText(entry?.title, `项目 ${itemIndex + 1}`, 160),
-      description: cleanText(entry?.description, entry?.content || "", 1_000), href: normalizeCmsPath(entry?.href, "/contact/")
+      description: cleanText(entry?.description, entry?.content || "", 1_000), href: normalizeCmsPath(entry?.href, "/contact/"),
+      image: cleanOptionalImage(entry?.image), imageAlt: cleanText(entry?.imageAlt, entry?.title || "内容图片", 180)
     }))
   };
 }
@@ -293,7 +301,7 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
     description: cleanText(settingsSource.description, profile.introduction || profile.serviceDescription || "企业公开信息、产品服务与行业内容。", 800),
     officialDomain: cleanText(settingsSource.officialDomain, legacySite.domain || profile.officialDomain || "", 300).replace(/^https?:\/\//i, "").replace(/\/+$/, ""),
     // The public canonical domain and the backend's crawl target may differ
-    // during a migration (for example an HTTP staging origin on port 18080).
+    // during a migration (for example an HTTP staging origin on port 19080).
     // Keep the target explicit so an operator does not have to guess the
     // protocol from the canonical domain on every diagnostic run.
     diagnosticUrl: cleanPublicUrl(settingsSource.diagnosticUrl),
@@ -355,6 +363,11 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const themeSource = cms.theme && typeof cms.theme === "object" ? cms.theme : {};
   const primaryColor = /^#[0-9a-f]{6}$/i.test(themeSource.primaryColor || "") ? themeSource.primaryColor : "#155eef";
   const theme = { name: cleanText(themeSource.name, "企业官网 · 标准版", 120), primaryColor, cta: cleanText(themeSource.cta, "预约业务咨询", 80), version: Math.max(1, Number.parseInt(themeSource.version, 10) || 1), updatedAt: themeSource.updatedAt || null };
+  const templateKey = isSiteTemplateKey(cms.templateKey)
+    ? cms.templateKey
+    : isSiteTemplateKey(themeSource.templateKey)
+      ? themeSource.templateKey
+      : DEFAULT_SITE_TEMPLATE_KEY;
   const redirects = (Array.isArray(cms.redirects) ? cms.redirects : []).filter((item) => item && typeof item === "object").slice(0, 500).map((item, index) => ({
     id: cleanId(item.id, `redirect-${index + 1}`), from: normalizeCmsPath(item.from, "/"), to: normalizeCmsPath(item.to, "/"),
     status: item.status === "disabled" ? "disabled" : "active", reason: cleanText(item.reason, "地址变更", 300), updatedAt: item.updatedAt || item.createdAt || null
@@ -362,7 +375,7 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const standardRedirects = [["/index.html", "/"], ["/products.html", "/services/"], ["/products/", "/services/"], ["/about.html", "/about/"], ["/contact.html", "/contact/"], ["/insights.html", "/insights/"]];
   for (const [from, to] of standardRedirects) if (!redirects.some((item) => item.from === from)) redirects.push({ id: `standard-${slugify(from, "redirect")}`, from, to, status: "active", reason: "统一官网规范地址", updatedAt: null });
   return {
-    schemaVersion: 2, settings, theme, pages, modules, categories, navItems, redirects,
+    schemaVersion: 3, templateKey, settings, theme: { ...theme, templateKey }, pages, modules, categories, navItems, redirects,
     services: normalizeServices(cms.services), cases: normalizeCases(cms.cases), problemGroups: normalizeProblemGroups(cms.problemGroups),
     businessLines: normalizeBusinessLines(state), generatedAt: cleanText(cms.generatedAt, new Date().toISOString(), 80)
   };

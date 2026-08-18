@@ -33,18 +33,18 @@ function New-ValidConfig {
             ai_files_enabled = $true
         }
         geoflow = [ordered]@{
-            base_url = 'http://127.0.0.1:18080'
+            base_url = 'http://127.0.0.1:19080'
             admin_path = 'geo_admin'
             api_token = ''
         }
         publisher_assistant = [ordered]@{
-            port = 18180
+            port = 19180
             poll_seconds = 20
             publish_mode = 'publish'
             browser_channel = 'chromium'
         }
         desktop_agent = [ordered]@{
-            port = 18280
+            port = 19380
             poll_seconds = 20
             capabilities = @('zhihu', 'wechat_mp', 'toutiao', 'zip-download')
         }
@@ -110,7 +110,7 @@ try {
 
     Invoke-InvalidCase -Name 'duplicate-desktop-port' -ExpectedMessage 'desktop_agent.port must be different' -Mutate {
         param($config)
-        $config.desktop_agent.port = 18180
+        $config.desktop_agent.port = 19180
     }
 
     Invoke-InvalidCase -Name 'empty-services' -ExpectedMessage 'company.services must contain at least one service name' -Mutate {

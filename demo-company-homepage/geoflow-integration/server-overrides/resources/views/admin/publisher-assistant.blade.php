@@ -40,7 +40,7 @@
                 </p>
             </div>
             <div class="flex flex-wrap gap-3">
-                <a href="http://127.0.0.1:18280/" target="_blank" rel="noreferrer" class="inline-flex items-center rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700">
+                <a href="http://127.0.0.1:19380/" target="_blank" rel="noreferrer" class="inline-flex items-center rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700">
                     <i data-lucide="monitor-up" class="mr-2 h-4 w-4"></i>
                     打开本机助手
                 </a>

@@ -482,7 +482,7 @@ pd_admin_bind() {
 pd_site_port() {
   local value
   value="$(pd_read_env_value "$CUTOVER_ENV" TZ_PRODUCTION_SITE_PORT)"
-  printf '%s\n' "${value:-18080}"
+  printf '%s\n' "${value:-19080}"
 }
 
 pd_site_url() {

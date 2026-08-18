@@ -1,4 +1,5 @@
 import { applyPublicCitationVisibility } from "../citation-visibility.mjs";
+import { DEFAULT_SITE_TEMPLATE_KEY, isSiteTemplateKey, siteTemplateByKey } from "../site-template-registry.mjs";
 
 const DEFAULT_DESCRIPTION = "企业公开信息、行业洞察与可验证的专业内容。";
 
@@ -136,6 +137,17 @@ function safeUrl(value, kind = "link") {
     // are ambiguous after an article is mounted under /insights/:slug.
   }
   return "";
+}
+
+function templateClass(site) {
+  const key = isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY;
+  return `template-${key.replace(/[^a-z0-9-]/gi, "-")}`;
+}
+
+function optionalMedia(image, alt, label = "内容图片") {
+  const src = safeUrl(image, "image");
+  if (src) return `<figure class="optional-media has-image"><img src="${escapeHtml(src)}" alt="${escapeHtml(alt || label)}" loading="lazy" decoding="async"></figure>`;
+  return `<div class="optional-media no-image" role="img" aria-label="${escapeHtml(label)}"><svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path d="M8 10h32v28H8zM13 32l8-8 5 5 4-4 5 7M15 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="15" cy="18" r="2" fill="currentColor"/></svg><span>${escapeHtml(label)}</span></div>`;
 }
 
 function parseAttributes(raw = "") {
@@ -369,9 +381,19 @@ const PUBLIC_BRAND_MARK = "/assets/tongzhuo-mark-wine.png";
 const PUBLIC_BRAND_MARK_ON_DARK = "/assets/tongzhuo-mark-gold.png";
 const PUBLIC_BRAND_LOGO = "/assets/zhuojian-ai-lockup-gold.png";
 const PUBLIC_SCHEMA_LOGO = "/assets/zhuojian-ai-official-logo.png";
+const PREVIEW_ASSET_PREFIX = "/api/v1/site-cms/preview/assets";
 
-function brandLockup() {
-  return `<span class="brand-mark brand-mark-lockup"><img src="${PUBLIC_BRAND_LOGO}" alt="灼见 AI" width="116" height="64" decoding="async"></span>`;
+function assetRoot(assetBase, fallback) {
+  const normalized = String(assetBase || "").replace(/\/+$/, "");
+  return normalized.startsWith(PREVIEW_ASSET_PREFIX) ? normalized : fallback;
+}
+
+function publicAsset(assetBase, fileName) {
+  return `${assetRoot(assetBase, "/assets")}/${fileName}`;
+}
+
+function brandLockup(assetBase) {
+  return `<span class="brand-mark brand-mark-lockup"><img src="${publicAsset(assetBase, "zhuojian-ai-lockup-gold.png")}" alt="灼见 AI" width="116" height="64" decoding="async"></span>`;
 }
 
 function publicCompanyName(site) {
@@ -384,7 +406,8 @@ function pageTitle(site, title = "") {
   return title ? `${title}｜${brand}` : brand;
 }
 
-function navigation(site, active = "") {
+function navigation(site, active = "", assetBase = "/assets") {
+  if (site?.templateKey === "02-construction") return constructionNavigation(site, active);
   // The first public-site version has a deliberate, complete information
   // architecture. CMS navigation labels can replace these later, but missing
   // demo pages must not make the walkthrough look unfinished.
@@ -409,14 +432,29 @@ function navigation(site, active = "") {
   const primaryLabels = new Map([["/", "首页"], ["/services", "GEO 服务"], ["/cases", "实施场景"], ["/insights", "GEO 知识"], ["/about", "关于桐灼"], ["/contact", "联系"]]);
   const displayItems = orderedItems.filter((item) => primaryPaths.has(normalize(item.path))).map((item) => ({ ...item, label: primaryLabels.get(normalize(item.path)) || item.label }));
   const brand = publicBrandName(site);
-  return `<header class="site-header"><div class="shell nav"><a class="brand" href="/" aria-label="${escapeHtml(brand)}首页">${brandLockup(site)}</a><nav class="nav-links" aria-label="主导航">${displayItems.map((item) => `<a${activePath === normalize(item.path) ? " class=\"active\" aria-current=\"page\"" : ""} href="${escapeHtml(item.path)}">${escapeHtml(item.label)}</a>`).join("")}</nav><div class="nav-actions"><a class="nav-cta" href="/contact/">预约诊断</a><button class="menu-toggle" type="button" aria-label="打开导航" aria-expanded="false" aria-controls="mobile-navigation"><span></span><span></span><span></span></button></div></div><nav id="mobile-navigation" class="mobile-navigation" aria-label="移动端导航">${displayItems.map((item) => `<a${activePath === normalize(item.path) ? " class=\"active\"" : ""} href="${escapeHtml(item.path)}">${escapeHtml(item.label)}</a>`).join("")}<a class="mobile-cta" href="/contact/">预约诊断</a></nav></header>`;
+  return `<header class="site-header"><div class="shell nav"><a class="brand" href="/" aria-label="${escapeHtml(brand)}首页">${brandLockup(assetBase)}</a><nav class="nav-links" aria-label="主导航">${displayItems.map((item) => `<a${activePath === normalize(item.path) ? " class=\"active\" aria-current=\"page\"" : ""} href="${escapeHtml(item.path)}">${escapeHtml(item.label)}</a>`).join("")}</nav><div class="nav-actions"><a class="nav-cta" href="/contact/">预约诊断</a><button class="menu-toggle" type="button" aria-label="打开导航" aria-expanded="false" aria-controls="mobile-navigation"><span></span><span></span><span></span></button></div></div><nav id="mobile-navigation" class="mobile-navigation" aria-label="移动端导航">${displayItems.map((item) => `<a${activePath === normalize(item.path) ? " class=\"active\"" : ""} href="${escapeHtml(item.path)}">${escapeHtml(item.label)}</a>`).join("")}<a class="mobile-cta" href="/contact/">预约诊断</a></nav></header>`;
 }
 
-function footer(site) {
+function constructionNavigation(site, active = "") {
+  const normalizedActive = String(active || "/").replace(/\/$/, "") || "/";
+  const items = [["/", "首页"], ["/about/", "关于我们"], ["/services/", "服务项目"], ["/cases/", "工程案例"], ["/insights/", "新闻动态"], ["/contact/", "联系我们"]];
+  const company = publicCompanyName(site);
+  const phone = site.contact?.phone || "";
+  return `<header class="site-header header"><nav class="nav container"><a class="brand logo" href="/" aria-label="${escapeHtml(company)}首页"><span class="logo-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-5h6v5M12 4V2M4 10h16"/></svg></span><span>${escapeHtml(publicBrandName(site))}</span></a><ul class="nav-menu">${items.map(([path, label]) => `<li><a${normalizedActive === (path.replace(/\/$/, "") || "/") ? ' class="active" aria-current="page"' : ""} href="${path}">${label}</a></li>`).join("")}</ul><div class="nav-contact">${phone ? `<span class="nav-phone">${escapeHtml(phone)}</span>` : ""}<a class="btn btn-primary" href="/contact/">预约咨询</a></div><button class="mobile-menu-btn" type="button" aria-label="打开导航" aria-expanded="false"><span></span><span></span><span></span></button></nav></header>`;
+}
+
+function footer(site, assetBase = "/assets") {
+  if (site?.templateKey === "02-construction") return constructionFooter(site);
   const contact = site.contact || {};
   const brand = publicBrandName(site);
   const company = publicCompanyName(site);
-  return `<footer class="site-footer"><div class="shell footer-main"><div class="footer-brand"><a class="brand" href="/">${brandLockup(site, "GEO · 可信企业信源")}</a><p>把企业事实组织成客户与 AI 都能验证的公开信源。</p>${contact.serviceArea || contact.industryRegion ? `<span class="footer-meta">${escapeHtml([contact.industryRegion, contact.serviceArea].filter(Boolean).join(" · "))}</span>` : ""}</div><div class="footer-col"><strong>GEO</strong><a href="/services/">服务方法</a><a href="/problem-map/">问题地图</a><a href="/cases/">实施场景</a></div><div class="footer-col"><strong>知识</strong><a href="/insights/">行业资讯</a><a href="/llms.txt">AI 内容索引</a><a href="/feed.xml">RSS 订阅</a></div><div class="footer-col"><strong>桐灼</strong><a href="/about/">关于我们</a><a href="/contact/">业务咨询</a>${contact.email ? `<a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a>` : ""}</div></div><div class="shell footer-bottom"><span>© ${new Date().getFullYear()} ${escapeHtml(company)}</span><a class="footer-icp" href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">鲁ICP备2026021587号-2</a><span>真实 · 清晰 · 可追溯 · 能持续</span></div></footer>`;
+  return `<footer class="site-footer"><div class="shell footer-main"><div class="footer-brand"><a class="brand" href="/">${brandLockup(assetBase)}</a><p>把企业事实组织成客户与 AI 都能验证的公开信源。</p>${contact.serviceArea || contact.industryRegion ? `<span class="footer-meta">${escapeHtml([contact.industryRegion, contact.serviceArea].filter(Boolean).join(" · "))}</span>` : ""}</div><div class="footer-col"><strong>GEO</strong><a href="/services/">服务方法</a><a href="/problem-map/">问题地图</a><a href="/cases/">实施场景</a></div><div class="footer-col"><strong>知识</strong><a href="/insights/">行业资讯</a><a href="/llms.txt">AI 内容索引</a><a href="/feed.xml">RSS 订阅</a></div><div class="footer-col"><strong>桐灼</strong><a href="/about/">关于我们</a><a href="/contact/">业务咨询</a>${contact.email ? `<a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a>` : ""}</div></div><div class="shell footer-bottom"><span>© ${new Date().getFullYear()} ${escapeHtml(company)}</span><a class="footer-icp" href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">鲁ICP备2026021587号-2</a><span>真实 · 清晰 · 可追溯 · 能持续</span></div></footer>`;
+}
+
+function constructionFooter(site) {
+  const company = publicCompanyName(site);
+  const description = site.description || "提供专业的建筑工程、装饰设计与项目交付服务。";
+  return `<footer class="site-footer footer"><div class="container"><div class="footer-grid"><div class="footer-about"><h3>${escapeHtml(company)}</h3><p>${escapeHtml(description)}</p><div class="footer-social" aria-label="企业入口"><a href="/contact/" aria-label="联系企业">联</a><a href="/insights/" aria-label="查看新闻">闻</a><a href="/cases/" aria-label="查看案例">案</a></div></div><div class="footer-links"><h4>服务项目</h4><ul><li><a href="/services/">建筑工程</a></li><li><a href="/services/">装饰设计</a></li><li><a href="/services/">工程管理</a></li><li><a href="/contact/">项目咨询</a></li></ul></div><div class="footer-links"><h4>关于我们</h4><ul><li><a href="/about/">公司简介</a></li><li><a href="/cases/">工程案例</a></li><li><a href="/insights/">新闻动态</a></li><li><a href="/contact/">联系我们</a></li></ul></div><div class="footer-links"><h4>服务支持</h4><ul><li><a href="/contact/">在线咨询</a></li><li><a href="/problem-map/">常见问题</a></li><li><a href="/contact/">提交需求</a></li><li><a href="/contact/">售后服务</a></li></ul></div></div><div class="footer-bottom"><p>© ${new Date().getFullYear()} ${escapeHtml(company)} 版权所有</p></div></div></footer>`;
 }
 
 function directionIcon(direction = "right") {
@@ -436,6 +474,342 @@ function renderDirectionalIcons(html = "") {
     .replaceAll("→", directionIcon("right"));
 }
 
+const SOURCE_TEMPLATE_KEYS = new Set(["01-industry", "02-construction"]);
+
+function sourceTemplateFor(site) {
+  const template = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  return SOURCE_TEMPLATE_KEYS.has(template.key) ? template : null;
+}
+
+function sourceTemplateProfile(template) {
+  if (template.key === "02-construction") {
+    return {
+      heroTitle: "匠心筑梦 品质为鼎",
+      heroHighlight: "品质为鼎",
+      heroDescription: "以建筑工程、装饰设计与项目交付为核心，把每一个项目节点都变成清晰、可靠的专业服务。",
+      pageProductTitle: "服务项目",
+      pageProductLead: "提供全方位建筑装饰解决方案",
+      aboutLead: "以项目经验、设计能力与施工流程，清晰呈现企业的专业交付能力。",
+      serviceSectionTitle: "服务项目",
+      serviceSectionLead: "围绕项目实际需求，提供清晰的服务范围、交付方式与沟通路径。",
+      caseSectionTitle: "精选案例",
+      caseSectionLead: "从真实场景出发，呈现项目能力与交付过程。",
+      articleSectionTitle: "新闻动态",
+      articleSectionLead: "了解企业最新项目与行业动态",
+      ctaLabel: "预约咨询",
+      ctaHref: "/contact/",
+      aboutFeatures: ["壹级资质", "专业团队", "品质保障", "全程服务"],
+      stats: [["20", "年行业经验"], ["300", "完成项目"], ["50", "专业团队"], ["98", "客户满意度"]]
+    };
+  }
+  return {
+    heroTitle: "专业工业制造解决方案提供商",
+    heroHighlight: "工业制造",
+    heroDescription: "围绕产品能力、应用场景与交付服务，为客户提供清晰、可靠的工业制造解决方案。",
+    pageProductTitle: "产品中心",
+    pageProductLead: "提供全系列工业制造设备，满足不同行业需求",
+    aboutLead: "专注于工业制造、建材设备与机械设备，把产品资料、服务边界和交付能力组织成可理解的企业信息。",
+    serviceSectionTitle: "产品中心",
+    serviceSectionLead: "围绕实际业务场景，呈现产品能力、适用范围与服务支持。",
+    caseSectionTitle: "工程案例",
+    caseSectionLead: "成功服务于不同工业项目，展示专业能力与交付结果。",
+    articleSectionTitle: "新闻动态",
+    articleSectionLead: "了解企业最新资讯与行业动态",
+    ctaLabel: "获取报价",
+    ctaHref: "/contact/",
+    aboutFeatures: ["品质保证", "技术创新", "完善服务", "行业经验"],
+    stats: [["20", "年行业经验"], ["500", "合作客户"], ["50", "专利技术"], ["100", "项目案例"]]
+  };
+}
+
+function sourceIcon(kind = "building") {
+  const paths = {
+    building: '<path d="M4 20h16M6 20V8l6-5 6 5v12M9 20v-5h6v5M9 10h.01M15 10h.01M9 13h.01M15 13h.01"/>',
+    factory: '<path d="M3 20h18M5 20V9l5 3V9l5 3V6l4 2v12M8 16h2m4 0h2m-6-4h.01m4 0h.01"/>',
+    service: '<path d="M4 19h16M6 19V8l6-4 6 4v11M9 19v-5h6v5M8 10h.01M16 10h.01"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.05.05-1.41 1.41-.05-.05a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V20h-2v-.49a1.7 1.7 0 0 0-1.03-1.56 1.7 1.7 0 0 0-1.88.34l-.05.05-1.41-1.41.05-.05A1.7 1.7 0 0 0 9.4 15a1.7 1.7 0 0 0-1.56-1.03H7v-2h.84A1.7 1.7 0 0 0 9.4 10.4a1.7 1.7 0 0 0-.34-1.88l-.05-.05 1.41-1.41.05.05a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 13.38 5.9V5h2v.9a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.05-.05 1.41 1.41-.05.05A1.7 1.7 0 0 0 19.4 10.4a1.7 1.7 0 0 0 1.56 1.03H21v2h-.04A1.7 1.7 0 0 0 19.4 15Z"/>',
+    chart: '<path d="M4 19V5m0 14h16M8 16v-5m4 5V7m4 9v-8"/>',
+    design: '<path d="m5 19 9.5-9.5M12 5l7 7M4 20h5M16 4l4 4"/>',
+    award: '<circle cx="12" cy="8" r="4"/><path d="m9 12-1 8 4-2 4 2-1-8"/>',
+    team: '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20c.3-3.2 2.3-5 6-5s5.7 1.8 6 5M15 15c3 0 4.7 1.5 5 4"/>',
+    news: '<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',
+    pin: '<path d="M12 21s6-5.1 6-11A6 6 0 0 0 6 10c0 5.9 6 11 6 11Z"/><circle cx="12" cy="10" r="2"/>',
+    phone: '<path d="M7 4h3l1 4-2 1a13 13 0 0 0 6 6l1-2 4 1v3c0 1.1-.9 2-2 2C11 19 5 13 5 6c0-1.1.9-2 2-2Z"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/>',
+    clock: '<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>',
+    check: '<path d="m5 12 4 4L19 6"/>',
+    arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>'
+  };
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[kind] || paths.building}</svg>`;
+}
+
+function sourceTemplateTitleMarkup(title, highlight) {
+  const escapedTitle = escapeHtml(title);
+  const escapedHighlight = escapeHtml(highlight);
+  return escapedTitle.includes(escapedHighlight) ? escapedTitle.replace(escapedHighlight, `<span>${escapedHighlight}</span>`) : escapedTitle;
+}
+
+function sourceNormalizePath(value) {
+  const normalized = String(value || "/").split("?")[0].replace(/\/index\.html$/i, "/").replace(/\/+/g, "/").replace(/\/$/, "");
+  return normalized || "/";
+}
+
+function sourceNavigation(site, active, template) {
+  const profile = sourceTemplateProfile(template);
+  const activePath = sourceNormalizePath(active);
+  const items = [
+    ["/", "首页"],
+    ["/about/", "关于我们"],
+    ["/services/", profile.pageProductTitle],
+    ["/cases/", "工程案例"],
+    ["/insights/", "新闻动态"],
+    ["/contact/", "联系我们"]
+  ];
+  const company = publicCompanyName(site);
+  const phone = site.contact?.phone || "";
+  const links = items.map(([path, label]) => `<li><a${activePath === sourceNormalizePath(path) ? ' class="active" aria-current="page"' : ""} href="${path}">${escapeHtml(label)}</a></li>`).join("");
+  return `<header class="header"><nav class="nav container"><a href="/" class="logo" aria-label="${escapeHtml(company)}首页"><span class="logo-icon">${sourceIcon("building")}</span><span>${escapeHtml(publicBrandName(site))}</span></a><ul class="nav-menu">${links}</ul><div class="nav-contact">${phone ? `<span class="nav-phone">${escapeHtml(phone)}</span>` : ""}<a href="/contact/" class="btn btn-primary">${escapeHtml(site.cta || profile.ctaLabel)}</a></div><button type="button" class="mobile-menu-btn" aria-label="打开导航" aria-expanded="false"><span></span><span></span><span></span></button></nav></header>`;
+}
+
+function sourceFooter(site, template) {
+  const profile = sourceTemplateProfile(template);
+  const company = publicCompanyName(site);
+  const services = frontendServices(site, false).slice(0, 4);
+  const serviceLinks = services.length ? services.map((service) => `<li><a href="${escapeHtml(service.href || "/services/")}">${escapeHtml(service.title)}</a></li>`).join("") : `<li><a href="/services/">${escapeHtml(profile.pageProductTitle)}</a></li>`;
+  const contact = site.contact || {};
+  return `<footer class="footer"><div class="container"><div class="footer-grid"><div class="footer-about"><h3>${escapeHtml(company)}</h3><p>${escapeHtml(site.description || profile.heroDescription)}</p><div class="footer-social" aria-label="企业社交入口"><a href="/contact/" aria-label="联系企业">${sourceIcon("mail")}</a><a href="/insights/" aria-label="查看新闻">${sourceIcon("news")}</a><a href="/cases/" aria-label="查看案例">${sourceIcon("building")}</a></div></div><div class="footer-links"><h4>${escapeHtml(profile.pageProductTitle)}</h4><ul>${serviceLinks}</ul></div><div class="footer-links"><h4>关于我们</h4><ul><li><a href="/about/">公司简介</a></li><li><a href="/cases/">工程案例</a></li><li><a href="/insights/">新闻动态</a></li><li><a href="/contact/">联系我们</a></li></ul></div><div class="footer-links"><h4>联系方式</h4><ul>${contact.phone ? `<li>${escapeHtml(contact.phone)}</li>` : ""}${contact.email ? `<li>${escapeHtml(contact.email)}</li>` : ""}${contact.address ? `<li>${escapeHtml(contact.address)}</li>` : "<li>欢迎通过表单提交需求</li>"}</ul></div></div><div class="footer-bottom"><p>© ${new Date().getFullYear()} ${escapeHtml(company)} 版权所有</p></div></div></footer>`;
+}
+
+function sourceBreadcrumb(title) {
+  return `<div class="breadcrumb"><a href="/">首页</a><span aria-hidden="true">/</span><span aria-current="page">${escapeHtml(title)}</span></div>`;
+}
+
+function sourcePageHeader(title, description) {
+  return `<section class="page-header"><div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p>${sourceBreadcrumb(title)}</div></section>`;
+}
+
+function sourceVisual(className, item, icon, label) {
+  const src = safeUrl(item?.image, "image");
+  if (src) return `<div class="${className} has-template-image"><img src="${escapeHtml(src)}" alt="${escapeHtml(item?.imageAlt || item?.title || label)}" loading="lazy" decoding="async"></div>`;
+  return `<div class="${className} no-template-image" role="img" aria-label="${escapeHtml(label)}">${sourceIcon(icon)}</div>`;
+}
+
+function sourceContactForm(site, sourcePath, idSuffix) {
+  const services = frontendServices(site, false).slice(0, 10);
+  return `<form data-lead-form><div class="form-row"><div class="form-group"><label for="template-name-${idSuffix}">您的姓名</label><input id="template-name-${idSuffix}" name="name" autocomplete="name" maxlength="80" required placeholder="请输入姓名"></div><div class="form-group"><label for="template-phone-${idSuffix}">联系电话</label><input id="template-phone-${idSuffix}" name="phone" autocomplete="tel" maxlength="60" required placeholder="请输入电话"></div></div><div class="form-group"><label for="template-company-${idSuffix}">企业名称</label><input id="template-company-${idSuffix}" name="company" autocomplete="organization" maxlength="160" placeholder="请输入企业名称"></div><div class="form-group"><label for="template-service-${idSuffix}">咨询方向</label><select id="template-service-${idSuffix}" name="service"><option value="业务咨询">业务咨询</option>${services.map((service) => `<option value="${escapeHtml(service.title)}">${escapeHtml(service.title)}</option>`).join("")}</select></div><div class="form-group"><label for="template-message-${idSuffix}">需求说明</label><textarea id="template-message-${idSuffix}" name="message" maxlength="2000" placeholder="请说明项目类型、业务现状和希望解决的问题"></textarea></div><input type="hidden" name="source_url" value="${escapeHtml(sourcePath)}"><button class="btn btn-primary" type="submit">提交留言</button><p class="template-form-message" data-form-message role="status">提交后由企业运营人员跟进。</p></form>`;
+}
+
+function sourceData(site, articles, preview) {
+  const data = templateHomeData(site, articles, preview);
+  const services = data.services.length ? data.services : [{ id: "service-fallback", title: "企业服务方案", description: "围绕企业真实业务，整理清晰的服务范围与交付路径。" }];
+  return { ...data, services, cases: data.cases || [], articles: data.articles || [] };
+}
+
+function sourceServiceMedia(template, service, index) {
+  const icon = ["gear", "factory", "service", "chart", "building", "design"][index % 6];
+  if (template.key === "02-construction") {
+    return safeUrl(service?.image, "image")
+      ? `<div class="service-media">${sourceVisual("template-service-media", service, icon, "服务图片")}</div>`
+      : `<div class="service-icon">${sourceIcon(["building", "design", "gear", "factory", "service", "chart"][index % 6])}</div>`;
+  }
+  return `<div class="product-image">${sourceVisual("template-product-media", service, icon, "产品图片")}</div>`;
+}
+
+function sourceServiceCards(template, services) {
+  if (template.key === "02-construction") {
+    return services.slice(0, 6).map((service, index) => `<article class="service-card">${sourceServiceMedia(template, service, index)}<h3>${escapeHtml(service.title)}</h3><p>${escapeHtml(service.description || "查看服务范围、适用场景与交付方式。")}</p><a class="btn btn-outline" href="${escapeHtml(service.href || "/contact/")}">了解详情</a></article>`).join("");
+  }
+  return services.slice(0, 6).map((service, index) => `<article class="product-card">${sourceServiceMedia(template, service, index)}<div class="product-content"><h3>${escapeHtml(service.title)}</h3><p>${escapeHtml(service.description || "查看产品能力、应用场景与服务支持。")}</p><a href="${escapeHtml(service.href || "/services/")}" class="product-link">了解详情 <span aria-hidden="true">→</span></a></div></article>`).join("");
+}
+
+function sourceCaseCards(template, cases) {
+  if (!cases.length) return `<p class="template-source-empty">案例内容正在整理中。</p>`;
+  if (template.key === "02-construction") {
+    return cases.slice(0, 6).map((item, index) => `<article class="project-card"><div class="project-card-bg">${sourceVisual("template-case-media", item, "building", "工程案例")}</div><div class="project-content"><span class="project-tag">${escapeHtml(item.industry || item.service || "工程案例")}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary || item.result || "查看项目实施过程与交付结果。")}</p></div></article>`).join("");
+  }
+  return cases.slice(0, 6).map((item) => `<article class="case-card"><div class="case-card-bg">${sourceVisual("template-case-media", item, "factory", "工程案例")}</div><div class="case-content"><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary || item.result || "查看项目实施过程与交付结果。")}</p></div></article>`).join("");
+}
+
+function sourceNewsCards(template, articles) {
+  if (!articles.length) return `<p class="template-source-empty">新闻内容正在整理中。</p>`;
+  return articles.slice(0, 3).map((article) => `<article class="news-card"><div class="news-image">${sourceVisual("template-news-media", article, "news", "新闻封面")}</div><div class="news-content"><div class="news-date">${escapeHtml(dateShort(article.publishedAt))}</div><h3><a href="${escapeHtml(articleLink(article))}">${escapeHtml(article.title)}</a></h3><p>${escapeHtml(article.excerpt || "查看企业公开发布的行业内容。")}</p></div></article>`).join("");
+}
+
+function sourceStats(profile, dynamicValues = null) {
+  const values = dynamicValues || profile.stats;
+  return values.map(([number, label]) => `<div class="stat-box"><div class="number" data-target="${escapeHtml(number)}">0</div><div class="label">${escapeHtml(label)}</div></div>`).join("");
+}
+
+function sourceAboutBlock(site, template, data) {
+  const profile = sourceTemplateProfile(template);
+  const company = publicCompanyName(site);
+  const features = profile.aboutFeatures.map((label, index) => `<div class="about-feature"><div class="about-feature-icon">${sourceIcon(["check", "design", "service", "award"][index % 4])}</div><h4>${escapeHtml(label)}</h4></div>`).join("");
+  return `<section class="section about"><div class="container"><div class="about-content"><div class="about-image"><div class="about-image-main">${sourceIcon(template.key === "02-construction" ? "building" : "factory")}</div><div class="about-badge"><span>${Math.max(1, data.services.length)}+</span><small>核心业务方向</small></div></div><div class="about-text"><h3>关于${escapeHtml(company)}</h3><p>${escapeHtml(site.description || profile.aboutLead)}</p><p>${escapeHtml(profile.aboutLead)}</p><div class="about-features">${features}</div><a href="/about/" class="btn btn-primary" style="margin-top: 30px;">了解更多</a></div></div></div></section>`;
+}
+
+function sourceContactBlock(site, template, sourcePath) {
+  const profile = sourceTemplateProfile(template);
+  const contact = site.contact || {};
+  const rows = [
+    ["pin", "公司地址", contact.address || "欢迎通过表单提交项目地址"],
+    ["phone", "联系电话", contact.phone || "提交表单后由运营人员联系"],
+    ["mail", "电子邮箱", contact.email || "暂未配置公开邮箱"],
+    ["clock", "服务区域", contact.serviceArea || contact.industryRegion || "以实际业务沟通为准"]
+  ];
+  return `<section class="section contact"><div class="container"><div class="section-header"><h2>联系我们</h2><p>${escapeHtml(profile.articleSectionLead)}</p></div><div class="contact-wrapper"><div class="contact-info"><h3>联系方式</h3>${rows.map(([icon, label, value]) => `<div class="info-item"><div class="info-icon">${sourceIcon(icon)}</div><div class="info-content"><h4>${escapeHtml(label)}</h4><p>${escapeHtml(value)}</p></div></div>`).join("")}</div><div class="contact-form"><h3>在线留言</h3>${sourceContactForm(site, sourcePath, template.key)}</div></div></div></section>`;
+}
+
+function renderSourceHomeBody({ site, page, articles, template, preview }) {
+  const profile = sourceTemplateProfile(template);
+  const data = sourceData(site, articles, preview);
+  const hero = moduleOf(site, page.id, "hero", preview);
+  const heroTitle = hero?.title && hero.title !== "首屏" ? hero.title : profile.heroTitle;
+  const heroDescription = moduleText(hero, site.description || profile.heroDescription);
+  const serviceCards = sourceServiceCards(template, data.services);
+  const caseCards = sourceCaseCards(template, data.cases);
+  const newsCards = sourceNewsCards(template, data.articles);
+  const company = publicCompanyName(site);
+  const contact = sourceContactBlock(site, template, "/");
+  if (template.key === "02-construction") {
+    return `<main id="template-main"><section class="hero"><div class="container"><div class="hero-content"><h1>${sourceTemplateTitleMarkup(heroTitle, profile.heroHighlight)}</h1><p>${escapeHtml(heroDescription)}</p><div class="hero-buttons"><a href="/cases/" class="btn btn-primary">查看案例</a><a href="/contact/" class="btn btn-outline">${escapeHtml(site.cta || "免费咨询")}</a></div></div></div></section>${sourceAboutBlock(site, template, data)}<section class="section"><div class="container"><div class="section-header"><h2>${escapeHtml(profile.serviceSectionTitle)}</h2><p>${escapeHtml(profile.serviceSectionLead)}</p></div><div class="services-grid">${serviceCards}</div></div></section><section class="section projects"><div class="container"><div class="section-header"><h2>${escapeHtml(profile.caseSectionTitle)}</h2><p>${escapeHtml(profile.caseSectionLead)}</p></div><div class="projects-grid">${caseCards}</div></div></section><section class="stats"><div class="container"><div class="stats-grid">${sourceStats(profile, profile.stats)}</div></div></section><section class="section"><div class="container"><div class="section-header"><h2>${escapeHtml(profile.articleSectionTitle)}</h2><p>${escapeHtml(profile.articleSectionLead)}</p></div><div class="news-grid">${newsCards}</div></div></section>${contact}</main>`;
+  }
+  const heroStats = [[String(Math.max(1, data.services.length)), "条业务线"], [String(data.cases.length), "+ 项目案例"], [String(data.articles.length), "+ 公开内容"], ["100", "% CMS 可追溯"]];
+  return `<main id="template-main"><section class="hero"><div class="container"><div class="hero-content"><h1>${sourceTemplateTitleMarkup(heroTitle, profile.heroHighlight)}</h1><p>${escapeHtml(heroDescription)}</p><div class="hero-buttons"><a href="/services/" class="btn btn-primary">探索产品</a><a href="/about/" class="btn btn-outline">了解更多</a></div></div></div><div class="hero-stats">${heroStats.map(([number, label]) => `<div class="stat-item"><span class="stat-number" data-target="${escapeHtml(number)}">0</span><span class="stat-label">${escapeHtml(label)}</span></div>`).join("")}</div></section>${sourceAboutBlock(site, template, data)}<section class="section"><div class="container"><div class="section-header"><h2>${escapeHtml(profile.serviceSectionTitle)}</h2><p>${escapeHtml(profile.serviceSectionLead)}</p></div><div class="products-grid">${serviceCards}</div></div></section><section class="section cases"><div class="container"><div class="section-header"><h2>${escapeHtml(profile.caseSectionTitle)}</h2><p>${escapeHtml(profile.caseSectionLead)}</p></div><div class="cases-grid">${caseCards}</div></div></section><section class="stats"><div class="container"><div class="stats-grid">${sourceStats(profile, profile.stats)}</div></div></section><section class="section"><div class="container"><div class="section-header"><h2>${escapeHtml(profile.articleSectionTitle)}</h2><p>${escapeHtml(profile.articleSectionLead)}</p></div><div class="news-grid">${newsCards}</div></div></section>${contact}</main>`;
+}
+
+function renderSourceHomePage({ site, page, articles, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const template = sourceTemplateFor(site);
+  const profile = sourceTemplateProfile(template);
+  const body = renderSourceHomeBody({ site, page, articles, template, preview });
+  return documentShell({ site, origin, pathname: "/", title: "", description: site.description || profile.heroDescription, active: "/", schemaExtra: [{ "@type": "WebPage", name: site.siteName, description: site.description || profile.heroDescription }], body, preview, assetBase });
+}
+
+function renderSourceServicesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const template = sourceTemplateFor(site);
+  const profile = sourceTemplateProfile(template);
+  const data = sourceData(site, [], preview);
+  const cards = sourceServiceCards(template, data.services);
+  const body = `<main id="template-main">${sourcePageHeader(page.title || profile.pageProductTitle, profile.pageProductLead)}<section class="section"><div class="container"><div class="section-header"><h2>${escapeHtml(profile.pageProductTitle)}</h2><p>${escapeHtml(profile.pageProductLead)}</p></div><div class="${template.key === "02-construction" ? "services-grid" : "products-grid"}">${cards}</div></div></section></main>`;
+  return documentShell({ site, origin, pathname: page.path || "/services/", title: page.title || profile.pageProductTitle, description: page.seoDescription || profile.pageProductLead, active: "/services/", schemaExtra: data.services.map((service) => ({ "@type": "Service", name: service.title, description: service.description })), body, preview, assetBase });
+}
+
+function renderSourceCasesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const template = sourceTemplateFor(site);
+  const profile = sourceTemplateProfile(template);
+  const data = sourceData(site, [], preview);
+  const cards = sourceCaseCards(template, data.cases);
+  const categories = [...new Set(data.cases.map((item) => String(item.industry || item.service || "工程案例").trim()).filter(Boolean))];
+  const filter = template.key === "02-construction" && categories.length ? `<div class="projects-filter" data-case-filter><button class="filter-btn active" type="button" data-filter="all">全部</button>${categories.map((category) => `<button class="filter-btn" type="button" data-filter="${escapeHtml(category)}">${escapeHtml(category)}</button>`).join("")}</div>` : "";
+  const filteredCards = template.key === "02-construction" ? data.cases.slice(0, 6).map((item) => `<article class="project-card" data-category="${escapeHtml(item.industry || item.service || "工程案例")}"><div class="project-card-bg">${sourceVisual("template-case-media", item, "building", "工程案例")}</div><div class="project-content"><span class="project-tag">${escapeHtml(item.industry || item.service || "工程案例")}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary || item.result || "查看项目实施过程与交付结果。")}</p></div></article>`).join("") : cards;
+  const body = `<main id="template-main">${sourcePageHeader(page.title || profile.caseSectionTitle, profile.caseSectionLead)}<section class="section ${template.key === "02-construction" ? "projects" : "cases"}"><div class="container"><div class="section-header"><h2>${escapeHtml(profile.caseSectionTitle)}</h2><p>${escapeHtml(profile.caseSectionLead)}</p></div>${filter}<div class="${template.key === "02-construction" ? "projects-grid" : "cases-grid"}">${filteredCards}</div></div></section><section class="stats"><div class="container"><div class="stats-grid">${sourceStats(profile, profile.stats)}</div></div></section></main>`;
+  return documentShell({ site, origin, pathname: page.path || "/cases/", title: page.title || profile.caseSectionTitle, description: page.seoDescription || profile.caseSectionLead, active: "/cases/", schemaExtra: [{ "@type": "CollectionPage", name: page.title || profile.caseSectionTitle, mainEntity: { "@type": "ItemList", numberOfItems: data.cases.length, itemListElement: data.cases.map((item, index) => ({ "@type": "ListItem", position: index + 1, name: item.title })) } }], body, preview, assetBase });
+}
+
+function renderSourceAboutPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const template = sourceTemplateFor(site);
+  const profile = sourceTemplateProfile(template);
+  const data = sourceData(site, [], preview);
+  const qualifications = data.services.slice(0, 3).map((service, index) => `<article class="service-card"><div class="service-icon">${sourceIcon(["award", "check", "team"][index])}</div><h3>${escapeHtml(service.title)}</h3><p>${escapeHtml(service.description || profile.aboutLead)}</p></article>`).join("");
+  const culture = profile.aboutFeatures.map((label, index) => `<div class="about-feature"><div class="about-feature-icon">${sourceIcon(["check", "design", "award", "team"][index % 4])}</div><h4>${escapeHtml(label)}</h4></div>`).join("");
+  const body = `<main id="template-main">${sourcePageHeader(page.title || "关于我们", profile.aboutLead)}<section class="section"><div class="container"><div class="about-intro"><div class="about-intro-image">${sourceIcon(template.key === "02-construction" ? "building" : "factory")}</div><div class="about-intro-text"><h2>公司简介</h2><p>${escapeHtml(site.description || profile.aboutLead)}</p><p>${escapeHtml(profile.aboutLead)}</p></div></div></div></section><section class="section" style="background: var(--bg-light);"><div class="container"><div class="section-header"><h2>${template.key === "02-construction" ? "资质与服务" : "企业能力"}</h2><p>${escapeHtml(profile.serviceSectionLead)}</p></div><div class="services-grid">${qualifications}</div></div></section><section class="section"><div class="container"><div class="section-header"><h2>企业文化</h2><p>${escapeHtml(profile.heroTitle)}</p></div><div class="about-features" style="max-width: 800px; margin: 0 auto; grid-template-columns: repeat(2, 1fr);">${culture}</div></div></section></main>`;
+  return documentShell({ site, origin, pathname: page.path || "/about/", title: page.title || "关于我们", description: page.seoDescription || profile.aboutLead, active: "/about/", schemaExtra: [{ "@type": "AboutPage", name: page.title || "关于我们" }], body, preview, assetBase });
+}
+
+function renderSourceContactPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const template = sourceTemplateFor(site);
+  const profile = sourceTemplateProfile(template);
+  const contactBody = sourceContactBlock(site, template, page.path || "/contact/");
+  const body = `<main id="template-main">${sourcePageHeader(page.title || "联系我们", profile.articleSectionLead)}${contactBody.replace('<section class="section contact">', '<section class="section contact">')}</main>`;
+  return documentShell({ site, origin, pathname: page.path || "/contact/", title: page.title || "联系我们", description: page.seoDescription || profile.articleSectionLead, active: "/contact/", schemaExtra: [{ "@type": "ContactPage", name: page.title || "联系我们" }], body, preview, assetBase });
+}
+
+function renderSourceInsightsPage({ site, articles, categories = [], selectedCategory = null, origin, page = 1, pageSize = 12, preview = false, assetBase = "/site-assets-r6" }) {
+  const template = sourceTemplateFor(site);
+  const profile = sourceTemplateProfile(template);
+  const displayCategories = frontendCategories(categories);
+  const rows = frontendArticles(articles, site.frontendDemo).filter((article) => !selectedCategory || article.categorySlug === selectedCategory.slug || article.categoryName === selectedCategory.name);
+  const safePageSize = Math.max(1, Math.min(50, Number(pageSize) || 12));
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / safePageSize));
+  const activePage = Math.max(1, Math.min(totalPages, Number(page) || 1));
+  const start = (activePage - 1) * safePageSize;
+  const visible = rows.slice(start, start + safePageSize);
+  const cards = template.key === "01-industry"
+    ? `<div class="news-list">${visible.map((article) => `<article class="news-item"><div class="news-item-image">${sourceVisual("template-news-media", article, "news", "新闻封面")}</div><div class="news-item-content"><div class="news-item-date">${escapeHtml(dateShort(article.publishedAt))}</div><h3><a href="${escapeHtml(articleLink(article))}">${escapeHtml(article.title)}</a></h3><p>${escapeHtml(article.excerpt || "查看企业公开发布的行业内容。")}</p><a class="news-more" href="${escapeHtml(articleLink(article))}">阅读全文 <span aria-hidden="true">→</span></a></div></article>`).join("")}</div>`
+    : `<div class="news-grid">${visible.map((article) => `<article class="news-card"><div class="news-image">${sourceVisual("template-news-media", article, "news", "新闻封面")}</div><div class="news-content"><div class="news-date">${escapeHtml(dateShort(article.publishedAt))}</div><h3><a href="${escapeHtml(articleLink(article))}">${escapeHtml(article.title)}</a></h3><p>${escapeHtml(article.excerpt || "查看企业公开发布的行业内容。")}</p></div></article>`).join("")}</div>`;
+  const canonicalBase = selectedCategory ? categoryLink(selectedCategory) : "/insights/";
+  const pagePath = activePage > 1 ? `${canonicalBase}?page=${activePage}` : canonicalBase;
+  const collectionUrl = absoluteUrl(origin, pagePath);
+  const title = selectedCategory?.name || "新闻动态";
+  const description = selectedCategory?.seoDescription || selectedCategory?.description || profile.articleSectionLead;
+  const categoryRows = displayCategories
+    .filter((item) => item.status !== "archived" && item.navVisible !== false)
+    .map((category) => `<a${selectedCategory?.slug === category.slug ? " class=\"active\" aria-current=\"page\"" : ""} href="${escapeHtml(categoryLink(category))}"><strong>${escapeHtml(category.name)}</strong><small>${escapeHtml(category.description || "企业公开内容")}</small></a>`)
+    .join("");
+  const paginationMarkup = pagination(origin, canonicalBase, activePage, totalPages);
+  const body = `<main id="template-main">${sourcePageHeader(title, description)}<section class="section"><div class="container"><div class="section-header"><h2>${escapeHtml(selectedCategory?.name || "最新资讯")}</h2><p>${escapeHtml(profile.articleSectionLead)}</p></div>${cards || '<p class="template-source-empty">当前栏目暂未发布文章。</p>'}${paginationMarkup}</div></section></main>`;
+  const schemaExtra = [{
+    "@type": "CollectionPage",
+    "@id": collectionUrl,
+    name: title,
+    url: collectionUrl,
+    description,
+    isPartOf: { "@id": entityId(origin, "website") },
+    mainEntity: { "@type": "ItemList", numberOfItems: total, itemListElement: visible.map((article, index) => ({ "@type": "ListItem", position: start + index + 1, name: article.title, url: absoluteUrl(origin, articleLink(article)) })) }
+  }, {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "首页", item: origin },
+      { "@type": "ListItem", position: 2, name: "新闻动态", item: absoluteUrl(origin, "/insights/") },
+      ...(selectedCategory ? [{ "@type": "ListItem", position: 3, name: selectedCategory.name, item: absoluteUrl(origin, categoryLink(selectedCategory)) }] : [])
+    ]
+  }];
+  const headLinks = [
+    ...(activePage > 1 ? [{ rel: "prev", href: absoluteUrl(origin, activePage === 2 ? canonicalBase : `${canonicalBase}?page=${activePage - 1}`) }] : []),
+    ...(activePage < totalPages ? [{ rel: "next", href: absoluteUrl(origin, `${canonicalBase}?page=${activePage + 1}`) }] : [])
+  ];
+  return documentShell({ site, origin, pathname: pagePath, title: activePage > 1 ? `${title} · 第 ${activePage} 页` : title, description, active: "/insights/", schemaExtra, body, preview, assetBase, headLinks });
+}
+
+function renderSourceProblemMapPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const template = sourceTemplateFor(site);
+  const groups = frontendProblemGroups(site, preview);
+  const rows = groups.flatMap((group) => group.questions.slice(0, 6).map((problem) => ({ ...problem, group })));
+  const body = `<main id="template-main">${sourcePageHeader(page.title || "客户问题", "从客户真实问题出发，理解企业的产品、服务与下一步。")}<section class="section"><div class="container"><div class="section-header"><h2>客户正在问什么</h2><p>每个问题都连接到直接回答与咨询入口。</p></div><div class="${template.key === "02-construction" ? "services-grid" : "products-grid"}">${rows.map((row, index) => `<article class="${template.key === "02-construction" ? "service-card" : "product-card"}"><div class="${template.key === "02-construction" ? "service-icon" : "product-image"}">${sourceIcon(index % 2 ? "chart" : "service")}</div><div class="${template.key === "01-industry" ? "product-content" : ""}"><h3>${escapeHtml(row.title)}</h3><p>${escapeHtml(row.answer)}</p><a class="${template.key === "02-construction" ? "btn btn-outline" : "product-link"}" href="/problem-map/${encodeURIComponent(row.slug)}/">查看回答 <span aria-hidden="true">→</span></a></div></article>`).join("")}</div></div></section></main>`;
+  const schemaExtra = [{
+    "@type": "FAQPage",
+    name: page.title || "客户问题地图",
+    mainEntity: rows.map((problem) => ({
+      "@type": "Question",
+      "@id": `${absoluteUrl(origin, `/problem-map/${encodeURIComponent(problem.slug)}/`)}#question`,
+      name: problem.title,
+      acceptedAnswer: { "@type": "Answer", "@id": `${absoluteUrl(origin, `/problem-map/${encodeURIComponent(problem.slug)}/`)}#answer`, text: problem.answer }
+    }))
+  }];
+  return documentShell({ site, origin, pathname: page.path || "/problem-map/", title: page.title || "客户问题", description: page.seoDescription || "客户问题与直接回答。", active: "/problem-map/", schemaExtra, body, preview, assetBase });
+}
+
+function renderSourceArticleBody({ site, article, template, contentHtml, provenanceNote }) {
+  const profile = sourceTemplateProfile(template);
+  return `<main id="template-main">${sourcePageHeader(article.categoryName || "新闻动态", article.excerpt || profile.articleSectionLead)}<section class="section"><div class="container"><article class="template-source-article"><div class="news-date">${escapeHtml(dateShort(article.publishedAt))}</div><h2>${escapeHtml(article.title)}</h2>${article.excerpt ? `<p class="template-source-article-lead">${escapeHtml(article.excerpt)}</p>` : ""}<div class="template-source-article-content">${contentHtml}</div><p class="template-source-article-note">${provenanceNote}</p></article></div></section></main>`;
+}
+
+function sourceDocumentShell({ site, origin, pathname, title, description, active, schemaExtra = [], body, robots = "index,follow,max-image-preview:large,max-snippet:-1", feed = true, preview = false, assetBase = "/site-assets-r6", headLinks = [], openGraphType = "website", headMeta = [], activeTemplate = sourceTemplateFor(site) }) {
+  const canonical = absoluteUrl(origin, pathname);
+  const configuredPage = pageForPath(site, pathname);
+  const schema = pageSchema(site, origin, pathname, schemaExtra, { pageEnabled: configuredPage?.schemaEnabled !== false, name: pageTitle(site, title), description: description || site.description || DEFAULT_DESCRIPTION });
+  const cssRoot = assetRoot(assetBase, "/site-assets-r9");
+  const imageRoot = assetRoot(assetBase, "/assets");
+  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260818-source-isolated-v2`;
+  const runtimeHref = `${cssRoot}/template-runtime.js?v=20260818-source-isolated-v2`;
+  const brandMark = `${imageRoot}/tongzhuo-mark-wine.png?v=20260811-official`;
+  const extraLinks = headLinks.filter((item) => item?.rel && item?.href).map((item) => `<link rel="${escapeHtml(item.rel)}" href="${escapeHtml(item.href)}">`).join("");
+  const extraMeta = headMeta.filter((item) => item?.content && (item?.name || item?.property)).map((item) => `<meta ${item.property ? `property="${escapeHtml(item.property)}"` : `name="${escapeHtml(item.name)}"`} content="${escapeHtml(item.content)}">`).join("");
+  const renderedBody = renderDirectionalIcons(body);
+  const sourceBody = /<main\b/i.test(renderedBody) ? renderedBody : `<main id="template-main">${renderedBody}</main>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(pageTitle(site, title))}</title><meta name="description" content="${escapeHtml(description || site.description || DEFAULT_DESCRIPTION)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive" : robots)}"><meta name="author" content="${escapeHtml(publicCompanyName(site))}"><link rel="icon" type="image/png" href="${brandMark}"><link rel="canonical" href="${escapeHtml(canonical)}">${extraLinks}${feed && !preview ? `<link rel="alternate" type="application/rss+xml" title="${escapeHtml(publicBrandName(site))}新闻动态" href="/feed.xml">` : ""}<meta property="og:title" content="${escapeHtml(pageTitle(site, title))}"><meta property="og:description" content="${escapeHtml(description || site.description || DEFAULT_DESCRIPTION)}"><meta property="og:type" content="${escapeHtml(openGraphType)}"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:site_name" content="${escapeHtml(publicBrandName(site))}"><meta property="og:locale" content="zh_CN"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtml(pageTitle(site, title))}"><meta name="twitter:description" content="${escapeHtml(description || site.description || DEFAULT_DESCRIPTION)}">${extraMeta}<meta name="theme-color" content="${escapeHtml(activeTemplate.accent)}"><link rel="stylesheet" href="${cssHref}"><script type="application/ld+json">${safeJsonLd(schema)}</script></head><body class="template-source template-source-${activeTemplate.key === "02-construction" ? "02" : "01"}${preview ? " is-preview" : ""}" data-site-template="${escapeHtml(activeTemplate.key)}"><a class="template-skip" href="#template-main">跳到正文</a>${sourceNavigation(site, active, activeTemplate)}${sourceBody}${sourceFooter(site, activeTemplate)}<script src="${runtimeHref}" defer></script></body></html>`;
+}
+
 function documentShell({ site, origin, pathname, title, description, active, schemaExtra = [], body, robots = "index,follow,max-image-preview:large,max-snippet:-1", feed = true, preview = false, assetBase = "/site-assets-r6", headLinks = [], openGraphType = "website", headMeta = [], bodyClass = "" }) {
   const canonical = absoluteUrl(origin, pathname);
   const configuredPage = pageForPath(site, pathname);
@@ -444,20 +818,34 @@ function documentShell({ site, origin, pathname, title, description, active, sch
     name: pageTitle(site, title),
     description: description || site.description || DEFAULT_DESCRIPTION
   });
-  const primary = /^#[0-9a-f]{6}$/i.test(site.theme?.primaryColor || "") ? site.theme.primaryColor : "#155eef";
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) {
+    return sourceDocumentShell({ site, origin, pathname, title, description, active, schemaExtra, body, robots, feed, preview, assetBase, headLinks, openGraphType, headMeta, activeTemplate });
+  }
+  const primary = /^#[0-9a-f]{6}$/i.test(site.theme?.primaryColor || "") ? site.theme.primaryColor : activeTemplate.accent;
   const metaDescription = description || site.description || DEFAULT_DESCRIPTION;
   const resolvedTitle = pageTitle(site, title);
+  const cssRoot = assetRoot(assetBase, "/site-assets-r9");
+  const imageRoot = assetRoot(assetBase, "/assets");
+  const cssHref = `${cssRoot}/site-v8.css?v=20260818-template-source-css`;
+  const gsapHref = `${cssRoot}/gsap.min.js?v=20260818-template-source-css`;
+  const jsHref = `${cssRoot}/site-v8.js?v=20260818-template-source-css`;
+  const brandMark = `${imageRoot}/tongzhuo-mark-wine.png?v=20260811-official`;
+  const templateLinks = activeTemplate.key === "02-construction" ? [{ rel: "stylesheet", href: `${cssRoot}/template-02-construction.css?v=20260818-source-adapter2` }] : [];
   const extraLinks = headLinks.filter((item) => item?.rel && item?.href).map((item) => `<link rel="${escapeHtml(item.rel)}" href="${escapeHtml(item.href)}">`).join("");
+  const templateStyles = templateLinks.filter((item) => item?.rel && item?.href).map((item) => `<link rel="${escapeHtml(item.rel)}" href="${escapeHtml(item.href)}">`).join("");
   const extraMeta = headMeta.filter((item) => item?.content && (item?.name || item?.property)).map((item) => `<meta ${item.property ? `property="${escapeHtml(item.property)}"` : `name="${escapeHtml(item.name)}"`} content="${escapeHtml(item.content)}">`).join("");
   const renderedBody = renderDirectionalIcons(body);
-  return `<!doctype html><html lang="zh-CN" style="--brand:${escapeHtml(primary)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(resolvedTitle)}</title><meta name="description" content="${escapeHtml(metaDescription)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive" : robots)}"><meta name="author" content="${escapeHtml(publicCompanyName(site))}"><link rel="icon" type="image/png" href="${PUBLIC_BRAND_MARK}?v=20260811-official"><link rel="canonical" href="${escapeHtml(canonical)}">${extraLinks}${feed && !preview ? `<link rel="alternate" type="application/rss+xml" title="${escapeHtml(publicBrandName(site))}行业资讯" href="/feed.xml">` : ""}<meta property="og:title" content="${escapeHtml(resolvedTitle)}"><meta property="og:description" content="${escapeHtml(metaDescription)}"><meta property="og:type" content="${escapeHtml(openGraphType)}"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:site_name" content="${escapeHtml(publicBrandName(site))}"><meta property="og:locale" content="zh_CN"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtml(resolvedTitle)}"><meta name="twitter:description" content="${escapeHtml(metaDescription)}">${extraMeta}<meta name="theme-color" content="#160f11"><link rel="stylesheet" href="/site-assets-r9/site-v8.css?v=20260810-passport3"><script type="application/ld+json">${safeJsonLd(schema)}</script></head><body class="site-v8${bodyClass ? ` ${escapeHtml(bodyClass)}` : ""}${preview ? " is-preview" : ""}"><!--
+  const publicNavigation = activeTemplate.key === "02-construction" ? constructionNavigation(site, active) : navigation(site, active, imageRoot);
+  const publicFooter = activeTemplate.key === "02-construction" ? constructionFooter(site) : footer(site, imageRoot);
+  return `<!doctype html><html lang="zh-CN" style="--brand:${escapeHtml(primary)};--template-accent:${escapeHtml(activeTemplate.accent)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(resolvedTitle)}</title><meta name="description" content="${escapeHtml(metaDescription)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive" : robots)}"><meta name="author" content="${escapeHtml(publicCompanyName(site))}"><link rel="icon" type="image/png" href="${brandMark}"><link rel="canonical" href="${escapeHtml(canonical)}">${extraLinks}${feed && !preview ? `<link rel="alternate" type="application/rss+xml" title="${escapeHtml(publicBrandName(site))}行业资讯" href="/feed.xml">` : ""}<meta property="og:title" content="${escapeHtml(resolvedTitle)}"><meta property="og:description" content="${escapeHtml(metaDescription)}"><meta property="og:type" content="${escapeHtml(openGraphType)}"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:site_name" content="${escapeHtml(publicBrandName(site))}"><meta property="og:locale" content="zh_CN"><meta name="twitter:card" content="summary"><meta name="twitter:title" content="${escapeHtml(resolvedTitle)}"><meta name="twitter:description" content="${escapeHtml(metaDescription)}">${extraMeta}<meta name="theme-color" content="#160f11"><link rel="stylesheet" href="${cssHref}">${templateStyles}<script type="application/ld+json">${safeJsonLd(schema)}</script></head><body class="site-v8 ${templateClass(site)}${bodyClass ? ` ${escapeHtml(bodyClass)}` : ""}${preview ? " is-preview" : ""}" data-site-template="${escapeHtml(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY)}" data-site-template-name="${escapeHtml(activeTemplate.name)}"><!--
 THESIS: the website behaves like a living enterprise source passport; it refuses generic AI dashboards and decorative futurism.
 OWN-WORLD: oxblood leather, smoked black, warm ivory paper, old-gold rules, archival stamps and stitched records.
 STORY: visitors identify the enterprise, inspect its GEO method as signed source records, read verified content, then request a source-file review.
 FIRST VIEWPORT: a centered open evidence dossier anchors the fold; the offer sits left and a vertical fact-to-source endorsement chain sits right.
 FORM: verification passport, approved composition 02; concept seed challenger-passport; user-confirmed on 2026-08-10.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
---><a class="skip-link" href="#main">跳到正文</a>${preview ? `<div class="preview-bar"><span>CMS 草稿预览</span><b>该页面尚未影响正式官网</b></div>` : ""}${navigation(site, active)}<main id="main">${renderedBody}</main>${footer(site)}<script src="/site-assets-r9/gsap.min.js?v=20260810-passport8" defer></script><script src="/site-assets-r9/site-v8.js?v=20260810-passport3" defer></script></body></html>`;
+--><a class="skip-link" href="#main">跳到正文</a>${publicNavigation}<main id="main">${renderedBody}</main>${publicFooter}<script src="${gsapHref}" defer></script><script src="${jsHref}" defer></script></body></html>`;
 }
 
 function pageModules(site, page, preview = false) {
@@ -580,16 +968,16 @@ function serviceCard(service, index, detailed = false) {
   const href = safeUrl(service.href || "/contact/") || "/contact/";
   const focus = service.cmsFocus || service.focus;
   const meta = [service.audience ? `<span><b>适合对象</b>${escapeHtml(service.audience)}</span>` : "", focus ? `<span><b>工作重点</b>${escapeHtml(focus)}</span>` : ""].join("");
-  return `<article class="service-card${detailed ? " service-card-detailed" : ""}" id="${escapeHtml(service.id)}"><div class="service-card-top"><span class="service-label">${escapeHtml(service.eyebrow || "SERVICE")}</span></div><div class="service-card-copy"><h3>${escapeHtml(service.title)}</h3><p>${escapeHtml(service.description)}</p></div>${detailed && meta ? `<div class="service-card-meta">${meta}</div>` : ""}<a class="card-link" href="${escapeHtml(href)}">${detailed ? "讨论这项服务" : "了解服务"}<span aria-hidden="true">↗</span></a></article>`;
+  return `<article class="service-card${detailed ? " service-card-detailed" : ""}" id="${escapeHtml(service.id)}">${optionalMedia(service.image, service.imageAlt, "服务图片") }<div class="service-card-top"><span class="service-label">${escapeHtml(service.eyebrow || "SERVICE")}</span></div><div class="service-card-copy"><h3>${escapeHtml(service.title)}</h3><p>${escapeHtml(service.description)}</p></div>${detailed && meta ? `<div class="service-card-meta">${meta}</div>` : ""}<a class="card-link" href="${escapeHtml(href)}">${detailed ? "讨论这项服务" : "了解服务"}<span aria-hidden="true">↗</span></a></article>`;
 }
 
 function compactArticleCard(article) {
   const url = articleLink(article);
-  return `<article class="compact-article-card"><div class="compact-article-meta"><span>${escapeHtml(article.categoryName || "行业观点")}</span><time datetime="${escapeHtml(isoDate(article.publishedAt).slice(0, 10))}">${escapeHtml(dateShort(article.publishedAt))}</time></div>${article.isDemo ? '<span class="demo-badge">演示内容</span>' : ""}<h3><a href="${escapeHtml(url)}">${escapeHtml(article.title)}</a></h3><p>${escapeHtml(article.excerpt)}</p><a class="card-link" href="${escapeHtml(url)}">阅读全文<span aria-hidden="true">↗</span></a></article>`;
+  return `<article class="compact-article-card">${optionalMedia(article.image, article.imageAlt, "文章封面")}<div class="compact-article-meta"><span>${escapeHtml(article.categoryName || "行业观点")}</span><time datetime="${escapeHtml(isoDate(article.publishedAt).slice(0, 10))}">${escapeHtml(dateShort(article.publishedAt))}</time></div>${article.isDemo ? '<span class="demo-badge">演示内容</span>' : ""}<h3><a href="${escapeHtml(url)}">${escapeHtml(article.title)}</a></h3><p>${escapeHtml(article.excerpt)}</p><a class="card-link" href="${escapeHtml(url)}">阅读全文<span aria-hidden="true">↗</span></a></article>`;
 }
 
 function caseCard(item, index) {
-  return `<article class="case-card" data-case-industry="${escapeHtml(item.industry)}"><div class="case-card-head"><small>${escapeHtml(item.industry)} · ${escapeHtml(item.service)}</small></div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary)}</p><div class="case-result"><b>形成结果</b><span>${escapeHtml(item.result)}</span></div></article>`;
+  return `<article class="case-card" data-case-industry="${escapeHtml(item.industry)}">${optionalMedia(item.image, item.imageAlt, "案例图片")}<div class="case-card-head"><small>${escapeHtml(item.industry)} · ${escapeHtml(item.service)}</small></div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary)}</p><div class="case-result"><b>形成结果</b><span>${escapeHtml(item.result)}</span></div></article>`;
 }
 
 function problemCard(problem, group) {
@@ -624,7 +1012,108 @@ function renderLegacyHomePage({ site, page, articles, categories, origin, previe
   return documentShell({ site, origin, pathname: "/", title: "", description: site.description, active: "/", schemaExtra: [{ "@type": "WebPage", name: site.siteName, description: site.description }], body: `<span class="sr-only">ENTERPRISE GEO OPERATIONS</span>${body}`, preview, assetBase });
 }
 
+function templateHomeData(site, articles, preview) {
+  const services = frontendServices(site, preview);
+  const cases = frontendCases(site, preview);
+  const groups = frontendProblemGroups(site, preview);
+  const contentArticles = frontendArticles(articles, site.frontendDemo);
+  const fallbackServices = [
+    { id: "service-1", title: "企业服务方案", description: "从真实业务问题出发，整理清晰的服务边界与交付路径。", audience: "企业决策者" },
+    { id: "service-2", title: "公开内容建设", description: "将企业事实、客户问题与审核内容组织成可持续维护的公开信源。", audience: "市场与内容团队" },
+    { id: "service-3", title: "长期运营支持", description: "通过发布、监测与复盘，让官网内容持续回应客户判断。", audience: "需要持续增长的企业" }
+  ];
+  return {
+    services: services.length ? services : fallbackServices,
+    cases,
+    groups,
+    articles: contentArticles,
+    featuredProblems: groups.flatMap((group) => group.questions.slice(0, 1).map((problem) => ({ problem, group }))).slice(0, 4)
+  };
+}
+
+function templateHeroText(site, hero, profile) {
+  const title = hero?.title && hero.title !== "首屏" ? hero.title : profile.headline;
+  const description = moduleText(hero, site.description || profile.description);
+  return { title, description };
+}
+
+function templateServiceCards(services, variant = "grid") {
+  return services.slice(0, 6).map((service, index) => `<article class="template-service-card template-service-card--${variant}"><span class="template-card-index">${String(index + 1).padStart(2, "0")}</span><div><h3>${escapeHtml(service.title)}</h3><p>${escapeHtml(service.description || "查看服务范围、适用对象与交付方式。")}</p>${service.audience ? `<small>${escapeHtml(service.audience)}</small>` : ""}</div><a href="${escapeHtml(service.href || "/services/")}" aria-label="了解${escapeHtml(service.title)}">了解详情 <span aria-hidden="true">→</span></a></article>`).join("");
+}
+
+function templateCaseCards(cases) {
+  return cases.slice(0, 3).map((item, index) => `<article class="template-case-card"><span class="template-card-index">${String(index + 1).padStart(2, "0")}</span><div><small>${escapeHtml(item.industry || item.service || "实施场景")}</small><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary || item.result || "查看企业实施场景与交付结果。")}</p></div><strong>${escapeHtml(item.result || "可复盘")}</strong></article>`).join("");
+}
+
+function templateArticleCards(articles) {
+  return articles.slice(0, 3).map((article) => `<article class="template-article-card"><time datetime="${escapeHtml(isoDate(article.publishedAt).slice(0, 10))}">${escapeHtml(dateShort(article.publishedAt))}</time><div><small>${escapeHtml(article.categoryName || "行业观点")}</small><h3><a href="${escapeHtml(articleLink(article))}">${escapeHtml(article.title)}</a></h3><p>${escapeHtml(article.excerpt || "查看企业公开发布的行业内容。")}</p></div></article>`).join("");
+}
+
+function templateStats(profile) {
+  return `<div class="template-stat-row"><div><strong>01</strong><span>${escapeHtml(profile.statOne)}</span></div><div><strong>02</strong><span>${escapeHtml(profile.statTwo)}</span></div><div><strong>03</strong><span>${escapeHtml(profile.statThree)}</span></div></div>`;
+}
+
+function templateSectionHeading(kicker, title, description = "") {
+  return `<div class="template-section-heading"><span>${escapeHtml(kicker)}</span><h2>${escapeHtml(title)}</h2>${description ? `<p>${escapeHtml(description)}</p>` : ""}</div>`;
+}
+
+function templateContactBand(site, profile) {
+  return `<section class="template-contact-band"><div class="template-shell"><div><span class="template-kicker">${escapeHtml(profile.ctaKicker)}</span><h2>${escapeHtml(profile.ctaTitle)}</h2><p>${escapeHtml(site.description || profile.description)}</p></div>${actionLink(site.cta || profile.ctaLabel, "/contact/", "button template-button template-button--solid")}</div></section>`;
+}
+
+function renderIndustryTemplateHome({ site, page, articles, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const active = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  const profile = {
+    "02-construction": { headline: "让每一项工程，都成为可信的作品", description: "用项目经验、设计能力与施工流程，清晰呈现企业的专业交付能力。", heroKicker: "PROJECTS / ENGINEERING", statOne: "项目经验", statTwo: "设计与施工", statThree: "案例成果", ctaKicker: "START A PROJECT", ctaTitle: "从一个真实项目开始沟通。", ctaLabel: "讨论项目" },
+    "03-software-ai": { headline: "用技术系统，推动企业做出更快的判断", description: "把产品能力、技术架构与业务结果放在同一条可理解的路径上。", heroKicker: "PRODUCT / AI SYSTEMS", statOne: "产品能力", statTwo: "技术架构", statThree: "业务结果", ctaKicker: "BUILD THE SYSTEM", ctaTitle: "找到适合你的智能化路径。", ctaLabel: "获取方案" },
+    "04-logistics": { headline: "让每一次交付，都有清晰的路线", description: "围绕运输网络、时效与服务区域，建立可追踪、可协同的供应链表达。", heroKicker: "NETWORK / DELIVERY", statOne: "运输网络", statTwo: "仓储节点", statThree: "服务时效", ctaKicker: "PLAN THE ROUTE", ctaTitle: "一起梳理你的交付网络。", ctaLabel: "咨询运输方案" },
+    "05-business-services": { headline: "把复杂问题，整理成可执行的方法", description: "从客户问题、服务边界和实施步骤开始，让顾问能力被准确理解。", heroKicker: "METHOD / CONSULTING", statOne: "问题诊断", statTwo: "方法设计", statThree: "持续陪跑", ctaKicker: "MAKE IT CLEAR", ctaTitle: "先把最重要的问题说清楚。", ctaLabel: "预约咨询" },
+    "06-finance": { headline: "以清晰边界，建立长期信任", description: "完整呈现专业资质、风险边界与服务方式，让每个判断都有依据。", heroKicker: "TRUST / CAPITAL", statOne: "专业资质", statTwo: "风险边界", statThree: "长期服务", ctaKicker: "A CLEARER DECISION", ctaTitle: "先了解适合你的服务边界。", ctaLabel: "开始沟通" },
+    "07-healthcare": { headline: "让每一次专业照护，都更容易被找到", description: "把机构、服务、专业团队与预约路径组织成清晰、安心的患者入口。", heroKicker: "CARE / HEALTH", statOne: "专业团队", statTwo: "服务路径", statThree: "预约入口", ctaKicker: "CARE STARTS HERE", ctaTitle: "从一次专业咨询开始。", ctaLabel: "预约咨询" },
+    "08-education": { headline: "让学习路径，从选择开始变得清楚", description: "围绕课程、师资与学习成果，帮助学生和家长快速找到适合的方向。", heroKicker: "LEARNING / GROWTH", statOne: "课程体系", statTwo: "师资力量", statThree: "学习成果", ctaKicker: "FIND YOUR PATH", ctaTitle: "找到适合你的下一堂课。", ctaLabel: "了解课程" },
+    "09-travel-hotel": { headline: "把值得出发的地方，讲给真正想去的人", description: "用目的地、体验内容与服务细节，构成一条自然的旅行决策路径。", heroKicker: "DESTINATION / STAY", statOne: "目的地", statTwo: "旅行体验", statThree: "入住服务", ctaKicker: "PLAN THE STAY", ctaTitle: "为下一次出发做个计划。", ctaLabel: "咨询行程" },
+    "10-food-consumer": { headline: "把每一口味道，都做成值得分享的品牌", description: "从产品、原料到制作故事，让消费者快速理解品牌与真实品质。", heroKicker: "PRODUCT / TASTE", statOne: "产品系列", statTwo: "制作工艺", statThree: "消费场景", ctaKicker: "TASTE THE STORY", ctaTitle: "从一款真正喜欢的产品开始。", ctaLabel: "了解产品" }
+  }[active.key] || { headline: active.name, description: active.description, heroKicker: active.shortName, statOne: "企业能力", statTwo: "服务内容", statThree: "公开信源", ctaKicker: "NEXT STEP", ctaTitle: "从一个真实问题开始。", ctaLabel: "联系我们" };
+  const data = templateHomeData(site, articles, preview);
+  const hero = moduleOf(site, page.id, "hero", preview);
+  const heroText = templateHeroText(site, hero, profile);
+  const services = templateServiceCards(data.services, active.layout);
+  const cases = templateCaseCards(data.cases);
+  const stories = templateArticleCards(data.articles);
+  const problem = data.featuredProblems[0]?.problem;
+  const problemGroup = data.featuredProblems[0]?.group;
+  const problemBlock = problem ? `<aside class="template-answer-card"><span>客户问题</span><h3>${escapeHtml(problem.title)}</h3><p>${escapeHtml(problem.answer)}</p><a href="/problem-map/${encodeURIComponent(problem.slug)}/">查看直接回答 <span aria-hidden="true">→</span></a></aside>` : `<aside class="template-answer-card"><span>企业公开信源</span><h3>${escapeHtml(site.siteName || "企业官网")}</h3><p>${escapeHtml(site.description || profile.description)}</p><a href="/about/">了解企业 <span aria-hidden="true">→</span></a></aside>`;
+  const contact = site.contact || {};
+  const serviceSection = `<section class="template-section template-services-section"><div class="template-shell">${templateSectionHeading(profile.heroKicker, profile.headline, profile.description)}<div class="template-service-grid">${services}</div></div></section>`;
+  const storySection = `<section class="template-section template-stories-section"><div class="template-shell">${templateSectionHeading("LATEST / INSIGHTS", "持续更新值得信任的内容", "文章、案例和直接回答共同构成企业的公开信源。")}<div class="template-story-grid">${stories || `<div class="template-empty-state">内容正在建设，审核发布后的文章会出现在这里。</div>`}</div></div></section>`;
+  const caseSection = cases ? `<section class="template-section template-cases-section"><div class="template-shell">${templateSectionHeading("WORK / CASES", "把能力放进真实场景")}<div class="template-case-grid">${cases}</div></div></section>` : "";
+  let body;
+  if (active.key === "02-construction") {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--project"><div class="template-shell template-hero-grid"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "讨论项目", "/contact/", "button template-button template-button--solid")}${actionLink("查看案例", "/cases/", "button template-button template-button--outline")}</div></div><div class="template-project-board"><span>PROJECT BOARD / 2026</span><strong>${escapeHtml(site.siteName)}</strong><div class="template-project-lines"><i></i><i></i><i></i></div><small>设计 · 施工 · 交付</small></div></div></section><section class="template-stat-band"><div class="template-shell">${templateStats(profile)}</div></section>${serviceSection}${caseSection}${templateContactBand(site, profile)}</div>`;
+  } else if (active.key === "03-software-ai") {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--tech"><div class="template-shell template-hero-grid"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "获取方案", "/contact/", "button template-button template-button--solid")}${actionLink("浏览产品", "/services/", "button template-button template-button--outline")}</div></div><div class="template-tech-console"><span>LIVE SYSTEM / 01</span><strong>Enterprise Intelligence</strong><div class="template-console-bars"><i></i><i></i><i></i><i></i></div><div class="template-console-foot"><b>99.9%</b><small>可持续运行</small></div></div></div></section>${serviceSection}<section class="template-tech-strip"><div class="template-shell"><span>AI</span><span>DATA</span><span>API</span><span>WORKFLOW</span><span>SECURITY</span></div></section>${storySection}${templateContactBand(site, profile)}</div>`;
+  } else if (active.key === "04-logistics") {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--route"><div class="template-shell template-hero-grid"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "咨询运输方案", "/contact/", "button template-button template-button--solid")}</div></div><div class="template-route-map" aria-label="运输网络示意"><span class="route-node route-node--a">A</span><span class="route-node route-node--b">B</span><span class="route-node route-node--c">C</span><i></i><i></i><small>NETWORK / DELIVERY</small></div></div></section><section class="template-stat-band"><div class="template-shell">${templateStats(profile)}</div></section>${serviceSection}<section class="template-section template-answer-section"><div class="template-shell template-answer-layout">${problemBlock}<div>${templateSectionHeading("OPERATIONS", "每一个节点，都有清晰的下一步", "从运输、仓储到交付，服务信息围绕客户真正的判断组织。")}${caseSection ? `<div class="template-mini-list">${data.cases.slice(0, 3).map((item) => `<div><b>${escapeHtml(item.title)}</b><span>${escapeHtml(item.result || "查看交付场景")}</span></div>`).join("")}</div>` : ""}</div></div></section>${templateContactBand(site, profile)}</div>`;
+  } else if (active.key === "05-business-services") {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--editorial"><div class="template-shell template-editorial-layout"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "预约咨询", "/contact/", "button template-button template-button--solid")}</div></div><aside><span>01 / 03</span><strong>问题<br>方法<br>行动</strong><small>企业服务工作方式</small></aside></div></section><section class="template-section template-method-section"><div class="template-shell template-method-layout"><div>${templateSectionHeading("HOW WE WORK", "先判断问题，再选择方法", "每项服务都需要对应真实的业务场景与可核验的交付边界。")}</div><ol>${processSteps().slice(0, 4).map((item, index) => `<li><span>${String(index + 1).padStart(2, "0")}</span><div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p></div></li>`).join("")}</ol></div></section>${serviceSection}${storySection}${templateContactBand(site, profile)}</div>`;
+  } else if (active.key === "06-finance") {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--trust"><div class="template-shell template-hero-grid"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "开始沟通", "/contact/", "button template-button template-button--solid")}</div></div><div class="template-trust-panel"><span>TRUST RECORD</span><strong>清晰的专业边界</strong><div><b>01</b>适用对象</div><div><b>02</b>服务范围</div><div><b>03</b>风险提示</div></div></div></section><section class="template-section template-principles-section"><div class="template-shell">${templateSectionHeading("WHY TRUST", "每个判断，都回到可验证的事实")}${templateServiceCards(data.services.slice(0, 4), "principles")}</div></section>${storySection}${templateContactBand(site, profile)}</div>`;
+  } else if (active.key === "07-healthcare") {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--care"><div class="template-shell template-hero-grid"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "预约咨询", "/contact/", "button template-button template-button--solid")}</div></div><aside class="template-appointment-card"><span>CARE PATH</span><strong>从了解情况开始</strong><p>${escapeHtml(contact.serviceArea || "专业团队为你提供清晰的咨询路径")}</p><a href="/contact/">预约咨询 <span aria-hidden="true">→</span></a></aside></div></section>${serviceSection}<section class="template-section template-care-section"><div class="template-shell template-care-grid">${problemBlock}<div>${templateSectionHeading("CARE NOTES", "把专业说明讲得更容易理解", "服务内容、就诊准备与常见问题统一回到公开页面。")}${stories}</div></div></section>${templateContactBand(site, profile)}</div>`;
+  } else if (active.key === "08-education") {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--learning"><div class="template-shell template-hero-grid"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "了解课程", "/contact/", "button template-button template-button--solid")}${actionLink("查看学习内容", "/services/", "button template-button template-button--outline")}</div></div><div class="template-learning-board"><span>LEARNING PATH</span><b>选择方向</b><i>建立基础</i><i>持续练习</i><i>看到成果</i></div></div></section><section class="template-section template-course-section"><div class="template-shell">${templateSectionHeading("COURSES / PROGRAMS", "从一门适合的课程开始")}${templateServiceCards(data.services, "course")}</div></section>${caseSection || storySection}${templateContactBand(site, profile)}</div>`;
+  } else if (active.key === "09-travel-hotel") {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--destination"><div class="template-shell template-destination-layout"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "咨询行程", "/contact/", "button template-button template-button--solid")}</div></div><div class="template-destination-card"><span>YOUR NEXT STOP</span><strong>${escapeHtml(site.siteName || "目的地")}</strong><small>${escapeHtml(contact.serviceArea || "目的地 · 体验 · 入住")}</small><a href="/about/">探索更多 <span aria-hidden="true">→</span></a></div></div></section><section class="template-section template-experience-section"><div class="template-shell template-experience-layout">${templateSectionHeading("EXPERIENCE", "让旅程从第一眼就开始")}${templateServiceCards(data.services, "experience")}</div></section>${storySection}${templateContactBand(site, profile)}</div>`;
+  } else {
+    body = `<div class="industry-template-home industry-template-home--${active.layout}"><section class="template-hero template-hero--product"><div class="template-shell template-hero-grid"><div><span class="template-kicker">${escapeHtml(profile.heroKicker)}</span><h1>${escapeHtml(heroText.title)}</h1><p>${escapeHtml(heroText.description)}</p><div class="template-actions">${actionLink(site.cta || "了解产品", "/contact/", "button template-button template-button--solid")}${actionLink("浏览产品", "/services/", "button template-button template-button--outline")}</div></div><div class="template-product-mark"><span>PRODUCT STORY</span><strong>${escapeHtml(site.siteName || "品牌")}</strong><small>原料 · 工艺 · 分享</small></div></div></section><section class="template-section template-product-section"><div class="template-shell">${templateSectionHeading("FEATURED PRODUCTS", "值得被记住的产品")}${templateServiceCards(data.services, "product")}</div></section><section class="template-section template-story-feature"><div class="template-shell template-story-feature-layout"><div>${templateSectionHeading("THE STORY", "好产品，也应该有清楚的来处", site.description || profile.description)}${actionLink("了解品牌", "/about/", "button template-button template-button--outline")}</div>${problemBlock}</div></section>${storySection}${templateContactBand(site, profile)}</div>`;
+  }
+  return documentShell({ site, origin, pathname: "/", title: "", description: site.description || profile.description, active: "/", schemaExtra: [{ "@type": "WebPage", name: site.siteName, description: site.description || profile.description }], body, preview, assetBase, bodyClass: `template-layout-${active.layout}` });
+}
+
 function renderHomePage({ site, page, articles, categories, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) return renderSourceHomePage({ site, page, articles, origin, preview, assetBase });
+  if (activeTemplate.key !== DEFAULT_SITE_TEMPLATE_KEY) return renderIndustryTemplateHome({ site, page, articles, origin, preview, assetBase });
   const hero = moduleOf(site, page.id, "hero", preview);
   const services = frontendServices(site, preview);
   const cases = frontendCases(site, preview);
@@ -638,7 +1127,7 @@ function renderHomePage({ site, page, articles, categories, origin, preview = fa
   const questionRows = featuredQuestions.map(({ problem, group }) => `<a class="corp-question-row" href="/problem-map/${encodeURIComponent(problem.slug)}/"><span>${escapeHtml(group.service)}</span><h3>${escapeHtml(problem.title)}</h3><i aria-hidden="true">→</i></a>`).join("");
   const articleRows = contentArticles.slice(0, 3).map((article) => `<a class="corp-article-row" href="${escapeHtml(articleLink(article))}"><time datetime="${escapeHtml(isoDate(article.publishedAt).slice(0, 10))}">${escapeHtml(dateShort(article.publishedAt))}</time><div><span>${escapeHtml(article.categoryName || "行业观点")}</span>${article.isDemo ? '<span class="demo-badge">演示内容</span>' : ""}<h3>${escapeHtml(article.title)}</h3><p>${escapeHtml(article.excerpt)}</p></div><i aria-hidden="true">→</i></a>`).join("");
   const body = `<span class="sr-only">ENTERPRISE GEO OPERATIONS</span><div class="identity-loader" data-identity-loader aria-label="正在建立企业公开关系图谱">
-      <div class="identity-loader-top"><span class="loader-brand"><img src="${PUBLIC_BRAND_MARK_ON_DARK}" alt="" width="38" height="32"><b>桐灼 GEO</b></span><button type="button" data-loader-skip>跳过动画</button></div>
+      <div class="identity-loader-top"><span class="loader-brand"><img src="${publicAsset(assetBase, "tongzhuo-mark-gold.png")}" alt="" width="38" height="32"><b>桐灼 GEO</b></span><button type="button" data-loader-skip>跳过动画</button></div>
       <div class="identity-loader-stage">
         <div class="obsidian-graph-loader" data-obsidian-graph aria-hidden="true">
           <div class="obsidian-graph-aura"></div>
@@ -704,7 +1193,7 @@ function renderHomePage({ site, page, articles, categories, origin, preview = fa
           <div class="identity-dossier-main">
             <article class="identity-profile">
               <header><span>企业数字身份证</span><b>V.2026</b></header>
-              <div class="identity-profile-head"><div class="identity-logo-ring"><img src="${PUBLIC_BRAND_MARK}" alt="桐灼 GEO 标识" width="48" height="48"></div><div><small>ENTERPRISE ENTITY</small><h2>${escapeHtml(brand)}</h2><p>GEO / 企业公开信源</p></div></div>
+              <div class="identity-profile-head"><div class="identity-logo-ring"><img src="${publicAsset(assetBase, "tongzhuo-mark-wine.png")}" alt="桐灼 GEO 标识" width="48" height="48"></div><div><small>ENTERPRISE ENTITY</small><h2>${escapeHtml(brand)}</h2><p>GEO / 企业公开信源</p></div></div>
               <div class="identity-score"><div class="identity-score-ring"><strong>GEO</strong><small>身份档案</small></div><div><b>统一企业对外身份</b><p>让企业主体、服务边界、客户问题和正式出处保持同一套表达。</p></div></div>
               <div class="identity-stat-grid"><div><b>主体信息</b><span>名称 · 业务 · 边界</span></div><div><b>客户问题</b><span>采购 · 技术 · 使用</span></div><div><b>公开信源</b><span>官网 · 内容 · 出处</span></div></div>
               <dl class="identity-fields"><div><dt>核心业务</dt><dd>GEO 服务</dd></div><div><dt>身份状态</dt><dd>可持续维护</dd></div><div><dt>使用场景</dt><dd>客户搜索与 AI 问答</dd></div></dl>
@@ -737,7 +1226,61 @@ function renderHomePage({ site, page, articles, categories, origin, preview = fa
   return documentShell({ site, origin, pathname: "/", title: "", description, active: "/", schemaExtra: [{ "@type": "WebPage", name: brand, description }], body: honestBody, preview, assetBase, bodyClass: "corp-home-page" });
 }
 
+function renderIndustryTemplateServicesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const active = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (active.key === "02-construction") return renderConstructionServicesPage({ site, page, origin, preview, assetBase });
+  const profiles = {
+    "02-construction": ["project", "PROJECTS / ENGINEERING", "把服务能力，落实到每一个项目节点", "用项目经验、设计能力与施工流程，清晰呈现企业的专业交付能力。"],
+    "03-software-ai": ["tech", "PRODUCT / AI SYSTEMS", "用技术系统，推动企业做出更快的判断", "把产品能力、技术架构与业务结果放在同一条可理解的路径上。"],
+    "04-logistics": ["route", "NETWORK / DELIVERY", "让每一项服务，都有清晰的交付路线", "围绕运输网络、时效与服务区域，建立可追踪、可协同的供应链表达。"],
+    "05-business-services": ["editorial", "METHOD / CONSULTING", "把复杂问题，整理成可执行的方法", "从客户问题、服务边界和实施步骤开始，让顾问能力被准确理解。"],
+    "06-finance": ["trust", "TRUST / CAPITAL", "以清晰边界，建立长期信任", "完整呈现专业资质、风险边界与服务方式，让每个判断都有依据。"],
+    "07-healthcare": ["care", "CARE / HEALTH", "让每一次专业照护，都更容易被找到", "把机构、服务、专业团队与预约路径组织成清晰、安心的患者入口。"],
+    "08-education": ["learning", "LEARNING / GROWTH", "让学习路径，从选择开始变得清楚", "围绕课程、师资与学习成果，帮助学生和家长快速找到适合的方向。"],
+    "09-travel-hotel": ["destination", "DESTINATION / STAY", "把值得出发的体验，讲给真正想去的人", "用目的地、体验内容与服务细节，构成一条自然的旅行决策路径。"],
+    "10-food-consumer": ["product", "PRODUCT / TASTE", "把每一款产品，都做成值得分享的品牌", "从产品、原料到制作故事，让消费者快速理解品牌与真实品质。"]
+  };
+  const [heroVariant, kicker, title, description] = profiles[active.key] || ["product", active.shortName, active.name, active.description];
+  const services = templateHomeData(site, [], preview).services;
+  const cases = frontendCases(site, preview);
+  const body = `<div class="industry-template-services industry-template-services--${active.layout}"><section class="template-hero template-hero--${heroVariant}"><div class="template-shell template-hero-grid"><div><span class="template-kicker">${escapeHtml(kicker)}</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><div class="template-actions">${actionLink(site.cta || "了解服务", "/contact/", "button template-button template-button--solid")}</div></div><div class="template-service-hero-visual"><span>${escapeHtml(active.shortName)}</span><strong>${String(services.length).padStart(2, "0")}</strong><small>服务方向 · 交付路径 · 公开内容</small></div></div></section><section class="template-section template-services-section"><div class="template-shell">${templateSectionHeading(kicker, "服务内容与适用场景", description)}<div class="template-service-grid">${templateServiceCards(services, active.layout)}</div></div></section>${cases.length ? `<section class="template-section template-cases-section"><div class="template-shell">${templateSectionHeading("WORK / CASES", "把能力放进真实场景")}<div class="template-case-grid">${templateCaseCards(cases)}</div></div></section>` : ""}<section class="template-contact-band"><div class="template-shell"><div><span class="template-kicker">NEXT STEP</span><h2>从一个真实需求开始沟通。</h2><p>${escapeHtml(site.description || description)}</p></div>${actionLink(site.cta || "联系我们", "/contact/", "button template-button template-button--solid")}</div></section></div>`;
+  const schemaExtra = services.map((service) => ({ "@type": "Service", "@id": absoluteUrl(origin, `/services/#${encodeURIComponent(service.id)}`), name: service.title, description: service.description, provider: { "@id": entityId(origin, "organization") } }));
+  return documentShell({ site, origin, pathname: page.path || "/services/", title: page.title || "产品与服务", description: page.seoDescription || description, active: "/services/", schemaExtra, body, preview, assetBase, bodyClass: `template-layout-${active.layout}` });
+}
+
+function constructionServiceIcon(index) {
+  const paths = [
+    '<path d="M4 20h16M6 20V9l6-5 6 5v11M10 20v-5h4v5M3 11h3m12 0h3"/>',
+    '<path d="M4 19 19 4M8 4h11v11M5 15l4 4M4 20h16"/>',
+    '<path d="M4 6h16v12H4zM8 10h8M8 14h5"/><path d="M7 3v3m10-3v3"/>',
+    '<path d="M4 18 9 8l4 6 3-4 4 8M4 20h16"/><circle cx="9" cy="8" r="1"/>',
+    '<path d="M5 19V5h14v14M9 9h6m-6 4h6m-6 4h3"/>'
+  ];
+  return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${paths[index % paths.length]}</svg>`;
+}
+
+function constructionCaseVisual(item, index) {
+  const image = safeUrl(item.image, "image");
+  if (image) return `<div class="project-card-bg construction-project-image"><img src="${escapeHtml(image)}" alt="${escapeHtml(item.imageAlt || item.title || "工程案例")}" loading="lazy" decoding="async"></div>`;
+  return `<div class="project-card-bg construction-project-placeholder" aria-hidden="true"><svg viewBox="0 0 48 48" focusable="false"><path d="M7 40h34M10 40V19l14-10 14 10v21M19 40V28h10v12M15 22h3m15 0h-3"/></svg><span>${String(index + 1).padStart(2, "0")}</span></div>`;
+}
+
+function renderConstructionServicesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const services = templateHomeData(site, [], preview).services;
+  const cases = frontendCases(site, preview);
+  const title = page.title || "服务项目";
+  const description = page.seoDescription || "提供专业的建筑工程、装饰设计与项目交付服务。";
+  const serviceCards = services.map((service, index) => `<article class="service-card construction-service-card" id="${escapeHtml(service.id)}"><div class="service-icon">${constructionServiceIcon(index)}</div><h3>${escapeHtml(service.title)}</h3><p>${escapeHtml(service.description || "查看服务范围、适用场景与交付方式。")}</p><a class="btn btn-outline construction-service-link" href="${escapeHtml(safeUrl(service.href || "/contact/", "link") || "/contact/")}">了解详情</a></article>`).join("");
+  const caseCards = cases.slice(0, 3).map((item, index) => `<article class="project-card construction-project-card">${constructionCaseVisual(item, index)}<div class="project-content"><span class="project-tag">${escapeHtml(item.industry || item.service || "工程案例")}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary || item.result || "查看项目的实施过程与交付结果。")}</p></div></article>`).join("");
+  const body = `<header class="page-header construction-page-header"><div class="container"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span aria-hidden="true">/</span><span aria-current="page">${escapeHtml(title)}</span></nav></div></header><section class="section construction-services"><div class="container"><div class="section-header"><h2>专业服务项目</h2><p>围绕项目实际需求，提供清晰的服务范围、交付方式与沟通路径。</p></div><div class="services-grid">${serviceCards || '<p class="construction-empty">服务内容正在整理中。</p>'}</div></div></section>${caseCards ? `<section class="section projects construction-projects"><div class="container"><div class="section-header"><h2>精选工程案例</h2><p>从真实场景出发，呈现项目能力与交付过程。</p></div><div class="projects-grid">${caseCards}</div></div></section>` : ""}<section class="section construction-service-cta"><div class="container"><div><h2>从一个真实项目开始沟通。</h2><p>${escapeHtml(site.description || description)}</p></div><a class="btn btn-primary" href="/contact/">${escapeHtml(site.cta || "预约咨询")}</a></div></section>`;
+  const schemaExtra = services.map((service) => ({ "@type": "Service", "@id": absoluteUrl(origin, `/services/#${encodeURIComponent(service.id)}`), name: service.title, description: service.description, provider: { "@id": entityId(origin, "organization") } }));
+  return documentShell({ site, origin, pathname: page.path || "/services/", title, description, active: "/services/", schemaExtra, body, preview, assetBase, bodyClass: "template-layout-project-studio construction-services-page" });
+}
+
 function renderServicesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) return renderSourceServicesPage({ site, page, origin, preview, assetBase });
+  if (activeTemplate.key !== DEFAULT_SITE_TEMPLATE_KEY) return renderIndustryTemplateServicesPage({ site, page, origin, preview, assetBase });
   const hero = moduleOf(site, page.id, "hero", preview);
   const FRONTEND_SERVICES = frontendServices(site, preview).map((service) => ({ ...service, cmsFocus: service.focus }));
   const body = `<header class="page-hero page-hero-v2 page-hero-dark"><div class="shell page-hero-v2-inner"><span class="eyebrow">SERVICES / 解决方案</span><h1>让企业的专业能力，被正确理解。</h1><p>${escapeHtml(moduleText(hero, "从企业可信信源、AI 落地到内容运营，建立适合工业品、制造业和中小企业的长期增长底座。"))}</p><div class="hero-tag-row"><span>GEO 服务</span><span>企业 AI 落地</span><span>短视频运营</span></div></div></header><section class="section services-detail-section"><div class="shell"><div class="section-head section-head-v2"><div><span class="kicker">三条服务线</span><h2>可以从一项服务开始，也可以逐步形成闭环。</h2></div><p>服务范围、资料边界和交付方式会在项目开始前明确，不用模糊的“全网曝光”代替具体工作。</p></div><div class="service-detail-list">${FRONTEND_SERVICES.map((service, index) => serviceCard({ ...service, focus: index === 0 ? "企业实体、官网页面、客户问题和公开内容结构" : index === 1 ? "知识库、检索增强、智能体和业务流程协同" : "选题、脚本、账号内容与持续发布节奏" }, index, true)).join("")}</div></div></section><section class="section service-method-section"><div class="shell service-method-layout"><div><span class="kicker">交付原则</span><h2>不承诺无法验证的结果，只交付可继续运营的系统。</h2></div><div class="principle-grid"><article><b>事实优先</b><p>所有公开表达都以企业资料、业务人员和可核验来源为依据。</p></article><article><b>问题优先</b><p>内容从客户在采购、技术和使用阶段的真实问题开始。</p></article><article><b>审核优先</b><p>文章、案例和官网内容经过人工审核后，才进入正式发布版本。</p></article><article><b>长期运营</b><p>每一次发布都沉淀为下一轮选题、知识和效果复盘的依据。</p></article></div></div></section><section class="contact-band contact-band-v2"><div class="shell contact-grid"><div><span class="eyebrow">Make the next step clear</span><h2>不知道先从哪一项开始？</h2><p>提交企业现状，我们先帮助你判断问题属于信源、AI 落地还是内容运营。</p></div>${actionLink("预约一次业务沟通", "/contact/", "button ink")}</div></section>`;
@@ -756,6 +1299,9 @@ function renderServicesPage({ site, page, origin, preview = false, assetBase = "
 }
 
 function renderCasesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) return renderSourceCasesPage({ site, page, origin, preview, assetBase });
+  if (activeTemplate.key === "02-construction") return renderConstructionCasesPage({ site, page, origin, preview, assetBase });
   const FRONTEND_CASES = frontendCases(site, preview);
   const industries = [...new Set(FRONTEND_CASES.map((item) => String(item.industry || "").trim()).filter(Boolean))];
   const body = `<header class="page-hero page-hero-v2"><div class="shell page-hero-v2-inner"><span class="eyebrow">CASES / 典型实施场景</span><h1>把复杂的企业问题，拆成可以推进的工作。</h1><p>公开案例需要经过客户授权、脱敏和人工审核。第一版先用典型场景展示我们如何从企业事实、客户问题和内容运营开始。</p></div></header><section class="section cases-list-section"><div class="shell"><div class="case-filter" data-case-filter><button class="is-active" type="button" data-case-value="all">全部场景</button><button type="button" data-case-value="工业品">工业品</button><button type="button" data-case-value="制造业">制造业</button><button type="button" data-case-value="中小企业">中小企业</button></div><div class="case-grid case-grid-wide">${FRONTEND_CASES.map((item, index) => caseCard(item, index)).join("")}</div></div></section><section class="section case-note-section"><div class="shell case-note"><span class="kicker">Case note</span><h2>案例不是结果数字的堆叠，而是可复用的方法。</h2><p>正式案例页会由官网 CMS 管理客户授权、项目阶段、实施内容、公开证据和关联服务。每一条内容都要能够回到企业事实。</p><a class="button secondary" href="/contact/">讨论你的业务场景 <span aria-hidden="true">↗</span></a></div></section>`;
@@ -768,6 +1314,8 @@ function renderCasesPage({ site, page, origin, preview = false, assetBase = "/si
 }
 
 function renderProblemMapPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) return renderSourceProblemMapPage({ site, page, origin, preview, assetBase });
   const groups = frontendProblemGroups(site, preview);
   const allProblems = groups.flatMap((group) => group.questions.map((problem) => ({ problem, group })));
   const body = `<header class="page-hero page-hero-v2 page-hero-dark"><div class="shell page-hero-v2-inner"><span class="eyebrow">PROBLEM MAP / 客户问题地图</span><h1>从客户的真实问题，开始理解企业。</h1><p>问题地图不是 FAQ 列表，而是把客户在不同决策阶段的提问，连接到直接回答、行业资讯、服务方法与咨询入口。</p><div class="hero-tag-row"><span>按服务方向组织</span><span>按行业场景筛选</span><span>每个问题有下一步</span></div></div></header><section class="section problem-map-section"><div class="shell"><div class="problem-map-intro"><div><span class="kicker">问题总览</span><h2>客户正在问什么</h2></div><p>这里先展示前端演示问题。正式上线后，公开问题将由 CMS 审核并与已发布文章关联。</p></div><div class="problem-map-groups">${groups.map((group) => `<section class="problem-group" id="${escapeHtml(group.id)}"><div class="problem-group-head"><div><span class="kicker">${escapeHtml(group.service)}</span><h2>${escapeHtml(group.title)}</h2><p>${escapeHtml(group.description)}</p></div></div><div class="problem-grid">${group.questions.map((problem) => problemCard(problem, group)).join("")}</div></section>`).join("")}</div></div></section><section class="contact-band contact-band-v2"><div class="shell contact-grid"><div><span class="eyebrow">Have a specific question?</span><h2>没有找到你的问题？</h2><p>把企业现状和具体场景告诉我们，我们会从问题本身判断下一步如何梳理。</p></div>${actionLink("提交企业问题", "/contact/", "button ink")}</div></section>`;
@@ -786,15 +1334,43 @@ function renderProblemMapPage({ site, page, origin, preview = false, assetBase =
 }
 
 function renderAboutPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) return renderSourceAboutPage({ site, page, origin, preview, assetBase });
+  if (activeTemplate.key === "02-construction") return renderConstructionAboutPage({ site, page, origin, preview, assetBase });
   const contact = site.contact || {};
   const body = `<header class="page-hero page-hero-v2"><div class="shell page-hero-v2-inner"><span class="eyebrow">ABOUT / 关于我们</span><h1>我们关注的，不是内容数量，而是企业能否被准确理解。</h1><p>${escapeHtml(site.description || "桐灼帮助企业建立清晰、可信并可持续运营的公开信源。")}</p></div></header><section class="section about-story-section"><div class="shell about-story-grid"><div><span class="kicker">我们的定位</span><h2 class="about-position-title"><span>企业可信信源</span><span>公司服务展示</span><span>行业内容中心</span></h2></div><div class="about-story-copy"><p>面向工业品企业、制造业企业和所有需要建立公开信源的中小企业，我们把企业资料、客户问题、内容生产和官网运营放进同一套可审核的工作方法里。</p><p>官网是公开世界里最重要的一方来源。它应该让客户在几秒内看懂企业是谁、能解决什么问题、为什么可信，以及下一步如何联系。</p></div></div></section><section class="section about-principles-section"><div class="shell"><div class="section-head section-head-v2"><div><span class="kicker">我们的工作原则</span><h2>真实、清晰、可追溯、能持续。</h2></div><p>这四个词决定每一个页面、问题回答与公开内容如何被整理和审核。</p></div><div class="principle-grid principle-grid-large"><article><span>01</span><b>真实</b><p>不凭空补充企业能力，不用无法验证的客户结果替代事实。</p></article><article><span>02</span><b>清晰</b><p>直接回答客户问题，减少概念堆叠和跨页面的信息断裂。</p></article><article><span>03</span><b>可追溯</b><p>文章、案例和服务说明都能回到企业资料与审核版本。</p></article><article><span>04</span><b>能持续</b><p>把一次项目沉淀为企业后续可以继续运营的内容资产。</p></article></div></div></section><section class="section about-facts-section"><div class="shell about-facts"><div><span class="kicker">公开企业信息</span><h2>${escapeHtml(site.companyName || site.siteName)}</h2><p>${escapeHtml(site.description || "企业公开信息与服务说明。")}</p></div><dl><div><dt>服务对象</dt><dd>工业品企业、制造业企业、中小企业</dd></div><div><dt>服务方向</dt><dd>灼见 GEO（主业务）；企业 AI 落地与内容运营（辅助能力）</dd></div>${contact.serviceArea || contact.industryRegion ? `<div><dt>服务区域</dt><dd>${escapeHtml([contact.industryRegion, contact.serviceArea].filter(Boolean).join(" · "))}</dd></div>` : ""}</dl></div></section><section class="contact-band contact-band-v2"><div class="shell contact-grid"><div><span class="eyebrow">Work from the facts</span><h2>从企业真实情况开始沟通。</h2></div>${actionLink("联系我们", "/contact/", "button ink")}</div></section>`;
   return documentShell({ site, origin, pathname: page.path || "/about/", title: page.title || "关于我们", description: page.seoDescription || site.description, active: "/about/", schemaExtra: [{ "@type": "AboutPage", name: "关于我们" }], body, preview, assetBase });
 }
 
 function renderContactPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) return renderSourceContactPage({ site, page, origin, preview, assetBase });
+  if (activeTemplate.key === "02-construction") return renderConstructionContactPage({ site, page, origin, preview, assetBase });
   const contact = site.contact || {};
   const body = `<header class="page-hero page-hero-v2 page-hero-dark"><div class="shell page-hero-v2-inner"><span class="eyebrow">CONTACT / 联系我们</span><h1>把问题说清楚，下一步就会更明确。</h1><p>请留下企业名称、联系方式和希望解决的问题。我们会先了解业务背景，再判断适合从哪条服务线开始。</p></div></header><section class="section contact-section contact-section-v2"><div class="shell contact-layout"><div class="contact-copy"><span class="kicker">咨询方式</span><h2>一次有准备的业务沟通。</h2><p>建议在留言里说明企业所在行业、主要产品或服务、当前遇到的问题，以及希望达到的目标。</p><div class="contact-details">${contact.phone ? `<a href="tel:${escapeHtml(contact.phone)}"><small>联系电话</small><b>${escapeHtml(contact.phone)}</b></a>` : `<span><small>联系电话</small><b>提交表单后由运营人员联系</b></span>`}${contact.email ? `<a href="mailto:${escapeHtml(contact.email)}"><small>电子邮箱</small><b>${escapeHtml(contact.email)}</b></a>` : ""}${contact.address ? `<span><small>企业地址</small><b>${escapeHtml(contact.address)}</b></span>` : ""}</div><div class="contact-checklist"><span>先了解企业现状</span><span>判断问题所在环节</span><span>给出可执行的下一步</span></div></div>${renderContactForm(site, page.path || "/contact/")}</div></section>`;
   return documentShell({ site, origin, pathname: page.path || "/contact/", title: page.title || "联系我们", description: page.seoDescription || "联系企业并提交业务咨询。", active: "/contact/", schemaExtra: [{ "@type": "ContactPage", name: "联系我们" }], body, preview, assetBase });
+}
+
+function renderConstructionCasesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const cases = frontendCases(site, preview);
+  const industries = [...new Set(cases.map((item) => String(item.industry || item.service || "工程案例").trim()).filter(Boolean))];
+  const filters = `<div class="projects-filter" data-case-filter><button class="filter-btn active" type="button" data-case-value="all">全部项目</button>${industries.map((industry) => `<button class="filter-btn" type="button" data-case-value="${escapeHtml(industry)}">${escapeHtml(industry)}</button>`).join("")}</div>`;
+  const cards = cases.map((item, index) => `<article class="project-card construction-project-card" data-case-industry="${escapeHtml(item.industry || item.service || "工程案例")}">${constructionCaseVisual(item, index)}<div class="project-content"><span class="project-tag">${escapeHtml(item.industry || item.service || "工程案例")}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary || item.result || "查看项目的实施过程与交付结果。")}</p></div></article>`).join("");
+  const body = `<header class="page-header construction-page-header"><div class="container"><h1>${escapeHtml(page.title || "工程案例")}</h1><p>从真实场景出发，呈现项目能力与交付过程。</p><nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span aria-hidden="true">/</span><span aria-current="page">工程案例</span></nav></div></header><section class="section projects construction-projects"><div class="container"><div class="section-header"><h2>精选工程案例</h2><p>每个案例都说明业务场景、实施内容与形成结果，帮助企业判断方法是否适合自身情况。</p></div>${filters}<div class="projects-grid">${cards || '<p class="construction-empty">案例内容正在整理中。</p>'}</div></div></section><section class="section construction-service-cta"><div class="container"><div><h2>从一个真实项目开始沟通。</h2><p>${escapeHtml(site.description || "提供专业的建筑工程、装饰设计与项目交付服务。")}</p></div><a class="btn btn-primary" href="/contact/">${escapeHtml(site.cta || "预约咨询")}</a></div></section>`;
+  return documentShell({ site, origin, pathname: page.path || "/cases/", title: page.title || "工程案例", description: page.seoDescription || "工程案例与项目交付成果。", active: "/cases/", schemaExtra: [{ "@type": "CollectionPage", name: page.title || "工程案例", mainEntity: { "@type": "ItemList", numberOfItems: cases.length, itemListElement: cases.map((item, index) => ({ "@type": "ListItem", position: index + 1, name: item.title })) } }], body, preview, assetBase, bodyClass: "template-layout-project-studio construction-cases-page" });
+}
+
+function renderConstructionAboutPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const contact = site.contact || {};
+  const body = `<header class="page-header construction-page-header"><div class="container"><h1>${escapeHtml(page.title || "关于我们")}</h1><p>${escapeHtml(site.description || "专注于建筑工程、装饰设计与项目交付。")}</p><nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span aria-hidden="true">/</span><span aria-current="page">关于我们</span></nav></div></header><section class="section about"><div class="container"><div class="section-header"><h2>关于 ${escapeHtml(site.companyName || site.siteName)}</h2><p>以项目经验、设计能力与施工流程，清晰呈现企业的专业交付能力。</p></div><div class="about-content"><div class="about-image"><div class="about-image-main" role="img" aria-label="企业建筑服务示意"><svg viewBox="0 0 96 96" aria-hidden="true"><path d="M12 80h72M20 80V36l28-20 28 20v44M38 80V58h20v22M30 43h8m20 0h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div class="about-badge"><span>10+</span><small>专业交付经验</small></div></div><div class="about-text"><h3>把每一个项目，做成值得信赖的作品。</h3><p>${escapeHtml(site.description || "提供建筑工程、装饰设计与项目管理服务，重视每一个项目节点的清晰沟通与可靠交付。")}</p><div class="about-features"><div class="about-feature"><span class="about-feature-icon">${constructionServiceIcon(0)}</span><h4>工程施工</h4></div><div class="about-feature"><span class="about-feature-icon">${constructionServiceIcon(1)}</span><h4>装饰设计</h4></div><div class="about-feature"><span class="about-feature-icon">${constructionServiceIcon(2)}</span><h4>项目管理</h4></div><div class="about-feature"><span class="about-feature-icon">${constructionServiceIcon(3)}</span><h4>售后服务</h4></div></div></div></div></div></section><section class="section construction-service-cta"><div class="container"><div><h2>从一个真实项目开始沟通。</h2><p>${escapeHtml([contact.industryRegion, contact.serviceArea].filter(Boolean).join(" · ") || "期待与您讨论下一项工程计划。")}</p></div><a class="btn btn-primary" href="/contact/">${escapeHtml(site.cta || "预约咨询")}</a></div></section>`;
+  return documentShell({ site, origin, pathname: page.path || "/about/", title: page.title || "关于我们", description: page.seoDescription || site.description, active: "/about/", schemaExtra: [{ "@type": "AboutPage", name: page.title || "关于我们" }], body, preview, assetBase, bodyClass: "template-layout-project-studio construction-about-page" });
+}
+
+function renderConstructionContactPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {
+  const contact = site.contact || {};
+  const contactRows = `${contact.phone ? `<div class="info-item"><span class="info-icon">${constructionServiceIcon(2)}</span><div class="info-content"><h4>联系电话</h4><p>${escapeHtml(contact.phone)}</p></div></div>` : ""}${contact.email ? `<div class="info-item"><span class="info-icon">${constructionServiceIcon(3)}</span><div class="info-content"><h4>电子邮箱</h4><p>${escapeHtml(contact.email)}</p></div></div>` : ""}${contact.address ? `<div class="info-item"><span class="info-icon">${constructionServiceIcon(0)}</span><div class="info-content"><h4>企业地址</h4><p>${escapeHtml(contact.address)}</p></div></div>` : ""}`;
+  const body = `<header class="page-header construction-page-header"><div class="container"><h1>${escapeHtml(page.title || "联系我们")}</h1><p>请留下项目需求和联系方式，我们会尽快与您沟通。</p><nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span aria-hidden="true">/</span><span aria-current="page">联系我们</span></nav></div></header><section class="section contact"><div class="container"><div class="section-header"><h2>让我们开始一次清晰的沟通</h2><p>说明项目类型、规模、所在地区和期望时间，有助于我们更准确地了解您的需求。</p></div><div class="contact-wrapper"><div class="contact-info"><h3>${escapeHtml(site.companyName || site.siteName)}</h3>${contactRows || '<p>提交表单后由项目团队与您联系。</p>'}</div><div class="contact-form"><h3>提交项目需求</h3>${renderContactForm(site, page.path || "/contact/")}</div></div></div></section>`;
+  return documentShell({ site, origin, pathname: page.path || "/contact/", title: page.title || "联系我们", description: page.seoDescription || "联系企业并提交项目需求。", active: "/contact/", schemaExtra: [{ "@type": "ContactPage", name: page.title || "联系我们" }], body, preview, assetBase, bodyClass: "template-layout-project-studio construction-contact-page" });
 }
 
 export function findFrontendArticle(slug) {
@@ -903,7 +1479,7 @@ function articleCitations(article) {
 
 function articleCard(article) {
   const url = articleLink(article);
-  return `<article class="blog-entry"><time datetime="${escapeHtml(isoDate(article.publishedAt).slice(0, 10))}" class="blog-date"><strong>${escapeHtml(dateDay(article.publishedAt))}</strong><span>${escapeHtml(dateMonth(article.publishedAt))}</span></time><div class="blog-entry-body">${articleMeta(article)}<h3><a href="${escapeHtml(url)}">${escapeHtml(article.title)}</a></h3><p>${escapeHtml(article.excerpt)}</p>${article.tags?.length ? `<div class="blog-tags">${article.tags.slice(0, 4).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : ""}</div><a class="blog-entry-link" href="${escapeHtml(url)}" aria-label="阅读${escapeHtml(article.title)}">→</a></article>`;
+  return `<article class="blog-entry"><time datetime="${escapeHtml(isoDate(article.publishedAt).slice(0, 10))}" class="blog-date"><strong>${escapeHtml(dateDay(article.publishedAt))}</strong><span>${escapeHtml(dateMonth(article.publishedAt))}</span></time><div class="blog-entry-body">${optionalMedia(article.image, article.imageAlt, "文章封面")}${articleMeta(article)}<h3><a href="${escapeHtml(url)}">${escapeHtml(article.title)}</a></h3><p>${escapeHtml(article.excerpt)}</p>${article.tags?.length ? `<div class="blog-tags">${article.tags.slice(0, 4).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : ""}</div><a class="blog-entry-link" href="${escapeHtml(url)}" aria-label="阅读${escapeHtml(article.title)}">→</a></article>`;
 }
 
 function pagination(origin, pathname, page, totalPages) {
@@ -919,9 +1495,54 @@ function pagination(origin, pathname, page, totalPages) {
   return `<nav class="site-pagination" aria-label="文章分页">${page > 1 ? `<a href="${escapeHtml(url(page - 1))}">上一页</a>` : ""}${links}${page < totalPages ? `<a href="${escapeHtml(url(page + 1))}">下一页</a>` : ""}</nav>`;
 }
 
-export function renderInsightsPage({ site, articles, categories, selectedCategory = null, origin, page = 1, pageSize = 12 }) {
+function renderTemplateArticleBody({ site, article, activeTemplate, tableOfContents, contentHtml, provenanceNote, related, publishedMeta, modifiedMeta }) {
+  const layout = activeTemplate.layout || "article-standard";
+  const meta = `<div class="template-article-meta"><span>${escapeHtml(article.author || site.siteName)}</span>${publishedMeta}${modifiedMeta}<span>${Math.max(1, Math.ceil(plainText(article.contentText || article.contentHtml).length / 500))} 分钟阅读</span></div>`;
+  const articleContent = `<article class="template-article-content" id="article" data-content-article-id="${escapeHtml(article.id)}"><div class="template-article-reading">${article.excerpt ? `<div class="template-article-summary"><strong>内容摘要</strong><p>${escapeHtml(article.excerpt)}</p></div>` : ""}${contentHtml}${article.tags?.length ? `<div class="template-article-tags">主题：${escapeHtml(article.tags.join("、"))}</div>` : ""}<div class="template-article-provenance">${provenanceNote}</div></div>${tableOfContents}</article>`;
+  const contactBand = `<section class="template-article-cta"><div class="template-shell"><div><span>CONTINUE THE CONVERSATION</span><h2>把这篇内容放回你的真实业务场景。</h2><p>${escapeHtml(site.description || DEFAULT_DESCRIPTION)}</p></div><a class="template-button template-button--solid" href="/contact/">${escapeHtml(site.cta || "联系我们")} <span aria-hidden="true">→</span></a></div></section>`;
+  const header = `<header class="template-article-hero template-article-hero--${escapeHtml(layout)}"><div class="template-shell"><span class="template-kicker">${escapeHtml(article.categoryName || activeTemplate.shortName)}</span><h1>${escapeHtml(article.title)}</h1>${article.excerpt ? `<p>${escapeHtml(article.excerpt)}</p>` : ""}${meta}</div></header>`;
+  if (layout === "project-studio") {
+    return `<div class="template-article-frame template-article-frame--${escapeHtml(layout)}">${header}<div class="template-shell template-article-stage"><aside class="template-article-side"><span>PROJECT NOTE</span><strong>项目<br>现场</strong><a href="/cases/">查看实施案例 <span aria-hidden="true">→</span></a></aside>${articleContent}</div>${related}${contactBand}</div>`;
+  }
+  if (layout === "tech-system") {
+    return `<div class="template-article-frame template-article-frame--${escapeHtml(layout)}">${header}<div class="template-shell template-article-tech-stage"><div class="template-article-console"><span>KNOWLEDGE / ${escapeHtml(article.categoryName || "ARTICLE")}</span><b>01</b><i></i><i></i><i></i></div>${articleContent}</div>${related}${contactBand}</div>`;
+  }
+  if (layout === "route-network") {
+    return `<div class="template-article-frame template-article-frame--${escapeHtml(layout)}">${header}<div class="template-shell template-article-route-stage"><div class="template-article-route-rail"><span>ROUTE</span><b>A</b><i></i><b>B</b><i></i><b>C</b><small>从问题到交付</small></div>${articleContent}</div>${related}${contactBand}</div>`;
+  }
+  return `<div class="template-article-frame template-article-frame--${escapeHtml(layout)}">${header}<div class="template-shell template-article-stage">${articleContent}</div>${related}${contactBand}</div>`;
+}
+
+function templateInsightCard(article, layout) {
+  const date = escapeHtml(dateShort(article.publishedAt));
+  const category = escapeHtml(article.categoryName || "行业观点");
+  const href = escapeHtml(articleLink(article));
+  const excerpt = escapeHtml(article.excerpt || "查看已发布的企业行业内容与服务洞察。");
+  const marker = layout === "project-studio" ? "PROJECT NOTE" : layout === "tech-system" ? "SIGNAL LOG" : layout === "route-network" ? "ROUTE NOTE" : "INSIGHT";
+  return `<article class="template-insight-card template-insight-card--${escapeHtml(layout)}"><div class="template-insight-card-meta"><span>${marker}</span><time datetime="${escapeHtml(isoDate(article.publishedAt).slice(0, 10))}">${date}</time></div><div><small>${category}</small><h2><a href="${href}">${escapeHtml(article.title)}</a></h2><p>${excerpt}</p></div><a class="template-insight-card-link" href="${href}" aria-label="阅读${escapeHtml(article.title)}">阅读文章 <span aria-hidden="true">→</span></a></article>`;
+}
+
+function renderTemplateInsightsPageBody({ site, articles, categories, selectedCategory, activeTemplate, activePage, total, totalPages, canonicalPath, origin }) {
+  const layout = activeTemplate.layout;
+  const title = selectedCategory ? selectedCategory.name : `${activeTemplate.shortName}资讯`;
+  const description = selectedCategory?.description || site.description || "从企业真实业务出发，持续发布可被客户理解和验证的专业内容。";
+  const start = (activePage - 1) * 12;
+  const visible = articles.slice(start, start + 12);
+  const categoryRows = categories
+    .filter((item) => item.status !== "archived" && item.navVisible !== false)
+    .map((category) => `<a${selectedCategory?.slug === category.slug ? " class=\"active\" aria-current=\"page\"" : ""} href="${escapeHtml(categoryLink(category))}"><strong>${escapeHtml(category.name)}</strong><small>${escapeHtml(category.description || "企业公开内容")}</small></a>`)
+    .join("");
+  const paginationMarkup = pagination(origin, canonicalPath, activePage, totalPages);
+  const eyebrow = layout === "project-studio" ? "JOURNAL / PROJECT INTELLIGENCE" : layout === "tech-system" ? "KNOWLEDGE BASE / SIGNALS" : layout === "route-network" ? "NETWORK / OPERATIONS NOTES" : "INSIGHTS / KNOWLEDGE";
+  const lead = layout === "project-studio" ? "项目经验、设计判断与交付过程在这里持续沉淀。" : layout === "tech-system" ? "把技术判断、产品能力与实践经验组织成可查阅的知识信号。" : layout === "route-network" ? "围绕供应链、服务节点和真实业务问题持续更新。" : description;
+  return `<div class="template-insights template-insights--${escapeHtml(layout)}"><header class="template-insights-hero"><div class="template-shell"><span class="template-kicker">${eyebrow}</span><h1>${escapeHtml(title)}</h1><p>${escapeHtml(lead)}</p><div class="template-insights-count"><span>已发布内容</span><b>${total}</b><small>篇</small></div></div></header><section class="template-insights-main"><div class="template-shell template-insights-layout"><div><div class="template-insights-list-heading"><span>ARTICLE ARCHIVE</span><p>${selectedCategory ? `正在查看：${escapeHtml(selectedCategory.name)}` : "按最新发布顺序浏览"}</p></div><div class="template-insights-list">${visible.length ? visible.map((article) => templateInsightCard(article, layout)).join("") : `<p class="template-insights-empty">当前栏目暂未发布文章。</p>`}</div>${paginationMarkup}</div><aside class="template-insights-sidebar"><span>浏览栏目</span><a${selectedCategory ? "" : " class=\"active\" aria-current=\"page\""} href="/insights/"><strong>全部文章</strong><small>企业公开内容</small></a>${categoryRows}<div class="template-insights-sidebar-note"><b>${escapeHtml(activeTemplate.shortName)}</b><p>${escapeHtml(site.description || activeTemplate.description)}</p><a href="/contact/">业务咨询 <span aria-hidden="true">→</span></a></div></aside></div></section></div>`;
+}
+
+export function renderInsightsPage({ site, articles, categories, selectedCategory = null, origin, page = 1, pageSize = 12, preview = false, assetBase = "/site-assets-r6" }) {
   const displayArticles = frontendArticles(articles, site.frontendDemo);
   const displayCategories = frontendCategories(categories);
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) return renderSourceInsightsPage({ site, articles: displayArticles, categories: displayCategories, selectedCategory, origin, page, pageSize, preview, assetBase });
   const safePageSize = Math.max(1, Math.min(50, Number(pageSize) || 12));
   const total = displayArticles.length;
   const totalPages = Math.max(1, Math.ceil(total / safePageSize));
@@ -946,7 +1567,10 @@ export function renderInsightsPage({ site, articles, categories, selectedCategor
     ...(selectedCategory ? [{ "@type": "ListItem", position: 3, name: selectedCategory.name, item: collectionUrl }] : [])
   ] }];
   const categoryRows = displayCategories.filter((item) => item.status !== "archived" && item.navVisible !== false).map((category) => `<a${selectedCategory?.slug === category.slug ? " class=\"active\"" : ""} href="${escapeHtml(categoryLink(category))}"><strong>${escapeHtml(category.name)}</strong><small>${escapeHtml(category.description || "企业公开内容")}</small></a>`).join("");
-  const body = `<section class="page-hero blog-hero"><div class="shell"><div><span class="eyebrow">Knowledge &amp; Insights</span><h1>${escapeHtml(selectedCategory ? selectedCategory.name : "洞察 AI 搜索与企业增长")}</h1><p>${escapeHtml(selectedCategory?.description || "这里整理桐灼 GEO 的行业观点与典型内容。正式上线时以 CMS 审核通过的文章为准，演示数据会明确标注。")}</p><div class="actions"><a class="button primary" href="#archive">浏览文章 <span class="arrow">↓</span></a><a class="button secondary" href="/contact/">提交行业问题</a></div></div></div></section>${featured ? `<section class="section white" id="latest"><div class="shell"><div class="section-head"><div><span class="kicker">Featured</span><h2>最新行业观点</h2></div><p>内容按主题、摘要、作者和日期组织，方便读者与机器系统理解出处；正式站点以 CMS 发布状态为准。</p></div><article class="insight-feature"><div class="insight-visual" aria-hidden="true"><span class="visual-word w1">SOURCE</span><span class="visual-word w2">GEO</span><span class="visual-caption">ENTITY / ANSWER / EVIDENCE / FRESHNESS</span></div><div class="insight-copy">${featured.isDemo ? '<span class="demo-badge">演示内容</span>' : ""}<time datetime="${escapeHtml(isoDate(featured.publishedAt).slice(0, 10))}">${escapeHtml(featured.categoryName || "行业观点")} · ${escapeHtml(dateShort(featured.publishedAt))} · ${escapeHtml(featured.author)}</time><h3>${escapeHtml(featured.title)}</h3><p>${escapeHtml(featured.excerpt)}</p><a class="text-link" href="${escapeHtml(articleLink(featured))}">阅读全文 <span>→</span></a></div></article></div></section>` : ""}<section class="section blog-archive" id="archive"><div class="shell blog-layout"><div class="blog-main"><div class="blog-list-head"><div><span class="kicker">All Articles</span><h2>${escapeHtml(selectedCategory?.name || "全部文章")}</h2></div><span>共 ${total} 篇</span></div>${visible.length ? visible.map(articleCard).join("") : `<p class="blog-empty">当前栏目暂未发布文章。</p>`}${pagination(origin, canonicalPath, activePage, totalPages)}</div><aside class="blog-sidebar"><section class="blog-panel"><span class="blog-panel-label">内容栏目</span><a${selectedCategory ? "" : " class=\"active\""} href="/insights/"><strong>全部文章</strong><small>企业公开内容</small></a>${categoryRows}</section><section class="blog-panel blog-about"><span class="blog-panel-label">${escapeHtml(site.siteName)}</span><p>${escapeHtml(site.description || DEFAULT_DESCRIPTION)}</p><a class="text-link" href="/about/">了解我们 <span>→</span></a></section></aside></div></section>`;
+  const standardBody = `<section class="page-hero blog-hero"><div class="shell"><div><span class="eyebrow">Knowledge &amp; Insights</span><h1>${escapeHtml(selectedCategory ? selectedCategory.name : "洞察 AI 搜索与企业增长")}</h1><p>${escapeHtml(selectedCategory?.description || "这里整理桐灼 GEO 的行业观点与典型内容。正式上线时以 CMS 审核通过的文章为准，演示数据会明确标注。")}</p><div class="actions"><a class="button primary" href="#archive">浏览文章 <span class="arrow">↓</span></a><a class="button secondary" href="/contact/">提交行业问题</a></div></div></div></section>${featured ? `<section class="section white" id="latest"><div class="shell"><div class="section-head"><div><span class="kicker">Featured</span><h2>最新行业观点</h2></div><p>内容按主题、摘要、作者和日期组织，方便读者与机器系统理解出处；正式站点以 CMS 发布状态为准。</p></div><article class="insight-feature"><div class="insight-visual" aria-hidden="true"><span class="visual-word w1">SOURCE</span><span class="visual-word w2">GEO</span><span class="visual-caption">ENTITY / ANSWER / EVIDENCE / FRESHNESS</span></div><div class="insight-copy">${featured.isDemo ? '<span class="demo-badge">演示内容</span>' : ""}<time datetime="${escapeHtml(isoDate(featured.publishedAt).slice(0, 10))}">${escapeHtml(featured.categoryName || "行业观点")} · ${escapeHtml(dateShort(featured.publishedAt))} · ${escapeHtml(featured.author)}</time><h3>${escapeHtml(featured.title)}</h3><p>${escapeHtml(featured.excerpt)}</p><a class="text-link" href="${escapeHtml(articleLink(featured))}">阅读全文 <span>→</span></a></div></article></div></section>` : ""}<section class="section blog-archive" id="archive"><div class="shell blog-layout"><div class="blog-main"><div class="blog-list-head"><div><span class="kicker">All Articles</span><h2>${escapeHtml(selectedCategory?.name || "全部文章")}</h2></div><span>共 ${total} 篇</span></div>${visible.length ? visible.map(articleCard).join("") : `<p class="blog-empty">当前栏目暂未发布文章。</p>`}${pagination(origin, canonicalPath, activePage, totalPages)}</div><aside class="blog-sidebar"><section class="blog-panel"><span class="blog-panel-label">内容栏目</span><a${selectedCategory ? "" : " class=\"active\""} href="/insights/"><strong>全部文章</strong><small>企业公开内容</small></a>${categoryRows}</section><section class="blog-panel blog-about"><span class="blog-panel-label">${escapeHtml(site.siteName)}</span><p>${escapeHtml(site.description || DEFAULT_DESCRIPTION)}</p><a class="text-link" href="/about/">了解我们 <span>→</span></a></section></aside></div></section>`;
+  const body = activeTemplate.key === DEFAULT_SITE_TEMPLATE_KEY
+    ? standardBody
+    : renderTemplateInsightsPageBody({ site, articles: displayArticles, categories: displayCategories, selectedCategory, activeTemplate, activePage, total, totalPages, canonicalPath, origin });
   const headLinks = [
     ...(activePage > 1 ? [{ rel: "prev", href: absoluteUrl(origin, activePage === 2 ? canonicalPath : `${canonicalPath}?page=${activePage - 1}`) }] : []),
     ...(activePage < totalPages ? [{ rel: "next", href: absoluteUrl(origin, `${canonicalPath}?page=${activePage + 1}`) }] : [])
@@ -960,7 +1584,10 @@ export function renderInsightsPage({ site, articles, categories, selectedCategor
     active: "/insights/",
     schemaExtra,
     body,
-    headLinks
+    preview,
+    assetBase,
+    headLinks,
+    bodyClass: activeTemplate.key === DEFAULT_SITE_TEMPLATE_KEY ? "" : `insights-layout-${activeTemplate.layout}`
   });
 }
 
@@ -1006,7 +1633,16 @@ export function renderArticlePage({ site, article, origin, relatedArticles = [],
   const provenanceNote = article.isDemo
     ? `本文为前端演示内容，用于展示资讯结构，不代表已审核发布的正式企业文章。${updateNote}`
     : `本文由${escapeHtml(article.author || site.siteName)}发布，内容来自企业内容工作台的已审核版本。${updateNote}`;
-  const body = `<header class="article-hero"><div class="shell">${article.isDemo ? '<span class="demo-badge">演示内容</span>' : ""}<span class="kicker">${escapeHtml(article.categoryName || "行业观点")}</span><h1>${escapeHtml(article.title)}</h1>${article.excerpt ? `<p>${escapeHtml(article.excerpt)}</p>` : ""}<div class="article-meta"><span>作者：${escapeHtml(article.author || site.siteName)}</span>${publishedMeta}${modifiedMeta}<span>预计阅读：${Math.max(1, Math.ceil(plainText(article.contentText || article.contentHtml).length / 500))}分钟</span></div></div></header><article class="shell article-layout" id="article" data-content-article-id="${escapeHtml(article.id)}">${tableOfContents}<div class="prose">${article.excerpt ? `<div class="answer-box"><strong>内容摘要</strong><p>${escapeHtml(article.excerpt)}</p></div>` : ""}${contentHtml}${article.tags?.length ? `<div class="source-note">主题：${escapeHtml(article.tags.join("、"))}</div>` : ""}<div class="source-note">${provenanceNote}</div></div></article>${related}<section class="contact-band contact-band-v2 article-contact-band"><div class="shell contact-grid"><div class="contact-copy"><span class="eyebrow">Build Your Source</span><h2>让企业知识成为客户和 AI 可以理解的可信信源</h2><p>${escapeHtml(site.description || DEFAULT_DESCRIPTION)}</p></div><div class="contact-form"><strong class="contact-form-title">${escapeHtml(site.cta || "了解服务")}</strong><p class="contact-form-description">查看服务详情，或提交与本文相关的业务问题。</p><a class="button ink" href="/contact/">联系我们 <span class="arrow">→</span></a></div></div></section>`;
+  const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
+  if (activeTemplate.sourceReady === true) {
+    const sourceBody = renderSourceArticleBody({ site, article, template: activeTemplate, contentHtml, provenanceNote });
+    const sourceOutput = documentShell({ site, origin, pathname, title: article.title, description: article.excerpt, active: "/insights/", schemaExtra, body: sourceBody, openGraphType: "article" });
+    return { html: sourceOutput, canonicalPath: pathname, compatibility };
+  }
+  const standardBody = `<header class="article-hero"><div class="shell">${article.isDemo ? '<span class="demo-badge">演示内容</span>' : ""}<span class="kicker">${escapeHtml(article.categoryName || "行业观点")}</span><h1>${escapeHtml(article.title)}</h1>${article.excerpt ? `<p>${escapeHtml(article.excerpt)}</p>` : ""}<div class="article-meta"><span>作者：${escapeHtml(article.author || site.siteName)}</span>${publishedMeta}${modifiedMeta}<span>预计阅读：${Math.max(1, Math.ceil(plainText(article.contentText || article.contentHtml).length / 500))}分钟</span></div></div></header><article class="shell article-layout" id="article" data-content-article-id="${escapeHtml(article.id)}">${tableOfContents}<div class="prose">${article.excerpt ? `<div class="answer-box"><strong>内容摘要</strong><p>${escapeHtml(article.excerpt)}</p></div>` : ""}${contentHtml}${article.tags?.length ? `<div class="source-note">主题：${escapeHtml(article.tags.join("、"))}</div>` : ""}<div class="source-note">${provenanceNote}</div></div></article>${related}<section class="contact-band contact-band-v2 article-contact-band"><div class="shell contact-grid"><div class="contact-copy"><span class="eyebrow">Build Your Source</span><h2>让企业知识成为客户和 AI 可以理解的可信信源</h2><p>${escapeHtml(site.description || DEFAULT_DESCRIPTION)}</p></div><div class="contact-form"><strong class="contact-form-title">${escapeHtml(site.cta || "了解服务")}</strong><p class="contact-form-description">查看服务详情，或提交与本文相关的业务问题。</p><a class="button ink" href="/contact/">联系我们 <span class="arrow">→</span></a></div></div></section>`;
+  const body = activeTemplate.key === DEFAULT_SITE_TEMPLATE_KEY
+    ? standardBody
+    : renderTemplateArticleBody({ site, article, activeTemplate, tableOfContents, contentHtml, provenanceNote, related, publishedMeta, modifiedMeta });
   const repeatedExcerpt = article.excerpt ? `<div class="answer-box"><strong>内容摘要</strong><p>${escapeHtml(article.excerpt)}</p></div>` : "";
   const withoutRepeatedExcerpt = repeatedExcerpt ? body.replace(repeatedExcerpt, "") : body;
   const renderedBody = article.isDemo
@@ -1020,7 +1656,7 @@ export function renderArticlePage({ site, article, origin, relatedArticles = [],
     ...(article.categoryName ? [{ name: "twitter:label1", content: "栏目" }, { name: "twitter:data1", content: article.categoryName }] : []),
     ...(article.author ? [{ name: "twitter:label2", content: "作者" }, { name: "twitter:data2", content: article.author }] : [])
   ];
-  const output = documentShell({ site, origin, pathname, title: article.title, description: article.excerpt, active: "/insights/", schemaExtra, body: renderedBody, openGraphType: "article", headMeta });
+  const output = documentShell({ site, origin, pathname, title: article.title, description: article.excerpt, active: "/insights/", schemaExtra, body: renderedBody, openGraphType: "article", headMeta, bodyClass: activeTemplate.key === DEFAULT_SITE_TEMPLATE_KEY ? "" : `article-layout-${activeTemplate.layout}` });
   return { html: output, canonicalPath: pathname, compatibility };
 }
 

@@ -11,7 +11,7 @@ SOURCE_ROOT=""
 SITE_SOURCE=""
 SITE_URL=""
 SITE_BIND="0.0.0.0"
-SITE_PORT="18080"
+SITE_PORT="19080"
 ADMIN_BIND="127.0.0.1"
 ADMIN_PORT="18183"
 ADMIN_NAME="localhost"
@@ -43,7 +43,7 @@ Options:
   --release-id ID            Explicit immutable release identifier
   --deployment-id ID         Compose/volume namespace (default: tongzhuo-geo-production)
   --site-bind ADDRESS        Website listener address (default: 0.0.0.0)
-  --site-port PORT           Website host port (default: 18080)
+  --site-port PORT           Website host port (default: 19080)
   --admin-bind ADDRESS       Admin HTTPS listener (default: 127.0.0.1)
   --admin-port PORT          Admin HTTPS port (default: 18183)
   --admin-name NAME          TLS certificate DNS name (default: localhost)
@@ -179,7 +179,7 @@ write_default_app_env() {
   cat > "$APP_ENV" <<'EOF'
 NODE_ENV=production
 TZ_BIND_HOST=0.0.0.0
-PORT=43127
+PORT=44127
 TZ_DATA_DIR=/app/data
 TZ_DATABASE_PATH=/app/data/tongzhuo-production.sqlite
 TZ_LOG_DIR=/app/data/logs

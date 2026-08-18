@@ -1,7 +1,7 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [string]$Root = '',
-    [int]$PublisherPort = 18180
+    [int]$PublisherPort = 19180
 )
 
 $ErrorActionPreference = 'Stop'

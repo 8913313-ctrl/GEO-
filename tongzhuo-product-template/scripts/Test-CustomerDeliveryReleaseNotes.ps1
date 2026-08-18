@@ -61,8 +61,8 @@ try {
         short_name = 'Fixture Client'
         site_url = 'https://fixture.example.com'
         geoflow_base_url = 'https://flow.fixture.example.com'
-        publisher_port = 18180
-        desktop_agent_port = 18280
+        publisher_port = 19180
+        desktop_agent_port = 19380
         generated_at = (Get-Date).ToUniversalTime().ToString('o')
         delivery_package = [ordered]@{
             path = $deliveryPackagePath
@@ -98,8 +98,8 @@ try {
             short_name = 'Fixture Client'
             site_url = 'https://fixture.example.com'
             geoflow_base_url = 'https://flow.fixture.example.com'
-            publisher_port = 18180
-            desktop_agent_port = 18280
+            publisher_port = 19180
+            desktop_agent_port = 19380
         }
         endpoints = [ordered]@{
             website = 'https://fixture.example.com'
@@ -109,7 +109,7 @@ try {
             llms_txt = 'https://fixture.example.com/llms.txt'
             sitemap = 'https://fixture.example.com/sitemap.xml'
             feed = 'https://fixture.example.com/feed.xml'
-            desktop_health = 'http://127.0.0.1:18280/healthz'
+            desktop_health = 'http://127.0.0.1:19380/healthz'
         }
         artifacts = @(
             [ordered]@{ role = 'customer_delivery_package'; audience = 'customer_handoff'; file = Split-Path $deliveryPackagePath -Leaf; sha256 = $deliveryHash; bytes = [int64] $deliveryItem.Length },

@@ -52,6 +52,7 @@ function nested(object, ...paths) {
 function defaultSite() {
   return {
     siteName: "桐灼科技",
+    templateKey: "01-industry",
     companyName: "桐灼（淄博）网络科技有限公司",
     description: "专注 GEO 优化、内容运营与企业 AI 落地，持续建设企业公开可信信源。",
     allowAiCrawl: true,
@@ -113,6 +114,7 @@ export class PublicSiteStore {
       description: text(settings.description, defaults.description, 500),
       allowAiCrawl: settings.allowAiCrawl !== false,
       cta: text(theme.cta, defaults.cta, 80),
+      templateKey: text(cms.templateKey || theme.templateKey, "01-industry", 80),
       // Local front-end walkthroughs may show clearly marked presentation
       // fallbacks. Production deployments disable them by default; the CMS
       // publication remains the only official content source.
@@ -123,7 +125,8 @@ export class PublicSiteStore {
       theme: {
         name: text(theme.name, "企业官网 · 标准版", 160),
         primaryColor: /^#[0-9a-f]{6}$/i.test(theme.primaryColor || "") ? theme.primaryColor : "#155eef",
-        version: Math.max(1, Number(theme.version) || 1)
+        version: Math.max(1, Number(theme.version) || 1),
+        templateKey: text(cms.templateKey || theme.templateKey, "01-industry", 80)
       },
       modules: parseJson(cms.modules, {}),
       // Keep null distinct from an explicitly empty collection. Null means an
@@ -226,6 +229,8 @@ export class PublicSiteStore {
         siteCategorySlug: presentation.siteCategorySlug ?? articleMetadata.siteCategorySlug ?? versionMetadata.siteCategorySlug,
         siteAuthor: presentation.siteAuthor ?? articleMetadata.siteAuthor ?? versionMetadata.siteAuthor,
         siteExcerpt: presentation.siteExcerpt ?? articleMetadata.siteExcerpt ?? versionMetadata.siteExcerpt,
+        image: presentation.image ?? articleMetadata.image ?? versionMetadata.image,
+        imageAlt: presentation.imageAlt ?? articleMetadata.imageAlt ?? versionMetadata.imageAlt,
         sitePublishedAt: presentation.sitePublishedAt ?? articleMetadata.sitePublishedAt ?? versionMetadata.sitePublishedAt,
         siteUpdatedAt: presentation.siteUpdatedAt ?? articleMetadata.siteUpdatedAt ?? versionMetadata.siteUpdatedAt,
         keywords: presentation.keywords ?? articleMetadata.keywords ?? versionMetadata.keywords,
@@ -253,6 +258,8 @@ export class PublicSiteStore {
         contentText: applyPublicCitationVisibility(String(row.content_text || ""), metadata),
         publishedAt: nested(metadata, "sitePublishedAt", "site.publishedAt", "publishedAt") || row.article_updated_at || row.frozen_at || row.version_created_at,
         updatedAt: nested(metadata, "siteUpdatedAt", "site.updatedAt", "updatedAt") || row.article_updated_at || row.frozen_at,
+        image: text(nested(metadata, "image", "site.image"), "", 1_000),
+        imageAlt: text(nested(metadata, "imageAlt", "site.imageAlt"), title || "文章封面", 180),
         reviewStatus: row.review_status, riskStatus: row.risk_status, frozenAt: row.frozen_at, metadata
       };
     });

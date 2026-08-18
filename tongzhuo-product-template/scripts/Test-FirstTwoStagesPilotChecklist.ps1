@@ -60,8 +60,8 @@ try {
         short_name = 'Pilot Client'
         site_url = 'https://www.pilot.example.com'
         geoflow_base_url = 'https://work.pilot.example.com'
-        publisher_port = 18180
-        desktop_agent_port = 18280
+        publisher_port = 19180
+        desktop_agent_port = 19380
         generated_at = (Get-Date).ToUniversalTime().ToString('o')
         delivery_package = [ordered]@{
             path = $deliveryPackagePath

@@ -185,7 +185,7 @@ try {
     $manifestPath = Join-Path $deliveryRoot.FullName 'delivery-manifest.json'
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     Assert-Condition ([string] $manifest.version -eq $ExpectedVersion) "Delivery manifest version mismatch. Expected $ExpectedVersion, got $($manifest.version)"
-    $manifestDesktopAgentPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 18280 }
+    $manifestDesktopAgentPort = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 19380 }
     Assert-Condition ($manifestDesktopAgentPort -ge 1024 -and $manifestDesktopAgentPort -le 65535) "Delivery manifest desktop_agent_port must be between 1024 and 65535. Got $manifestDesktopAgentPort"
     $implementationPlanPath = Join-Path $deliveryRoot.FullName 'IMPLEMENTATION-PLAN.md'
     Assert-Condition (Test-Path $implementationPlanPath) 'IMPLEMENTATION-PLAN.md not found.'
