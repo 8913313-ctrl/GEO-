@@ -77,6 +77,33 @@ try {
     assert.ok(store.assetContent({ assetId: asset.id }).buffer.length > 0);
   });
 
+  const pendingGenerated = store.createAsset({
+    libraryId: library.id,
+    sourceName: "AI-文章配图.png",
+    mimeType: "image/png",
+    contentBase64: secondPixel.toString("base64"),
+    extractedText: "AI 生成文章配图：产品资料说明",
+    altText: "产品资料文章配图",
+    reviewStatus: "pending",
+    metadata: { sourceRole: "ai_generated_image", license: "AI 生成，待人工确认" }
+  });
+  assert.equal(pendingGenerated.reviewStatus, "pending");
+  const pendingVersion = database.connection.prepare("SELECT review_status, index_status FROM knowledge_document_versions WHERE id = ?").get(pendingGenerated.versionId);
+  assert.equal(pendingVersion.review_status, "pending");
+  assert.equal(pendingVersion.index_status, "not_indexed");
+  assert.equal(store.listIndexJobs({ versionId: pendingGenerated.versionId }).length, 0);
+  assert.throws(
+    () => store.validatePublishedImageAssets({ contentHtml: `<img src="/api/v1/knowledge/assets/${pendingGenerated.id}/content" />` }),
+    (error) => error.code === "KNOWLEDGE_ASSET_REVIEW_REQUIRED"
+  );
+  const approvedGenerated = store.approveAsset({ assetId: pendingGenerated.id });
+  assert.equal(approvedGenerated.reviewStatus, "approved");
+  const approvedVersion = database.connection.prepare("SELECT review_status, index_status FROM knowledge_document_versions WHERE id = ?").get(pendingGenerated.versionId);
+  assert.equal(approvedVersion.review_status, "approved");
+  assert.equal(approvedVersion.index_status, "queued");
+  assert.equal(store.listIndexJobs({ versionId: pendingGenerated.versionId }).length, 1);
+  assert.deepEqual(store.validatePublishedImageAssets({ contentHtml: `<img src="/api/v1/knowledge/assets/${pendingGenerated.id}/content" />` }).valid, true);
+
   store.ocrEndpoint = "https://ocr.test/parse";
   store.ocrFetchImpl = async () => new Response(JSON.stringify({ text: "diagram OCR fact from embedded PDF image", provider: "test-ocr", confidence: 0.99 }), { status: 200, headers: { "Content-Type": "application/json" } });
   const ocrVersion = await store.createDocument({

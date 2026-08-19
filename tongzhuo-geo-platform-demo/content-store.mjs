@@ -123,6 +123,7 @@ export class ContentStore {
     this.workspaceId = String(options.workspaceId || DEFAULT_WORKSPACE_ID);
     this.requireEvidence = options.requireEvidence !== false;
     this.evidenceValidator = typeof options.evidenceValidator === "function" ? options.evidenceValidator : null;
+    this.assetPublishValidator = typeof options.assetPublishValidator === "function" ? options.assetPublishValidator : null;
   }
 
   validateEvidenceReferences(evidence, context = {}) {
@@ -608,6 +609,13 @@ export class ContentStore {
     if (version.articleId !== articleId) return { ok: false, code: "CONTENT_VERSION_ARTICLE_MISMATCH", reason: "The selected version does not belong to this article.", articleId, versionId: selectedId, article, version };
     if (version.reviewStatus !== "approved" || !version.frozenAt) return { ok: false, code: "CONTENT_REVIEW_REQUIRED", reason: "Only an approved and frozen article version can be published.", articleId, versionId: selectedId, article, version };
     if (!["passed", "warning"].includes(version.riskStatus)) return { ok: false, code: "CONTENT_RISK_BLOCKED", reason: "The article has not passed risk scanning.", articleId, versionId: selectedId, article, version };
+    if (this.assetPublishValidator) {
+      try {
+        this.assetPublishValidator({ workspaceId, article, version });
+      } catch (error) {
+        return { ok: false, code: error.code || "CONTENT_ASSET_REVIEW_REQUIRED", reason: error.message || "Article media assets require review before publishing.", articleId, versionId: selectedId, article, version, details: error.details };
+      }
+    }
     if ((options.requireEvidence ?? this.requireEvidence) && !version.evidence.some((item) => item.supportStatus === "supported")) return { ok: false, code: "CONTENT_EVIDENCE_REQUIRED", reason: "The article has no supported knowledge citation.", articleId, versionId: selectedId, article, version };
     try {
       this.validateEvidenceReferences(version.evidence, { workspaceId, articleId, versionId: selectedId, action: "publish", article, version });

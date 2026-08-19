@@ -610,6 +610,9 @@ Object.assign(PLATFORM_META, {
   smzdm: { name: "什么值得买", short: "值", logoClass: "generic" }
 });
 
+const VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS = new Set(["wechat_mp", "zhihu", "toutiao"]);
+const HIDDEN_PUBLISH_PLATFORM_IDS = new Set(["x"]);
+
 const PUBLISH_PLATFORM_REGISTRY = [
   { id: "web", category: "official", role: "企业官网主信源", enabled: true, accountMode: "server", capabilities: "长文 · 结构化数据", description: "由官网服务器直接发布，作为企业长期可控的主信源", requiresManualConfirmation: false },
   { id: "wechat_mp", category: "self_media", role: "微信公众号", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布助手可尝试提交；出现验证或审核提示时转人工确认", requiresManualConfirmation: false },
@@ -640,14 +643,31 @@ const PUBLISH_PLATFORM_REGISTRY = [
   { id: "eastmoney", category: "self_media", role: "东方财富", enabled: true, support: "ready", accountMode: "local", capabilities: "财经内容", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
   { id: "smzdm", category: "self_media", role: "什么值得买", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
   { id: "netease", category: "self_media", role: "网易号", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false }
-].map((entry) => entry.enabled && entry.accountMode === "local"
-  ? {
-    ...entry,
-    support: "ready",
-    requiresManualConfirmation: false,
-    description: "本地发布助手登录后可直接下发；如遇验证码、风控或提交失败，会单独回写任务结果"
+].map((entry) => {
+  if (!entry.enabled || entry.accountMode !== "local") return entry;
+  if (HIDDEN_PUBLISH_PLATFORM_IDS.has(entry.id)) {
+    return { ...entry, enabled: false, support: "hidden", requiresManualConfirmation: true };
   }
-  : entry);
+  const direct = VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS.has(entry.id);
+  return {
+    ...entry,
+    support: direct ? "ready" : "manual",
+    requiresManualConfirmation: !direct,
+    description: direct
+      ? "后台任务可自动最终提交；如遇验证码、风控或提交失败，会回写任务结果"
+      : "自动填充并保存草稿；完成真实账号验收前不会点击最终发布"
+  };
+});
+
+function publisherTaskModeFields(platforms = []) {
+  const localPlatforms = platforms.filter((platform) => platform !== "web");
+  const directCount = localPlatforms.filter((platform) => VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS.has(platform)).length;
+  if (!localPlatforms.length || directCount === localPlatforms.length) {
+    return { publish_mode: "direct", manual_confirmation: false };
+  }
+  if (!directCount) return { publish_mode: "draft", manual_confirmation: true };
+  return { publish_mode: "mixed", manual_confirmation: true };
+}
 
 const PLATFORM_STYLE_HINTS = {
   web: "完整长文与结构化信息",
@@ -2592,13 +2612,13 @@ async function refreshKnowledgeAssetsFromServer({ renderAfter = false } = {}) {
     const serverAssets = knowledgeAssetRuntime.items.filter((asset) => asset.assetType === "image").map((asset) => ({
       id: asset.id,
       serverBackedKnowledgeAsset: true,
-      kind: "knowledge_image",
+      kind: asset.metadata?.sourceRole === "ai_generated_image" ? "generated" : "knowledge_image",
       name: asset.sourceName || "企业知识图片",
       mime: asset.mimeType || "image/*",
       knowledgeBaseId: asset.libraryId || null,
       itemId: asset.documentId || null,
       versionId: asset.versionId || null,
-      reviewStatus: "approved",
+      reviewStatus: asset.reviewStatus || "approved",
       license: asset.metadata?.license || "企业资料",
       altText: asset.altText || asset.sourceName || "企业知识图片",
       caption: asset.metadata?.caption || asset.altText || asset.sourceName || "",
@@ -3504,6 +3524,7 @@ const ui = {
   studioPicker: null,
   studioSelectionText: "",
   studioGenerating: false,
+  studioImageGenerating: false,
   studioNotice: "",
   articleTab: "all",
   articleTaskView: "plans",
@@ -4801,7 +4822,7 @@ function renderStudioPicker(workspace, conversation) {
     const rows = studioKnowledgeAssets(workspace).map((asset) => `<button class="studio-picker-item" type="button" data-action="insert-studio-asset" data-asset-id="${asset.id}">${asset.url ? `<img class="studio-picker-image" src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.altText || asset.name)}" />` : `<span class="studio-picker-thumb ${escapeHtml(asset.accent || "blue")}" data-icon="image"></span>`}<span><b>${escapeHtml(asset.name)}</b><small>${escapeHtml(asset.caption)} · ${escapeHtml(asset.license)} · 可用</small></span><em>${studioArticleForWorkspace(workspace) ? "插入" : "选择"}</em></button>`).join("");
     return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>知识库图片</h4><p>只显示当前知识范围内可直接使用的企业图片</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list">${rows || '<div class="studio-empty-chat"><div><span data-icon="image"></span><b>没有可用图片</b><p>当前业务线知识库中暂无可用图片，可先上传到图片资料库。</p></div></div>'}</div></div>`;
   }
-  return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>插入图片</h4><p>图片会保留来源、版权和知识库关联</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list"><button class="studio-picker-item" type="button" data-action="generate-studio-image"><span class="studio-picker-thumb" data-icon="sparkle"></span><span><b>AI 配图占位（演示）</b><small>创建待确认的配图占位；正式部署后接入图片生成与对象存储</small></span><em>生成</em></button><button class="studio-picker-item" type="button" data-action="trigger-studio-image-upload"><span class="studio-picker-thumb" data-icon="upload"></span><span><b>上传到当前知识库</b><small>图片会立即保存到当前业务线知识库，可直接作为文章配图</small></span><em>上传</em></button><button class="studio-picker-item" type="button" data-action="open-studio-knowledge-images"><span class="studio-picker-thumb" data-icon="database"></span><span><b>从知识库图片选择</b><small>只使用当前知识范围内的企业图片</small></span><em>选择</em></button></div></div>`;
+  return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>插入图片</h4><p>图片会保留来源、版权和知识库关联</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list"><button class="studio-picker-item" type="button" data-action="generate-studio-image" ${ui.studioImageGenerating ? "disabled" : ""}><span class="studio-picker-thumb" data-icon="sparkle"></span><span><b>${ui.studioImageGenerating ? "正在生成真实配图" : "生成 AI 配图"}</b><small>根据当前文章标题和短摘要生成图片，保存到知识资产库并插入正文；发布前仍需确认素材</small></span><em>${ui.studioImageGenerating ? "生成中" : "生成"}</em></button><button class="studio-picker-item" type="button" data-action="trigger-studio-image-upload"><span class="studio-picker-thumb" data-icon="upload"></span><span><b>上传到当前知识库</b><small>图片会立即保存到当前业务线知识库，可直接作为文章配图</small></span><em>上传</em></button><button class="studio-picker-item" type="button" data-action="open-studio-knowledge-images"><span class="studio-picker-thumb" data-icon="database"></span><span><b>从知识库图片选择</b><small>只使用当前知识范围内的企业图片</small></span><em>选择</em></button></div></div>`;
 }
 
 function renderStudioChat(workspace, conversation, article) {
@@ -5575,7 +5596,10 @@ async function submitPublishBatch() {
         platforms,
         platformOrder: platforms,
         intervalMinutes: Math.max(5, Number(selection.intervalMinutes) || 60),
-        mode: "immediate"
+        ...publisherTaskModeFields(platforms),
+        mode: "immediate",
+        deviceId: group?.deviceId || group?.device_id || null,
+        target_device_id: group?.deviceId || group?.device_id || null,
       }
     });
     if (result.job) created.push(result.job);
@@ -12625,7 +12649,10 @@ async function submitPublish() {
         platforms,
         platformOrder: platforms,
         intervalMinutes: 60,
-        mode: "immediate"
+        ...publisherTaskModeFields(platforms),
+        mode: "immediate",
+        deviceId: group?.deviceId || group?.device_id || null,
+        target_device_id: group?.deviceId || group?.device_id || null,
       }
     });
     closeModal();
@@ -12958,7 +12985,10 @@ async function submitSchedule() {
             platforms: [target.platform],
             platformOrder: [target.platform],
             intervalMinutes: Math.max(5, Number(selection.intervalMinutes) || 60),
+            ...publisherTaskModeFields([target.platform]),
             mode: "scheduled",
+            deviceId: group?.deviceId || group?.device_id || null,
+            target_device_id: group?.deviceId || group?.device_id || null,
             scheduledAt: target.scheduledAt
           }
         });
@@ -16155,24 +16185,120 @@ function insertStudioAsset(assetId) {
   studioResetArticleReview(article, "unscanned");
   article.updatedAt = Date.now();
   workspace.updatedAt = article.updatedAt;
+  article.contentSyncPending = true;
+  void syncContentTaskAndVersion(article, { createVersion: true }).then(() => {
+    article.contentSyncPending = false;
+    article.contentSyncError = "";
+    saveState();
+  }).catch((error) => {
+    article.contentSyncPending = false;
+    article.contentSyncError = error.message || "图片插入后的内容版本同步失败";
+    saveState();
+    showToast("内容版本同步失败", article.contentSyncError, "error");
+  });
   ui.studioPicker = null;
   saveState();
   render();
   showToast("图片已插入", `已创建 ${article.version}，图片来源和版权信息已记录。`);
 }
 
-function generateStudioImageAsset() {
+async function generateStudioImageAsset() {
   const workspace = studioWorkspaceById(ui.studioWorkspaceId);
-  const article = studioArticleForWorkspace(workspace);
-  const asset = { id: uid("ASSET-AI"), kind: "generated", name: "文章主题配图（演示占位）", mime: "image/png", reviewStatus: "pending", license: "AI 配图占位 · 待人工确认", altText: article ? `${article.title}的文章主题示意图` : "文章主题示意图", caption: "AI 配图占位（待接入真实图片服务）", accent: "violet", createdAt: Date.now() };
-  state.contentAssets.push(asset);
-  insertStudioAsset(asset.id);
+  if (!workspace || ui.studioImageGenerating) return;
+  const editor = document.getElementById("studio-content-editor");
+  const article = syncStudioArticleEditor({ silent: true }) || studioArticleForWorkspace(workspace);
+  const title = String(article?.title || document.getElementById("studio-title-editor")?.value || workspace.draftTitle || workspace.topic?.title || "").trim();
+  const sourceHtml = String(editor?.innerHTML || article?.content || workspace.draftContentHtml || "");
+  const summary = studioPlainText(sourceHtml).slice(0, 1_500).trim();
+  if (!title && !summary) return showToast("请先写文章内容", "填写标题或正文后，系统才能按文章主题生成配图。", "error");
+  const line = state.businessLines.find((item) => item.id === (article?.businessLineId || workspace.businessLineId)) || activeBusinessLine();
+  const library = studioKnowledgeBases(workspace).find((base) => base.kind === "document") || null;
+  if (!library) return showToast("没有可用图片知识库", "请先在企业知识中创建或授权一个文档知识库。", "error");
+  if (!aiProviderSnapshot.loaded) await refreshAiProviders();
+  let providerId = String(state.settings?.imageProviderId || "").trim();
+  if (!enabledAiProviders("image").some((provider) => provider.id === providerId)) {
+    if (autoBindDefaultAiProvider("image")) saveState();
+    providerId = String(state.settings?.imageProviderId || "").trim();
+  }
+  const provider = enabledAiProviders("image").find((item) => item.id === providerId);
+  if (!provider) return showToast("尚未配置图片模型", "请在系统设置 → 模型与 API 新建并启用图片生成模型。", "error");
+  const consentText = [
+    `将使用图片模型「${provider.name || provider.model || provider.id}」生成文章配图。`,
+    `发送内容：文章标题、业务线名称「${line?.name || line?.product || "未命名业务线"}」和最多 1,500 字的纯文本摘要。`,
+    "生成的图片会保存到当前知识资产库，并以“待确认”状态插入正文；发布前仍需人工确认。",
+    "确认继续吗？"
+  ].join("\n\n");
+  if (typeof window !== "undefined" && typeof window.confirm === "function" && !window.confirm(consentText)) return;
+  ui.studioImageGenerating = true;
+  saveState();
+  render();
+  try {
+    const payload = await aiApi("/api/ai/generate/image", {
+      method: "POST",
+      body: {
+        providerId: provider.id,
+        model: String(state.settings?.imageModel || provider.model || "").trim(),
+        libraryId: library.id,
+        businessLineId: line?.id || workspace.businessLineId || "",
+        businessLineName: line?.name || line?.product || "",
+        articleTitle: title,
+        articleContent: summary,
+        allowExternalContent: true,
+        size: "1536x1024"
+      }
+    });
+    const remote = payload.data || payload;
+    const stored = remote.asset;
+    if (!stored?.id) throw new Error("图片已生成但未返回知识资产记录");
+    const asset = {
+      id: stored.id,
+      serverBackedKnowledgeAsset: true,
+      kind: "generated",
+      name: stored.sourceName || `${title || "文章主题"}配图`,
+      mime: stored.mimeType || "image/*",
+      knowledgeBaseId: stored.libraryId || library.id,
+      itemId: stored.documentId || null,
+      versionId: stored.versionId || null,
+      reviewStatus: stored.reviewStatus || "pending",
+      license: stored.metadata?.license || "AI 生成，待人工确认",
+      altText: stored.altText || `${title || "文章主题"}的文章配图`,
+      caption: stored.metadata?.caption || stored.altText || `${title || "文章主题"} · AI 生成配图`,
+      url: stored.contentUrl || stored.url || `/api/v1/knowledge/assets/${encodeURIComponent(stored.id)}/content`,
+      ocrStatus: stored.ocrStatus || "not_required",
+      metadata: stored.metadata || {},
+      createdAt: stored.createdAt || Date.now(),
+      updatedAt: stored.updatedAt || stored.createdAt || Date.now()
+    };
+    state.contentAssets = (state.contentAssets || []).filter((item) => item.id !== asset.id);
+    state.contentAssets.unshift(asset);
+    insertStudioAsset(asset.id);
+    addOperationLog("AI 配图", `已根据文章《${title || "未命名文章"}》生成并插入真实图片素材「${asset.name}」`);
+  } catch (error) {
+    showToast("图片生成失败", error.message || "图片模型未返回可用图片，请检查模型配置后重试。", "error");
+  } finally {
+    ui.studioImageGenerating = false;
+    saveState();
+    render();
+  }
 }
 
-function approveArticleAsset(articleId, assetId) {
+async function approveArticleAsset(articleId, assetId) {
   const article = state.articles.find((item) => item.id === articleId);
   const asset = (state.contentAssets || []).find((item) => item.id === assetId);
   if (!article || !asset || !(article.assetIds || []).includes(assetId)) return showToast("素材不存在", "请刷新文章后重试。", "error");
+  if (asset.serverBackedKnowledgeAsset && asset.reviewStatus !== "approved") {
+    try {
+      const payload = await productionApi(`/api/v1/knowledge/assets/${encodeURIComponent(asset.id)}/approve`, { method: "POST", body: {} });
+      const approved = payload.data?.asset || payload.asset;
+      if (!approved?.id) throw new Error("服务端没有返回已确认的素材记录");
+      asset.reviewStatus = approved.reviewStatus || "approved";
+      asset.ocrStatus = approved.ocrStatus || asset.ocrStatus;
+      asset.metadata = approved.metadata || asset.metadata;
+      asset.license = approved.metadata?.license || asset.license;
+    } catch (error) {
+      return showToast("素材确认失败", error.message || "无法在知识资产库中确认该图片。", "error");
+    }
+  }
   asset.reviewStatus = "approved";
   asset.reviewedAt = new Date().toISOString();
   asset.reviewedBy = "王宁";

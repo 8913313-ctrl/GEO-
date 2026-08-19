@@ -65,7 +65,8 @@ const contentStore = new ContentStore(database, {
       throw new KnowledgeError("At least one traceable enterprise knowledge citation is required.", 422, "KNOWLEDGE_EVIDENCE_REQUIRED");
     }
     return result;
-  }
+  },
+  assetPublishValidator: ({ workspaceId = "default", version }) => knowledgeStore.validatePublishedImageAssets({ workspaceId, contentHtml: version?.contentHtml || "" })
 });
 const contentAssetStore = new ContentAssetStore(database, { workspaceId: "default" });
 publisherStore.setWebPublisher((target) => contentStore.publish({
@@ -1266,7 +1267,10 @@ async function handlePublisherApi(request, response, parts, principal = null) {
     const authenticatedDevice = publisherStore.authenticate(request.headers);
     if (authenticatedDevice.id !== device.id) return jsonResponse(response, 403, { ok: false, message: "设备身份与请求目标不一致。" });
     if (parts[3] === "heartbeat" && method === "POST") {
-      return jsonResponse(response, 200, { ok: true, status: await publisherStore.heartbeat(device, await requestJson(request)) });
+      // This deployment serves the durable V1 worker queue. Tell paired
+      // desktop agents explicitly so they do not repeatedly probe the V2
+      // platform-jobs route and mistake browser-session auth for device auth.
+      return jsonResponse(response, 200, { ok: true, job_protocol: "legacy", status: await publisherStore.heartbeat(device, await requestJson(request)) });
     }
     if (parts[3] === "sessions" && method === "GET") {
       return jsonResponse(response, 200, { ok: true, sessions: await publisherStore.sessions(device) });
@@ -1292,6 +1296,20 @@ async function handlePublisherWorkerApi(request, response, parts) {
     return jsonResponse(response, 200, { ok: true, data: await publisherStore.result(device, parts[2], await requestJson(request)) });
   }
   return jsonResponse(response, 404, { ok: false, message: "发布器任务接口不存在。" });
+}
+
+async function handlePublisherPlatformJobsUnavailable(request, response) {
+  // V2 platform jobs are not enabled in this Node deployment. Authenticate
+  // the caller as a paired device before reporting that capability state;
+  // otherwise an unauthenticated request must remain a device-auth failure,
+  // never fall through to browser-session authentication.
+  await publisherStore.load();
+  publisherStore.authenticate(request.headers);
+  return jsonResponse(response, 404, {
+    ok: false,
+    code: "PUBLISHER_PLATFORM_JOBS_UNAVAILABLE",
+    message: "???????? V2 ??????????????????"
+  });
 }
 
 async function handleAiProviderApi(request, response, parts) {
@@ -1379,6 +1397,63 @@ async function handleAiGenerationApi(request, response, parts, principal) {
   }
   const payload = await requestJson(request);
   const operation = parts[3];
+  if (operation === "image") {
+    const workspaceId = "default";
+    const requestedBusinessLineId = String(payload.businessLineId || payload.businessLine?.id || "").trim();
+    const requestedLibraryId = String(payload.libraryId || "").trim();
+    let library = requestedLibraryId
+      ? knowledgeStore.library(workspaceId, requestedLibraryId)
+      : knowledgeStore.listLibraries({ workspaceId, businessLineId: requestedBusinessLineId }).find((item) => item.kind === "document");
+    if (!library) throw new KnowledgeError("没有可用于保存生成图片的文档知识库，请先创建或授权一个知识库。", 422, "IMAGE_LIBRARY_REQUIRED");
+    if ((library.kind || library.library_kind) !== "document") throw new KnowledgeError("图片只能保存到文档知识库。", 422, "IMAGE_LIBRARY_INVALID");
+    if (requestedBusinessLineId && library.scope !== "enterprise" && library.business_line_id !== requestedBusinessLineId && library.businessLineId !== requestedBusinessLineId) {
+      throw new KnowledgeError("所选图片知识库不属于当前业务线。", 403, "IMAGE_LIBRARY_SCOPE_FORBIDDEN");
+    }
+    const generated = await aiGenerationService.generateImage(payload);
+    const title = String(generated.articleTitle || payload.articleTitle || "文章主题").trim().slice(0, 160) || "文章主题";
+    const sourceName = `AI-${title.replace(/[\\/:*?"<>|\x00-\x1f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 72) || "文章配图"}-${generated.generationRunId}.${generated.image.extension}`;
+    const asset = knowledgeStore.createAsset({
+      workspaceId,
+      libraryId: library.id,
+      assetType: "image",
+      sourceName,
+      mimeType: generated.image.mimeType,
+      contentBase64: generated.image.buffer.toString("base64"),
+      extractedText: `AI 生成配图：${generated.promptSummary || title}`,
+      altText: `${title}的文章配图`,
+      reviewStatus: "pending",
+      metadata: {
+        sourceRole: "ai_generated_image",
+        generationRunId: generated.generationRunId,
+        providerId: generated.run.providerId,
+        providerName: generated.run.providerName,
+        model: generated.run.model,
+        promptHash: generated.promptHash,
+        promptSummary: generated.promptSummary,
+        category: "文章配图",
+        caption: `${title} · AI 生成配图`,
+        license: "AI 生成，待人工确认",
+        processingState: "available",
+        contentHash: generated.image.sha256,
+        bytes: generated.image.bytes
+      },
+      actor: principal,
+      request
+    });
+    return jsonResponse(response, 201, {
+      ok: true,
+      data: {
+        generationRunId: generated.generationRunId,
+        run: generated.run,
+        libraryId: library.id,
+        asset: {
+          ...asset,
+          contentUrl: `/api/v1/knowledge/assets/${encodeURIComponent(asset.id)}/content`,
+          url: `/api/v1/knowledge/assets/${encodeURIComponent(asset.id)}/content`
+        }
+      }
+    });
+  }
   let ragResult = null;
   if ((payload.useRag === true || payload.rag?.enabled === true) && ["article", "topics"].includes(operation)) {
     const query = payload.rag?.query || payload.topic?.coreQuestion || payload.topic?.title || payload.topicBrief?.coreQuestion || "";
@@ -1559,6 +1634,7 @@ const server = http.createServer(async (request, response) => {
       const isV1 = parts[1] === "v1";
       const publisherParts = isV1 ? parts.slice(2) : parts.slice(1);
       if (isV1 && publisherParts[1] === "jobs") return await handlePublisherWorkerApi(request, response, publisherParts);
+      if (isV1 && publisherParts[1] === "platform-jobs") return await handlePublisherPlatformJobsUnavailable(request, response);
       const deviceSelfService = publisherParts[1] === "devices";
       const principal = deviceSelfService ? null : await authService.requirePermission(request, method === "GET" ? PERMISSIONS.WORKSPACE_READ : PERMISSIONS.CONTENT_PUBLISH, { requireCsrf: method === "GET" ? false : undefined });
       return await handlePublisherApi(request, response, publisherParts, principal);
