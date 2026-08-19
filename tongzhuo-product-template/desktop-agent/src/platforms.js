@@ -14,7 +14,12 @@ const defaultSessionPresenceSelectors = Object.freeze([
 ]);
 
 const platformLoginSignals = Object.freeze({
-  wechat_mp: { visible: ['#js_home', '.weui-desktop-account', '.weui-desktop-layout'] },
+  wechat_mp: {
+    // .weui-desktop-layout is also present on the unauthenticated QR/login
+    // shell, so it must never be used as a positive account signal.
+    visible: ['#js_home', '.weui-desktop-account'],
+    urlPrefixes: ['https://mp.weixin.qq.com/cgi-bin/'],
+  },
   zhihu: { visible: ['[data-za-detail-view-element_name="Avatar"]', '.AppHeader-profile'] },
   toutiao: { visible: ['.user-panel .user-auth-avator', '.user-auth-avator', '[class*="userInfo" i] [class*="avatar" i]', '[class*="creator" i] [class*="avatar" i]', '.article-title input'] },
   baijiahao: {
@@ -60,6 +65,92 @@ const platformLoginSignals = Object.freeze({
     // Observe the operator's visible window instead of manufacturing a logout.
     probeMode: 'native_window_only',
   },
+});
+
+// Final-publication selectors are intentionally platform-scoped. Generic
+// text selectors such as button:has-text("发布") can also match preview,
+// schedule, or settings actions in these editors, so direct jobs must opt in
+// to this narrower list and require a fresh success signal.
+const dedicatedEditorHints = Object.freeze({
+  wechat_mp: Object.freeze({
+    publishSelectors: Object.freeze([
+      '#js_submit',
+      '#js_publish',
+      '[data-action="publish"][data-platform="wechat"]',
+      'button:has-text("群发")',
+      '#publish-article',
+    ]),
+    publishConfirmSelectors: Object.freeze([
+      '#js_publish_confirm',
+      '[data-action="confirm-publish"]',
+      '[role="dialog"] [data-testid="publish-confirm"]',
+    ]),
+    publishSuccessSelectors: Object.freeze([
+      '#js_publish_success',
+      '[data-testid="publish-success"]',
+      '[data-publish-state="published"]',
+      '.weui-desktop-toast:has-text("群发成功")',
+      '.weui-desktop-toast:has-text("发布成功")',
+      '#publish-success',
+    ]),
+    replaceDefaultPublishSelectors: true,
+    replaceDefaultPublishSuccessSelectors: true,
+    publishSuccessTimeout: 15000,
+  }),
+  zhihu: Object.freeze({
+    publishSelectors: Object.freeze([
+      '[data-za-detail-view-element_name="PublishButton"]',
+      '[data-testid="publish-button"]',
+      'button.PublishPanel-button',
+      '.PublishPanel button[type="button"]:not([aria-label*="定时"])',
+      '.PublishPanel button:has-text("发布"):not(:has-text("定时")):not(:has-text("设置"))',
+      '[role="button"]:has-text("发布"):not(:has-text("定时")):not(:has-text("设置"))',
+      '#publish-article',
+    ]),
+    publishConfirmSelectors: Object.freeze([
+      '[role="dialog"] [data-testid="publish-confirm"]',
+      '[role="dialog"] [data-za-detail-view-element_name="PublishButton"]',
+      '#publish-confirm',
+    ]),
+    publishSuccessSelectors: Object.freeze([
+      '[data-testid="publish-success"]',
+      '[data-publish-state="published"]',
+      '[data-publish-state="submitted"]',
+      '.ant-message-success:has-text("发布成功")',
+      '.Message--success:has-text("发布成功")',
+      '#publish-success',
+    ]),
+    replaceDefaultPublishSelectors: true,
+    replaceDefaultPublishSuccessSelectors: true,
+    publishSuccessTimeout: 15000,
+  }),
+  toutiao: Object.freeze({
+    publishSelectors: Object.freeze([
+      '[data-testid="publish-button"]',
+      '[data-action="publish-article"]',
+      '.article-publish-btn',
+      '.publish-btn',
+      'button:has-text("预览并发布")',
+      '#publish-article',
+    ]),
+    publishConfirmSelectors: Object.freeze([
+      '[role="dialog"] [data-testid="publish-confirm"]',
+      '[role="dialog"] [data-action="confirm-publish"]',
+      '[role="dialog"] button:has-text("确认发布")',
+      '.semi-modal button:has-text("确认发布")',
+      '#confirm-dialog button',
+    ]),
+    publishSuccessSelectors: Object.freeze([
+      '[data-testid="publish-success"]',
+      '[data-publish-state="published"]',
+      '.publish-success',
+      '.semi-toast-success:has-text("发布成功")',
+      '#publish-success',
+    ]),
+    replaceDefaultPublishSelectors: true,
+    replaceDefaultPublishSuccessSelectors: true,
+    publishSuccessTimeout: 15000,
+  }),
 });
 
 /*
@@ -145,9 +236,9 @@ function publishingPlatform(id, name, loginUrl, editorUrl, mode = 'assisted', ex
 }
 
 export const platforms = [
-  publishingPlatform('wechat_mp', '微信公众号', 'https://mp.weixin.qq.com/', 'https://mp.weixin.qq.com/', 'dedicated'),
-  publishingPlatform('zhihu', '知乎', 'https://www.zhihu.com/signin?next=%2F', 'https://zhuanlan.zhihu.com/write', 'dedicated'),
-  publishingPlatform('toutiao', '头条号', 'https://mp.toutiao.com/', 'https://mp.toutiao.com/profile_v4/graphic/publish', 'dedicated'),
+  publishingPlatform('wechat_mp', '微信公众号', 'https://mp.weixin.qq.com/', 'https://mp.weixin.qq.com/', 'dedicated', { editorHints: dedicatedEditorHints.wechat_mp }),
+  publishingPlatform('zhihu', '知乎', 'https://www.zhihu.com/signin?next=%2F', 'https://zhuanlan.zhihu.com/write', 'dedicated', { editorHints: dedicatedEditorHints.zhihu }),
+  publishingPlatform('toutiao', '头条号', 'https://mp.toutiao.com/', 'https://mp.toutiao.com/profile_v4/graphic/publish', 'dedicated', { editorHints: dedicatedEditorHints.toutiao }),
 
   // These channels use the generic local editor pipeline. They remain
   // executable for login and verified draft saving, but final public submit is

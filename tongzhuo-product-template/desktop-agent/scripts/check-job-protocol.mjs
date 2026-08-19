@@ -129,4 +129,40 @@ function pollFixture(mode, { platformItems = [], legacyItems = [], platformError
     'the command-originated poll guard must prevent recursive command processing');
 }
 
+
+{
+  // Old Node deployments may route the unknown V2 endpoint through browser
+  // session auth. Its exact SESSION_INVALID response means V2 is unavailable,
+  // not that this paired device lost its credentials.
+  const sessionBoundary = Object.assign(new Error('browser session required'), {
+    status: 401,
+    code: 'SESSION_INVALID',
+  });
+  const { agent, calls } = pollFixture('auto', {
+    platformError: sessionBoundary,
+    legacyItems: [{ id: 7, status: 'queued' }],
+  });
+  const jobs = await agent.pollOnce();
+  assert.deepEqual(calls, ['platform-jobs', 'legacy']);
+  assert.equal(agent.platformJobsSupported, false);
+  assert.deepEqual(agent.lastPollProtocols, ['legacy']);
+  assert.equal(jobs[0].id, 7);
+  assert.equal(jobs[0].job_protocol, 'legacy');
+}
+
+{
+  // Do not mask a real device-authentication failure by silently reading V1.
+  const deviceAuthFailure = Object.assign(new Error('device credential expired'), {
+    status: 401,
+    code: 'DEVICE_AUTH_FAILED',
+  });
+  const { agent, calls } = pollFixture('auto', {
+    platformError: deviceAuthFailure,
+    legacyItems: [{ id: 8, status: 'queued' }],
+  });
+  await assert.rejects(agent.pollOnce(), (error) => error === deviceAuthFailure);
+  assert.deepEqual(calls, ['platform-jobs']);
+  assert.equal(agent.platformJobsSupported, null);
+}
+
 console.log('job protocol checks passed');

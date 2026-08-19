@@ -777,7 +777,15 @@ export class TongzhuoDesktopAgent extends EventEmitter {
       if (protocol === 'platform-jobs') this.platformJobsSupported = true;
       return { protocol, items: this.tagPolledJobs(responseJobItems(response), protocol), unsupported: false };
     } catch (error) {
-      const unsupported = [404, 405].includes(Number(error?.status || 0));
+      // Older Node-based GEOFlow deployments expose the legacy worker queue
+      // but route an unknown V2 endpoint through browser-session auth. That
+      // produces SESSION_INVALID (401) even though the paired device itself
+      // is valid. Treat only that precise response as an unavailable V2
+      // capability so auto mode can continue with the verified V1 queue.
+      // Other 401 responses still surface a broken or expired device pairing.
+      const legacyV2SessionBoundary = protocol === 'platform-jobs'
+        && String(error?.code || '').toUpperCase() === 'SESSION_INVALID';
+      const unsupported = [404, 405].includes(Number(error?.status || 0)) || legacyV2SessionBoundary;
       if (protocol === 'platform-jobs' && unsupported) this.platformJobsSupported = false;
       // A deployed backend can be upgraded independently of the node. Keep
       // its legacy heartbeat functioning until the shadow route is available.
@@ -1623,9 +1631,29 @@ export class TongzhuoDesktopAgent extends EventEmitter {
 
   allowsFinalSubmit(platformId, job = {}) {
     const platform = findPlatform(platformId);
-    return job?.publish_mode === 'direct'
-      && job?.manual_confirmation === false
-      && job?.platform?.supports_direct_publish === true
+    const details = Array.isArray(job?.platform_details)
+      ? job.platform_details.find((item) => String(item?.id || item?.platform_id || '') === String(platformId))
+      : null;
+    const jobPlatformId = String(job?.platform?.id || job?.platform?.platform_id || '');
+    const matchingPlatform = job?.platform && jobPlatformId === String(platformId)
+      ? job.platform
+      : null;
+    // V1 single-platform jobs used an unkeyed platform object. Keep it as a
+    // fallback while exact platform_details remains authoritative.
+    const legacyPlatform = job?.platform && !jobPlatformId ? job.platform : null;
+    const platformContract = matchingPlatform || details || legacyPlatform;
+    const publishMode = String(
+      platformContract?.publish_mode
+      || platformContract?.publishMode
+      || job?.publish_mode
+      || job?.publishMode
+      || ''
+    ).toLowerCase();
+    const manualConfirmation = platformContract?.manual_confirmation ?? platformContract?.manualConfirmation ?? job?.manual_confirmation ?? job?.manualConfirmation;
+    const supportsDirectPublish = platformContract?.supports_direct_publish ?? platformContract?.supportsDirectPublish ?? false;
+    return publishMode === 'direct'
+      && manualConfirmation === false
+      && supportsDirectPublish === true
       && platform?.execution?.autoSubmit === true;
   }
 

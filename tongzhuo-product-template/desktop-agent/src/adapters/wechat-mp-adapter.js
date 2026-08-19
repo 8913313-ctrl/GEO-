@@ -75,12 +75,23 @@ export class WechatMpAdapter extends BaseAdapter {
       'button:has-text("保存")',
       'a:has-text("保存")',
     ], defaultDraftSuccessSelectors, { timeout: 2200 });
-    if (!saved.ok) {
+    const platformAutoSaved = saved.reason === 'action_not_found';
+    const draftAction = saved.action || null;
+    const draftConfirmation = saved.confirmation || null;
+    if (!saved.ok && !platformAutoSaved) {
       if (saved.reason === 'verification_required') return loginRequired(this, page, saved.blocked?.reason || 'verification_after_save');
       return failed(this, page, '微信公众号未取得草稿保存成功信号，未将任务标记为成功。', `draft_${saved.reason || 'save_failed'}`, {
         selectors: { title: title.selector, body: body.selector, draft: saved.action?.selector || null },
         fill: { title: true, body: true, draft_saved: false },
-        selector_details: selectorDetails({ title, body, draft: saved.action, draft_success: saved.confirmation }),
+        selector_details: selectorDetails({ title, body, draft: draftAction, draft_success: draftConfirmation }),
+      });
+    }
+
+    if (platformAutoSaved && this.platform.execution?.autoSubmit !== true) {
+      return failed(this, page, '平台未提供可验证的保存草稿按钮，已按平台自动保存处理但安全停止（未点击最终发布）。', 'draft_action_not_found', {
+        selectors: { title: title.selector, body: body.selector, draft: null },
+        fill: { title: true, body: true, draft_saved: false, draft_auto_saved: true },
+        selector_details: selectorDetails({ title, body, draft: draftAction, draft_success: draftConfirmation }),
       });
     }
 
@@ -90,11 +101,11 @@ export class WechatMpAdapter extends BaseAdapter {
       selectors: {
         title: title.selector,
         body: body.selector,
-        draft: saved.action.selector,
-        draft_success: saved.confirmation.selector,
+        draft: draftAction?.selector,
+        draft_success: draftConfirmation?.selector,
       },
-      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: true },
-      selector_details: selectorDetails({ title, body, draft: saved.action, draft_success: saved.confirmation }),
+      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: !platformAutoSaved, ...(platformAutoSaved ? { draft_auto_saved: true } : {}), draft_save_method: platformAutoSaved ? 'platform_auto_save' : 'explicit_action' },
+      selector_details: selectorDetails({ title, body, draft: draftAction, draft_success: draftConfirmation }),
     };
 
     if (this.platform.execution?.autoSubmit === true) {
@@ -107,11 +118,11 @@ export class WechatMpAdapter extends BaseAdapter {
       selectors: {
         title: title.selector,
         body: body.selector,
-        draft: saved.action.selector,
-        draft_success: saved.confirmation.selector,
+        draft: draftAction?.selector,
+        draft_success: draftConfirmation?.selector,
       },
-      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: true },
-      selector_details: selectorDetails({ title, body, draft: saved.action, draft_success: saved.confirmation }),
+      fill: { title: true, body: true, body_format: body.format || 'text', images: body.images || 0, draft_saved: !platformAutoSaved, ...(platformAutoSaved ? { draft_auto_saved: true } : {}), draft_save_method: platformAutoSaved ? 'platform_auto_save' : 'explicit_action' },
+      selector_details: selectorDetails({ title, body, draft: draftAction, draft_success: draftConfirmation }),
     });
   }
 }

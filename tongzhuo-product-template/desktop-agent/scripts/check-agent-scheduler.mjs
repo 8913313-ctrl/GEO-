@@ -51,14 +51,39 @@ const directJob = {
 assert.equal(scheduler.allowsFinalSubmit('zhihu', directJob), true);
 assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 'draft' }), false);
 assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 'scheduled' }), false);
-assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 'DIRECT' }), false);
+assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 'DIRECT' }), true);
 assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, manual_confirmation: true }), false);
 assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, platform: { supports_direct_publish: false } }), false);
 assert.equal(scheduler.allowsFinalSubmit('baijiahao', directJob), false, 'an unverified local adapter must never final-submit');
 
+const perPlatformDirectJob = {
+  // Platform-level contracts are authoritative over conservative task fields.
+  publish_mode: 'draft',
+  manual_confirmation: true,
+  platform_details: [
+    { id: 'zhihu', publish_mode: 'direct', manual_confirmation: false, supports_direct_publish: true },
+    { id: 'wechat_mp', publish_mode: 'direct', manual_confirmation: false, supports_direct_publish: true },
+    { id: 'toutiao', publish_mode: 'direct', manual_confirmation: false, supports_direct_publish: true },
+    // A backend capability mistake must never override the local adapter gate.
+    { id: 'baijiahao', publish_mode: 'direct', manual_confirmation: false, supports_direct_publish: true },
+  ],
+  payload: { article: { title: 'per-platform mode safety', text: 'body' } },
+};
+for (const platformId of ['zhihu', 'wechat_mp', 'toutiao']) {
+  assert.equal(
+    scheduler.allowsFinalSubmit(platformId, perPlatformDirectJob),
+    true,
+    `${platformId} per-platform direct contract should allow final submit`,
+  );
+}
+assert.equal(scheduler.allowsFinalSubmit('baijiahao', perPlatformDirectJob), false,
+  'baijiahao must remain draft-only even when backend reports direct capability');
+assert.equal(scheduler.allowsFinalSubmit('unlisted_platform', perPlatformDirectJob), false,
+  'a platform outside the local autoSubmit allowlist must never final-submit');
+
 const executor = Object.create(TongzhuoDesktopAgent.prototype);
 executor.config = {
-  capabilities: ['zhihu'],
+  capabilities: ['zhihu', 'wechat_mp', 'toutiao', 'baijiahao'],
   enabledPlatforms: [],
   platformFilterMode: 'unrestricted',
   maxJobAttempts: 1,
@@ -83,6 +108,20 @@ executor.persistPublishPolicy = () => {};
 await executor.runPlatformWithRetry('zhihu', directJob, 51, { id: 'group-a' });
 await executor.runPlatformWithRetry('zhihu', { ...directJob, publish_mode: 'draft' }, 52, { id: 'group-a' });
 assert.deepEqual(finalSubmitOptions, [true, false], 'runPlatformWithRetry must pass the task-level final-submit gate to the browser');
+
+const perPlatformSubmitOptions = [];
+executor.browser.openEditor = async (platformId, _payload, options) => {
+  perPlatformSubmitOptions.push([platformId, options.allowFinalSubmit]);
+  return { state: options.allowFinalSubmit ? 'published' : 'draft_saved', message: 'ok', windowId: 'test-window' };
+};
+for (const platformId of ['zhihu', 'wechat_mp', 'toutiao', 'baijiahao']) {
+  await executor.runPlatformWithRetry(platformId, perPlatformDirectJob, 53, { id: 'group-a' });
+}
+assert.deepEqual(
+  perPlatformSubmitOptions,
+  [['zhihu', true], ['wechat_mp', true], ['toutiao', true], ['baijiahao', false]],
+  'runPlatformWithRetry must enforce local autoSubmit for each platform detail',
+);
 
 const resumed = scheduler.completedPlatformResults({
   result: {

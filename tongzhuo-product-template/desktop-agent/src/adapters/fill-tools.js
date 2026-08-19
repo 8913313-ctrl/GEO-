@@ -125,6 +125,23 @@ function selectorAttempt(ok, candidates, candidateIndex = -1, attempted = 0, ext
   };
 }
 
+function clickFailureMetadata(error, selector, candidateIndex) {
+  const message = String(error?.message || '').toLowerCase();
+  const reason = message.includes('disabled')
+    ? 'disabled'
+    : /intercept|pointer|overlay|obscur/.test(message)
+      ? 'intercepted'
+      : message.includes('timeout')
+        ? 'timeout'
+        : 'click_failed';
+  return {
+    selector,
+    candidate_index: candidateIndex,
+    reason,
+    error_name: String(error?.name || 'Error'),
+  };
+}
+
 function preferredSelectorDetail(value) {
   if (!value || typeof value !== 'object') return value;
   // `fillRichContent` may make a text fallback after an HTML pass. A later
@@ -145,10 +162,19 @@ export function selectorDetails(steps = {}) {
     const hasMetadata = ['candidate_index', 'candidateIndex', 'attempted', 'candidate_count', 'candidateCount']
       .some((key) => Object.prototype.hasOwnProperty.call(step, key));
     if (!hasMetadata) return [];
+    const clickFailures = Array.isArray(step.click_failures)
+      ? step.click_failures.map((failure) => ({
+        selector: String(failure?.selector || ''),
+        candidate_index: numericOrNull(failure?.candidate_index ?? failure?.candidateIndex),
+        reason: String(failure?.reason || 'click_failed'),
+        error_name: String(failure?.error_name || failure?.errorName || 'Error'),
+      }))
+      : [];
     return [[name, {
       candidate_index: numericOrNull(step.candidate_index ?? step.candidateIndex),
       attempted: numericOrNull(step.attempted),
       candidate_count: numericOrNull(step.candidate_count ?? step.candidateCount),
+      ...(clickFailures.length ? { click_failures: clickFailures } : {}),
     }]];
   }));
 }
@@ -258,17 +284,81 @@ export async function fillRichContent(page, selectors, article = {}) {
   return fallback.ok ? { ...fallback, format: 'text', images: 0 } : fallback;
 }
 
-export async function clickFirstVisible(page, selectors) {
+export async function clickFirstVisible(page, selectors, options = {}) {
   const candidates = selectorCandidates(selectors);
   let attempted = 0;
+  const clickFailures = [];
   for (const [candidateIndex, selector] of candidates.entries()) {
     attempted += 1;
     const locator = page.locator(selector).first();
     if (!await locator.isVisible({ timeout: 1200 }).catch(() => false)) continue;
-    await locator.click({ timeout: 5000 });
-    return selectorAttempt(true, candidates, candidateIndex, attempted);
+    const enabled = await locator.isEnabled({ timeout: 600 }).catch(() => true);
+    if (!enabled) {
+      clickFailures.push({ selector, candidate_index: candidateIndex, reason: 'disabled', error_name: 'DisabledElement' });
+      continue;
+    }
+    try {
+      const clickTimeout = Math.max(5000, Number(options.clickTimeout) || 5000);
+      await locator.click({ timeout: clickTimeout });
+      return selectorAttempt(true, candidates, candidateIndex, attempted, { click_failures: clickFailures });
+    } catch (error) {
+      const failure = clickFailureMetadata(error, selector, candidateIndex);
+      clickFailures.push(failure);
+      // A visible, enabled control can briefly fail Playwright's actionability
+      // stability check while an editor finishes its transition. Retry only
+      // when the control is still the topmost element at its center; this
+      // avoids force-clicking through an overlay or clicking a hidden action.
+      const retryable = failure.reason === 'timeout';
+      if (retryable) {
+        try {
+          await locator.click({ timeout: Math.max(1000, clickTimeout) });
+          return selectorAttempt(true, candidates, candidateIndex, attempted, { click_failures: clickFailures });
+        } catch (retryError) {
+          clickFailures.push(clickFailureMetadata(retryError, selector, candidateIndex));
+        }
+      }
+    }
   }
-  return selectorAttempt(false, candidates, -1, attempted);
+  return selectorAttempt(false, candidates, -1, attempted, { click_failures: clickFailures });
+}
+
+async function createVisibleSignalBaseline(page, selectors) {
+  const candidates = selectorCandidates(selectors);
+  if (!candidates.length) return null;
+  const token = `baseline-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const visibleCounts = [];
+  for (const selector of candidates) {
+    const visibleCount = await page.locator(selector).evaluateAll((elements, baselineToken) => {
+      const scope = globalThis;
+      if (!(scope.__tongzhuoAgentVisibleSignalBaselines instanceof Map)) scope.__tongzhuoAgentVisibleSignalBaselines = new Map();
+      let baseline = scope.__tongzhuoAgentVisibleSignalBaselines.get(baselineToken);
+      if (!baseline) {
+        baseline = new WeakSet();
+        scope.__tongzhuoAgentVisibleSignalBaselines.set(baselineToken, baseline);
+      }
+      let count = 0;
+      for (const element of elements) {
+        const style = getComputedStyle(element);
+        const visible = !element.closest('[hidden], [aria-hidden="true"]')
+          && style.display !== 'none'
+          && style.visibility !== 'hidden'
+          && element.getClientRects().length > 0;
+        if (!visible) continue;
+        baseline.add(element);
+        count += 1;
+      }
+      return count;
+    }, token).catch(() => 0);
+    visibleCounts.push(visibleCount);
+  }
+  return { token, visibleCounts };
+}
+
+async function clearVisibleSignalBaseline(page, baseline) {
+  if (!baseline?.token) return;
+  await page.locator('html').evaluate((_, baselineToken) => {
+    globalThis.__tongzhuoAgentVisibleSignalBaselines?.delete?.(baselineToken);
+  }, baseline.token).catch(() => {});
 }
 
 /**
@@ -290,8 +380,26 @@ export async function waitForAnyVisible(page, selectors, options = {}) {
     polls += 1;
     for (const [candidateIndex, selector] of candidates.entries()) {
       attempted += 1;
-      const locator = page.locator(selector).first();
-      if (await locator.isVisible({ timeout: Math.min(600, interval) }).catch(() => false)) {
+      const locator = page.locator(selector);
+      if (options.visibleBaseline?.token) {
+        const newlyVisible = await locator.evaluateAll((elements, baselineToken) => {
+          const baseline = globalThis.__tongzhuoAgentVisibleSignalBaselines?.get?.(baselineToken);
+          return elements.some((element) => {
+            const style = getComputedStyle(element);
+            const visible = !element.closest('[hidden], [aria-hidden="true"]')
+              && style.display !== 'none'
+              && style.visibility !== 'hidden'
+              && element.getClientRects().length > 0;
+            return visible && (!baseline || !baseline.has(element));
+          });
+        }, options.visibleBaseline.token).catch(() => false);
+        if (newlyVisible) {
+          return selectorAttempt(true, candidates, candidateIndex, attempted, {
+            poll_count: polls,
+            baseline_visible_count: options.visibleBaseline.visibleCounts?.[candidateIndex] || 0,
+          });
+        }
+      } else if (await locator.first().isVisible({ timeout: Math.min(600, interval) }).catch(() => false)) {
         return selectorAttempt(true, candidates, candidateIndex, attempted, { poll_count: polls });
       }
     }
@@ -303,46 +411,55 @@ export async function waitForAnyVisible(page, selectors, options = {}) {
 }
 
 export async function clickAndConfirm(page, actionSelectors, successSelectors, options = {}) {
-  const action = await clickFirstVisible(page, actionSelectors || []);
-  if (!action.ok) return { ok: false, reason: 'action_not_found', action };
+  const successCandidates = selectorCandidates(successSelectors || []);
+  const visibleBaseline = await createVisibleSignalBaseline(page, successCandidates);
+  try {
+    const action = await clickFirstVisible(page, actionSelectors || [], { clickTimeout: options.actionClickTimeout });
+    if (!action.ok) return { ok: false, reason: 'action_not_found', action };
 
-  const blocked = await detectAccessBlocked(page);
-  if (blocked.blocked) return { ok: false, reason: 'verification_required', action, blocked };
+    const blocked = await detectAccessBlocked(page);
+    if (blocked.blocked) return { ok: false, reason: 'verification_required', action, blocked };
 
-  const confirmSelectors = options.confirmSelectors || [];
-  const confirmActions = [];
-  if (confirmSelectors.length) {
-    const initial = await waitForAnyVisible(page, successSelectors || [], {
-      timeout: options.initialSuccessTimeout ?? Math.min(800, options.timeout ?? 2200),
-      interval: options.interval ?? 125,
-    });
-    if (initial.ok) return { ok: true, action, confirmation: initial, confirmActions };
-
-    const attempts = Math.max(1, Number(options.confirmAttempts) || 1);
-    for (let index = 0; index < attempts; index += 1) {
-      const confirmAction = await clickFirstVisible(page, confirmSelectors);
-      if (!confirmAction.ok) break;
-      confirmActions.push(confirmAction);
-
-      const afterConfirmBlocked = await detectAccessBlocked(page);
-      if (afterConfirmBlocked.blocked) {
-        return { ok: false, reason: 'verification_required', action, confirmActions, blocked: afterConfirmBlocked };
-      }
-
-      const confirmed = await waitForAnyVisible(page, successSelectors || [], {
-        timeout: options.confirmSuccessTimeout ?? options.timeout ?? 2200,
+    const confirmSelectors = options.confirmSelectors || [];
+    const confirmActions = [];
+    if (confirmSelectors.length) {
+      const initial = await waitForAnyVisible(page, successCandidates, {
+        timeout: options.initialSuccessTimeout ?? Math.min(800, options.timeout ?? 2200),
         interval: options.interval ?? 125,
+        visibleBaseline,
       });
-      if (confirmed.ok) return { ok: true, action, confirmation: confirmed, confirmActions };
-    }
-  }
+      if (initial.ok) return { ok: true, action, confirmation: initial, confirmActions };
 
-  const confirmation = await waitForAnyVisible(page, successSelectors || [], {
-    timeout: options.timeout ?? 2200,
-    interval: options.interval ?? 125,
-  });
-  if (!confirmation.ok) return { ok: false, reason: 'success_not_confirmed', action, confirmation, confirmActions };
-  return { ok: true, action, confirmation, confirmActions };
+      const attempts = Math.max(1, Number(options.confirmAttempts) || 1);
+      for (let index = 0; index < attempts; index += 1) {
+        const confirmAction = await clickFirstVisible(page, confirmSelectors, { clickTimeout: options.confirmClickTimeout });
+        if (!confirmAction.ok) break;
+        confirmActions.push(confirmAction);
+
+        const afterConfirmBlocked = await detectAccessBlocked(page);
+        if (afterConfirmBlocked.blocked) {
+          return { ok: false, reason: 'verification_required', action, confirmActions, blocked: afterConfirmBlocked };
+        }
+
+        const confirmed = await waitForAnyVisible(page, successCandidates, {
+          timeout: options.confirmSuccessTimeout ?? options.timeout ?? 2200,
+          interval: options.interval ?? 125,
+          visibleBaseline,
+        });
+        if (confirmed.ok) return { ok: true, action, confirmation: confirmed, confirmActions };
+      }
+    }
+
+    const confirmation = await waitForAnyVisible(page, successCandidates, {
+      timeout: options.timeout ?? 2200,
+      interval: options.interval ?? 125,
+      visibleBaseline,
+    });
+    if (!confirmation.ok) return { ok: false, reason: 'success_not_confirmed', action, confirmation, confirmActions };
+    return { ok: true, action, confirmation, confirmActions };
+  } finally {
+    await clearVisibleSignalBaseline(page, visibleBaseline);
+  }
 }
 
 /**

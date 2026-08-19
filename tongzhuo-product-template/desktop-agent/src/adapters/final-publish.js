@@ -7,21 +7,32 @@ import {
   selectorDetails,
 } from './fill-tools.js';
 
-export function selectorList(primary, fallback) {
+export function selectorList(primary, fallback = [], options = {}) {
   const items = Array.isArray(primary) ? primary : [];
-  return [...new Set([...items, ...fallback].filter(Boolean))];
+  const replaceDefault = options === true || options?.replaceDefault === true;
+  const defaults = Array.isArray(fallback) ? fallback : [];
+  return [...new Set((replaceDefault ? items : [...items, ...defaults]).filter(Boolean))];
 }
 
 export function publishSelectors(platform = {}) {
-  return selectorList(platform.editorHints?.publishSelectors, defaultPublishSelectors);
+  const hints = platform.editorHints || {};
+  return selectorList(hints.publishSelectors, defaultPublishSelectors, {
+    replaceDefault: hints.replaceDefaultPublishSelectors === true,
+  });
 }
 
 export function publishConfirmSelectors(platform = {}) {
-  return selectorList(platform.editorHints?.publishConfirmSelectors, defaultPublishConfirmSelectors);
+  const hints = platform.editorHints || {};
+  return selectorList(hints.publishConfirmSelectors, defaultPublishConfirmSelectors, {
+    replaceDefault: hints.replaceDefaultPublishConfirmSelectors === true,
+  });
 }
 
 export function publishSuccessSelectors(platform = {}) {
-  return selectorList(platform.editorHints?.publishSuccessSelectors, defaultPublishSuccessSelectors);
+  const hints = platform.editorHints || {};
+  return selectorList(hints.publishSuccessSelectors, defaultPublishSuccessSelectors, {
+    replaceDefault: hints.replaceDefaultPublishSuccessSelectors === true,
+  });
 }
 
 function mergedSelectorDetails(base, extra) {
@@ -48,11 +59,11 @@ export async function submitFinalPublish(adapter, page, base = {}) {
       });
     }
     return adapterResult(platform.id, 'failed', `${platform.name} 未取得发布成功信号，未将任务标记为已发布。`, page, {
+      ...base,
       execution_mode: platform.execution?.mode || base.execution_mode || 'automated',
       failure_category: `publish_${submitted.reason || 'submit_failed'}`,
       retryable: false,
       next_action: 'operator_inspect_failed_platforms',
-      ...base,
       selectors: {
         ...(base.selectors || {}),
         publish: submitted.action?.selector || null,

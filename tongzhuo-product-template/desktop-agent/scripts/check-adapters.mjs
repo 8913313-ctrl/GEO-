@@ -3,8 +3,11 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { createAdapter } from '../src/adapters/index.js';
+import { clickFirstVisible } from '../src/adapters/fill-tools.js';
+import { submitFinalPublish } from '../src/adapters/final-publish.js';
 import { normalizeArticle } from '../src/article-payload.js';
 import { buildSelectorTelemetry } from '../src/platform-result.js';
+import { findPlatform } from '../src/platforms.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 const article = normalizeArticle({
@@ -137,6 +140,61 @@ function platformFor(item, editorUrl) {
 
 const browser = await launchBrowser();
 try {
+  {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <button id="blocked-publish" type="button" disabled>发布</button>
+      <button id="fallback-publish" type="button" onclick="document.body.dataset.clicked = 'fallback'">发布文章</button>
+    `);
+    const action = await clickFirstVisible(page, ['#blocked-publish', '#fallback-publish'], { clickTimeout: 100 });
+    assert.equal(action.ok, true, 'a failed visible click must fall back to the next selector candidate');
+    assert.equal(action.selector, '#fallback-publish');
+    assert.equal(action.candidate_index, 1);
+    assert.equal(action.click_failures?.length, 1, 'the failed visible candidate must remain observable');
+    assert.deepEqual(action.click_failures?.[0], {
+      selector: '#blocked-publish',
+      candidate_index: 0,
+      reason: 'disabled',
+      error_name: 'DisabledElement',
+    });
+    assert.equal(await page.locator('body').getAttribute('data-clicked'), 'fallback');
+    await page.close();
+  }
+
+  {
+    const page = await browser.newPage();
+    await page.setContent(`
+      <p data-publish-state="published">已发布</p>
+      <button id="publish-without-ack" type="button" onclick="document.body.dataset.clicked = 'true'">发布</button>
+    `);
+    const staleSignalAdapter = {
+      platform: {
+        id: 'stale_signal_fixture',
+        name: '陈旧成功信号测试平台',
+        execution: { mode: 'dedicated', autoSubmit: true },
+        editorHints: {
+          publishSelectors: ['#publish-without-ack'],
+          publishSuccessSelectors: ['[data-publish-state="published"]'],
+          publishSuccessTimeout: 120,
+          publishConfirmSelectors: [],
+        },
+      },
+    };
+    const result = await submitFinalPublish(staleSignalAdapter, page, {
+      execution_mode: 'dedicated',
+      failure_category: 'base_must_not_win',
+      next_action: 'none',
+      fill: { draft_saved: true },
+    });
+    assert.equal(await page.locator('body').getAttribute('data-clicked'), 'true', 'the final action must still be clicked');
+    assert.equal(result.state, 'failed', 'a success signal visible before the click must not prove a new publication');
+    assert.notEqual(result.state, 'published');
+    assert.equal(result.failure_category, 'publish_success_not_confirmed');
+    assert.equal(result.next_action, 'operator_inspect_failed_platforms', 'failure metadata must override the draft base');
+    assert.notEqual(result.fill?.published, true);
+    await page.close();
+  }
+
   for (const item of successCases) {
     const page = await browser.newPage();
     const editorUrl = pathToFileURL(path.join(root, 'tests', 'fixtures', item.fixture)).href;
@@ -178,6 +236,37 @@ try {
       assert.equal(guardedResult.fill?.draft_saved, true, `${item.id} must still verify its draft save`);
       assert.notEqual(guardedResult.fill?.published, true, `${item.id} must not click the final publish action when the task-level submit gate is closed`);
       assert.equal(await guardedPage.locator(item.publishSuccessSelector).isVisible(), false, `${item.id} must not expose a final publish acknowledgement on a guarded task`);
+      await guardedPage.close();
+    }
+  }
+
+  {
+    const noSaveFixture = pathToFileURL(path.join(root, 'tests', 'fixtures', 'dedicated-editor-no-save.html')).href;
+    for (const platformId of ['zhihu', 'wechat_mp', 'toutiao']) {
+      const catalogPlatform = findPlatform(platformId);
+      assert.ok(catalogPlatform, `${platformId} catalog entry should exist`);
+      const page = await browser.newPage();
+      const adapter = createAdapter({ ...catalogPlatform, loginUrl: noSaveFixture, editorUrl: noSaveFixture });
+      const result = await adapter.publishDraft(page, article);
+      assert.equal(result.state, 'published', `${platformId} direct mode must continue when the editor has no save button`);
+      assert.equal(result.fill?.draft_saved, false);
+      assert.equal(result.fill?.draft_auto_saved, true);
+      assert.equal(result.fill?.draft_save_method, 'platform_auto_save');
+      assert.equal(result.fill?.published, true);
+      assert.equal(await page.locator('#publish-success').isVisible(), true);
+      await page.close();
+
+      const guardedPage = await browser.newPage();
+      const guardedAdapter = createAdapter({
+        ...catalogPlatform,
+        loginUrl: noSaveFixture,
+        editorUrl: noSaveFixture,
+        execution: { ...catalogPlatform.execution, autoSubmit: false },
+      });
+      const guardedResult = await guardedAdapter.publishDraft(guardedPage, article);
+      assert.equal(guardedResult.state, 'failed', `${platformId} without task-level direct permission must fail safely when no save action exists`);
+      assert.equal(guardedResult.failure_category, 'draft_action_not_found');
+      assert.equal(await guardedPage.locator('body').getAttribute('data-publish-state'), 'unpublished');
       await guardedPage.close();
     }
   }

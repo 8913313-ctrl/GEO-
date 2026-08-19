@@ -149,7 +149,7 @@ function isClosedBrowserTarget(error) {
 
 const platformSessionSelectors = Object.freeze({
   zhihu: ['[data-za-detail-view-element_name="Avatar"]', '.AppHeader-profile', 'textarea[placeholder]'],
-  wechat_mp: ['#js_home', '.weui-desktop-account', '.weui-desktop-layout'],
+  wechat_mp: ['#js_home', '.weui-desktop-account'],
   toutiao: ['.article-title input', '.title-input', '[class*="creator" i]'],
   x: ['[data-testid="SideNav_AccountSwitcher_Button"]', '[data-testid="tweetTextarea_0"]'],
 });
