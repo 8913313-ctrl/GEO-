@@ -35,7 +35,7 @@ function validateCertificatePath(value, label) {
 }
 
 function validateUpstream(value) {
-  const candidate = String(value || "127.0.0.1:43280").trim();
+  const candidate = String(value || "127.0.0.1:44280").trim();
   const match = candidate.match(/^([^:\s]+|\[[0-9a-fA-F:]+\]):([0-9]{1,5})$/);
   if (!match || Number(match[2]) < 1 || Number(match[2]) > 65_535) throw new Error("--upstream 必须是 host:port 或 [IPv6]:port。");
   const host = match[1].replace(/^\[|\]$/g, "");
@@ -76,7 +76,7 @@ const outputPath = path.resolve(requireValue("--output"));
 const serverName = validateServerName(requireValue("--server-name"));
 const certificate = validateCertificatePath(requireValue("--certificate"), "--certificate");
 const certificateKey = validateCertificatePath(requireValue("--certificate-key"), "--certificate-key");
-const upstream = validateUpstream(valueAfter("--upstream", "127.0.0.1:43280"));
+const upstream = validateUpstream(valueAfter("--upstream", "127.0.0.1:44280"));
 const adminAllow = allowlist(requireValue("--admin-allow"), "--admin-allow");
 const healthAllow = allowlist(valueAfter("--health-allow", adminAllow.join(",")), "--health-allow");
 
@@ -87,7 +87,7 @@ let source = await readFile(templatePath, "utf8");
 source = source.replaceAll("relay.example.com", serverName);
 source = source.replace(/^\s*ssl_certificate\s+.*;$/m, `    ssl_certificate     ${certificate};`);
 source = source.replace(/^\s*ssl_certificate_key\s+.*;$/m, `    ssl_certificate_key ${certificateKey};`);
-source = source.replace(/^\s*server\s+127\.0\.0\.1:43280;$/m, `    server ${upstream};`);
+source = source.replace(/^\s*server\s+127\.0\.0\.1:44280;$/m, `    server ${upstream};`);
 source = source.replaceAll("        # allow 203.0.113.10; # replace with the real load-balancer address", directives(healthAllow));
 source = source.replaceAll("        # allow 203.0.113.0/24; # replace with the real VPN egress CIDR", directives(adminAllow));
 

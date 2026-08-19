@@ -37,7 +37,7 @@ export function buildLocalDiagnostics(status = {}, platformCatalog = []) {
   const hasCredential = Boolean(status.hasCredential ?? status.hasToken ?? status.hasDeviceCredential ?? false);
 
   const checks = [
-    check('local_service', '本地服务', 'ok', `本地节点正在 127.0.0.1:${status.port || 18280} 运行。`),
+    check('local_service', '本地服务', 'ok', `本地节点正在 127.0.0.1:${status.port || 19380} 运行。`),
     hasValidBaseUrl
       ? check('geoflow_url', 'GEOFlow 地址', 'ok', baseUrl)
       : check('geoflow_url', 'GEOFlow 地址', 'error', '请填写以 http:// 或 https:// 开头的 GEOFlow 地址。'),
@@ -123,7 +123,7 @@ export function sanitizeStatus(status = {}) {
     hasCredential: Boolean(status.hasCredential ?? status.hasToken ?? status.hasPairingToken ?? status.hasDeviceCredential),
     isPaired: Boolean(status.isPaired),
     connectionMode: status.connectionMode || 'token',
-    port: status.port || 18280,
+    port: status.port || 19380,
     autoRun: Boolean(status.autoRun),
     pollSeconds: status.pollSeconds,
     maxJobAttempts: status.maxJobAttempts,

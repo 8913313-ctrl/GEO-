@@ -9,7 +9,7 @@ cd "G:\桐灼GEO运营\tongzhuo-geo-platform-demo"
 npm start
 ```
 
-浏览器打开 `http://127.0.0.1:43127`。
+浏览器打开 `http://127.0.0.1:44127`。
 
 首次打开需要创建企业管理员。生产环境配置、反向代理、备份恢复和本地发布器配对请参阅 [私有化部署手册](docs/PRIVATE-DEPLOYMENT.md)。
 

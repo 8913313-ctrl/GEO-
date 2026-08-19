@@ -13,14 +13,14 @@ const publicDir = path.join(rootDir, 'public');
 const dataDir = path.join(rootDir, '.data');
 const configPath = path.join(dataDir, 'config.json');
 const profileDir = path.join(dataDir, 'browser-profile');
-const configuredPort = Number(process.env.PUBLISHER_PORT || 18180);
+const configuredPort = Number(process.env.PUBLISHER_PORT || 19180);
 const configuredHost = String(process.env.PUBLISHER_HOST || '127.0.0.1').trim() || '127.0.0.1';
 const configuredHeadless = String(process.env.BROWSER_HEADLESS || '').toLowerCase() === 'true';
 const defaultConfig = {
-  geoflowBaseUrl: process.env.GEOFLOW_BASE_URL || 'http://127.0.0.1:18080',
+  geoflowBaseUrl: process.env.GEOFLOW_BASE_URL || 'http://127.0.0.1:19080',
   publicBaseUrl: process.env.PUBLIC_BASE_URL || '',
   apiToken: '',
-  port: Number.isInteger(configuredPort) && configuredPort >= 1024 && configuredPort <= 65535 ? configuredPort : 18180,
+  port: Number.isInteger(configuredPort) && configuredPort >= 1024 && configuredPort <= 65535 ? configuredPort : 19180,
   pollSeconds: Number(process.env.PUBLISHER_POLL_SECONDS) || 20,
   extensionDir: process.env.EXTENSION_DIR || '',
   browserChannel: process.env.BROWSER_CHANNEL || 'chromium',

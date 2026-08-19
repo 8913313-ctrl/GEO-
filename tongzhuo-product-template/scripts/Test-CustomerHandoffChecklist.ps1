@@ -64,7 +64,7 @@ try {
         }
         endpoints = [ordered]@{
             website = 'https://handoff.example.com'
-            desktop_health = 'http://127.0.0.1:18280/healthz'
+            desktop_health = 'http://127.0.0.1:19380/healthz'
         }
         validation = [ordered]@{
             api_token_empty = $true
@@ -94,7 +94,7 @@ try {
             llms_txt = 'https://handoff.example.com/llms.txt'
             sitemap = 'https://handoff.example.com/sitemap.xml'
             feed = 'https://handoff.example.com/feed.xml'
-            desktop_health = 'http://127.0.0.1:18280/healthz'
+            desktop_health = 'http://127.0.0.1:19380/healthz'
         }
         artifacts = @()
         acceptance = [ordered]@{
@@ -129,8 +129,8 @@ try {
         short_name = 'Handoff Client'
         site_url = 'https://handoff.example.com'
         geoflow_base_url = 'https://flow.handoff.example.com'
-        publisher_port = 18180
-        desktop_agent_port = 18280
+        publisher_port = 19180
+        desktop_agent_port = 19380
         generated_at = (Get-Date).ToUniversalTime().ToString('o')
         delivery_package = [ordered]@{
             path = $deliveryPackagePath

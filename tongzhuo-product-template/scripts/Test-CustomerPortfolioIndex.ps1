@@ -47,7 +47,7 @@ try {
             short_name = 'Alpha'
             site_url = 'https://alpha.example.com'
             geoflow_base_url = 'https://work-alpha.example.com'
-            desktop_agent_port = 18280
+            desktop_agent_port = 19380
         }
         artifact_inventory = @(
             [ordered]@{ role = 'release_manifest' },
@@ -78,7 +78,7 @@ try {
             short_name = 'Beta'
             site_url = 'https://beta.example.com'
             geoflow_base_url = 'https://work-beta.example.com'
-            desktop_agent_port = 18280
+            desktop_agent_port = 19380
         }
         artifact_inventory = @([ordered]@{ role = 'release_manifest' })
         lifecycle = @([ordered]@{ stage = 'intake' })
@@ -95,7 +95,7 @@ try {
         short_name = 'Gamma'
         site_url = 'https://gamma.example.com'
         geoflow_base_url = 'https://work-gamma.example.com'
-        desktop_agent_port = 18280
+        desktop_agent_port = 19380
     })
 
     $portfolioPath = Join-Path $testRoot 'portfolio.json'

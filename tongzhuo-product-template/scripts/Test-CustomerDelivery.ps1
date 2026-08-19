@@ -229,7 +229,7 @@ try {
     $desktopConfig = Get-Content -LiteralPath $desktopConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $apiToken = if ($null -ne $desktopConfig.apiToken) { [string] $desktopConfig.apiToken } else { '' }
     Assert-Condition ([string]::IsNullOrWhiteSpace($apiToken)) 'Desktop package config contains apiToken.'
-    Assert-Condition ([int] $desktopConfig.port -eq 18280) 'Desktop package config port should be 18280.'
+    Assert-Condition ([int] $desktopConfig.port -eq 19380) 'Desktop package config port should be 19380.'
 
     $websiteEntries = Get-ZipEntryNames -ZipPath $websiteZip
     foreach ($pattern in @(

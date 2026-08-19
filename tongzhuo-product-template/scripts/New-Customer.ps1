@@ -4,9 +4,9 @@ param(
     [Parameter(Mandatory = $true)] [string]$CompanyName,
     [Parameter(Mandatory = $true)] [string]$ShortName,
     [Parameter(Mandatory = $true)] [uri]$SiteUrl,
-    [string]$GeoFlowBaseUrl = 'http://127.0.0.1:18080',
-    [int]$PublisherPort = 18180,
-    [int]$DesktopAgentPort = 18280,
+    [string]$GeoFlowBaseUrl = 'http://127.0.0.1:19080',
+    [int]$PublisherPort = 19180,
+    [int]$DesktopAgentPort = 19380,
     [int]$DesktopPollSeconds = 20,
     [uri]$WorkbenchUrl,
     [string]$Telephone = '',
@@ -39,8 +39,8 @@ Copy-Item -LiteralPath (Join-Path $sourceRoot 'config') -Destination (Join-Path 
 Copy-Item -LiteralPath (Join-Path $sourceRoot 'product.json') -Destination (Join-Path $destinationRoot 'product.json') -Force
 New-Item -ItemType Directory -Force -Path (Join-Path $destinationRoot 'publisher-assistant\.data') | Out-Null
 
-$oldSiteUrl = 'http://127.0.0.1:18080'
-$oldWorkbenchUrl = 'http://127.0.0.1:18180'
+$oldSiteUrl = 'http://127.0.0.1:19080'
+$oldWorkbenchUrl = 'http://127.0.0.1:19180'
 $templateSiteUrl = 'https://www.example.com'
 $defaultLegalName = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('5qGQ54G877yI5reE5Y2a77yJ572R57uc56eR5oqA5pyJ6ZmQ5YWs5Y+4'))
 $defaultShortName = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('5qGQ54G856eR5oqA'))

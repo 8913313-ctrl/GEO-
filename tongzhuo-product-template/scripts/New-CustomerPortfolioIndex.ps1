@@ -50,7 +50,7 @@ function New-CustomerRecordFromDossier {
         release_slug = Get-OptionalText -Value $dossier.release_slug
         site_url = Get-OptionalText -Value $dossier.customer.site_url
         geoflow_base_url = Get-OptionalText -Value $dossier.customer.geoflow_base_url
-        desktop_agent_port = if ($null -ne $dossier.customer.desktop_agent_port) { [int] $dossier.customer.desktop_agent_port } else { 18280 }
+        desktop_agent_port = if ($null -ne $dossier.customer.desktop_agent_port) { [int] $dossier.customer.desktop_agent_port } else { 19380 }
         artifact_count = @($dossier.artifact_inventory).Count
         lifecycle_count = @($dossier.lifecycle).Count
         geoflow_backend_snapshot_attached = [bool] $backendSnapshotAttached
@@ -80,7 +80,7 @@ function New-CustomerRecordFromManifest {
         release_slug = Get-OptionalText -Value $manifest.release_slug
         site_url = Get-OptionalText -Value $manifest.site_url
         geoflow_base_url = Get-OptionalText -Value $manifest.geoflow_base_url
-        desktop_agent_port = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 18280 }
+        desktop_agent_port = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 19380 }
         artifact_count = 1
         lifecycle_count = 0
         geoflow_backend_snapshot_attached = $false

@@ -29,7 +29,7 @@
 
 旧版 `publisher-assistant/` 支持两种交付形态，作为兼容层保留：
 
-- `publisher-assistant/deploy/`：使用 Docker 在服务器上运行独立发布服务，默认端口为 `18181`，容器异常自动重启。
+- `publisher-assistant/deploy/`：使用 Docker 在服务器上运行独立发布服务，默认端口为 `19181`，容器异常自动重启。
 - `geoflow-integration/server-overrides/`：在 GEOFlow 后台增加“发布助手”菜单和内嵌页面，并通过 Nginx 反向代理访问发布服务。
 
 发布服务的健康检查地址为 `/healthz`。平台账号、Cookie、验证码等登录态不进入模板包；服务端直发仍受平台登录态、风控和页面变化影响，保留草稿回退。
@@ -81,7 +81,7 @@ New-Item -ItemType Directory -Force -Path 'D:\Deliveries\configs'
 
 正式客户 release 还会自动生成 `*-HANDOFF-CHECKLIST.md` 和 `*-HANDOFF-CHECKLIST.json`，把必交文件、哈希、配置 warning、验收命令、安装后检查和签收负责人整理成一份可归档的交接清单。
 
-`desktop_agent.port` 是主线 Windows 桌面发布执行器端口，默认 `18280`；`publisher_assistant.port` 是旧版兼容发布助手端口，默认 `18180`。两个端口必须不同。客户电脑端口被占用时，优先调整 `desktop_agent.port`，交付包中的健康检查、部署档案和支持诊断包会自动使用该端口。
+`desktop_agent.port` 是主线 Windows 桌面发布执行器端口，默认 `19380`；`publisher_assistant.port` 是旧版兼容发布助手端口，默认 `19180`。两个端口必须不同。客户电脑端口被占用时，优先调整 `desktop_agent.port`，交付包中的健康检查、部署档案和支持诊断包会自动使用该端口。
 
 ## 打包桌面执行器
 
@@ -274,7 +274,7 @@ powershell -ExecutionPolicy Bypass -File .\desktop-agent\install-desktop.ps1 -In
 
 管理员在 GEOFlow 后台生成 10 分钟有效的配对码，运营电脑安装执行器后输入节点名称和配对码即可绑定。绑定完成后，日常发布动作都从 GEOFlow 后台发起；执行器在本机静默运行，负责平台登录窗口、验证码处理、内容填充、草稿/发布和结果回写。
 
-默认本地健康检查为 `http://127.0.0.1:18280/healthz`。本地诊断页 `http://127.0.0.1:18280` 只给实施和售后排查使用，可以检查服务端口、GEOFlow 地址、设备 ID、绑定状态、最近心跳、可执行平台和后台连接探测。客户日常不需要打开它。
+默认本地健康检查为 `http://127.0.0.1:19380/healthz`。本地诊断页 `http://127.0.0.1:19380` 只给实施和售后排查使用，可以检查服务端口、GEOFlow 地址、设备 ID、绑定状态、最近心跳、可执行平台和后台连接探测。客户日常不需要打开它。
 
 诊断区还可以导出支持报告 JSON，用于售后排查。报告会包含诊断结果、运行日志、平台能力和设备信息，但会脱敏 Token、Cookie、密码、Secret、Authorization 等敏感字段。
 

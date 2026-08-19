@@ -107,7 +107,7 @@ npm run ops:preflight -- --nginx /etc/nginx/conf.d/tongzhuo-relay.conf
 docker compose -f deploy/docker-compose.production.yml up -d --build
 ```
 
-Node 仅监听 `127.0.0.1:43280`（或内部网络）。由 Nginx/网关加载 `deploy/nginx.conf`，负责 HTTPS、HSTS、管理网段访问控制和请求体限制。管理员请求必须带：
+Node 仅监听 `127.0.0.1:44280`（或内部网络）。由 Nginx/网关加载 `deploy/nginx.conf`，负责 HTTPS、HSTS、管理网段访问控制和请求体限制。管理员请求必须带：
 
 ```http
 Authorization: Bearer <TZ_RELAY_ADMIN_TOKEN>

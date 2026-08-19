@@ -280,7 +280,7 @@ const diagnosticApi = createDiagnosticApi({
     };
   }
 });
-const monitoringRemotePorts = String(process.env.TZ_MONITORING_REMOTE_PORTS || "80,443,18080")
+const monitoringRemotePorts = String(process.env.TZ_MONITORING_REMOTE_PORTS || "80,443,19080")
   .split(",")
   .map((value) => Number(value.trim()))
   .filter((value) => Number.isInteger(value) && value > 0 && value <= 65_535);
@@ -861,14 +861,77 @@ async function handleSiteCmsApi(request, response, parts) {
   if (operation === "preview" && parts[4] === "assets" && parts[5] && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const fileName = path.basename(decodeURIComponent(parts[5]));
-    const previewAssets = new Set(["site.css", "site.js", "geo-signal-hero.svg", "geo-answer-hero.svg", "geo-network-hero.svg"]);
+    const previewAssetBase = "/api/v1/site-cms/preview/assets";
+    const previewAssetFiles = Object.freeze({
+      "template-03-software-ai.css": "03-software-ai.css",
+      "template-04-logistics.css": "04-logistics.css",
+      "template-05-business-services.css": "05-business-services.css",
+      "template-06-finance.css": "06-finance.css",
+      "template-07-healthcare.css": "07-healthcare.css",
+      "template-08-education.css": "08-education.css",
+      "template-09-travel-hotel.css": "09-travel-hotel.css",
+      "template-10-food-consumer.css": "10-food-consumer.css",
+      "template-11-ups.css": "template-11-ups.css"
+    });
+    const previewAssets = new Set([
+      "site.css",
+      "site.js",
+      "site-v8.css",
+      "template-01-industry.css",
+      "template-02-construction.css",
+      ...Object.keys(previewAssetFiles),
+      "template-runtime.js",
+      "site-v8.js",
+      "gsap.min.js",
+      "tz-display.woff2",
+      "favicon.svg",
+      "geo-signal-hero.svg",
+      "geo-answer-hero.svg",
+      "geo-network-hero.svg",
+      "tongzhuo-geo-mark.svg",
+      "tongzhuo-mark-gold.png",
+      "tongzhuo-mark-wine.png",
+      "tongzhuo-official-mark.png",
+      "zhuojian-ai-brand.png",
+      "zhuojian-ai-lockup-gold.png",
+      "zhuojian-ai-official-logo.png",
+      "template-01-default.png",
+      "template-02-default.png",
+      "template-03-default.png",
+      "template-04-default.png",
+      "template-05-default.png",
+      "template-06-default.png",
+      "template-07-default.png",
+      "template-08-default.png",
+      "template-09-default.png",
+      "template-10-default.png",
+      "template-11-ups.css",
+      "template-11-default.png"
+    ]);
     if (!previewAssets.has(fileName)) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
-    const body = await readFile(path.join(siteAssetRoot, fileName));
+    const relativeFile = previewAssetFiles[fileName] || fileName;
+    const filePath = fileName === "tz-display.woff2"
+      ? path.join(siteAssetRoot, "fonts", fileName)
+      : path.join(siteAssetRoot, relativeFile);
+    let body = await readFile(filePath);
+    if (fileName === "site-v8.css" || fileName === "site-v8.js") {
+      body = body.toString("utf8")
+        .replaceAll("/site-assets-r6/site.css", `${previewAssetBase}/site.css`)
+        .replaceAll("/site-assets-r6/site.js", `${previewAssetBase}/site.js`)
+        .replaceAll("/site-assets-r9/tz-display.woff2", `${previewAssetBase}/tz-display.woff2`)
+        .replaceAll("/site-assets-r9/gsap.min.js", `${previewAssetBase}/gsap.min.js`);
+    }
     const contentType = fileName.endsWith(".css")
       ? "text/css; charset=utf-8"
-      : fileName.endsWith(".svg")
-        ? "image/svg+xml"
-        : "text/javascript; charset=utf-8";
+      : fileName.endsWith(".js")
+        ? "text/javascript; charset=utf-8"
+        : fileName.endsWith(".svg")
+          ? "image/svg+xml"
+          : fileName.endsWith(".png")
+            ? "image/png"
+            : fileName.endsWith(".woff2")
+              ? "font/woff2"
+              : "application/octet-stream";
     return rawResponse(response, 200, body, contentType);
   }
   return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ROUTE_NOT_FOUND", message: "官网 CMS 接口不存在。" });
@@ -1712,7 +1775,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 const embeddedSiteRuntime = configured.environment === "development" && process.env.TZ_SITE_EMBED !== "false"
-  ? createSiteRuntime({ database, host: configured.host, port: Number(process.env.TZ_SITE_PORT) || 18080, workspaceId: "default" })
+  ? createSiteRuntime({ database, host: configured.host, port: Number(process.env.TZ_SITE_PORT) || 19080, workspaceId: "default" })
   : null;
 if (embeddedSiteRuntime) {
   embeddedSiteRuntime.listen().then((address) => {

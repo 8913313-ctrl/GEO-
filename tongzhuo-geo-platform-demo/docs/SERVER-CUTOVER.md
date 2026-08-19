@@ -1,10 +1,10 @@
 # 官网与 GEO 后台服务器切换手册
 
-本手册把当前官网保留在 `18080`，并在不占用该端口的情况下验证新版服务。新版由两个独立 Node 进程组成：
+本手册把当前官网保留在 `19080`，并在不占用该端口的情况下验证新版服务。新版由两个独立 Node 进程组成：
 
 ```text
 staging  : 18182 -> geo-site (官网)    18183 -> geo-admin (后台)
-production: 18080 -> geo-site (官网)  18183 -> geo-admin (仅本机)
+production: 19080 -> geo-site (官网)  18183 -> geo-admin (仅本机)
 ```
 
 两个服务在同一环境内共享一个持久化 Docker volume，其中保存 SQLite、附件元数据、模型配置、发布器状态和日志。**同一个 volume 同一时刻只能由一组（staging 或 production）服务写入**；不要让 staging 与 production 共同指向同一个 data volume。
@@ -49,12 +49,12 @@ TZ_PRODUCTION_TRUST_PROXY=1
 TZ_PRODUCTION_COOKIE_SECURE=1
 ```
 
-上例适用于本机 Nginx 终止 HTTPS 且它是唯一公开入口；若继续通过公网 IP 和 `18080` 端口直接提供官网，保持 `TZ_PRODUCTION_TRUST_PROXY=0`，避免客户端伪造 `X-Forwarded-For`。后台正式入口应使用 HTTPS；仅在维护期间通过 localhost SSH 隧道使用 HTTP 时，才临时将 `TZ_PRODUCTION_COOKIE_SECURE` 设为 `0`，维护结束后立即恢复。
+上例适用于本机 Nginx 终止 HTTPS 且它是唯一公开入口；若继续通过公网 IP 和 `19080` 端口直接提供官网，保持 `TZ_PRODUCTION_TRUST_PROXY=0`，避免客户端伪造 `X-Forwarded-For`。后台正式入口应使用 HTTPS；仅在维护期间通过 localhost SSH 隧道使用 HTTP 时，才临时将 `TZ_PRODUCTION_COOKIE_SECURE` 设为 `0`，维护结束后立即恢复。
 
 先记录旧系统正在使用什么；这一步是为了形成可回滚清单，**不要在此处停止任何进程**：
 
 ```bash
-sudo ss -ltnp | grep ':18080' || true
+sudo ss -ltnp | grep ':19080' || true
 docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
 sudo systemctl list-units --type=service --all | grep -Ei 'nginx|node|php|geo|tongzhuo' || true
 ```
@@ -80,7 +80,7 @@ gzip -t "$BACKUP_DIR/legacy-db.sql.gz"
 
 若旧系统是容器，请同时保存其 inspect、镜像和 compose 配置；若是 systemd 服务，保存 unit 文件和环境文件。把备份复制到服务器外部后，才可进入切换步骤。
 
-## 3. 启动 staging（不影响 18080）
+## 3. 启动 staging（不影响 19080）
 
 从 `deploy` 目录执行：
 
@@ -137,13 +137,13 @@ docker run --rm \
 
 若在 `cutover.env` 中改过 volume 名称，请将上面两个名称替换成对应的 `TZ_STAGING_DATA_VOLUME` 和 `TZ_PRODUCTION_DATA_VOLUME` 值。不要把旧系统的数据库文件直接覆盖到新系统 SQLite 文件；旧数据迁移应使用对应的导入工具并在 staging 验收后再做。
 
-## 5. 正式切换至 18080
+## 5. 正式切换至 19080
 
 先再次确认 staging 已停止且旧服务仍在：
 
 ```bash
 docker compose --env-file cutover.env -f docker-compose.staging.yml ps
-curl -fsS http://127.0.0.1:18080/ || true
+curl -fsS http://127.0.0.1:19080/ || true
 ```
 
 在同一个维护窗口内，停止记录在第 1 步中的**具体旧服务**，然后立即启动新版。不要使用不带对象的 `pkill`、`docker prune` 或递归删除命令。
@@ -156,10 +156,10 @@ sudo systemctl stop <legacy-service-name>
 docker compose --env-file cutover.env -f docker-compose.production.yml up --build -d
 docker compose --env-file cutover.env -f docker-compose.production.yml ps
 curl -fsS http://127.0.0.1:18183/health/ready
-curl -fsS http://127.0.0.1:18080/health/ready
+curl -fsS http://127.0.0.1:19080/health/ready
 ```
 
-从服务器外部验证生产官网 URL、HTTPS、后台受限入口、文章发布和最新文章页。稳定运行并完成备份核验后，再禁用旧服务以防开机重新抢占 18080：
+从服务器外部验证生产官网 URL、HTTPS、后台受限入口、文章发布和最新文章页。稳定运行并完成备份核验后，再禁用旧服务以防开机重新抢占 19080：
 
 ```bash
 sudo systemctl disable <legacy-service-name>
@@ -180,7 +180,7 @@ sudo systemctl start <legacy-service-name>
 # 或：docker start <legacy-container-name>
 ```
 
-核验 `18080` 已恢复到旧官网，再分析新系统日志：
+核验 `19080` 已恢复到旧官网，再分析新系统日志：
 
 ```bash
 docker compose --env-file cutover.env -f docker-compose.production.yml logs --tail=200 geo-admin geo-site

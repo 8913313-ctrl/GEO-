@@ -101,7 +101,7 @@ function isLoopbackHost(hostname) {
 export function resolveRelayMcpBaseUrl(environment = process.env) {
   const configured = readEnvironmentText(environment, "TZ_RELAY_MCP_URL")
     || readEnvironmentText(environment, "TZ_RELAY_URL")
-    || "http://127.0.0.1:43280";
+    || "http://127.0.0.1:44280";
   let parsed;
   try {
     parsed = new URL(configured);

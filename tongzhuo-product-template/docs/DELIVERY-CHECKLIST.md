@@ -180,7 +180,7 @@ New-Item -ItemType Directory -Force -Path 'D:\Deliveries\configs'
 
 支持诊断包会输出 JSON 和 Markdown，记录交付包版本、组件包完整性、必需文档、本机桌面端健康探测和建议补充材料。它不包含 API Token、平台密码、Cookie、浏览器 Profile、验证码或截图。
 
-主线 Windows 桌面发布执行器端口来自客户配置 `desktop_agent.port`，默认 `18280`。旧版兼容发布助手端口来自 `publisher_assistant.port`，默认 `18180`。交付前确认两个端口不同；如果客户电脑端口冲突，优先修改 `desktop_agent.port` 并重新生成正式客户交付 release。
+主线 Windows 桌面发布执行器端口来自客户配置 `desktop_agent.port`，默认 `19380`。旧版兼容发布助手端口来自 `publisher_assistant.port`，默认 `19180`。交付前确认两个端口不同；如果客户电脑端口冲突，优先修改 `desktop_agent.port` 并重新生成正式客户交付 release。
 
 客户解压完整交付包后，先运行根目录入口：
 
@@ -270,7 +270,7 @@ powershell -ExecutionPolicy Bypass -File .\install-desktop.ps1 -InstallAutostart
 - 后台“发布助手”页面展示本地渠道、任务、设备和使用流程，不再依赖旧 iframe 页面。
 - 后台“发布助手”页面可一键初始化默认本地发布渠道，默认平台为微信公众号、知乎、头条号和本地导出包。
 - 分发管理中新建“桐灼本地发布助手”渠道，渠道类型保存为 `desktop_publisher`。
-- 桌面发布执行器健康检查 `http://127.0.0.1:18280/healthz` 可访问。
+- 桌面发布执行器健康检查 `http://127.0.0.1:19380/healthz` 可访问。
 - 桌面发布执行器“本机诊断”能显示服务端口、GEOFlow 地址、设备 ID、绑定状态、设备凭证存在性、最近心跳、可执行平台和后台连接探测结果。
 - 桌面发布执行器能导出支持报告 JSON，报告包含诊断结果和运行日志，且不包含 API Token、Cookie、平台密码等敏感字段。
 - 桌面发布执行器能注册设备并上报心跳。

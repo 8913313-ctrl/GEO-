@@ -84,6 +84,10 @@ try {
   assert.equal(bootstrapPublication.sourceDraftRevision, 1);
   assert.equal(bootstrapPublication.checksum, bootstrapDraft.checksum);
   assert.deepEqual(bootstrapPublication.snapshot, bootstrapDraft.snapshot);
+  assert.equal(bootstrapDraft.snapshot.schemaVersion, 4);
+  assert.equal(bootstrapDraft.snapshot.assets.defaultImageUrl, "/assets/template-01-default.png");
+  assert.equal(Object.keys(bootstrapDraft.snapshot.templateConfigs).length, 10);
+  assert.equal(bootstrapDraft.snapshot.footer.showIcp, true);
   const bootstrapReleases = cmsStore.releases(workspaceId);
   assert.equal(bootstrapReleases.length, 1);
   assert.equal(bootstrapReleases[0].id, bootstrapPublication.releaseId);
@@ -117,6 +121,19 @@ try {
   const draftCms = clone(bootstrapDraft.snapshot);
   draftCms.settings.siteName = "仅草稿可见的官网 v2";
   draftCms.settings.description = "这段内容在发布前不能影响正式官网。";
+  draftCms.assets = {
+    ...draftCms.assets,
+    logoUrl: "/assets/company-logo.png",
+    defaultImageUrl: "/assets/default-cover.webp"
+  };
+  draftCms.templateConfigs["01-industry"].defaultImageUrl = "/assets/industry-default.webp";
+  draftCms.footer = {
+    ...draftCms.footer,
+    icpNumber: "京ICP备00000000号",
+    policeRecordNumber: "京公网安备00000000000000号",
+    columns: [{ id: "footer-services", title: "服务项目", links: [{ id: "footer-services-1", label: "服务详情", href: "/services/" }, { id: "footer-services-2", label: "联系电话", href: "tel:400-000-0000" }] }],
+    socialLinks: [{ id: "footer-social-1", label: "企业主页", href: "https://example.com/company" }]
+  };
   draftCms.pages.push(
     { id: "published-after-release", type: "专题页", title: "待发布专题", path: "/published-after-release/", status: "published", sitemapEnabled: true },
     { id: "draft-only", type: "专题页", title: "内部草稿专题", path: "/draft-only/", status: "draft", sitemapEnabled: true }
@@ -155,6 +172,12 @@ try {
   assert.equal(published.operation, "publish");
   assert.equal(published.sourceDraftRevision, savedDraft.revision);
   assert.equal(published.snapshot.settings.siteName, "仅草稿可见的官网 v2");
+  assert.equal(published.snapshot.assets.logoUrl, "/assets/company-logo.png");
+  assert.equal(published.snapshot.assets.defaultImageUrl, "/assets/default-cover.webp");
+  assert.equal(published.snapshot.templateConfigs["01-industry"].defaultImageUrl, "/assets/industry-default.webp");
+  assert.equal(published.snapshot.footer.icpNumber, "京ICP备00000000号");
+  assert.equal(published.snapshot.footer.columns[0].links[1].href, "tel:400-000-0000");
+  assert.equal(published.snapshot.footer.socialLinks[0].href, "https://example.com/company");
   const publishedRelease = cmsStore.releases(workspaceId).find((item) => item.id === published.releaseId);
   assert.equal(publishedRelease.sourceReleaseId, bootstrapPublication.releaseId);
   const frozenPublishedRow = releaseRow(published.releaseId);

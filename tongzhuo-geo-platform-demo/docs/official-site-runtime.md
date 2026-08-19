@@ -21,7 +21,7 @@ $env:TZ_DATABASE_PATH='G:\path\tongzhuo-production.sqlite'
 $env:TZ_SITE_STATIC_ROOT='G:\path\demo-company-homepage'
 $env:TZ_SITE_BASE_URL='https://www.example.com'
 $env:TZ_SITE_BIND_HOST='127.0.0.1'
-$env:TZ_SITE_PORT='18080'
+$env:TZ_SITE_PORT='19080'
 npm run start:site
 ```
 

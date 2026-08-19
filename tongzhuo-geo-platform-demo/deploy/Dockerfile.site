@@ -2,7 +2,7 @@ FROM node:24-alpine
 
 ENV NODE_ENV=production \
     TZ_SITE_BIND_HOST=0.0.0.0 \
-    TZ_SITE_PORT=18080 \
+    TZ_SITE_PORT=19080 \
     TZ_DATA_DIR=/app/data \
     TZ_DATABASE_PATH=/app/data/tongzhuo-production.sqlite \
     TZ_SITE_STATIC_ROOT=/site
@@ -21,10 +21,10 @@ RUN mkdir -p /app/data/logs /app/data/backups /app/data/secrets \
     && chown -R node:node /app
 
 USER node
-EXPOSE 18080
+EXPOSE 19080
 VOLUME ["/app/data"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:18080/health/ready >/dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:19080/health/ready >/dev/null || exit 1
 
 CMD ["node", "site-server.mjs"]

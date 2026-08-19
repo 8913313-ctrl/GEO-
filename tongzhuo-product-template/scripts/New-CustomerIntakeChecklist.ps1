@@ -80,8 +80,8 @@ function Get-NormalizedUrl {
 
 $source = 'parameters'
 $services = @('GEO optimization', 'Short video operations', 'Enterprise AI implementation')
-$publisherPort = 18180
-$desktopAgentPort = 18280
+$publisherPort = 19180
+$desktopAgentPort = 19380
 
 if (-not [string]::IsNullOrWhiteSpace($ConfigPath)) {
     $resolvedConfig = (Resolve-Path $ConfigPath).Path
@@ -109,7 +109,7 @@ $companyNameValue = Get-RequiredText -Value $CompanyName -Name 'CompanyName'
 $shortNameValue = Get-RequiredText -Value $ShortName -Name 'ShortName'
 $siteUrlValue = Get-NormalizedUrl -Value (Get-RequiredText -Value $SiteUrl -Name 'SiteUrl') -Name 'SiteUrl'
 $geoflowValue = if ([string]::IsNullOrWhiteSpace($GeoFlowBaseUrl)) {
-    'http://127.0.0.1:18080'
+    'http://127.0.0.1:19080'
 } else {
     Get-NormalizedUrl -Value $GeoFlowBaseUrl -Name 'GeoFlowBaseUrl' -AllowHttp
 }

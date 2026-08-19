@@ -26,7 +26,7 @@ if ([string]::IsNullOrWhiteSpace($safeSlug)) {
 }
 $siteUrlNormalized = ([string] $customerManifest.site_url).TrimEnd('/')
 $geoflowBaseUrlNormalized = ([string] $customerManifest.geoflow_base_url).TrimEnd('/')
-$desktopAgentPort = if ($null -ne $customerManifest.desktop_agent_port) { [int] $customerManifest.desktop_agent_port } else { 18280 }
+$desktopAgentPort = if ($null -ne $customerManifest.desktop_agent_port) { [int] $customerManifest.desktop_agent_port } else { 19380 }
 
 if ([string]::IsNullOrWhiteSpace($OutputPath)) {
     $distRoot = Join-Path $rootPath 'dist'

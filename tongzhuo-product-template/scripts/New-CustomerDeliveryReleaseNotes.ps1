@@ -159,7 +159,7 @@ $notes = [ordered]@{
         site_url = ([string] $manifest.site_url).TrimEnd('/')
         geoflow_base_url = ([string] $manifest.geoflow_base_url).TrimEnd('/')
         publisher_port = [int] $manifest.publisher_port
-        desktop_agent_port = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 18280 }
+        desktop_agent_port = if ($null -ne $manifest.desktop_agent_port) { [int] $manifest.desktop_agent_port } else { 19380 }
     }
     endpoints = [ordered]@{
         website = [string] $archiveIndex.endpoints.website

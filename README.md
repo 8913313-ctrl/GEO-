@@ -23,4 +23,4 @@
 
 启动与交付说明见 [`tongzhuo-geo-platform-demo/README.md`](tongzhuo-geo-platform-demo/README.md) 和 [`tongzhuo-geo-platform-demo/docs/PRIVATE-DEPLOYMENT.md`](tongzhuo-geo-platform-demo/docs/PRIVATE-DEPLOYMENT.md)。
 
-中央中转平台启动方式见 [`geo-data-hub-demo/README.md`](geo-data-hub-demo/README.md)。它默认运行在 `43280` 端口，客户私有化后台通过服务端 HMAC 请求 `/client/v1/*`，浏览器不直接接触中转站实例密钥或爱搜 Token。
+中央中转平台启动方式见 [`geo-data-hub-demo/README.md`](geo-data-hub-demo/README.md)。它默认运行在 `44280` 端口，客户私有化后台通过服务端 HMAC 请求 `/client/v1/*`，浏览器不直接接触中转站实例密钥或爱搜 Token。

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Root = '',
-    [int]$Port = 18280,
+    [int]$Port = 19380,
     [switch]$ProbeLocal
 )
 
@@ -60,10 +60,10 @@ Add-Check 'client_prefers_device_secret_after_pairing' ($clientText -match 'devi
 Add-Check 'agent_distinguishes_device_secret_from_bound_state' ($agentText -match 'hasDeviceCredential' -and $agentText -match 'isPaired' -and $agentText -match 'pairedAt') 'local status must separate local secret from successful pairing.'
 Add-Check 'agent_reports_sessions' ($agentText -match 'loadSessions' -and $agentText -match 'sessions') 'local node should expose platform session status.'
 Add-Check 'main_exposes_sessions_endpoint' ($mainText -match "/api/sessions") 'local node should expose a sessions endpoint for diagnostics.'
-Add-Check 'start_cmd_does_not_open_local_console' ($startCmdText -notmatch 'Start-Process.*http://127\.0\.0\.1:18280') 'normal start must be silent.'
+Add-Check 'start_cmd_does_not_open_local_console' ($startCmdText -notmatch 'Start-Process.*http://127\.0\.0\.1:19380') 'normal start must be silent.'
 Add-Check 'start_cmd_launches_hidden_agent' ($startCmdText -match 'WindowStyle Hidden' -and $startCmdText -match 'run-agent\.ps1') 'normal start must launch the hidden background node.'
-Add-Check 'background_start_does_not_open_local_console' ($startBackgroundText -notmatch 'Start-Process.*http://127\.0\.0\.1:18280') 'background start must be silent.'
-Add-Check 'desktop_install_does_not_open_local_console' ($installDesktopText -notmatch 'Start-Process.*http://127\.0\.0\.1:18280') 'desktop install must not pop the local console.'
+Add-Check 'background_start_does_not_open_local_console' ($startBackgroundText -notmatch 'Start-Process.*http://127\.0\.0\.1:19380') 'background start must be silent.'
+Add-Check 'desktop_install_does_not_open_local_console' ($installDesktopText -notmatch 'Start-Process.*http://127\.0\.0\.1:19380') 'desktop install must not pop the local console.'
 Add-Check 'desktop_install_creates_hidden_shortcut' ($installDesktopText -match 'WindowStyle Hidden' -and $installDesktopText -match 'powershell\.exe' -and $installDesktopText -match 'run-agent\.ps1') 'desktop shortcut should open the hidden node directly.'
 Add-Check 'protocol_mentions_pairing_and_device_secret' ($protocolText -match 'pairing_code' -and $protocolText -match 'device_secret') 'protocol doc must describe pairing and long-lived device credentials.'
 Add-Check 'protocol_mentions_desktop_publisher' ($protocolText -match 'desktop_publisher') 'protocol doc must describe desktop_publisher task routing.'

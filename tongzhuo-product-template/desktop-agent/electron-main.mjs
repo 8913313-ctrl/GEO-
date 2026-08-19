@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const desktopPort = Number(process.env.TZ_DESKTOP_PORT || 18280);
+const desktopPort = Number(process.env.TZ_DESKTOP_PORT || 19380);
 const desktopStartPath = process.env.TZ_DESKTOP_START_PAGE === 'acceptance' ? '/test.html' : '/';
 const instanceId = crypto.randomUUID();
 const localToken = crypto.randomBytes(32).toString('hex');

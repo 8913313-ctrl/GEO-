@@ -19,7 +19,7 @@
 
 - `geo-admin`：后台和业务 API，仅在容器网络提供 HTTP；
 - `geo-admin-tls`：后台 HTTPS 入口，默认只绑定服务器 `127.0.0.1:18183`；
-- `geo-site`：企业官网，默认发布到 `18080`；
+- `geo-site`：企业官网，默认发布到 `19080`；
 - Docker volume：持久化 SQLite、加密状态、日志和应用内备份。
 
 标准主机目录：
@@ -84,7 +84,7 @@ sha256sum -c SHA256SUMS
 | `TZ_PRODUCTION_SITE_BASE_URL` | 企业官网最终 HTTPS URL，不能填 localhost |
 | `TZ_COMPOSE_PROJECT_NAME` | 当前企业部署的 Compose 隔离名称；同一服务器多套环境时必须唯一 |
 | `TZ_PRODUCTION_SITE_BIND_ADDRESS` | 有宿主机反向代理时建议 `127.0.0.1` |
-| `TZ_PRODUCTION_SITE_PORT` | 官网宿主机端口，默认 `18080` |
+| `TZ_PRODUCTION_SITE_PORT` | 官网宿主机端口，默认 `19080` |
 | `TZ_PRODUCTION_ADMIN_BIND_ADDRESS` | 默认且建议 `127.0.0.1` |
 | `TZ_PRODUCTION_ADMIN_PORT` | 默认 `18183`，不得与现有服务冲突 |
 | `TZ_ADMIN_TLS_CERT_HOST_PATH` | 证书目录的绝对路径，默认 `/opt/tongzhuo-geo/certs` |

@@ -17,18 +17,18 @@
     "ai_files_enabled": true
   },
   "geoflow": {
-    "base_url": "http://127.0.0.1:18080",
+    "base_url": "http://127.0.0.1:19080",
     "admin_path": "geo_admin",
     "api_token": ""
   },
   "publisher_assistant": {
-    "port": 18180,
+    "port": 19180,
     "poll_seconds": 20,
     "publish_mode": "publish",
     "browser_channel": "chromium"
   },
   "desktop_agent": {
-    "port": 18280,
+    "port": 19380,
     "poll_seconds": 20,
     "capabilities": ["zhihu", "wechat_mp", "toutiao", "zip-download"]
   }

@@ -1,5 +1,5 @@
 # Production cutover.  Do not run this file until the legacy process that
-# currently owns 18080 has been stopped and a restore-tested backup exists.
+# currently owns 19080 has been stopped and a restore-tested backup exists.
 name: ${TZ_COMPOSE_PROJECT_NAME:-tongzhuo-geo-production}
 
 x-app-build: &app-build
@@ -27,7 +27,7 @@ services:
     environment:
       <<: *common-env
       TZ_BIND_HOST: 0.0.0.0
-      PORT: 43127
+      PORT: 44127
       TZ_COOKIE_SECURE: ${TZ_PRODUCTION_COOKIE_SECURE:-1}
       # These paths are set only inside the backend container.  The actual
       # values arrive as Compose secrets and never enter app.env, the image,
@@ -49,9 +49,9 @@ services:
     # The management UI is reachable only through the loopback HTTPS proxy
     # below. It never binds an application port to the public network.
     expose:
-      - "43127"
+      - "44127"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:43127/health/ready >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:44127/health/ready >/dev/null 2>&1"]
       interval: 20s
       timeout: 5s
       retries: 6
@@ -87,7 +87,7 @@ services:
     environment:
       <<: *common-env
       TZ_SITE_BIND_HOST: 0.0.0.0
-      TZ_SITE_PORT: 18080
+      TZ_SITE_PORT: 19080
       TZ_SITE_STATIC_ROOT: /site
       TZ_SITE_BASE_URL: ${TZ_PRODUCTION_SITE_BASE_URL:?Set TZ_PRODUCTION_SITE_BASE_URL in deploy/cutover.env}
       TZ_SITE_WORKSPACE_ID: ${TZ_SITE_WORKSPACE_ID:-default}
@@ -98,9 +98,9 @@ services:
     # stopped.  Set TZ_PRODUCTION_SITE_BIND_ADDRESS=127.0.0.1 when a host
     # Nginx process is the only public listener.
     ports:
-      - "${TZ_PRODUCTION_SITE_BIND_ADDRESS:-0.0.0.0}:${TZ_PRODUCTION_SITE_PORT:-18080}:18080"
+      - "${TZ_PRODUCTION_SITE_BIND_ADDRESS:-0.0.0.0}:${TZ_PRODUCTION_SITE_PORT:-19080}:19080"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:18080/health/ready >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:19080/health/ready >/dev/null 2>&1"]
       interval: 20s
       timeout: 5s
       retries: 6

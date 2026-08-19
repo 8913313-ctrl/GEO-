@@ -75,7 +75,7 @@ if (-not [string]::IsNullOrWhiteSpace($apiToken)) {
     throw 'geoflow.api_token must be empty before packaging. Configure API Token after deployment.'
 }
 
-$publisherPort = 18180
+$publisherPort = 19180
 if ($null -ne $config.publisher_assistant -and $null -ne $config.publisher_assistant.port) {
     $publisherPort = [int]$config.publisher_assistant.port
 }
@@ -91,7 +91,7 @@ if ($pollSeconds -lt 5 -or $pollSeconds -gt 3600) {
     throw 'publisher_assistant.poll_seconds must be between 5 and 3600.'
 }
 
-$desktopAgentPort = 18280
+$desktopAgentPort = 19380
 if ($null -ne $config.desktop_agent -and $null -ne $config.desktop_agent.port) {
     $desktopAgentPort = [int]$config.desktop_agent.port
 }
@@ -139,7 +139,7 @@ $result = [ordered]@{
     company_name = $companyName
     short_name = $shortName
     site_url = $siteUrl.AbsoluteUri.TrimEnd('/')
-    geoflow_base_url = if ([string]::IsNullOrWhiteSpace($geoflowBaseUrl)) { 'http://127.0.0.1:18080' } else { $geoflowBaseUrl.TrimEnd('/') }
+    geoflow_base_url = if ([string]::IsNullOrWhiteSpace($geoflowBaseUrl)) { 'http://127.0.0.1:19080' } else { $geoflowBaseUrl.TrimEnd('/') }
     publisher_port = $publisherPort
     desktop_agent_port = $desktopAgentPort
     poll_seconds = $pollSeconds

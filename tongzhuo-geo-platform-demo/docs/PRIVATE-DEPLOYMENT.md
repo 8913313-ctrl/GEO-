@@ -19,7 +19,7 @@
 | --- | --- | --- |
 | `NODE_ENV` | 运行环境 | `development` |
 | `TZ_BIND_HOST` | Node 监听地址；生产环境建议只监听 `127.0.0.1` | `127.0.0.1` |
-| `PORT` | Node 端口 | `43127` |
+| `PORT` | Node 端口 | `44127` |
 | `TZ_DATA_DIR` | 运行数据、发布器状态和日志目录 | `./data` |
 | `TZ_DATABASE_PATH` | SQLite 数据库文件 | `data/tongzhuo-production.sqlite` |
 | `TZ_MASTER_KEY` | API Key 加密主密钥，生产必填 | 无 |
@@ -94,7 +94,7 @@ GET /api/v1/auth/status
 
 ## 5. 反向代理
 
-生产环境推荐使用 `deploy/nginx.conf` 作为参考配置：代理只转发到 `127.0.0.1:43127`，开启 HTTPS、请求体限制和安全响应头。Node 进程不直接绑定公网地址。若代理终止 TLS，必须设置 `TZ_TRUST_PROXY=true` 和 `TZ_COOKIE_SECURE=true`，并确保代理只来自受信网络。
+生产环境推荐使用 `deploy/nginx.conf` 作为参考配置：代理只转发到 `127.0.0.1:44127`，开启 HTTPS、请求体限制和安全响应头。Node 进程不直接绑定公网地址。若代理终止 TLS，必须设置 `TZ_TRUST_PROXY=true` 和 `TZ_COOKIE_SECURE=true`，并确保代理只来自受信网络。
 
 ## 6. 备份与恢复
 

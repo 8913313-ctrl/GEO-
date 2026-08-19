@@ -171,7 +171,7 @@ function Write-WizardArtifacts {
             company_name = $CompanyName
             short_name = $ShortName
             site_url = ([uri]$SiteUrl).AbsoluteUri.TrimEnd('/')
-            geoflow_base_url = if ([string]::IsNullOrWhiteSpace($GeoFlowBaseUrl)) { 'http://127.0.0.1:18080' } else { ([uri]$GeoFlowBaseUrl).AbsoluteUri.TrimEnd('/') }
+            geoflow_base_url = if ([string]::IsNullOrWhiteSpace($GeoFlowBaseUrl)) { 'http://127.0.0.1:19080' } else { ([uri]$GeoFlowBaseUrl).AbsoluteUri.TrimEnd('/') }
             telephone = $Telephone
             email = $Email
             address = $Address
@@ -207,7 +207,7 @@ function Write-WizardArtifacts {
             preflight_report = '.\Start-CustomerDelivery.ps1 -Action PreflightReport'
             server_dry_run = '.\Start-CustomerDelivery.ps1 -Action ServerDryRunCommand -LaravelRoot /www/wwwroot/geoflow'
             go_live_checklist = '.\Start-CustomerDelivery.ps1 -Action GoLiveChecklist'
-            desktop_agent_health = 'Invoke-WebRequest http://127.0.0.1:18280/healthz'
+            desktop_agent_health = 'Invoke-WebRequest http://127.0.0.1:19380/healthz'
         }
         acceptance_commands = [ordered]@{
             publishing_loop_acceptance = '.\Start-CustomerDelivery.ps1 -Action PublishingLoopAcceptance'
@@ -236,7 +236,7 @@ function Write-WizardArtifacts {
             [ordered]@{ item = 'Run delivery verification from the extracted package.'; evidence = '.\Start-CustomerDelivery.ps1 -Action Verify' },
             [ordered]@{ item = 'Run preflight before touching the customer server.'; evidence = '.\Start-CustomerDelivery.ps1 -Action PreflightReport' },
             [ordered]@{ item = 'Install GEOFlow server overrides and website package.'; evidence = '.\Start-CustomerDelivery.ps1 -Action ServerVerifyCommand -LaravelRoot /www/wwwroot/geoflow' },
-            [ordered]@{ item = 'Install and login through the Windows desktop publisher agent.'; evidence = 'http://127.0.0.1:18280/healthz' },
+            [ordered]@{ item = 'Install and login through the Windows desktop publisher agent.'; evidence = 'http://127.0.0.1:19380/healthz' },
             [ordered]@{ item = 'Publish one website article and confirm AI-readable website outputs.'; evidence = "$(([uri]$SiteUrl).AbsoluteUri.TrimEnd('/'))/llms.txt" },
             [ordered]@{ item = 'Create one distribution task and confirm desktop result writeback.'; evidence = '.\Start-CustomerDelivery.ps1 -Action PublishingLoopAcceptance' },
             [ordered]@{ item = 'Generate acceptance report and operations evidence pack before signoff.'; evidence = '.\Start-CustomerDelivery.ps1 -Action AcceptanceReport' }

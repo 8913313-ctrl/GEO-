@@ -88,7 +88,7 @@ try {
             llms_txt = 'https://dossier-smoke.example.com/llms.txt'
             sitemap = 'https://dossier-smoke.example.com/sitemap.xml'
             feed = 'https://dossier-smoke.example.com/feed.xml'
-            desktop_health = 'http://127.0.0.1:18280/healthz'
+            desktop_health = 'http://127.0.0.1:19380/healthz'
         }
         acceptance = [ordered]@{
             preflight_report = '.\Start-CustomerDelivery.ps1 -Action PreflightReport'
@@ -143,7 +143,7 @@ try {
         short_name = 'Dossier Smoke'
         site_url = 'https://dossier-smoke.example.com'
         geoflow_base_url = 'https://work-dossier-smoke.example.com'
-        desktop_agent_port = 18280
+        desktop_agent_port = 19380
         delivery_package = [ordered]@{
             path = $deliveryPackage
             file = Split-Path $deliveryPackage -Leaf

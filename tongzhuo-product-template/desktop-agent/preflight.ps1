@@ -1,5 +1,5 @@
 param(
-    [int]$AgentPort = 18280,
+    [int]$AgentPort = 19380,
     [switch]$AllowPortInUse
 )
 

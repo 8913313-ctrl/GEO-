@@ -16,8 +16,8 @@ param(
     [string]$AddressRegion = '',
     [string]$UnifiedSocialCreditCode = '',
     [string]$FoundingDate = '',
-    [int]$PublisherPort = 18180,
-    [int]$DesktopAgentPort = 18280,
+    [int]$PublisherPort = 19180,
+    [int]$DesktopAgentPort = 19380,
     [int]$PollSeconds = 20,
     [int]$DesktopPollSeconds = 20,
     [ValidateSet('publish', 'draft')] [string]$PublishMode = 'publish',
@@ -46,7 +46,7 @@ if ([string]::IsNullOrWhiteSpace($Description)) {
     $Description = "$ShortName GEO growth suite customer configuration."
 }
 if ($null -eq $GeoFlowBaseUrl) {
-    $GeoFlowBaseUrl = [uri]'http://127.0.0.1:18080'
+    $GeoFlowBaseUrl = [uri]'http://127.0.0.1:19080'
 }
 if ($null -eq $WorkbenchUrl) {
     $WorkbenchUrl = $SiteUrl

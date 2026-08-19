@@ -151,7 +151,7 @@ try {
       ...process.env,
       NODE_ENV: "production",
       TZ_BIND_HOST: "127.0.0.1",
-      PORT: "43127",
+      PORT: "44127",
       TZ_RELAY_BASE_URL: "",
       TZ_RELAY_INSTANCE_ID: "",
       TZ_RELAY_CLIENT_ID: "",

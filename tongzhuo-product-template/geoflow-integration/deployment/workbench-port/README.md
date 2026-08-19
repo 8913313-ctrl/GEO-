@@ -1,4 +1,4 @@
-﻿# GEOFlow workbench port
+# GEOFlow workbench port
 
 Production access:
 
@@ -12,7 +12,7 @@ The production compose file needs this additional web port mapping:
 
 ```yaml
 ports:
-  - "${WEB_PORT:-18080}:80"
-  - "${WORKBENCH_PORT:-18180}:80"
+  - "${WEB_PORT:-19080}:80"
+  - "${WORKBENCH_PORT:-19180}:80"
 ```
 

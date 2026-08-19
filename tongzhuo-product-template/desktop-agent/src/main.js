@@ -224,7 +224,7 @@ app.post('/api/jobs/:id/run', async (request, response) => {
   }
 });
 
-const port = Number(agent.config.port) || 18280;
+const port = Number(agent.config.port) || 19380;
 const server = app.listen(port, '127.0.0.1', () => {
   agent.restartTimers();
   if (agent.hasCredential()) {

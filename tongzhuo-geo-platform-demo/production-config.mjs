@@ -41,7 +41,7 @@ const dataDir = path.resolve(process.env.TZ_DATA_DIR || path.join(moduleRoot, "d
 export const productionConfig = Object.freeze({
   environment: String(process.env.NODE_ENV || "development").trim().toLowerCase(),
   host: String(process.env.TZ_BIND_HOST || "127.0.0.1").trim(),
-  port: numberEnv("PORT", 43127, { min: 1, max: 65535 }),
+  port: numberEnv("PORT", 44127, { min: 1, max: 65535 }),
   dataDir,
   databasePath: path.resolve(process.env.TZ_DATABASE_PATH || path.join(dataDir, "tongzhuo-production.sqlite")),
   logDir: path.resolve(process.env.TZ_LOG_DIR || path.join(dataDir, "logs")),

@@ -117,7 +117,7 @@ try {
   const compose = await readFile(path.join(projectRoot, "deploy", "docker-compose.production.yml"), "utf8");
   const composeSecrets = await readFile(path.join(projectRoot, "deploy", "docker-compose.production.secrets.yml"), "utf8");
   assert.match(compose, /TZ_RELAY_SEED_DEMO:\s*"0"/);
-  assert.match(compose, /\$\{TZ_RELAY_BIND_ADDRESS:-127\.0\.0\.1\}:43280:43280/);
+  assert.match(compose, /\$\{TZ_RELAY_BIND_ADDRESS:-127\.0\.0\.1\}:44280:44280/);
   assert.match(compose, /read_only:\s*true/);
   assert.match(compose, /no-new-privileges:true/);
   assert.match(compose, /cap_drop:\s*\r?\n\s*- ALL/);
