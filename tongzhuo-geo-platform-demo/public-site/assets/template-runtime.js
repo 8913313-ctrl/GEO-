@@ -156,6 +156,20 @@
     statNodes.forEach((node) => observer.observe(node));
   } else statNodes.forEach(animateStat);
 
+  const revealEls = document.querySelectorAll(".reveal");
+  if (revealEls.length) {
+    if ("IntersectionObserver" in window && !reducedMotion) {
+      const revealObserver = new IntersectionObserver((entries) => entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("visible");
+        revealObserver.unobserve(entry.target);
+      }), { threshold: 0.12 });
+      revealEls.forEach((el) => revealObserver.observe(el));
+    } else {
+      revealEls.forEach((el) => el.classList.add("visible"));
+    }
+  }
+
   backToTop = document.createElement("button");
   backToTop.type = "button";
   backToTop.className = "template-back-to-top";

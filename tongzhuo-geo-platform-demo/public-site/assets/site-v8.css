@@ -2979,3 +2979,5 @@ body.site-v8.template-02-construction .site-footer .footer-about h3 { color: #ff
 @media (max-width: 768px) {
   body.site-v8.template-02-construction .construction-service-cta .container { align-items: flex-start; flex-direction: column; }
 }
+
+body.template-source-11 .direction-icon-right { transform: rotate(180deg); }

@@ -3308,3 +3308,5 @@ html.motion-ready body.corp-home-page .reveal-item {
   .corp-contact { padding-block: 60px; }
   .corp-contact-layout { grid-template-columns: 1fr; gap: 30px; }
 }
+
+body.template-source-11 .direction-icon-right { transform: rotate(180deg); }

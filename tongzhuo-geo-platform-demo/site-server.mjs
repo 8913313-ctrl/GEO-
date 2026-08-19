@@ -130,6 +130,7 @@ const BUILT_IN_SITE_ASSETS = Object.freeze({
   "/site-assets-r9/template-08-education.css": "08-education.css",
   "/site-assets-r9/template-09-travel-hotel.css": "09-travel-hotel.css",
   "/site-assets-r9/template-10-food-consumer.css": "10-food-consumer.css",
+  "/site-assets-r9/template-11-ups.css": "template-11-ups.css",
   "/site-assets-r9/03-software-ai.css": "03-software-ai.css",
   "/site-assets-r9/04-logistics.css": "04-logistics.css",
   "/site-assets-r9/05-business-services.css": "05-business-services.css",

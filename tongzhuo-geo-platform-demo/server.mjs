@@ -869,7 +869,8 @@ async function handleSiteCmsApi(request, response, parts) {
       "template-07-healthcare.css": "07-healthcare.css",
       "template-08-education.css": "08-education.css",
       "template-09-travel-hotel.css": "09-travel-hotel.css",
-      "template-10-food-consumer.css": "10-food-consumer.css"
+      "template-10-food-consumer.css": "10-food-consumer.css",
+      "template-11-ups.css": "template-11-ups.css"
     });
     const previewAssets = new Set([
       "site.css",
@@ -902,7 +903,9 @@ async function handleSiteCmsApi(request, response, parts) {
       "template-07-default.png",
       "template-08-default.png",
       "template-09-default.png",
-      "template-10-default.png"
+      "template-10-default.png",
+      "template-11-ups.css",
+      "template-11-default.png"
     ]);
     if (!previewAssets.has(fileName)) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
     const relativeFile = previewAssetFiles[fileName] || fileName;

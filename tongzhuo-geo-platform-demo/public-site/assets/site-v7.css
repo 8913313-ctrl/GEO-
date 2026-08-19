@@ -1,2 +1,4 @@
 /* Temporary compatibility entry while the selected full-site direction is under review. */
 @import url("/site-assets-r6/site.css");
+
+body.template-source-11 .direction-icon-right { transform: rotate(180deg); }

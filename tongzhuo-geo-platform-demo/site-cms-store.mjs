@@ -309,6 +309,12 @@ function normalizeModule(item, pageId, index) {
     status: ["published", "draft", "hidden"].includes(item?.status) ? item.status : "draft",
     ctaLabel: cleanText(item?.ctaLabel, "", 80), ctaHref: normalizeCmsPath(item?.ctaHref, "/contact/"),
     image: cleanOptionalImage(item?.image), imageAlt: cleanText(item?.imageAlt, title || "模块图片", 180),
+    stats: (Array.isArray(item?.stats) ? item.stats : []).slice(0, 5).map((entry) => {
+      const pair = Array.isArray(entry) ? entry : [entry?.number, entry?.label];
+      const number = cleanText(String(pair?.[0] ?? "").trim(), "", 40);
+      const label = cleanText(String(pair?.[1] ?? "").trim(), "", 80);
+      return number ? [number, label] : null;
+    }).filter(Boolean),
     items: (Array.isArray(item?.items) ? item.items : []).slice(0, 24).map((entry, itemIndex) => ({
       id: cleanId(entry?.id, `${pageId}-${type}-item-${itemIndex + 1}`), title: cleanText(entry?.title, `项目 ${itemIndex + 1}`, 160),
       description: cleanText(entry?.description, entry?.content || "", 1_000), href: normalizeCmsPath(entry?.href, "/contact/"),
