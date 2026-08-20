@@ -246,23 +246,8 @@ export class WorkspaceStore {
         }
       }
       const recordCounts = Object.fromEntries(recordGroups.map((group) => [group.recordType, group.records.length]));
-      appendAuditLog(this.connection, {
-        actorUserId,
-        action: "workspace.save",
-        entityType: "workspace",
-        entityId: workspaceId,
-        details: {
-          previousRevision: currentRevision,
-          revision,
-          checksum: serialized.checksum,
-          stateBytes: serialized.bytes,
-          recordCounts,
-          reason: String(options.reason || "").slice(0, 500) || undefined
-        },
-        request: options.request,
-        trustProxy: this.trustProxy,
-        createdAt: now
-      });
+      // 工作区保存不写入审计日志：版本与操作人已由 workspace_revisions 完整记录，
+      // 避免每次浏览器同步都产生一条 workspace.save，刷掉真正的高价值审计操作。
       saved = {
         workspaceId,
         revision,

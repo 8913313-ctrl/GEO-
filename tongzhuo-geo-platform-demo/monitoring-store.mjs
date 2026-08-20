@@ -1020,7 +1020,7 @@ export class MonitoringStore {
         if (Number(result.changes)) accepted += 1; else duplicates += 1;
       }
       this.connection.prepare("INSERT INTO monitoring_log_batches (id, workspace_id, source, received_count, accepted_count, duplicate_count, rejected_count, created_at, created_by) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)").run(batchId, workspaceId, normalizedSource, items.length, accepted, duplicates, timestamp, userId);
-      appendAuditLog(this.connection, { actorUserId: userId, action: "monitoring.access_logs.ingest", entityType: "monitoring_log_batch", entityId: batchId, details: { workspaceId, source: normalizedSource, received: items.length, accepted, duplicates }, request, createdAt: timestamp });
+      // 摄取批次本身不写审计日志：monitoring_log_batches 表已完整记录，避免每次日志同步刷掉高价值审计操作。
     });
     return { batchId, received: items.length, accepted, duplicates, rejected: 0 };
   }

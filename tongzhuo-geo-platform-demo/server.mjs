@@ -961,6 +961,7 @@ async function handleAuditApi(request, response) {
   const rows = database.connection.prepare(`
     SELECT a.*, u.display_name AS actor_name, u.username AS actor_username
     FROM audit_logs a LEFT JOIN users u ON u.id = a.actor_user_id
+    WHERE a.action NOT IN ('workspace.save', 'monitoring.access_logs.ingest')
     ORDER BY a.id DESC LIMIT ?
   `).all(limit).map((row) => ({
     id: row.id,

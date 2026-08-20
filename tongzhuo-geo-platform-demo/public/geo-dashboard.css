@@ -185,7 +185,7 @@ body {
 
 .route-dashboard .page-head::after {
   position: absolute;
-  z-index: 0;
+  z-index: -1;
   top: -24px;
   right: 170px;
   width: 290px;
@@ -303,7 +303,7 @@ body {
 .dashboard-period { min-height: 32px; padding: 0 10px; color: var(--muted); font-size: 11px; }
 .period-chevron { margin-left: 5px; color: var(--muted-2); }
 .insights-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0 19px 19px; }
-.insight-card { position: relative; min-height: 132px; padding: 14px 14px 9px; overflow: hidden; border: 1px solid #edf1f8; border-radius: 12px; background: #fbfcff; }
+.insight-card { position: relative; display: flex; flex-direction: column; justify-content: space-between; min-height: 132px; padding: 14px 14px 10px; overflow: hidden; border: 1px solid #edf1f8; border-radius: 12px; background: #fbfcff; }
 .insight-card:hover { border-color: #d4dcff; background: #f7f9ff; }
 .insight-card-head { display: flex; flex-direction: column; gap: 6px; }
 .insight-card-head span { color: var(--muted); font-size: 11px; }
@@ -313,7 +313,7 @@ body {
 .insight-trend .trend.up { color: #1aaf91; }
 .insight-trend .trend.down { color: #e39544; }
 .insight-trend .trend.neutral { color: var(--blue); }
-.insight-sparkline { position: absolute; right: 8px; bottom: 3px; left: 8px; width: calc(100% - 16px); height: 43px; color: var(--blue); }
+.insight-sparkline { position: static; display: block; width: 100%; height: 43px; margin-top: 10px; color: var(--blue); }
 .insight-card.teal .insight-sparkline { color: #22bcb7; }
 .insight-card.purple .insight-sparkline { color: var(--purple); }
 .insight-card.indigo .insight-sparkline { color: #6d7ff4; }
@@ -563,14 +563,15 @@ body {
 .sidebar-promo {
   position: relative;
   flex: 0 0 auto;
-  margin: 0 16px 14px;
-  padding: 14px;
+  margin: 0 16px 10px;
+  padding: 12px 12px 10px;
   overflow: hidden;
   border: 1px solid rgba(121, 82, 229, .2);
-  border-radius: 16px;
+  border-radius: 14px;
   background: linear-gradient(145deg, #ffffff 0%, #f5f0ff 58%, #eee7ff 100%);
   box-shadow: 0 12px 30px rgba(82, 48, 165, .1);
 }
+.sidebar-promo-visual { display: none; }
 .sidebar-promo::after { content: ""; position: absolute; width: 90px; height: 90px; right: -42px; bottom: -52px; border-radius: 50%; background: rgba(112, 67, 237, .1); filter: blur(2px); }
 .sidebar-promo-head { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
 .sidebar-promo-mark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #865cf4, #5430c7); box-shadow: 0 6px 14px rgba(101, 58, 218, .26); font-size: 10px; font-weight: 850; letter-spacing: .04em; }
@@ -586,8 +587,8 @@ body {
 .sidebar-promo-visual i { width: 34px; height: 34px; top: 16px; left: 58px; background: radial-gradient(circle at 34% 28%, #fff 0 5%, #b79cff 25%, #7043ed 72%); box-shadow: 0 8px 18px rgba(111, 65, 237, .34); }
 .sidebar-promo-visual span { width: 7px; height: 7px; top: 12px; left: 28px; background: #d8c9ff; box-shadow: 83px 17px 0 #bda8ff; }
 .sidebar-promo-visual b { width: 98px; height: 20px; bottom: 5px; left: 26px; border: 1px solid rgba(123, 77, 255, .3); transform: perspective(70px) rotateX(55deg); }
-.sidebar-promo strong { position: relative; z-index: 1; display: block; color: #30264f; font-size: 12px; line-height: 1.45; }
-.sidebar-promo p { position: relative; z-index: 1; margin: 5px 0 12px; color: #746e88; font-size: 9px; line-height: 1.6; }
+.sidebar-promo strong { position: relative; z-index: 1; display: block; margin-top: 2px; color: #30264f; font-size: 11.5px; line-height: 1.4; }
+.sidebar-promo p { position: relative; z-index: 1; margin: 4px 0 10px; color: #746e88; font-size: 9px; line-height: 1.55; }
 .sidebar-promo a { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; min-height: 32px; padding: 0 11px; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #7548ee, #5d35cf); box-shadow: 0 7px 14px rgba(101, 58, 218, .2); font-size: 10px; font-weight: 760; text-decoration: none; transition: transform .18s ease, box-shadow .18s ease; }
 .sidebar-promo a:hover { transform: translateY(-1px); box-shadow: 0 9px 18px rgba(101, 58, 218, .28); }
 .sidebar-promo a span { font-size: 13px; line-height: 1; }
@@ -630,7 +631,7 @@ body {
 }
 .route-dashboard .page-head::before {
   position: absolute;
-  z-index: 0;
+  z-index: -1;
   top: -85px;
   right: 142px;
   color: rgba(124, 77, 255, .16);

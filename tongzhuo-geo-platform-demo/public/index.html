@@ -7,58 +7,60 @@
     <meta name="description" content="桐灼 GEO 企业私有化运营系统" />
     <meta name="publisher-download-url" content="__TZ_PUBLISHER_DOWNLOAD_URL__" />
     <title>桐灼 GEO 运营系统</title>
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/product-ui.css?v=20260814" />
-    <link rel="stylesheet" href="/geo-dashboard.css?v=20260803" />
+    <link rel="stylesheet" href="/styles.css?v=20260820-demo-117" />
+    <link rel="stylesheet" href="/product-ui.css?v=20260820-demo-117" />
+    <link rel="stylesheet" href="/geo-dashboard.css?v=20260820-demo-117" />
+    <link rel="stylesheet" href="/design-tokens.css?v=20260820-demo-117" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到主要内容</a>
     <div class="app-shell">
       <div class="sidebar-overlay" data-action="close-sidebar"></div>
       <aside class="sidebar" aria-label="主导航">
-        <div class="brand brand-logo-lockup">
-          <img class="brand-logo-image" src="/assets/zhuojian-ai-brand.png" alt="灼见 AI" />
+        <div class="brand">
+          <div class="brand-mark">灼</div>
+          <div><div class="brand-text">灼见 GEO</div><div class="brand-sub">CONSOLE</div></div>
           <button class="icon-button sidebar-close" type="button" data-action="close-sidebar" aria-label="关闭导航">×</button>
         </div>
 
-        <nav class="nav-main">
-          <a href="#dashboard" data-route="dashboard"><span class="nav-icon" data-icon="home"></span><span>工作台</span></a>
-          <a href="#planning" data-route="planning"><span class="nav-icon" data-icon="compass"></span><span>选题中心</span></a>
-          <a href="#content" data-route="content"><span class="nav-icon" data-icon="file"></span><span>内容生产</span></a>
-          <a href="#publish" data-route="publish"><span class="nav-icon" data-icon="send"></span><span>发布运营</span><i class="nav-dot warning" id="publish-nav-dot"></i></a>
-          <a href="#assets" data-route="assets"><span class="nav-icon" data-icon="folder"></span><span>内容资产</span></a>
-          <a href="#monitoring" data-route="monitoring"><span class="nav-icon" data-icon="chart"></span><span>运营诊断</span></a>
-          <details class="nav-effect-group" data-effect-nav-group>
-            <summary class="nav-effect-toggle" aria-controls="effect-nav-items">
-              <span class="nav-icon" data-icon="monitor"></span><span>AI效果检测</span><i class="nav-effect-chevron">⌄</i>
-            </summary>
-            <div class="nav-effect-items" id="effect-nav-items">
-              <a href="#effect-search" data-route="effect-search" data-effect-nav><span class="nav-icon" data-icon="search"></span><span>实时搜索</span></a>
-              <a href="#effect-diagnostic" data-route="effect-diagnostic" data-effect-nav><span class="nav-icon" data-icon="target"></span><span>品牌诊断</span></a>
-              <a href="#effect-monitor" data-route="effect-monitor" data-effect-nav><span class="nav-icon" data-icon="chart"></span><span>品牌监测</span></a>
-            </div>
-          </details>
-          <a href="#site" data-route="site"><span class="nav-icon" data-icon="globe"></span><span>官网运营</span></a>
-          <a href="#knowledge" data-route="knowledge"><span class="nav-icon" data-icon="book"></span><span>企业知识</span></a>
-        </nav>
+        <nav class="nav">
+          <div class="nav-section">
+            <div class="nav-label">工作区</div>
+            <a class="nav-item" href="#dashboard" data-route="dashboard"><span class="ic" data-icon="home"></span><span>工作台</span></a>
+            <a class="nav-item" href="#planning" data-route="planning"><span class="ic" data-icon="compass"></span><span>选题中心</span></a>
+            <a class="nav-item" href="#content" data-route="content"><span class="ic" data-icon="file"></span><span>内容生产</span></a>
+            <a class="nav-item" href="#publish" data-route="publish"><span class="ic" data-icon="send"></span><span>发布运营</span></a>
+            <a class="nav-item" href="#monitoring" data-route="monitoring"><span class="ic" data-icon="chart"></span><span>运营诊断</span></a>
+            <a class="nav-item" href="#assets" data-route="assets"><span class="ic" data-icon="folder"></span><span>内容资产</span></a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-label">官网与知识</div>
+            <a class="nav-item" href="#site" data-route="site"><span class="ic" data-icon="globe"></span><span>官网运营</span></a>
+            <a class="nav-item" href="#knowledge" data-route="knowledge"><span class="ic" data-icon="book"></span><span>企业知识</span></a>
+            <details class="nav-effect-group" data-effect-nav-group>
+              <summary class="nav-item nav-effect-toggle" aria-controls="effect-nav-items">
+                <span class="ic" data-icon="monitor"></span><span>AI效果检测</span><i class="nav-effect-chevron">⌄</i>
+              </summary>
+              <div class="nav-effect-items" id="effect-nav-items">
+                <a class="nav-item" href="#effect-search" data-route="effect-search" data-effect-nav><span class="ic" data-icon="search"></span><span>实时搜索</span></a>
+                <a class="nav-item" href="#effect-diagnostic" data-route="effect-diagnostic" data-effect-nav><span class="ic" data-icon="target"></span><span>品牌诊断</span></a>
+                <a class="nav-item" href="#effect-monitor" data-route="effect-monitor" data-effect-nav><span class="ic" data-icon="chart"></span><span>品牌监测</span></a>
+              </div>
+            </details>
+          </div>
 
-        <div class="nav-spacer"></div>
-        <section class="sidebar-promo" aria-label="桐灼 GEO 业务咨询">
-          <div class="sidebar-promo-head"><span class="sidebar-promo-mark">TZ</span><span class="sidebar-promo-tag">GEO SERVICE</span></div>
-          <div class="sidebar-promo-visual" aria-hidden="true"><i></i><span></span><b></b></div>
-          <strong>让企业成为 AI 的可信答案</strong>
-          <p>从企业知识、官网信源到持续内容运营，获得适合当前业务的 GEO 建议。</p>
-          <a href="https://tongzhuo.ink/insights/" data-official-consult target="_blank" rel="noopener noreferrer">咨询桐灼 <span>↗</span></a>
-        </section>
-        <nav class="nav-secondary">
-          <a href="#assistant" data-route="assistant"><span class="nav-icon" data-icon="monitor"></span><span>发布助手</span><em><i></i>在线</em></a>
-          <a class="docs-nav-link" href="/usage-guide.html" target="_blank" rel="noopener"><span class="nav-icon" data-icon="book"></span><span>使用文档</span></a>
-          <a href="#settings" data-route="settings"><span class="nav-icon" data-icon="settings"></span><span>系统设置</span></a>
-        </nav>
+          <div class="nav-promo">
+            <b>让企业成为 AI 的可信答案</b>
+            <p>企业知识 · 官网信源 · 持续内容运营</p>
+            <a class="nav-promo-go" href="https://tongzhuo.ink/insights/" data-official-consult target="_blank" rel="noopener noreferrer">咨询桐灼 →</a>
+          </div>
 
-        <div class="sidebar-footer">
-          <div class="deploy-badge"><span>私有化部署</span><b>桐灼科技</b></div>
-        </div>
+          <div class="nav-section">
+            <div class="nav-label">系统</div>
+            <a class="nav-item" href="#assistant" data-route="assistant"><span class="ic" data-icon="monitor"></span><span>发布助手</span></a>
+            <a class="nav-item" href="#settings" data-route="settings"><span class="ic" data-icon="settings"></span><span>系统设置</span></a>
+          </div>
+        </nav>
       </aside>
 
       <div class="main-column">
@@ -67,15 +69,17 @@
             <button class="icon-button menu-button" type="button" data-action="open-sidebar" aria-label="打开导航">
               <span></span><span></span><span></span>
             </button>
-            <div>
-              <div class="breadcrumbs"><span>运营中心</span><b>/</b><strong id="breadcrumb-current">工作台</strong></div>
-              <h1 id="page-title">工作台</h1>
+            <div class="crumb">
+              <span class="crumb-brand">灼见 GEO</span>
+              <span class="crumb-sep">/</span>
+              <span class="crumb-now" id="breadcrumb-current">工作台</span>
             </div>
+            <h1 id="page-title">工作台</h1>
           </div>
           <div class="topbar-actions">
-            <button class="assistant-pill" type="button" data-nav="assistant"><i></i><span>发布助手在线</span></button>
-            <button class="soft-button website-link" type="button" data-action="preview-site"><span data-icon="external"></span>预览官网</button>
-            <button class="search-trigger" type="button" data-action="open-search"><span data-icon="search"></span><span>搜索功能</span><kbd>Ctrl K</kbd></button>
+            <button class="icon-button" type="button" data-action="open-search" aria-label="搜索"><span data-icon="search"></span></button>
+            <button class="topbar-btn" type="button" data-action="preview-site">预览官网 ↗</button>
+            <button class="topbar-btn topbar-btn-primary" type="button" data-nav="planning">+ 新建内容计划</button>
             <button class="icon-button notification-button" type="button" data-action="open-notifications" aria-label="通知"><span data-icon="bell"></span><i></i></button>
             <button class="avatar-button" type="button" data-action="user-menu" aria-label="用户菜单">王</button>
           </div>
@@ -91,7 +95,7 @@
     <div id="toast-root" class="toast-root" aria-live="assertive"></div>
 
     <script src="/auth-bootstrap.js"></script>
-    <script src="/site-template-registry.js?v=20260818-template-layouts"></script>
-    <script src="/app.js?v=20260818-template-layouts"></script>
+    <script src="/site-template-registry.js?v=20260820-demo-117"></script>
+    <script src="/app.js?v=20260820-demo-117"></script>
   </body>
 </html>

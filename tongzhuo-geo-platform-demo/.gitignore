@@ -22,3 +22,6 @@ research-packages/geo-citation-lab/*/derived/*.sqlite
 research-packages/geo-citation-lab/*/derived/*.sqlite-*
 research-packages/geo-citation-lab/.document-updates/
 research-packages/geo-citation-lab/document-snapshots/
+*.before-*
+*.bak
+*.orig
