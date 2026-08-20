@@ -100,8 +100,9 @@ try {
   const groupB = overview.accountGroups.find((group) => group.id === "group-b");
   const groupC = overview.accountGroups.find((group) => group.id === "group-c");
 
-  assert.equal(overview.platforms.find((platform) => platform.id === "baijiahao")?.support, "ready");
-  assert.equal(overview.platforms.find((platform) => platform.id === "baijiahao")?.requiresManualConfirmation, false);
+  assert.equal(overview.platforms.find((platform) => platform.id === "baijiahao")?.support, "manual");
+  assert.equal(overview.platforms.find((platform) => platform.id === "baijiahao")?.requiresManualConfirmation, true);
+  assert.equal(overview.platforms.find((platform) => platform.id === "baijiahao")?.supports_direct_publish, false);
   assert.equal(groupA?.accounts?.baijiahao?.status, "online");
   assert.equal(groupB?.accounts?.baijiahao?.status, "needs_verification");
   assert.equal(groupC?.accounts?.baijiahao?.status, "unknown");
@@ -113,6 +114,11 @@ try {
     platforms: ["baijiahao"]
   });
   assert.deepEqual(job.platforms, ["baijiahao"]);
+  assert.equal(job.publish_mode, "draft");
+  assert.equal(job.manual_confirmation, true);
+  assert.equal(job.supports_direct_publish, false);
+  assert.equal(job.platform_details[0].publish_mode, "draft");
+  assert.equal(job.platform_details[0].manual_confirmation, true);
 
   await assert.rejects(
     () => store.createJobs({

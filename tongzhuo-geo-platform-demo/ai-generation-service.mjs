@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -346,6 +347,176 @@ function embeddingsUrl(baseUrl) {
   const pathname = url.pathname.replace(/\/+$/, "");
   url.pathname = /\/embeddings$/i.test(pathname) ? pathname : `${pathname}/embeddings`.replace(/^\/\//, "/");
   return url.toString();
+}
+
+const IMAGE_SIZE_SET = new Set(["1024x1024", "1536x1024", "1024x1536"]);
+const IMAGE_MIME_EXTENSIONS = Object.freeze({
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/avif": "avif"
+});
+
+function imageGenerationsUrl(baseUrl) {
+  const url = new URL(baseUrl);
+  const pathname = url.pathname.replace(/\/+$/, "");
+  const apiRoot = pathname.replace(/\/chat\/completions$/i, "");
+  url.pathname = /\/images\/generations$/i.test(pathname)
+    ? pathname
+    : `${apiRoot}/images/generations`.replace(/^\/\//, "/");
+  return url.toString();
+}
+
+function imageSize(value) {
+  const normalized = optionalString(value, 20) || "1024x1024";
+  if (!IMAGE_SIZE_SET.has(normalized)) {
+    throw new AiGenerationError("图片尺寸仅支持 1024x1024、1536x1024 或 1024x1536。", 422, "INVALID_IMAGE_SIZE");
+  }
+  return normalized;
+}
+
+function imageMimeFromBuffer(buffer, declaredMime = "") {
+  const value = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer || []);
+  let mimeType = "";
+  if (value.length >= 8 && value.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) mimeType = "image/png";
+  else if (value.length >= 3 && value[0] === 0xff && value[1] === 0xd8 && value[2] === 0xff) mimeType = "image/jpeg";
+  else if (value.length >= 6 && (value.subarray(0, 6).toString("ascii") === "GIF87a" || value.subarray(0, 6).toString("ascii") === "GIF89a")) mimeType = "image/gif";
+  else if (value.length >= 12 && value.subarray(0, 4).toString("ascii") === "RIFF" && value.subarray(8, 12).toString("ascii") === "WEBP") mimeType = "image/webp";
+  else if (value.length >= 16 && value.subarray(4, 8).toString("ascii") === "ftyp" && /^(avif|avis)$/i.test(value.subarray(8, 12).toString("ascii"))) mimeType = "image/avif";
+  if (!mimeType) throw new AiGenerationError("上游返回的数据不是受支持的真实图片。", 502, "UPSTREAM_INVALID_IMAGE");
+  const normalizedDeclared = String(declaredMime || "").split(";", 1)[0].trim().toLowerCase();
+  return {
+    mimeType,
+    extension: IMAGE_MIME_EXTENSIONS[mimeType],
+    declaredMime: normalizedDeclared,
+    mimeMismatch: Boolean(normalizedDeclared && normalizedDeclared.startsWith("image/") && normalizedDeclared !== mimeType)
+  };
+}
+
+function decodeImageValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) throw new AiGenerationError("上游模型没有返回图片数据。", 502, "UPSTREAM_EMPTY_IMAGE");
+  const dataUri = raw.match(/^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/i);
+  const base64 = dataUri ? dataUri[2] : raw;
+  const normalized = base64.replace(/\s+/g, "");
+  if (!normalized || !/^[A-Za-z0-9+/]*={0,2}$/.test(normalized) || normalized.length % 4 === 1) {
+    throw new AiGenerationError("上游模型返回了无效的图片编码。", 502, "UPSTREAM_INVALID_IMAGE");
+  }
+  return { buffer: Buffer.from(normalized, "base64"), declaredMime: dataUri?.[1] || "" };
+}
+
+function imageCandidate(payload) {
+  const first = Array.isArray(payload?.data) ? payload.data[0] : payload?.data || payload?.image || null;
+  if (typeof first === "string") return { value: first, kind: first.startsWith("data:") ? "base64" : "url" };
+  if (!isPlainObject(first)) throw new AiGenerationError("上游模型没有返回可用图片。", 502, "UPSTREAM_EMPTY_IMAGE");
+  const encoded = first.b64_json || first.base64 || first.image_base64 || first.data;
+  if (typeof encoded === "string" && encoded.trim()) return { value: encoded, kind: "base64" };
+  if (typeof first.url === "string" && first.url.trim()) return { value: first.url, kind: "url" };
+  throw new AiGenerationError("上游模型没有返回可用图片。", 502, "UPSTREAM_EMPTY_IMAGE");
+}
+
+async function readLimitedBinaryResponse(response, maxBytes) {
+  const declaredLength = Number(response.headers?.get?.("content-length") || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    throw new AiGenerationError("上游图片超过允许的大小。", 502, "UPSTREAM_IMAGE_TOO_LARGE");
+  }
+  if (!response.body?.getReader) {
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length > maxBytes) throw new AiGenerationError("上游图片超过允许的大小。", 502, "UPSTREAM_IMAGE_TOO_LARGE");
+    return buffer;
+  }
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      total += chunk.length;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new AiGenerationError("上游图片超过允许的大小。", 502, "UPSTREAM_IMAGE_TOO_LARGE");
+      }
+      chunks.push(chunk);
+    }
+  } finally {
+    reader.releaseLock?.();
+  }
+  return Buffer.concat(chunks, total);
+}
+
+function safeRemoteImageUrl(value) {
+  let url;
+  try {
+    url = new URL(String(value || ""));
+  } catch {
+    throw new AiGenerationError("上游返回的图片地址无效。", 502, "UPSTREAM_INVALID_IMAGE_URL");
+  }
+  const hostname = url.hostname.toLowerCase();
+  if (url.protocol !== "https:" || url.username || url.password || !hostname || hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local") || hostname.endsWith(".internal")) {
+    throw new AiGenerationError("上游返回的图片地址不符合安全要求。", 502, "UPSTREAM_UNSAFE_IMAGE_URL");
+  }
+  if (/^(127\.|0\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.)/.test(hostname) || hostname === "::1" || hostname.startsWith("fe80:") || hostname.startsWith("fc") || hostname.startsWith("fd")) {
+    throw new AiGenerationError("上游返回的图片地址不符合安全要求。", 502, "UPSTREAM_UNSAFE_IMAGE_URL");
+  }
+  return url.toString();
+}
+
+async function downloadGeneratedImage(fetchImpl, url, maxBytes, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), Math.max(1_000, Number(timeoutMs) || 90_000));
+  try {
+    const response = await fetchImpl(safeRemoteImageUrl(url), {
+      method: "GET",
+      headers: { Accept: "image/avif,image/webp,image/png,image/jpeg,image/gif;q=0.9,*/*;q=0.1" },
+      redirect: "manual",
+      signal: controller.signal
+    });
+    if (!response.ok) throw new AiGenerationError(`上游图片下载失败：HTTP ${response.status}。`, 502, "UPSTREAM_IMAGE_DOWNLOAD_ERROR");
+    const buffer = await readLimitedBinaryResponse(response, maxBytes);
+    return { buffer, declaredMime: response.headers?.get?.("content-type") || "" };
+  } catch (error) {
+    if (error instanceof AiGenerationError) throw error;
+    if (error?.name === "AbortError") throw new AiGenerationError("上游图片下载超时。", 504, "UPSTREAM_IMAGE_DOWNLOAD_TIMEOUT");
+    throw new AiGenerationError(`无法下载上游图片：${cleanProviderError(error?.message)}`, 502, "UPSTREAM_IMAGE_DOWNLOAD_ERROR");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function imageRequest(payload = {}) {
+  const providerId = safeString(payload.providerId, "图片 AI 供应商", { min: 1, max: 160 });
+  const model = optionalString(payload.model, 120);
+  const articleTitle = optionalString(payload.articleTitle || payload.title, 240);
+  const rawArticleContent = optionalString(payload.articleContent || payload.content, 20_000);
+  if (!articleTitle && !rawArticleContent) throw new AiGenerationError("请先填写文章标题或正文，再生成配图。", 422, "INVALID_INPUT");
+  const businessLine = isPlainObject(payload.businessLine) ? payload.businessLine : {};
+  const businessLineId = optionalString(payload.businessLineId || businessLine.id, 160);
+  const businessLineName = optionalString(payload.businessLineName || businessLine.name || businessLine.product, 240);
+  const plainContent = rawArticleContent.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 1_500);
+  const subject = `${articleTitle}\n${plainContent}`.trim().slice(0, 4_000);
+  const prompt = [
+    "Create one truthful, polished editorial illustration for a Chinese business article.",
+    `Article subject: ${subject}`,
+    businessLineName ? `Business context: ${businessLineName}.` : "",
+    "Use a clear information-oriented composition relevant to the article. Do not add readable text, logos, watermarks, UI screenshots, or brand marks.",
+    "Do not invent company credentials, customer relationships, certifications, statistics, awards, product claims, or real people. Avoid depicting a recognizable public figure.",
+    "The image must work as an article hero image and leave enough visual simplicity for a caption."
+  ].filter(Boolean).join("\n\n");
+  return {
+    providerId,
+    model,
+    articleTitle,
+    articleContent: plainContent,
+    businessLineId,
+    businessLineName,
+    prompt,
+    promptHash: crypto.createHash("sha256").update(prompt).digest("hex"),
+    promptSummary: optionalString(articleTitle || plainContent.slice(0, 160), 240),
+    size: imageSize(payload.size)
+  };
 }
 
 function isDeepSeekProvider(provider, model = "") {
@@ -1292,6 +1463,8 @@ export class AiGenerationService {
     this.questionBatchConcurrency = clampInteger(options.questionBatchConcurrency ?? process.env.TZ_AI_QUESTION_BATCH_CONCURRENCY, 1, 1, 2);
     this.questionDimensionsPerBatch = clampInteger(options.questionDimensionsPerBatch ?? process.env.TZ_AI_QUESTION_DIMENSIONS_PER_BATCH, 1, 1, 2);
     this.topicQuestionsPerBatch = clampInteger(options.topicQuestionsPerBatch ?? process.env.TZ_AI_TOPIC_QUESTIONS_PER_BATCH, 3, 1, 5);
+    this.maxImageBytes = clampInteger(options.maxImageBytes ?? process.env.TZ_AI_IMAGE_MAX_BYTES, 20 * 1024 * 1024, 1_024, 20 * 1024 * 1024);
+    this.maxImageResponseBytes = clampInteger(options.maxImageResponseBytes ?? process.env.TZ_AI_IMAGE_MAX_RESPONSE_BYTES, Math.ceil(this.maxImageBytes * 1.38) + 64 * 1024, 1_000_000, 40 * 1024 * 1024);
     // The production reverse proxy waits 120 seconds. Keep one upstream attempt
     // group below that boundary so a retry can still return a structured error
     // instead of being replaced by a generic gateway timeout.
@@ -1303,7 +1476,14 @@ export class AiGenerationService {
     const provider = this.providerStore.find(providerId);
     if (!provider) throw new AiGenerationError("AI 供应商不存在。", 404, "PROVIDER_NOT_FOUND");
     if (provider.status !== "enabled") throw new AiGenerationError("AI 供应商已停用。", 409, "PROVIDER_DISABLED");
-    if (provider.kind !== expectedKind) throw new AiGenerationError(expectedKind === "embedding" ? "所选供应商不是 embedding 模型。" : "所选供应商不是文本生成模型。", 422, "PROVIDER_KIND_MISMATCH");
+    if (provider.kind !== expectedKind) {
+      const message = expectedKind === "embedding"
+        ? "所选供应商不是 embedding 模型。"
+        : expectedKind === "image"
+          ? "所选供应商不是图片生成模型。"
+          : "所选供应商不是文本生成模型。";
+      throw new AiGenerationError(message, 422, "PROVIDER_KIND_MISMATCH");
+    }
     if (!provider.baseUrl) throw new AiGenerationError("AI 供应商缺少 Base URL。", 422, "PROVIDER_NOT_CONFIGURED");
     const model = optionalString(modelOverride, 120) || provider.model;
     if (!model) throw new AiGenerationError("AI 供应商缺少模型 ID。", 422, "PROVIDER_NOT_CONFIGURED");
@@ -1556,6 +1736,134 @@ export class AiGenerationService {
         usage,
         upstreamRequestId,
         inputSummary: options.inputSummary || {},
+        startedAt: new Date(startedAt).toISOString(),
+        completedAt: new Date(completedAt).toISOString(),
+        durationMs: completedAt - startedAt
+      };
+      await this.runStore.append(failureRun);
+      safeError.generationRunId = runId;
+      safeError.generationRun = failureRun;
+      throw safeError;
+    }
+  }
+
+  async generateImage(payload) {
+    if (payload?.allowExternalContent !== true) {
+      throw new AiGenerationError("生成配图前需要确认文章摘要可以发送给已配置的图片模型。", 422, "IMAGE_EXTERNAL_CONTENT_CONFIRMATION_REQUIRED");
+    }
+    const input = imageRequest(payload);
+    const { provider, model } = await this.resolveProvider(input.providerId, input.model, "image");
+    const runId = `AIRUN-IMAGE-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const startedAt = Date.now();
+    const requestTimeoutMs = clampInteger(payload.requestTimeoutMs, this.timeoutMs, 5_000, 180_000);
+    const inputSummary = {
+      businessLineId: input.businessLineId || null,
+      articleTitle: input.articleTitle || input.promptSummary,
+      promptHash: input.promptHash,
+      size: input.size
+    };
+    let requestId = "";
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
+      let response;
+      try {
+        const headers = { "Content-Type": "application/json", Accept: "application/json" };
+        if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
+        response = await this.fetchImpl(imageGenerationsUrl(provider.baseUrl), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model,
+            prompt: input.prompt,
+            size: input.size,
+            n: 1,
+            response_format: "b64_json"
+          }),
+          signal: controller.signal
+        });
+        const text = await readLimitedResponse(response, this.maxImageResponseBytes);
+        requestId = optionalString(cleanProviderError(response.headers?.get?.("x-request-id") || "", provider.apiKey), 200);
+        if (provider.apiKey && text.includes(provider.apiKey)) {
+          throw new AiGenerationError("上游图片响应包含敏感凭据，已拒绝返回。", 502, "UPSTREAM_SENSITIVE_DATA_ECHO");
+        }
+        let upstream;
+        try {
+          upstream = text ? JSON.parse(text) : {};
+        } catch {
+          throw new AiGenerationError("图片上游返回了无效 JSON。", 502, "UPSTREAM_INVALID_RESPONSE");
+        }
+        if (!response.ok) {
+          const upstreamMessage = upstream?.error?.message || upstream?.message || `HTTP ${response.status}`;
+          throw new AiGenerationError(`上游图片请求失败：${cleanProviderError(upstreamMessage, provider.apiKey)}`, 502, "UPSTREAM_HTTP_ERROR");
+        }
+        const candidate = imageCandidate(upstream);
+        const source = candidate.kind === "url"
+          ? await downloadGeneratedImage(this.fetchImpl, candidate.value, this.maxImageBytes, requestTimeoutMs)
+          : decodeImageValue(candidate.value);
+        const imageInfo = imageMimeFromBuffer(source.buffer, source.declaredMime);
+        if (source.buffer.length < 64) throw new AiGenerationError("上游返回的图片内容为空或已损坏。", 502, "UPSTREAM_INVALID_IMAGE");
+        if (source.buffer.length > this.maxImageBytes) throw new AiGenerationError("生成图片超过 20 MB 大小限制。", 502, "UPSTREAM_IMAGE_TOO_LARGE");
+        const completedAt = Date.now();
+        const sha256 = crypto.createHash("sha256").update(source.buffer).digest("hex");
+        const run = {
+          id: runId,
+          operation: "image",
+          status: "succeeded",
+          providerId: provider.id,
+          providerName: provider.name,
+          model: optionalString(upstream.model, 120) || model,
+          attempts: 1,
+          usage: normalizeUsage(upstream.usage),
+          upstreamRequestId: requestId,
+          inputSummary,
+          outputSummary: { mimeType: imageInfo.mimeType, bytes: source.buffer.length, sha256 },
+          startedAt: new Date(startedAt).toISOString(),
+          completedAt: new Date(completedAt).toISOString(),
+          durationMs: completedAt - startedAt
+        };
+        await this.runStore.append(run);
+        return {
+          run,
+          generationRunId: runId,
+          runId,
+          prompt: input.prompt,
+          promptHash: input.promptHash,
+          promptSummary: input.promptSummary,
+          businessLineId: input.businessLineId,
+          articleTitle: input.articleTitle,
+          image: {
+            buffer: source.buffer,
+            mimeType: imageInfo.mimeType,
+            extension: imageInfo.extension,
+            bytes: source.buffer.length,
+            sha256
+          }
+        };
+      } finally {
+        clearTimeout(timeout);
+      }
+    } catch (error) {
+      const safeError = error instanceof AiGenerationError
+        ? error
+        : error?.name === "AbortError"
+          ? new AiGenerationError("图片上游请求超时。", 504, "UPSTREAM_TIMEOUT")
+          : new AiGenerationError(`图片生成失败：${cleanProviderError(error?.message || "内部错误。", provider.apiKey)}`, 502, "AI_IMAGE_GENERATION_ERROR");
+      const completedAt = Date.now();
+      const failureRun = {
+        id: runId,
+        operation: "image",
+        status: "failed",
+        providerId: provider.id,
+        providerName: provider.name,
+        model,
+        attempts: 1,
+        usage: null,
+        errorCode: safeError.code,
+        errorMessage: cleanProviderError(safeError.message, provider.apiKey),
+        errorDetails: Array.isArray(safeError.details) ? safeError.details.slice(0, 12).map((item) => cleanProviderError(String(item), provider.apiKey)) : [],
+        upstreamRequestId: requestId,
+        inputSummary,
         startedAt: new Date(startedAt).toISOString(),
         completedAt: new Date(completedAt).toISOString(),
         durationMs: completedAt - startedAt
@@ -1867,13 +2175,22 @@ export class AiGenerationService {
   async testProvider(providerId) {
     await this.providerStore.load();
     const configuredProvider = this.providerStore.find(providerId);
-    const expectedKind = configuredProvider?.kind === "embedding" ? "embedding" : "text";
+    const expectedKind = ["text", "image", "embedding"].includes(configuredProvider?.kind) ? configuredProvider.kind : "text";
     const { provider, model } = await this.resolveProvider(providerId, "", expectedKind);
     const testedAt = nowIso();
     try {
       const response = provider.kind === "embedding"
         ? await this.callEmbeddingProbe(provider, model)
-        : await this.callModel(provider, model, [
+        : provider.kind === "image"
+          ? await this.generateImage({
+            providerId: provider.id,
+            model,
+            articleTitle: "Image model connection check",
+            articleContent: "A simple abstract editorial illustration with no readable text.",
+            allowExternalContent: true,
+            size: "1024x1024"
+          })
+          : await this.callModel(provider, model, [
           { role: "system", content: "只回复 JSON，不要解释。" },
           { role: "user", content: "输出 {\"ok\":true}，用于连接探针。" }
         ], { temperature: 0, maxTokens: 128, jsonMode: true });
@@ -1884,6 +2201,8 @@ export class AiGenerationService {
         ? response.model && response.model !== model
           ? `Embedding 连接测试通过（${response.dimensions} 维），已自动切换到可用模型 ${response.model}。`
           : `Embedding 连接测试通过（${response.dimensions} 维）。`
+        : provider.kind === "image"
+          ? `图片生成连接测试通过（${response.image?.mimeType || "图片"}，${response.image?.bytes || 0} B）。`
         : response.model && response.model !== model
           ? `真实模型连接测试通过，已自动切换到可用模型 ${response.model}。`
           : "真实模型连接测试通过。";

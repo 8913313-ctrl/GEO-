@@ -830,7 +830,7 @@ export class KnowledgeStore {
     const assetId = id("KASSET");
     const persistedHash = crypto.createHash("sha256").update(buffer).digest("hex");
     const storageKey = this.persistAssetBuffer(buffer, persistedHash);
-    const normalizedReviewStatus = reviewStatus === "archived" ? "archived" : "approved";
+    const normalizedReviewStatus = ["pending", "rejected", "archived"].includes(reviewStatus) ? reviewStatus : "approved";
     const normalizedOcrStatus = ["not_required", "queued", "processing", "succeeded", "failed"].includes(ocrStatus) ? ocrStatus : "not_required";
     ocrStatus = normalizedOcrStatus;
     reviewStatus = normalizedReviewStatus;
@@ -850,7 +850,7 @@ export class KnowledgeStore {
     return jobId;
   }
 
-  insertImageDocumentShell({ workspaceId = this.workspaceId, libraryId, sourceName = "", mimeType = "application/octet-stream", altText = "", extractedText = "", requiresOcr = Boolean(this.ocrEndpoint), metadata = {}, actor = null, timestamp = now() } = {}) {
+  insertImageDocumentShell({ workspaceId = this.workspaceId, libraryId, sourceName = "", mimeType = "application/octet-stream", altText = "", extractedText = "", requiresOcr = Boolean(this.ocrEndpoint), reviewStatus = "approved", metadata = {}, actor = null, timestamp = now() } = {}) {
     if (!libraryId) return null;
     this.library(workspaceId, libraryId);
     const documentId = id("KD");
@@ -859,6 +859,7 @@ export class KnowledgeStore {
     const description = normalizeContent(extractedText || altText || title);
     const content = requiresOcr ? `图片 OCR 待处理：${sourceName || title}` : description;
     const contentHash = sha256(content);
+    const normalizedReviewStatus = reviewStatus === "approved" ? "approved" : "pending";
     const documentMetadata = {
       ...(metadataObject(metadata)),
       visibility: knowledgeVisibility(metadata),
@@ -872,12 +873,12 @@ export class KnowledgeStore {
     `).run(documentId, libraryId, title, text(sourceName, "图片名称", 500), text(mimeType, "MIME 类型", 120), contentHash, JSON.stringify(documentMetadata), timestamp, timestamp, actor?.userId || null);
     this.connection.prepare(`
       INSERT INTO knowledge_document_versions (id, document_id, version, content_text, content_hash, metadata_json, review_status, index_status, extraction_status, extraction_method, approved_at, approved_by, created_at, updated_at, created_by)
-      VALUES (?, ?, 1, ?, ?, ?, 'approved', ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(versionId, documentId, content, contentHash, JSON.stringify(documentMetadata), requiresOcr ? "not_indexed" : "queued", requiresOcr ? "queued" : "complete", requiresOcr ? "ocr" : "description", timestamp, actor?.userId || null, timestamp, timestamp, actor?.userId || null);
-    if (!requiresOcr) {
+      VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(versionId, documentId, content, contentHash, JSON.stringify(documentMetadata), normalizedReviewStatus, normalizedReviewStatus === "approved" && !requiresOcr ? "queued" : "not_indexed", requiresOcr ? "queued" : "complete", requiresOcr ? "ocr" : "description", normalizedReviewStatus === "approved" ? timestamp : null, normalizedReviewStatus === "approved" ? actor?.userId || null : null, timestamp, timestamp, actor?.userId || null);
+    if (normalizedReviewStatus === "approved" && !requiresOcr) {
       this.connection.prepare("INSERT INTO knowledge_index_jobs (id, version_id, job_type, status, attempts, created_at, created_by) VALUES (?, ?, 'index', 'queued', 0, ?, ?)").run(id("KJOB"), versionId, timestamp, actor?.userId || null);
     }
-    return { documentId, versionId, requiresOcr };
+    return { documentId, versionId, requiresOcr, reviewStatus: normalizedReviewStatus };
   }
 
   libraryRow(row) {
@@ -1179,19 +1180,37 @@ export class KnowledgeStore {
     return { id: row.id, sourceName: row.source_name, mimeType: row.mime_type || "application/octet-stream", buffer };
   }
 
-  createAsset({ workspaceId = this.workspaceId, libraryId = null, documentId = null, versionId = null, assetType = "image", sourceName = "", mimeType = "application/octet-stream", contentBase64, extractedText = "", altText = "", metadata = {}, actor = null, request = null } = {}) {
+  validatePublishedImageAssets({ workspaceId = this.workspaceId, contentHtml = "" } = {}) {
+    const source = String(contentHtml || "");
+    const ids = new Set();
+    for (const match of source.matchAll(/\/api\/v1\/knowledge\/assets\/([A-Za-z0-9._:-]+)\/content\b/g)) ids.add(match[1]);
+    for (const match of source.matchAll(/\/site-assets\/knowledge\/([A-Za-z0-9._:-]+)\b/g)) ids.add(match[1]);
+    if (!ids.size) return { valid: true, assets: [] };
+    const invalid = [];
+    const find = this.connection.prepare("SELECT id, asset_type, source_name, review_status FROM knowledge_assets WHERE workspace_id = ? AND id = ?");
+    ids.forEach((assetId) => {
+      const asset = find.get(workspaceId, assetId);
+      if (!asset || asset.asset_type !== "image" || asset.review_status !== "approved") {
+        invalid.push({ id: assetId, sourceName: asset?.source_name || "", reviewStatus: asset?.review_status || "missing" });
+      }
+    });
+    if (invalid.length) throw new KnowledgeError("文章中仍有未确认的图片素材，确认后才能发布。", 422, "KNOWLEDGE_ASSET_REVIEW_REQUIRED", { assets: invalid });
+    return { valid: true, assets: [...ids] };
+  }
+
+  createAsset({ workspaceId = this.workspaceId, libraryId = null, documentId = null, versionId = null, assetType = "image", sourceName = "", mimeType = "application/octet-stream", contentBase64, extractedText = "", altText = "", reviewStatus = "approved", metadata = {}, actor = null, request = null } = {}) {
     const buffer = decodeBase64(contentBase64);
     const timestamp = now();
     let assetId;
     this.database.transaction(() => {
       const needsOcr = assetType === "image" && !extractedText;
       const linked = assetType === "image" && libraryId && !documentId && !versionId
-        ? this.insertImageDocumentShell({ workspaceId, libraryId, sourceName, mimeType, altText, extractedText, requiresOcr: needsOcr && Boolean(this.ocrEndpoint), metadata, actor, timestamp })
+        ? this.insertImageDocumentShell({ workspaceId, libraryId, sourceName, mimeType, altText, extractedText, requiresOcr: needsOcr && Boolean(this.ocrEndpoint), reviewStatus, metadata, actor, timestamp })
         : null;
       const effectiveDocumentId = documentId || linked?.documentId || null;
       const effectiveVersionId = versionId || linked?.versionId || null;
       const ocrStatus = needsOcr ? (this.ocrEndpoint ? "queued" : "failed") : "not_required";
-      assetId = this.insertAsset({ workspaceId, libraryId, documentId: effectiveDocumentId, versionId: effectiveVersionId, assetType, sourceName, mimeType, buffer, extractedText, altText, ocrStatus, reviewStatus: "approved", metadata: { ...metadata, processingState: ocrStatus === "queued" ? "processing" : ocrStatus === "failed" ? "failed" : "available", ...(ocrStatus === "failed" ? { processingErrorCode: "KNOWLEDGE_OCR_NOT_CONFIGURED" } : {}) }, actor, timestamp });
+      assetId = this.insertAsset({ workspaceId, libraryId, documentId: effectiveDocumentId, versionId: effectiveVersionId, assetType, sourceName, mimeType, buffer, extractedText, altText, ocrStatus, reviewStatus, metadata: { ...metadata, processingState: ocrStatus === "queued" ? "processing" : ocrStatus === "failed" ? "failed" : "available", ...(ocrStatus === "failed" ? { processingErrorCode: "KNOWLEDGE_OCR_NOT_CONFIGURED" } : {}) }, actor, timestamp });
       if (ocrStatus === "queued") this.insertOcrJob({ workspaceId, versionId: effectiveVersionId, assetId, buffer, actor, timestamp });
       appendAuditLog(this.connection, { actorUserId: actor?.userId || null, action: "knowledge.asset.create", entityType: "knowledge_asset", entityId: assetId, details: { workspaceId, libraryId, documentId, versionId, assetType }, request, createdAt: timestamp });
     });
@@ -1311,7 +1330,23 @@ export class KnowledgeStore {
     if (!asset) throw new KnowledgeError("知识资产不存在。", 404, "KNOWLEDGE_ASSET_NOT_FOUND");
     if (asset.ocr_status === "queued" || asset.ocr_status === "processing") throw new KnowledgeError("资产 OCR 尚未完成。", 409, "KNOWLEDGE_ASSET_OCR_PENDING");
     const timestamp = now();
-    this.connection.prepare("UPDATE knowledge_assets SET review_status = 'approved', updated_at = ? WHERE workspace_id = ? AND id = ?").run(timestamp, workspaceId, assetId);
+    const linkedVersion = asset.version_id
+      ? this.connection.prepare(`
+        SELECT v.*, d.metadata_json AS document_metadata_json
+        FROM knowledge_document_versions v
+        JOIN knowledge_documents d ON d.id = v.document_id
+        WHERE v.id = ?
+      `).get(asset.version_id)
+      : null;
+    const imageDocument = Boolean(linkedVersion && metadataObject(linkedVersion.metadata_json).imageKnowledgeDocument);
+    this.database.transaction(() => {
+      this.connection.prepare("UPDATE knowledge_assets SET review_status = 'approved', updated_at = ? WHERE workspace_id = ? AND id = ?").run(timestamp, workspaceId, assetId);
+      if (imageDocument && linkedVersion.review_status !== "approved" && (linkedVersion.extraction_status || "complete") === "complete") {
+        this.connection.prepare("UPDATE knowledge_document_versions SET review_status = 'approved', index_status = 'queued', approved_at = COALESCE(approved_at, ?), approved_by = COALESCE(approved_by, ?), updated_at = ? WHERE id = ?").run(timestamp, actor?.userId || null, timestamp, linkedVersion.id);
+        const queued = this.connection.prepare("SELECT id FROM knowledge_index_jobs WHERE version_id = ? AND status IN ('queued', 'running') ORDER BY created_at DESC LIMIT 1").get(linkedVersion.id);
+        if (!queued) this.connection.prepare("INSERT INTO knowledge_index_jobs (id, version_id, job_type, status, attempts, created_at, created_by) VALUES (?, ?, 'index', 'queued', 0, ?, ?)").run(id("KJOB"), linkedVersion.id, timestamp, actor?.userId || null);
+      }
+    });
     appendAuditLog(this.connection, { actorUserId: actor?.userId || null, action: "knowledge.asset.approve", entityType: "knowledge_asset", entityId: assetId, details: { workspaceId }, request, createdAt: timestamp });
     return this.listAssets({ workspaceId, versionId: asset.version_id || "", documentId: asset.document_id || "", includeData: false }).find((item) => item.id === assetId);
   }
