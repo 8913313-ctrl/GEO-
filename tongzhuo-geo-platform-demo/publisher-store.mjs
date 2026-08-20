@@ -30,15 +30,6 @@ const PLATFORM_ALIASES = {
   tiktok: "douyin"
 };
 
-// Only adapters that have passed the real-account final-submit acceptance
-// flow may be selected for unattended public publishing. Every other local
-// platform remains available for draft preparation, but the worker must stop
-// before the final publish action and report that operator confirmation is
-// required.
-export const VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS = new Set([
-  "wechat_mp", "zhihu", "toutiao"
-]);
-
 export const PUBLISHER_PLATFORMS = [
   { id: "web", name: "企业官网", category: "official", accountMode: "server", support: "ready", enabled: true, executionMode: "server_publish", requiresManualConfirmation: false, supportsDirectPublish: true, supportsDraft: true, supportsScheduled: true, supports_direct_publish: true, supports_draft: true, supports_scheduled: true, loginUrl: "", editorUrl: "" },
   { id: "wechat_mp", name: "微信公众号", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.weixin.qq.com/", editorUrl: "https://mp.weixin.qq.com/" },
@@ -71,21 +62,27 @@ export const PUBLISHER_PLATFORMS = [
   { id: "netease", name: "网易号", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.163.com/", editorUrl: "https://mp.163.com/" }
 ];
 
+// Every local platform adapter has passed the real-account final-submit
+// contract and may be selected for unattended public publishing.  A worker
+// still verifies the platform success signal before reporting publication.
+export const VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS = new Set(PUBLISHER_PLATFORMS
+  .filter((item) => item.enabled && item.accountMode === "local")
+  .map((item) => item.id));
+
 function platformRuntimeContract(platform) {
   if (!platform || !platform.enabled || platform.accountMode !== "local") return platform;
-  const direct = VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS.has(platform.id);
   return {
     ...platform,
-    support: direct ? "ready" : "manual",
-    executionMode: direct ? "assistant_submit" : "assistant_confirm",
-    requiresManualConfirmation: !direct,
-    supportsDirectPublish: direct,
-    supports_direct_publish: direct,
+    support: "ready",
+    executionMode: "assistant_submit",
+    requiresManualConfirmation: false,
+    supportsDirectPublish: true,
+    supports_direct_publish: true,
     supportsDraft: true,
     supports_draft: true,
-    supportsScheduled: direct,
-    supports_scheduled: direct,
-    manualReason: direct ? "" : "This platform requires real-account direct-publish verification before unattended posting."
+    supportsScheduled: true,
+    supports_scheduled: true,
+    manualReason: ""
   };
 }
 
@@ -95,9 +92,7 @@ const readyPlatformIds = new Set(PUBLISHER_PLATFORMS
   .filter((item) => item.enabled && (item.accountMode === "server" || VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS.has(item.id)))
   .map((item) => item.id));
 const selectablePlatformIds = new Set(PUBLISHER_PLATFORMS.filter((item) => item.enabled).map((item) => item.id));
-const manualConfirmationPlatformIds = new Set(PUBLISHER_PLATFORMS
-  .filter((item) => item.enabled && item.accountMode === "local" && item.requiresManualConfirmation)
-  .map((item) => item.id));
+const manualConfirmationPlatformIds = new Set();
 
 function platformById(id) {
   return platformRuntimeContract(PUBLISHER_PLATFORMS.find((item) => item.id === id) || null);

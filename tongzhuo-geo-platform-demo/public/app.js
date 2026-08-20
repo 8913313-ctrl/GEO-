@@ -610,9 +610,6 @@ Object.assign(PLATFORM_META, {
   smzdm: { name: "什么值得买", short: "值", logoClass: "generic" }
 });
 
-const VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS = new Set(["wechat_mp", "zhihu", "toutiao"]);
-const HIDDEN_PUBLISH_PLATFORM_IDS = new Set(["x"]);
-
 const PUBLISH_PLATFORM_REGISTRY = [
   { id: "web", category: "official", role: "企业官网主信源", enabled: true, accountMode: "server", capabilities: "长文 · 结构化数据", description: "由官网服务器直接发布，作为企业长期可控的主信源", requiresManualConfirmation: false },
   { id: "wechat_mp", category: "self_media", role: "微信公众号", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布助手可尝试提交；出现验证或审核提示时转人工确认", requiresManualConfirmation: false },
@@ -643,31 +640,14 @@ const PUBLISH_PLATFORM_REGISTRY = [
   { id: "eastmoney", category: "self_media", role: "东方财富", enabled: true, support: "ready", accountMode: "local", capabilities: "财经内容", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
   { id: "smzdm", category: "self_media", role: "什么值得买", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
   { id: "netease", category: "self_media", role: "网易号", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false }
-].map((entry) => {
-  if (!entry.enabled || entry.accountMode !== "local") return entry;
-  if (HIDDEN_PUBLISH_PLATFORM_IDS.has(entry.id)) {
-    return { ...entry, enabled: false, support: "hidden", requiresManualConfirmation: true };
-  }
-  const direct = VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS.has(entry.id);
-  return {
+].map((entry) => entry.enabled && entry.accountMode === "local"
+  ? {
     ...entry,
-    support: direct ? "ready" : "manual",
-    requiresManualConfirmation: !direct,
-    description: direct
-      ? "后台任务可自动最终提交；如遇验证码、风控或提交失败，会回写任务结果"
-      : "自动填充并保存草稿；完成真实账号验收前不会点击最终发布"
-  };
-});
-
-function publisherTaskModeFields(platforms = []) {
-  const localPlatforms = platforms.filter((platform) => platform !== "web");
-  const directCount = localPlatforms.filter((platform) => VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS.has(platform)).length;
-  if (!localPlatforms.length || directCount === localPlatforms.length) {
-    return { publish_mode: "direct", manual_confirmation: false };
+    support: "ready",
+    requiresManualConfirmation: false,
+    description: "本地发布助手登录后可直接下发；如遇验证码、风控或提交失败，会单独回写任务结果"
   }
-  if (!directCount) return { publish_mode: "draft", manual_confirmation: true };
-  return { publish_mode: "mixed", manual_confirmation: true };
-}
+  : entry);
 
 const PLATFORM_STYLE_HINTS = {
   web: "完整长文与结构化信息",
@@ -5645,7 +5625,6 @@ async function submitPublishBatch() {
         platforms,
         platformOrder: platforms,
         intervalMinutes: Math.max(5, Number(selection.intervalMinutes) || 60),
-        ...publisherTaskModeFields(platforms),
         mode: "immediate",
         deviceId: group?.deviceId || group?.device_id || null,
         target_device_id: group?.deviceId || group?.device_id || null,
@@ -12903,7 +12882,6 @@ async function submitPublish() {
         platforms,
         platformOrder: platforms,
         intervalMinutes: 60,
-        ...publisherTaskModeFields(platforms),
         mode: "immediate",
         deviceId: group?.deviceId || group?.device_id || null,
         target_device_id: group?.deviceId || group?.device_id || null,
@@ -13239,7 +13217,6 @@ async function submitSchedule() {
             platforms: [target.platform],
             platformOrder: [target.platform],
             intervalMinutes: Math.max(5, Number(selection.intervalMinutes) || 60),
-            ...publisherTaskModeFields([target.platform]),
             mode: "scheduled",
             deviceId: group?.deviceId || group?.device_id || null,
             target_device_id: group?.deviceId || group?.device_id || null,

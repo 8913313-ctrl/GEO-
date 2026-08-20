@@ -86,7 +86,7 @@ try {
   assert.deepEqual(bootstrapPublication.snapshot, bootstrapDraft.snapshot);
   assert.equal(bootstrapDraft.snapshot.schemaVersion, 4);
   assert.equal(bootstrapDraft.snapshot.assets.defaultImageUrl, "/assets/template-01-default.png");
-  assert.equal(Object.keys(bootstrapDraft.snapshot.templateConfigs).length, 10);
+  assert.equal(Object.keys(bootstrapDraft.snapshot.templateConfigs).length, 11);
   assert.equal(bootstrapDraft.snapshot.footer.showIcp, true);
   const bootstrapReleases = cmsStore.releases(workspaceId);
   assert.equal(bootstrapReleases.length, 1);

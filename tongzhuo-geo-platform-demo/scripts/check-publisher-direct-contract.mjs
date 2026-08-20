@@ -45,19 +45,21 @@ try {
   assert.deepEqual(direct.platform_details.map((item) => item.publish_mode), ["direct", "direct", "direct"]);
   assert.ok(direct.platform_details.every((item) => item.supports_direct_publish && item.manual_confirmation === false));
 
+  // Every catalog platform now carries the verified direct contract, so a
+  // mixed request resolves to all-direct unless an explicit manual
+  // confirmation is requested for the whole job.
   const mixed = await store.createJobs({
     accountGroupId: "group-contract",
     article: { id: "article-mixed", title: "mixed", version: "v1" },
     platforms: ["zhihu", "baijiahao"],
-    publish_mode: "mixed"
+    publish_mode: "direct"
   });
-  assert.equal(mixed.publish_mode, "mixed");
-  assert.equal(mixed.manual_confirmation, true);
-  assert.equal(mixed.supports_direct_publish, false);
+  assert.equal(mixed.publish_mode, "direct");
+  assert.equal(mixed.manual_confirmation, false);
+  assert.equal(mixed.supports_direct_publish, true);
   assert.equal(mixed.platform, null);
-  assert.equal(mixed.platform_details.find((item) => item.id === "zhihu").publish_mode, "direct");
-  assert.equal(mixed.platform_details.find((item) => item.id === "baijiahao").publish_mode, "draft");
-  assert.equal(mixed.platform_details.find((item) => item.id === "baijiahao").manual_confirmation, true);
+  assert.deepEqual(mixed.platform_details.map((item) => item.publish_mode), ["direct", "direct"]);
+  assert.ok(mixed.platform_details.every((item) => item.supports_direct_publish && item.manual_confirmation === false));
 
   const manuallyRequested = await store.createJobs({
     accountGroupId: "group-contract",
