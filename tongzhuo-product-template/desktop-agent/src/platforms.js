@@ -1,3 +1,5 @@
+import { directPlatformProfiles } from './direct-platform-profiles.js';
+
 const fallbackUrl = 'about:blank';
 
 // Login detection is a separate capability from editor automation.  Keep the
@@ -243,39 +245,38 @@ export const platforms = [
   publishingPlatform('zhihu', '知乎', 'https://www.zhihu.com/signin?next=%2F', 'https://zhuanlan.zhihu.com/write', 'dedicated', { editorHints: dedicatedEditorHints.zhihu }),
   publishingPlatform('toutiao', '头条号', 'https://mp.toutiao.com/', 'https://mp.toutiao.com/profile_v4/graphic/publish', 'dedicated', { editorHints: dedicatedEditorHints.toutiao }),
 
-  // These channels use the generic local editor pipeline.  They now run in
-  // automated mode: the adapter fills the editor, saves and verifies a draft,
-  // and submits the final public action once the platform returns a success
-  // signal.  Each platform still requires a confirmed local account profile
-  // before GEOFlow can dispatch a job to it.
-  publishingPlatform('baijiahao', '百家号', 'https://baijiahao.baidu.com/', 'https://baijiahao.baidu.com/builder/rc/edit?type=news', 'automated'),
-  publishingPlatform('xiaohongshu', '小红书', 'https://creator.xiaohongshu.com/', 'https://creator.xiaohongshu.com/new/home', 'automated'),
-  publishingPlatform('weibo', '微博', 'https://weibo.com/', 'https://weibo.com/', 'automated'),
-  publishingPlatform('juejin', '掘金', 'https://juejin.cn/', 'https://juejin.cn/editor/drafts/new', 'automated'),
-  publishingPlatform('csdn', 'CSDN', 'https://passport.csdn.net/', 'https://editor.csdn.net/md/', 'automated'),
-  publishingPlatform('jianshu', '简书', 'https://www.jianshu.com/sign_in', 'https://www.jianshu.com/writer', 'automated'),
-  publishingPlatform('douyin', '抖音图文', 'https://creator.douyin.com/', 'https://creator.douyin.com/creator-micro/content/upload', 'automated'),
-  publishingPlatform('bilibili', 'B站专栏', 'https://passport.bilibili.com/', 'https://member.bilibili.com/platform/upload/text/edit', 'automated'),
-  publishingPlatform('yuque', '语雀', 'https://www.yuque.com/login', 'https://www.yuque.com/dashboard', 'automated'),
-  publishingPlatform('douban', '豆瓣', 'https://www.douban.com/', 'https://www.douban.com/', 'automated'),
-  publishingPlatform('sohu', '搜狐号', 'https://mp.sohu.com/', 'https://mp.sohu.com/', 'automated'),
-  publishingPlatform('xueqiu', '雪球', 'https://xueqiu.com/', 'https://xueqiu.com/', 'automated'),
-  publishingPlatform('woshipm', '人人都是产品经理', 'https://www.woshipm.com/', 'https://www.woshipm.com/', 'automated'),
-  publishingPlatform('dayu', '大鱼号', 'https://mp.dayu.com/', 'https://mp.dayu.com/', 'automated'),
-  publishingPlatform('yidian', '一点号', 'https://mp.yidianzixun.com/', 'https://mp.yidianzixun.com/', 'automated'),
-  publishingPlatform('51cto', '51CTO', 'https://blog.51cto.com/', 'https://blog.51cto.com/', 'automated'),
-  publishingPlatform('imooc', '慕课网', 'https://www.imooc.com/', 'https://www.imooc.com/', 'automated'),
-  publishingPlatform('oschina', '开源中国', 'https://www.oschina.net/', 'https://my.oschina.net/', 'automated'),
-  publishingPlatform('segmentfault', 'SegmentFault', 'https://segmentfault.com/user/login', 'https://segmentfault.com/write', 'automated'),
-  publishingPlatform('cnblogs', '博客园', 'https://account.cnblogs.com/signin', 'https://i.cnblogs.com/posts/edit', 'automated'),
-  publishingPlatform('sohufocus', '搜狐焦点', 'https://mp.focus.cn/', 'https://mp.focus.cn/', 'automated'),
+  // These channels run through the verified direct adapter with their own
+  // platform-scoped selector profiles (title, body, draft, publish and
+  // publish-success controls owned by each editor).  A profile miss fails
+  // safely instead of guessing a public action.
+  publishingPlatform('baijiahao', '百家号', 'https://baijiahao.baidu.com/', 'https://baijiahao.baidu.com/builder/rc/edit?type=news', 'automated', { editorHints: directPlatformProfiles.baijiahao }),
+  publishingPlatform('xiaohongshu', '小红书', 'https://creator.xiaohongshu.com/', 'https://creator.xiaohongshu.com/new/home', 'automated', { editorHints: directPlatformProfiles.xiaohongshu }),
+  publishingPlatform('weibo', '微博', 'https://weibo.com/', 'https://weibo.com/', 'automated', { editorHints: directPlatformProfiles.weibo }),
+  publishingPlatform('juejin', '掘金', 'https://juejin.cn/', 'https://juejin.cn/editor/drafts/new', 'automated', { editorHints: directPlatformProfiles.juejin }),
+  publishingPlatform('csdn', 'CSDN', 'https://passport.csdn.net/', 'https://editor.csdn.net/md/', 'automated', { editorHints: directPlatformProfiles.csdn }),
+  publishingPlatform('jianshu', '简书', 'https://www.jianshu.com/sign_in', 'https://www.jianshu.com/writer', 'automated', { editorHints: directPlatformProfiles.jianshu }),
+  publishingPlatform('douyin', '抖音图文', 'https://creator.douyin.com/', 'https://creator.douyin.com/creator-micro/content/upload', 'automated', { editorHints: directPlatformProfiles.douyin }),
+  publishingPlatform('bilibili', 'B站专栏', 'https://passport.bilibili.com/', 'https://member.bilibili.com/platform/upload/text/edit', 'automated', { editorHints: directPlatformProfiles.bilibili }),
+  publishingPlatform('yuque', '语雀', 'https://www.yuque.com/login', 'https://www.yuque.com/dashboard', 'automated', { editorHints: directPlatformProfiles.yuque }),
+  publishingPlatform('douban', '豆瓣', 'https://www.douban.com/', 'https://www.douban.com/', 'automated', { editorHints: directPlatformProfiles.douban }),
+  publishingPlatform('sohu', '搜狐号', 'https://mp.sohu.com/', 'https://mp.sohu.com/', 'automated', { editorHints: directPlatformProfiles.sohu }),
+  publishingPlatform('xueqiu', '雪球', 'https://xueqiu.com/', 'https://xueqiu.com/', 'automated', { editorHints: directPlatformProfiles.xueqiu }),
+  publishingPlatform('woshipm', '人人都是产品经理', 'https://www.woshipm.com/', 'https://www.woshipm.com/', 'automated', { editorHints: directPlatformProfiles.woshipm }),
+  publishingPlatform('dayu', '大鱼号', 'https://mp.dayu.com/', 'https://mp.dayu.com/', 'automated', { editorHints: directPlatformProfiles.dayu }),
+  publishingPlatform('yidian', '一点号', 'https://mp.yidianzixun.com/', 'https://mp.yidianzixun.com/', 'automated', { editorHints: directPlatformProfiles.yidian }),
+  publishingPlatform('51cto', '51CTO', 'https://blog.51cto.com/', 'https://blog.51cto.com/', 'automated', { editorHints: directPlatformProfiles['51cto'] }),
+  publishingPlatform('imooc', '慕课网', 'https://www.imooc.com/', 'https://www.imooc.com/', 'automated', { editorHints: directPlatformProfiles.imooc }),
+  publishingPlatform('oschina', '开源中国', 'https://www.oschina.net/', 'https://my.oschina.net/', 'automated', { editorHints: directPlatformProfiles.oschina }),
+  publishingPlatform('segmentfault', 'SegmentFault', 'https://segmentfault.com/user/login', 'https://segmentfault.com/write', 'automated', { editorHints: directPlatformProfiles.segmentfault }),
+  publishingPlatform('cnblogs', '博客园', 'https://account.cnblogs.com/signin', 'https://i.cnblogs.com/posts/edit', 'automated', { editorHints: directPlatformProfiles.cnblogs }),
+  publishingPlatform('sohufocus', '搜狐焦点', 'https://mp.focus.cn/', 'https://mp.focus.cn/', 'automated', { editorHints: directPlatformProfiles.sohufocus }),
   // Keep the adapter definition for a future re-enable, but exclude X from
   // the customer-visible catalog and runnable capabilities for now.  It also
   // runs in automated mode so that re-enabling it is a one-line change.
   publishingPlatform('x', 'X（Twitter）', 'https://x.com/login', 'https://x.com/compose/post', 'automated', { hidden: true }),
-  publishingPlatform('eastmoney', '东方财富', 'https://www.eastmoney.com/', 'https://www.eastmoney.com/', 'automated'),
-  publishingPlatform('smzdm', '什么值得买', 'https://www.smzdm.com/', 'https://post.smzdm.com/', 'automated'),
-  publishingPlatform('netease', '网易号', 'https://mp.163.com/', 'https://mp.163.com/', 'automated'),
+  publishingPlatform('eastmoney', '东方财富', 'https://www.eastmoney.com/', 'https://www.eastmoney.com/', 'automated', { editorHints: directPlatformProfiles.eastmoney }),
+  publishingPlatform('smzdm', '什么值得买', 'https://www.smzdm.com/', 'https://post.smzdm.com/', 'automated', { editorHints: directPlatformProfiles.smzdm }),
+  publishingPlatform('netease', '网易号', 'https://mp.163.com/', 'https://mp.163.com/', 'automated', { editorHints: directPlatformProfiles.netease }),
   {
     id: 'zip-download',
     name: 'Markdown / ZIP 导出',

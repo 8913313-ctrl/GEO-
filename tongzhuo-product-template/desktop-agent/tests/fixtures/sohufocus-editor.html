@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Sohufocus Editor Fixture</title>
+</head>
+<body data-save-state="unsaved" data-publish-state="unpublished">
+  <main>
+    <input id="articleTitle" placeholder="输入标题"></input>
+    <section class="editor"><div class="ql-editor" contenteditable="true"></div></section>
+    <button data-action="save-draft" type="button" onclick='document.body.dataset.saveState="saved";document.getElementById("draft-success").hidden=false;'>保存草稿</button>
+    <p id="draft-success" data-testid="draft-saved" hidden>草稿保存成功</p>
+    <button data-action="publish" type="button" onclick='document.body.dataset.publishState="published";document.getElementById("publish-success").hidden=false;'>发布</button>
+    <p id="publish-success" data-testid="publish-success" hidden>发布成功</p>
+  </main>
+</body>
+</html>

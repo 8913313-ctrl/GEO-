@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Jianshu Editor Fixture</title>
+</head>
+<body data-save-state="unsaved" data-publish-state="unpublished">
+  <main>
+    <input class="title-input" placeholder="输入标题"></input>
+    <section class="editor"><div class="article-editor" contenteditable="true"></div></section>
+    <button data-testid="save-draft" type="button" onclick='document.body.dataset.saveState="saved";document.getElementById("draft-success").hidden=false;'>保存草稿</button>
+    <p id="draft-success" data-testid="draft-saved" hidden>草稿保存成功</p>
+    <button data-testid="publish-button" type="button" onclick='document.body.dataset.publishState="published";document.getElementById("publish-success").hidden=false;'>发布</button>
+    <p id="publish-success" data-testid="publish-success" hidden>发布成功</p>
+  </main>
+</body>
+</html>

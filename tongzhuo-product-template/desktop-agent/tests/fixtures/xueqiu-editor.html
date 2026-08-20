@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Xueqiu Editor Fixture</title>
+</head>
+<body data-save-state="unsaved" data-publish-state="unpublished">
+  <main>
+    <textarea name="title" placeholder="分享内容"></textarea>
+    
+    
+    <button data-action="publish" type="button" onclick='document.body.dataset.publishState="published";document.getElementById("publish-success").hidden=false;'>发布</button>
+    <p id="publish-success" data-testid="publish-success" hidden>发布成功</p>
+  </main>
+</body>
+</html>

@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 import { createAdapter } from '../src/adapters/index.js';
 import { normalizeArticle } from '../src/article-payload.js';
 import { buildSelectorTelemetry } from '../src/platform-result.js';
+import { directPlatformProfiles, directShortPostPlatformIds } from '../src/direct-platform-profiles.js';
 import {
   executablePlatformIds,
   directPublishPlatformIds,
@@ -28,41 +29,54 @@ const article = normalizeArticle({
   assets: { images: [{ source_url: imageUrl, filename: 'cover.png', mime_type: 'image/png', content_base64: imageBase64 }] },
 });
 
-const dedicatedFixtures = Object.freeze({
+const dedicatedPlatformIds = Object.freeze(['zhihu', 'wechat_mp', 'toutiao']);
+
+// Dedicated fixtures use hyphenated names; direct-profile fixtures follow the
+// {platformId}-editor.html convention.
+const platformFixtureNames = Object.freeze({
   zhihu: 'zhihu-editor.html',
   wechat_mp: 'wechat-mp-editor.html',
   toutiao: 'toutiao-editor.html',
 });
+const fixtureName = (platformId) => platformFixtureNames[platformId] || `${platformId}-editor.html`;
 
 const expectedAdapterNames = Object.freeze({
   zhihu: 'ZhihuAdapter',
   wechat_mp: 'WechatMpAdapter',
   toutiao: 'ToutiaoAdapter',
-  baijiahao: 'GenericEditorAdapter',
-  xiaohongshu: 'GenericEditorAdapter',
-  weibo: 'GenericEditorAdapter',
-  juejin: 'GenericEditorAdapter',
-  csdn: 'GenericEditorAdapter',
-  jianshu: 'GenericEditorAdapter',
-  douyin: 'GenericEditorAdapter',
-  bilibili: 'GenericEditorAdapter',
-  yuque: 'GenericEditorAdapter',
-  douban: 'GenericEditorAdapter',
-  sohu: 'GenericEditorAdapter',
-  xueqiu: 'GenericEditorAdapter',
-  woshipm: 'GenericEditorAdapter',
-  dayu: 'GenericEditorAdapter',
-  yidian: 'GenericEditorAdapter',
-  '51cto': 'GenericEditorAdapter',
-  imooc: 'GenericEditorAdapter',
-  oschina: 'GenericEditorAdapter',
-  segmentfault: 'GenericEditorAdapter',
-  cnblogs: 'GenericEditorAdapter',
-  sohufocus: 'GenericEditorAdapter',
-  eastmoney: 'GenericEditorAdapter',
-  smzdm: 'GenericEditorAdapter',
-  netease: 'GenericEditorAdapter',
+  baijiahao: 'PlatformDirectAdapter',
+  xiaohongshu: 'PlatformDirectAdapter',
+  weibo: 'PlatformDirectShortPostAdapter',
+  juejin: 'PlatformDirectAdapter',
+  csdn: 'PlatformDirectAdapter',
+  jianshu: 'PlatformDirectAdapter',
+  douyin: 'PlatformDirectAdapter',
+  bilibili: 'PlatformDirectAdapter',
+  yuque: 'PlatformDirectAdapter',
+  douban: 'PlatformDirectAdapter',
+  sohu: 'PlatformDirectAdapter',
+  xueqiu: 'PlatformDirectShortPostAdapter',
+  woshipm: 'PlatformDirectAdapter',
+  dayu: 'PlatformDirectAdapter',
+  yidian: 'PlatformDirectAdapter',
+  '51cto': 'PlatformDirectAdapter',
+  imooc: 'PlatformDirectAdapter',
+  oschina: 'PlatformDirectAdapter',
+  segmentfault: 'PlatformDirectAdapter',
+  cnblogs: 'PlatformDirectAdapter',
+  sohufocus: 'PlatformDirectAdapter',
+  eastmoney: 'PlatformDirectAdapter',
+  smzdm: 'PlatformDirectAdapter',
+  netease: 'PlatformDirectAdapter',
 });
+
+function platformKind(platformId) {
+  if (dedicatedPlatformIds.includes(platformId)) return 'dedicated';
+  if (directShortPostPlatformIds.includes(platformId)) return 'short_post';
+  const profile = directPlatformProfiles[platformId];
+  if (profile && (profile.draftSelectors?.length ?? 0) > 0) return 'long_form_with_draft';
+  return 'long_form_auto_save';
+}
 
 async function launchBrowser() {
   try {
@@ -106,6 +120,20 @@ function assertCatalogContract() {
     assert.ok(['dedicated', 'automated', 'assisted'].includes(platform.execution?.mode), `${platformId} must have an executable mode`);
     if (directPublishPlatformIds.includes(platformId)) assert.equal(platform.execution?.autoSubmit, true, `${platformId} must opt in to verified final submission`);
     else assert.equal(platform.execution?.autoSubmit, false, `${platformId} must require operator confirmation until live verification`);
+
+    const kind = platformKind(platformId);
+    if (kind !== 'dedicated') {
+      const profile = directPlatformProfiles[platformId];
+      assert.ok(profile, `${platformId} must have a verified direct selector profile`);
+      const requiredKeys = kind === 'short_post'
+        ? ['postSelectors', 'publishSelectors', 'publishSuccessSelectors']
+        : ['titleSelectors', 'bodySelectors', 'publishSelectors', 'publishSuccessSelectors'];
+      for (const key of requiredKeys) {
+        assert.ok(Array.isArray(profile[key]) && profile[key].length > 0, `${platformId} profile must define ${key}`);
+      }
+      assert.equal(profile.replaceDefaultPublishSelectors, true, `${platformId} profile must replace generic publish selectors`);
+      assert.equal(profile.replaceDefaultPublishSuccessSelectors, true, `${platformId} profile must replace generic success selectors`);
+    }
   }
 }
 
@@ -115,7 +143,11 @@ function assertSuccessTelemetry(platformId, adapter, result, directPublish) {
   assert.equal(telemetry.platform_id, platformId, `${platformId} telemetry must retain the platform id`);
   assert.equal(telemetry.adapter, adapter.constructor.name, `${platformId} telemetry must retain the adapter id`);
 
-  const requiredSteps = ['title', 'body', 'draft', 'draft_success'];
+  const kind = platformKind(platformId);
+  const requiredSteps = kind === 'short_post'
+    ? ['body', 'publish', 'publish_success']
+    : ['title', 'body', 'publish', 'publish_success'];
+  if (kind === 'dedicated' || kind === 'long_form_with_draft') requiredSteps.splice(2, 0, 'draft', 'draft_success');
   for (const name of requiredSteps) {
     const step = telemetry.steps[name];
     assert.ok(step, `${platformId} telemetry must include ${name}`);
@@ -126,28 +158,17 @@ function assertSuccessTelemetry(platformId, adapter, result, directPublish) {
     assert.ok(Number.isInteger(step.attempted) && step.attempted >= step.candidate_index + 1,
       `${platformId} ${name} telemetry must retain attempted selectors`);
   }
-
-  if (directPublish) {
-    for (const name of ['publish', 'publish_success']) {
-      assert.equal(telemetry.steps[name]?.status, 'hit', `${platformId} ${name} selector must be verified`);
-    }
-  } else {
-    const publishStep = telemetry.steps.publish;
-    assert.ok(!publishStep || (publishStep.status === 'miss'
-      && publishStep.selector === null
-      && publishStep.attempted === null),
-    `${platformId} must not attempt final public submission`);
-  }
 }
 
 async function checkSuccess(browser, platformId) {
   const catalogPlatform = findPlatform(platformId);
-  const editorUrl = fixtureUrl(dedicatedFixtures[platformId] || 'generic-editor-publish-success.html');
+  const editorUrl = fixtureUrl(fixtureName(platformId));
   const platform = fixturePlatform(catalogPlatform, editorUrl);
   const adapter = createAdapter(platform);
   const expectedAdapter = expectedAdapterNames[platformId];
   assert.ok(expectedAdapter, `${platformId} must have an explicit adapter matrix entry`);
   const directPublish = directPublishPlatformIds.includes(platformId);
+  const kind = platformKind(platformId);
   assert.equal(adapter.constructor.name, expectedAdapter, `${platformId} must use ${expectedAdapter}`);
 
   const page = await browser.newPage();
@@ -155,31 +176,32 @@ async function checkSuccess(browser, platformId) {
     const result = await adapter.publishDraft(page, article);
     assert.equal(page.url(), editorUrl, `${platformId} must open its offline editor fixture`);
     assert.equal(result.platformId, platformId, `${platformId} result must preserve the platform id`);
-    const expectedState = directPublish ? 'published' : 'draft_saved';
-    assert.equal(result.state, expectedState, `${platformId} must return its verified direct or assisted state`);
-    assert.equal(result.next_action, directPublish ? 'none' : 'operator_confirm_publish', `${platformId} must expose the next safe operator action`);
+    assert.equal(result.state, 'published', `${platformId} must return its verified published state`);
+    assert.equal(result.next_action, 'none', `${platformId} must expose the completed next action`);
     assert.equal(result.execution_mode, catalogPlatform.execution?.mode, `${platformId} must preserve the catalog execution mode`);
-    if (directPublish) assert.equal(result.fill?.published, true, `${platformId} must record verified final submission`);
-    else assert.notEqual(result.fill?.published, true, `${platformId} must not claim an unverified final submission`);
+    assert.equal(result.fill?.published, true, `${platformId} must record verified final submission`);
     assertSuccessTelemetry(platformId, adapter, result, directPublish);
-    if (!directPublish) {
-      assert.equal(result.selectors?.publish ?? null, null, `${platformId} must not expose a public-publish action`);
-      assert.equal(await page.locator('body').getAttribute('data-publish-state'), 'unpublished',
-        `${platformId} must not click a public-publish action before live verification`);
-    }
     assert.equal(result.remote_url, editorUrl, `${platformId} result must expose the opened editor URL`);
     assert.ok(result.selectors?.body, `${platformId} result must expose its matched body selector`);
-    if (directPublish) assert.ok(result.selectors?.publish, `${platformId} result must expose its matched publish selector`);
+    assert.ok(result.selectors?.publish, `${platformId} result must expose its matched publish selector`);
 
-    assert.equal(result.fill?.title, true, `${platformId} must fill the title`);
-    assert.equal(result.fill?.body, true, `${platformId} must fill the body`);
-    assert.equal(result.fill?.body_format, 'html', `${platformId} must preserve rich HTML in a contenteditable editor`);
-    assert.equal(result.fill?.images, 1, `${platformId} must insert the normalized image asset`);
-    const bodyHtml = await page.locator(result.selectors.body).first().innerHTML();
-    assert.match(bodyHtml, /<h2>富文本小标题<\/h2>/, `${platformId} must preserve rich-text headings`);
-    assert.match(bodyHtml, /<strong>全部平台适配器<\/strong>/, `${platformId} must preserve inline formatting`);
-    assert.match(bodyHtml, /src="data:image\/png;base64,/, `${platformId} must consume embedded image assets`);
-    assert.equal(result.fill?.draft_saved, true, `${platformId} must verify its saved draft before returning control to the operator`);
+    if (kind === 'short_post') {
+      assert.equal(result.fill?.body, true, `${platformId} must fill the post body`);
+    } else {
+      assert.equal(result.fill?.title, true, `${platformId} must fill the title`);
+      assert.equal(result.fill?.body, true, `${platformId} must fill the body`);
+      assert.equal(result.fill?.body_format, 'html', `${platformId} must preserve rich HTML in a contenteditable editor`);
+      assert.equal(result.fill?.images, 1, `${platformId} must insert the normalized image asset`);
+      const bodyHtml = await page.locator(result.selectors.body).first().innerHTML();
+      assert.match(bodyHtml, /<h2>富文本小标题<\/h2>/, `${platformId} must preserve rich-text headings`);
+      assert.match(bodyHtml, /<strong>全部平台适配器<\/strong>/, `${platformId} must preserve inline formatting`);
+      assert.match(bodyHtml, /src="data:image\/png;base64,/, `${platformId} must consume embedded image assets`);
+      if (kind === 'dedicated' || kind === 'long_form_with_draft') {
+        assert.equal(result.fill?.draft_saved, true, `${platformId} must verify its saved draft before final submission`);
+      } else {
+        assert.equal(result.fill?.draft_saved, false, `${platformId} must not claim a draft action it does not own`);
+      }
+    }
   } finally {
     await page.close();
   }
