@@ -404,9 +404,67 @@ export class PlatformBrowser {
     return record;
   }
 
+  /**
+   * Windows Chrome/Edge keep their process resident after the operator closes
+   * every window, so a spawned child can stay alive without any visible login
+   * window.  Re-check the live window set over the read-only debug endpoint
+   * before deciding that the manual login window is still open.  The probe is
+   * cheap (one localhost HTTP round-trip) and throttled per record.
+   */
+  async refreshNativeLoginState(profileKey) {
+    if (!this.nativeLoginRecords || !this.nativeLoginProcesses) return;
+    const key = this.profileKey('', profileKey);
+    const record = this.nativeLoginRecords.get(key);
+    if (!record || record.closed) return;
+    const child = this.nativeLoginProcesses.get(key);
+    if (child && child.exitCode !== null && child.exitCode !== undefined) {
+      record.closed = true;
+      this.nativeLoginProcesses.delete(key);
+      return;
+    }
+    if (!record.debugPort) return;
+    const now = Date.now();
+    if (record.windowProbeAt && now - record.windowProbeAt < 5000) return;
+    record.windowProbeAt = now;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 1000);
+      let response;
+      try {
+        response = await fetch(`http://127.0.0.1:${record.debugPort}/json`, { signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!response.ok) return;
+      const targets = Array.isArray(await response.json()) ? await response.json() : [];
+      const livePages = targets.filter((target) => (
+        target.type === 'page'
+        && target.url
+        && target.url !== 'about:blank'
+        && !target.url.startsWith('chrome://newtab')
+      ));
+      if (!livePages.length) {
+        // All windows are closed; only the resident browser process remains.
+        record.closed = true;
+        record.closedAt = new Date().toISOString();
+        record.cdpBrowser = null;
+        record.cdpAttachmentPromise = null;
+        this.nativeLoginProcesses.delete(key);
+      }
+    } catch {
+      // Probe failure keeps the previous state; the process may still be
+      // starting or the debug endpoint is momentarily unavailable.
+    }
+  }
+
   isNativeLoginActive(profileKey) {
     const record = this.nativeLoginRecord(profileKey);
     return Boolean(record && !record.closed);
+  }
+
+  async refreshAllNativeLoginStates() {
+    const keys = [...this.nativeLoginRecords.keys()];
+    await Promise.all(keys.map((key) => this.refreshNativeLoginState(key).catch(() => {})));
   }
 
   nativePageSnapshot(record) {
@@ -511,6 +569,7 @@ export class PlatformBrowser {
   }
   async openNativeLogin(platform, profileKey) {
     const key = this.profileKey(platform.id, profileKey);
+    await this.refreshNativeLoginState(key);
     const current = this.nativeLoginRecord(key);
     if (current && !current.closed) {
       return this.nativePageSnapshot(current);
@@ -856,6 +915,7 @@ export class PlatformBrowser {
     const platform = findPlatform(platformId);
     if (!platform) throw new Error(`不支持的平台：${platformId}`);
     const profileKey = this.profileKey(platformId, options.profileKey || platformId);
+    await this.refreshNativeLoginState(profileKey);
     const nativeRecord = this.nativeLoginRecord(profileKey);
     if (nativeRecord && !nativeRecord.closed) {
       const nativePages = await this.nativeLoginPages(nativeRecord);
@@ -981,6 +1041,7 @@ export class PlatformBrowser {
       throw new Error(`${platform.name}尚未接入本地发布器，暂不能执行发布任务。`);
     }
     const profileKey = this.profileKey(platformId, options.profileKey || platformId);
+    await this.refreshNativeLoginState(profileKey);
     if (this.isNativeLoginActive(profileKey)) {
       throw new Error('平台人工登录窗口仍在打开。请完成登录并正常关闭该窗口后，再执行发布任务。');
     }

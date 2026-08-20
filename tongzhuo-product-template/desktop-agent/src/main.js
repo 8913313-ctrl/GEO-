@@ -155,8 +155,8 @@ app.get('/api/sessions', async (_request, response) => {
   }
 });
 
-app.get('/api/browser/windows', (_request, response) => {
-  response.json({ ok: true, browser: agent.browserWindows(), status: agent.publicStatus() });
+app.get('/api/browser/windows', async (_request, response) => {
+  response.json({ ok: true, browser: await agent.browserWindows(), status: agent.publicStatus() });
 });
 
 app.post('/api/browser/windows/:id/focus', async (request, response) => {

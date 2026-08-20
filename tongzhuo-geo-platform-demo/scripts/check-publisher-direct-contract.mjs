@@ -92,8 +92,8 @@ try {
   assert.equal(web.supports_scheduled, true);
   assert.equal(web.supports_direct_publish, true);
   const x = (await store.overview()).platforms.find((platform) => platform.id === "x");
-  assert.equal(x?.enabled, false, "X must stay disabled in the backend catalog");
-  assert.equal((await store.overview()).selectablePlatformIds.includes("x"), false, "X must not be selectable");
+  assert.equal(x?.enabled, true, "X stays enabled in the backend catalog");
+  assert.equal(x?.support, "ready", "X carries the verified direct contract");
 
   console.log("publisher direct contract check passed");
 } finally {

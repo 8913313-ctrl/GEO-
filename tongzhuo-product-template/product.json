@@ -1,32 +1,32 @@
 {
-    "product":  "Tongzhuo GEO Growth Suite",
-    "version":  "1.8.19",
-    "edition":  "三位一体企业获客模板",
-    "components":  [
-                       "geoflow-workbench",
-                       "ai-readable-company-website",
-                       "desktop-publisher-agent",
-                       "local-multi-platform-publisher"
-                   ],
-    "principles":  {
-                       "customerDataIsolated":  true,
-                       "publisherCredentialsStayLocal":  true,
-                       "noPricesInPublicWebsite":  true,
-                       "aiReadableWebsite":  true,
-                       "publisherEmbeddedInWorkbench":  true
-                   },
-    "publisherDeployment":  {
-                                "mode":  "cloud-workbench-with-windows-desktop-agent",
-                                "desktopAgentPort":  19380,
-                                "legacyAssistantPort":  19180,
-                                "healthPath":  "/healthz",
-                                "restartPolicy":  "tray-autostart",
-                                "adminDeviceActions":  [
-                                                           "disable",
-                                                           "enable",
-                                                           "delete"
-                                                       ],
-                                "primaryChannelType":  "desktop_publisher",
-                                "legacyChannelType":  "wechatsync_manual"
-                            }
+  "product": "Tongzhuo GEO Growth Suite",
+  "version": "1.8.20",
+  "edition": "三位一体企业获客模板",
+  "components": [
+    "geoflow-workbench",
+    "ai-readable-company-website",
+    "desktop-publisher-agent",
+    "local-multi-platform-publisher"
+  ],
+  "principles": {
+    "customerDataIsolated": true,
+    "publisherCredentialsStayLocal": true,
+    "noPricesInPublicWebsite": true,
+    "aiReadableWebsite": true,
+    "publisherEmbeddedInWorkbench": true
+  },
+  "publisherDeployment": {
+    "mode": "cloud-workbench-with-windows-desktop-agent",
+    "desktopAgentPort": 19380,
+    "legacyAssistantPort": 19180,
+    "healthPath": "/healthz",
+    "restartPolicy": "tray-autostart",
+    "adminDeviceActions": [
+      "disable",
+      "enable",
+      "delete"
+    ],
+    "primaryChannelType": "desktop_publisher",
+    "legacyChannelType": "wechatsync_manual"
+  }
 }

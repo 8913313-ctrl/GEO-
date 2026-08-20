@@ -993,7 +993,11 @@ export class TongzhuoDesktopAgent extends EventEmitter {
     return { ...result, loginDetection: result.driver === 'native' ? 'live_native_or_after_close' : 'automatic', syncState: sync.syncState };
   }
 
-  browserWindows() {
+  async browserWindows() {
+    // Native login windows are owned by the operator's Chrome/Edge.  Re-check
+    // the live window set so a resident browser process whose windows were all
+    // closed no longer reports a stale "window open" state to the backend.
+    await this.browser.refreshAllNativeLoginStates().catch(() => {});
     return this.browser.status();
   }
 
@@ -1357,25 +1361,36 @@ export class TongzhuoDesktopAgent extends EventEmitter {
 
       const results = [];
       if (this.hasCredential()) await this.flushPendingSessions();
-      for (const target of targets) {
-        try {
-          results.push(await this.checkLogin(target.platformId, {
-            groupId: target.groupId,
-            source: 'scheduled_probe',
-            // Read an attached native/managed login page when it exists. Once
-            // the operator has closed it, periodically probe the persisted
-            // profile headlessly so ready sessions and expired sessions both
-            // have a chance to converge without another manual click.
-            existingWindowOnly: target.hasOpenWindow,
-          }));
-        } catch (error) {
-          this.log('warn', 'platform.login.probe.failed', `${target.platformId} 登录状态检测失败。`, {
-            platform_id: target.platformId,
-            group_id: target.groupId,
-            error: error.message,
-          });
+      // Probe ready profiles concurrently (bounded) so a large account group
+      // does not serialize dozens of headless browser starts behind each
+      // other. Per-profile in-flight de-duplication still applies inside
+      // probeLogin, so the same platform never probes twice concurrently.
+      let cursor = 0;
+      const probeConcurrency = Math.max(1, Math.min(3, Number(this.config.loginProbeConcurrency || 3)));
+      const workers = Array.from({ length: Math.min(probeConcurrency, targets.length) }, async () => {
+        while (cursor < targets.length) {
+          const target = targets[cursor];
+          cursor += 1;
+          try {
+            results.push(await this.checkLogin(target.platformId, {
+              groupId: target.groupId,
+              source: 'scheduled_probe',
+              // Read an attached native/managed login page when it exists. Once
+              // the operator has closed it, periodically probe the persisted
+              // profile headlessly so ready sessions and expired sessions both
+              // have a chance to converge without another manual click.
+              existingWindowOnly: target.hasOpenWindow,
+            }));
+          } catch (error) {
+            this.log('warn', 'platform.login.probe.failed', `${target.platformId} 登录状态检测失败。`, {
+              platform_id: target.platformId,
+              group_id: target.groupId,
+              error: error.message,
+            });
+          }
         }
-      }
+      });
+      await Promise.all(workers);
       return results;
     } finally {
       this.loginSyncInFlight = false;
