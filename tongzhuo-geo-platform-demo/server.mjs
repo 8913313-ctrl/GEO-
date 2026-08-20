@@ -65,8 +65,7 @@ const contentStore = new ContentStore(database, {
       throw new KnowledgeError("At least one traceable enterprise knowledge citation is required.", 422, "KNOWLEDGE_EVIDENCE_REQUIRED");
     }
     return result;
-  },
-  assetPublishValidator: ({ workspaceId = "default", version }) => knowledgeStore.validatePublishedImageAssets({ workspaceId, contentHtml: version?.contentHtml || "" })
+  }
 });
 const contentAssetStore = new ContentAssetStore(database, { workspaceId: "default" });
 publisherStore.setWebPublisher((target) => contentStore.publish({
@@ -280,7 +279,7 @@ const diagnosticApi = createDiagnosticApi({
     };
   }
 });
-const monitoringRemotePorts = String(process.env.TZ_MONITORING_REMOTE_PORTS || "80,443,19080")
+const monitoringRemotePorts = String(process.env.TZ_MONITORING_REMOTE_PORTS || "80,443,18080")
   .split(",")
   .map((value) => Number(value.trim()))
   .filter((value) => Number.isInteger(value) && value > 0 && value <= 65_535);
@@ -861,77 +860,14 @@ async function handleSiteCmsApi(request, response, parts) {
   if (operation === "preview" && parts[4] === "assets" && parts[5] && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const fileName = path.basename(decodeURIComponent(parts[5]));
-    const previewAssetBase = "/api/v1/site-cms/preview/assets";
-    const previewAssetFiles = Object.freeze({
-      "template-03-software-ai.css": "03-software-ai.css",
-      "template-04-logistics.css": "04-logistics.css",
-      "template-05-business-services.css": "05-business-services.css",
-      "template-06-finance.css": "06-finance.css",
-      "template-07-healthcare.css": "07-healthcare.css",
-      "template-08-education.css": "08-education.css",
-      "template-09-travel-hotel.css": "09-travel-hotel.css",
-      "template-10-food-consumer.css": "10-food-consumer.css",
-      "template-11-ups.css": "template-11-ups.css"
-    });
-    const previewAssets = new Set([
-      "site.css",
-      "site.js",
-      "site-v8.css",
-      "template-01-industry.css",
-      "template-02-construction.css",
-      ...Object.keys(previewAssetFiles),
-      "template-runtime.js",
-      "site-v8.js",
-      "gsap.min.js",
-      "tz-display.woff2",
-      "favicon.svg",
-      "geo-signal-hero.svg",
-      "geo-answer-hero.svg",
-      "geo-network-hero.svg",
-      "tongzhuo-geo-mark.svg",
-      "tongzhuo-mark-gold.png",
-      "tongzhuo-mark-wine.png",
-      "tongzhuo-official-mark.png",
-      "zhuojian-ai-brand.png",
-      "zhuojian-ai-lockup-gold.png",
-      "zhuojian-ai-official-logo.png",
-      "template-01-default.png",
-      "template-02-default.png",
-      "template-03-default.png",
-      "template-04-default.png",
-      "template-05-default.png",
-      "template-06-default.png",
-      "template-07-default.png",
-      "template-08-default.png",
-      "template-09-default.png",
-      "template-10-default.png",
-      "template-11-ups.css",
-      "template-11-default.png"
-    ]);
+    const previewAssets = new Set(["site.css", "site.js", "geo-signal-hero.svg", "geo-answer-hero.svg", "geo-network-hero.svg"]);
     if (!previewAssets.has(fileName)) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
-    const relativeFile = previewAssetFiles[fileName] || fileName;
-    const filePath = fileName === "tz-display.woff2"
-      ? path.join(siteAssetRoot, "fonts", fileName)
-      : path.join(siteAssetRoot, relativeFile);
-    let body = await readFile(filePath);
-    if (fileName === "site-v8.css" || fileName === "site-v8.js") {
-      body = body.toString("utf8")
-        .replaceAll("/site-assets-r6/site.css", `${previewAssetBase}/site.css`)
-        .replaceAll("/site-assets-r6/site.js", `${previewAssetBase}/site.js`)
-        .replaceAll("/site-assets-r9/tz-display.woff2", `${previewAssetBase}/tz-display.woff2`)
-        .replaceAll("/site-assets-r9/gsap.min.js", `${previewAssetBase}/gsap.min.js`);
-    }
+    const body = await readFile(path.join(siteAssetRoot, fileName));
     const contentType = fileName.endsWith(".css")
       ? "text/css; charset=utf-8"
-      : fileName.endsWith(".js")
-        ? "text/javascript; charset=utf-8"
-        : fileName.endsWith(".svg")
-          ? "image/svg+xml"
-          : fileName.endsWith(".png")
-            ? "image/png"
-            : fileName.endsWith(".woff2")
-              ? "font/woff2"
-              : "application/octet-stream";
+      : fileName.endsWith(".svg")
+        ? "image/svg+xml"
+        : "text/javascript; charset=utf-8";
     return rawResponse(response, 200, body, contentType);
   }
   return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ROUTE_NOT_FOUND", message: "官网 CMS 接口不存在。" });
@@ -1460,63 +1396,6 @@ async function handleAiGenerationApi(request, response, parts, principal) {
   }
   const payload = await requestJson(request);
   const operation = parts[3];
-  if (operation === "image") {
-    const workspaceId = "default";
-    const requestedBusinessLineId = String(payload.businessLineId || payload.businessLine?.id || "").trim();
-    const requestedLibraryId = String(payload.libraryId || "").trim();
-    let library = requestedLibraryId
-      ? knowledgeStore.library(workspaceId, requestedLibraryId)
-      : knowledgeStore.listLibraries({ workspaceId, businessLineId: requestedBusinessLineId }).find((item) => item.kind === "document");
-    if (!library) throw new KnowledgeError("没有可用于保存生成图片的文档知识库，请先创建或授权一个知识库。", 422, "IMAGE_LIBRARY_REQUIRED");
-    if ((library.kind || library.library_kind) !== "document") throw new KnowledgeError("图片只能保存到文档知识库。", 422, "IMAGE_LIBRARY_INVALID");
-    if (requestedBusinessLineId && library.scope !== "enterprise" && library.business_line_id !== requestedBusinessLineId && library.businessLineId !== requestedBusinessLineId) {
-      throw new KnowledgeError("所选图片知识库不属于当前业务线。", 403, "IMAGE_LIBRARY_SCOPE_FORBIDDEN");
-    }
-    const generated = await aiGenerationService.generateImage(payload);
-    const title = String(generated.articleTitle || payload.articleTitle || "文章主题").trim().slice(0, 160) || "文章主题";
-    const sourceName = `AI-${title.replace(/[\\/:*?"<>|\x00-\x1f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 72) || "文章配图"}-${generated.generationRunId}.${generated.image.extension}`;
-    const asset = knowledgeStore.createAsset({
-      workspaceId,
-      libraryId: library.id,
-      assetType: "image",
-      sourceName,
-      mimeType: generated.image.mimeType,
-      contentBase64: generated.image.buffer.toString("base64"),
-      extractedText: `AI 生成配图：${generated.promptSummary || title}`,
-      altText: `${title}的文章配图`,
-      reviewStatus: "pending",
-      metadata: {
-        sourceRole: "ai_generated_image",
-        generationRunId: generated.generationRunId,
-        providerId: generated.run.providerId,
-        providerName: generated.run.providerName,
-        model: generated.run.model,
-        promptHash: generated.promptHash,
-        promptSummary: generated.promptSummary,
-        category: "文章配图",
-        caption: `${title} · AI 生成配图`,
-        license: "AI 生成，待人工确认",
-        processingState: "available",
-        contentHash: generated.image.sha256,
-        bytes: generated.image.bytes
-      },
-      actor: principal,
-      request
-    });
-    return jsonResponse(response, 201, {
-      ok: true,
-      data: {
-        generationRunId: generated.generationRunId,
-        run: generated.run,
-        libraryId: library.id,
-        asset: {
-          ...asset,
-          contentUrl: `/api/v1/knowledge/assets/${encodeURIComponent(asset.id)}/content`,
-          url: `/api/v1/knowledge/assets/${encodeURIComponent(asset.id)}/content`
-        }
-      }
-    });
-  }
   let ragResult = null;
   if ((payload.useRag === true || payload.rag?.enabled === true) && ["article", "topics"].includes(operation)) {
     const query = payload.rag?.query || payload.topic?.coreQuestion || payload.topic?.title || payload.topicBrief?.coreQuestion || "";
@@ -1775,7 +1654,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 const embeddedSiteRuntime = configured.environment === "development" && process.env.TZ_SITE_EMBED !== "false"
-  ? createSiteRuntime({ database, host: configured.host, port: Number(process.env.TZ_SITE_PORT) || 19080, workspaceId: "default" })
+  ? createSiteRuntime({ database, host: configured.host, port: Number(process.env.TZ_SITE_PORT) || 18080, workspaceId: "default" })
   : null;
 if (embeddedSiteRuntime) {
   embeddedSiteRuntime.listen().then((address) => {

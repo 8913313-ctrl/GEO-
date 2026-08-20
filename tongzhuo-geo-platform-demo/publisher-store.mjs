@@ -30,17 +30,8 @@ const PLATFORM_ALIASES = {
   tiktok: "douyin"
 };
 
-// Only adapters that have passed the real-account final-submit acceptance
-// flow may be selected for unattended public publishing. Every other local
-// platform remains available for draft preparation, but the worker must stop
-// before the final publish action and report that operator confirmation is
-// required.
-export const VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS = new Set([
-  "wechat_mp", "zhihu", "toutiao"
-]);
-
 export const PUBLISHER_PLATFORMS = [
-  { id: "web", name: "企业官网", category: "official", accountMode: "server", support: "ready", enabled: true, executionMode: "server_publish", requiresManualConfirmation: false, supportsDirectPublish: true, supportsDraft: true, supportsScheduled: true, supports_direct_publish: true, supports_draft: true, supports_scheduled: true, loginUrl: "", editorUrl: "" },
+  { id: "web", name: "企业官网", category: "official", accountMode: "server", support: "ready", enabled: true, executionMode: "server_publish", requiresManualConfirmation: false, loginUrl: "", editorUrl: "" },
   { id: "wechat_mp", name: "微信公众号", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.weixin.qq.com/", editorUrl: "https://mp.weixin.qq.com/" },
   { id: "zhihu", name: "知乎", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://www.zhihu.com/signin?next=%2F", editorUrl: "https://zhuanlan.zhihu.com/write" },
   { id: "toutiao", name: "头条号", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.toutiao.com/", editorUrl: "https://mp.toutiao.com/profile_v4/graphic/publish" },
@@ -65,7 +56,7 @@ export const PUBLISHER_PLATFORMS = [
   { id: "segmentfault", name: "SegmentFault", category: "self_media", accountMode: "local", support: "manual", enabled: true, executionMode: "assistant_confirm", requiresManualConfirmation: true, manualReason: "需在 SegmentFault 编辑器确认发布", loginUrl: "https://segmentfault.com/user/login", editorUrl: "https://segmentfault.com/write" },
   { id: "cnblogs", name: "博客园", category: "self_media", accountMode: "local", support: "manual", enabled: true, executionMode: "assistant_confirm", requiresManualConfirmation: true, manualReason: "需在博客园编辑器确认发布", loginUrl: "https://account.cnblogs.com/signin", editorUrl: "https://i.cnblogs.com/posts/edit" },
   { id: "sohufocus", name: "搜狐焦点", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.focus.cn/", editorUrl: "https://mp.focus.cn/" },
-  { id: "x", name: "X（Twitter）", category: "self_media", accountMode: "local", support: "planned", enabled: false, hidden: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://x.com/login", editorUrl: "https://x.com/compose/post" },
+  { id: "x", name: "X（Twitter）", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://x.com/login", editorUrl: "https://x.com/compose/post" },
   { id: "eastmoney", name: "东方财富", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://www.eastmoney.com/", editorUrl: "https://www.eastmoney.com/" },
   { id: "smzdm", name: "什么值得买", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://www.smzdm.com/", editorUrl: "https://post.smzdm.com/" },
   { id: "netease", name: "网易号", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.163.com/", editorUrl: "https://mp.163.com/" }
@@ -73,68 +64,34 @@ export const PUBLISHER_PLATFORMS = [
 
 function platformRuntimeContract(platform) {
   if (!platform || !platform.enabled || platform.accountMode !== "local") return platform;
-  const direct = VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS.has(platform.id);
   return {
     ...platform,
-    support: direct ? "ready" : "manual",
-    executionMode: direct ? "assistant_submit" : "assistant_confirm",
-    requiresManualConfirmation: !direct,
-    supportsDirectPublish: direct,
-    supports_direct_publish: direct,
-    supportsDraft: true,
-    supports_draft: true,
-    supportsScheduled: direct,
-    supports_scheduled: direct,
-    manualReason: direct ? "" : "This platform requires real-account direct-publish verification before unattended posting."
+    support: "ready",
+    executionMode: "assistant_submit",
+    requiresManualConfirmation: false,
+    manualReason: ""
   };
 }
 
 PUBLISHER_PLATFORMS.forEach((platform) => Object.assign(platform, platformRuntimeContract(platform)));
 
-const readyPlatformIds = new Set(PUBLISHER_PLATFORMS
-  .filter((item) => item.enabled && (item.accountMode === "server" || VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS.has(item.id)))
-  .map((item) => item.id));
+const readyPlatformIds = new Set(PUBLISHER_PLATFORMS.filter((item) => item.enabled).map((item) => item.id));
 const selectablePlatformIds = new Set(PUBLISHER_PLATFORMS.filter((item) => item.enabled).map((item) => item.id));
-const manualConfirmationPlatformIds = new Set(PUBLISHER_PLATFORMS
-  .filter((item) => item.enabled && item.accountMode === "local" && item.requiresManualConfirmation)
-  .map((item) => item.id));
+const manualConfirmationPlatformIds = new Set();
 
 function platformById(id) {
   return platformRuntimeContract(PUBLISHER_PLATFORMS.find((item) => item.id === id) || null);
 }
 
-function normalizePublishMode(value, fallback = "direct") {
-  const mode = String(value || "").trim().toLowerCase();
-  if (mode === "scheduled") return "direct";
-  return ["direct", "draft", "mixed"].includes(mode) ? mode : fallback;
-}
-
-function platformDetails(ids = [], requestedMode = "direct", options = {}) {
-  const mode = normalizePublishMode(requestedMode);
-  const forceDraft = options.forceDraft === true;
-  return [...new Set(ids)].map((id) => platformById(id)).filter(Boolean).map((platform) => {
-    const supportsDirectPublish = platform.accountMode === "server"
-      || Boolean(platform.supportsDirectPublish);
-    const effectiveMode = !forceDraft && mode !== "draft" && supportsDirectPublish
-      ? "direct"
-      : "draft";
-    const manualConfirmation = effectiveMode !== "direct";
-    return {
-      id: platform.id,
-      name: platform.name,
-      support: platform.support,
-      support_level: platform.support,
-      executionMode: platform.executionMode,
-      execution_mode: platform.executionMode,
-      supports_draft: platform.supportsDraft !== false,
-      supports_direct_publish: supportsDirectPublish,
-      supports_scheduled: platform.accountMode === "server" || Boolean(platform.supportsScheduled),
-      publish_mode: effectiveMode,
-      manual_confirmation: manualConfirmation,
-      requiresManualConfirmation: manualConfirmation,
-      manualReason: manualConfirmation ? (platform.manualReason || "") : ""
-    };
-  });
+function platformDetails(ids = []) {
+  return [...new Set(ids)].map((id) => platformById(id)).filter(Boolean).map((platform) => ({
+    id: platform.id,
+    name: platform.name,
+    support: platform.support,
+    executionMode: platform.executionMode,
+    requiresManualConfirmation: Boolean(platform.requiresManualConfirmation),
+    manualReason: platform.manualReason || ""
+  }));
 }
 
 function localSelectablePlatformIds() {
@@ -217,49 +174,6 @@ function effectiveAccountGroups(device, groups = []) {
 
 function accountReadyForGroup(device, group, platformId) {
   return accountReady(effectiveAccountForGroup(device, group, platformId));
-}
-
-// A session may be logged in while deliberately disallowing unattended
-// submission (for example after a risk-control check). Keep draft creation
-// available, but require the explicit auto_allowed flag for direct publishing.
-function accountCanAutoPublish(device, group, platformId) {
-  if (!accountReadyForGroup(device, group, platformId)) return false;
-  const session = latestSessionForGroup(device, group, platformId);
-  return !session || session.auto_allowed !== false;
-}
-
-function jobAccountGroupId(job = {}) {
-  return String(
-    job.account_group_id
-      || job.group_id
-      || job.payload?.account_group_id
-      || job.payload?.group_id
-      || ""
-  ).trim();
-}
-
-function jobTargetDeviceId(job = {}) {
-  return String(
-    job.target_device_id
-      || job.targetDeviceId
-      || job.device_id
-      || job.deviceId
-      || job.assigned_device_id
-      || job.payload?.target_device_id
-      || job.payload?.device_id
-      || ""
-  ).trim();
-}
-
-function deviceCanAccessJob(device, job = {}) {
-  const targetDeviceId = jobTargetDeviceId(job);
-  if (targetDeviceId && String(device?.id || "") !== targetDeviceId) return false;
-  const groupId = jobAccountGroupId(job);
-  if (!groupId) return true;
-  return cleanAccountGroups(device?.accountGroups).some((group) => (
-    String(group.id || "") === groupId
-      && (!group.deviceId || String(group.deviceId) === String(device?.id || ""))
-  ));
 }
 
 function now() {
@@ -353,32 +267,7 @@ function publicDevice(device) {
 }
 
 function publicJob(job, { forWorker = false } = {}) {
-  const targetPlatformIds = Array.isArray(job.targetPlatforms || job.platforms)
-    ? (job.targetPlatforms || job.platforms)
-    : [];
-  const workerPlatformIds = Array.isArray(job.workerPlatforms || job.platforms)
-    ? (job.workerPlatforms || job.platforms)
-    : [];
-  const platformIds = forWorker ? workerPlatformIds : targetPlatformIds;
-  // Jobs written before the direct-publish contract was introduced must stay
-  // draft-only after an upgrade. New jobs always persist an explicit mode.
-  const hasPersistedMode = typeof job.publish_mode === "string" && job.publish_mode.trim() !== "";
-  const requestedMode = normalizePublishMode(hasPersistedMode ? job.publish_mode : "draft", "draft");
-  const details = platformDetails(platformIds, requestedMode, {
-    forceDraft: job.manual_confirmation_requested === true && requestedMode !== "mixed"
-  });
-  const allDirect = details.length > 0 && details.every((item) => item.publish_mode === "direct");
-  const allDraft = details.length > 0 && details.every((item) => item.publish_mode === "draft");
-  const supportsDirectPublish = details.length > 0
-    && details.every((item) => item.supports_direct_publish);
-  const supportsDraft = details.length > 0
-    && details.every((item) => item.supports_draft !== false);
-  const supportsScheduled = details.length > 0
-    && details.every((item) => item.supports_scheduled === true);
-  const manualConfirmation = details.some((item) => item.manual_confirmation);
-  const effectivePublishMode = allDirect ? "direct" : allDraft ? "draft" : "mixed";
-  const executionModes = [...new Set(details.map((item) => item.execution_mode || item.executionMode).filter(Boolean))];
-  const executionMode = executionModes.length === 1 ? executionModes[0] : executionModes.length ? "mixed" : "unknown";
+  const platformIds = forWorker ? (job.workerPlatforms || job.platforms) : (job.targetPlatforms || job.platforms);
   return {
     id: job.id,
     articleId: job.articleId,
@@ -388,26 +277,9 @@ function publicJob(job, { forWorker = false } = {}) {
     account_group_id: job.account_group_id,
     group_id: job.group_id,
     group_name: job.group_name,
-    device_id: job.device_id || job.target_device_id || job.targetDeviceId || job.assigned_device_id || null,
-    target_device_id: job.target_device_id || job.device_id || job.targetDeviceId || job.assigned_device_id || null,
-    targetDeviceId: job.targetDeviceId || job.target_device_id || job.device_id || job.assigned_device_id || null,
-    assigned_device_id: job.assigned_device_id || job.target_device_id || job.device_id || job.targetDeviceId || null,
     platforms: platformIds,
     platform_order: forWorker ? (job.workerPlatformOrder || job.platform_order) : (job.targetPlatformOrder || job.platform_order),
-    target_platforms: targetPlatformIds,
-    worker_platforms: workerPlatformIds,
-    requested_publish_mode: requestedMode,
-    publish_mode: effectivePublishMode,
-    manual_confirmation: manualConfirmation,
-    manual_confirmation_requested: job.manual_confirmation_requested === true,
-    supports_direct_publish: supportsDirectPublish,
-    platform: details.length === 1 ? details[0] : null,
-    supports_draft: supportsDraft,
-    supports_scheduled: supportsScheduled,
-    execution_mode: executionMode,
-    execution_modes: executionModes,
-    claimed_by: job.claimedBy || null,
-    platform_details: details,
+    platform_details: platformDetails(platformIds),
     payload: job.payload,
     status: job.status,
     assistant: { state: job.status, claimedBy: job.claimedBy || null },
@@ -609,7 +481,7 @@ export class PublisherStore {
     await this.load();
     await this.processDueJobs();
     return this.state.jobs
-      .filter((job) => (job.workerPlatforms || job.platforms || []).length && ["queued", "running"].includes(job.status) && (!job.claimedBy || job.claimedBy === device.id) && deviceCanAccessJob(device, job))
+      .filter((job) => (job.workerPlatforms || job.platforms || []).length && ["queued", "running"].includes(job.status) && (!job.claimedBy || job.claimedBy === device.id))
       .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
       .slice(0, Math.max(1, Math.min(100, Number(limit) || 30)))
       .map((job) => publicJob(job, { forWorker: true }));
@@ -695,7 +567,6 @@ export class PublisherStore {
     await this.load();
     const article = body.article || {};
     const rawPlatforms = [...new Set((body.platformOrder || body.platforms || []).map(canonicalPlatformId))];
-    const targetDeviceId = String(body.target_device_id || body.targetDeviceId || body.deviceId || body.device_id || "").trim();
     const unavailablePlatforms = rawPlatforms.filter((id) => platformById(id) && !selectablePlatformIds.has(id));
     if (unavailablePlatforms.length) throw new Error(`以下平台暂不支持创建发布任务：${unavailablePlatforms.map((id) => platformById(id)?.name || id).join("、")}`);
     const requestedPlatforms = rawPlatforms.filter((id) => selectablePlatformIds.has(id));
@@ -705,8 +576,7 @@ export class PublisherStore {
     let syncedGroup = null;
     let syncedDevice = null;
     for (const device of this.state.devices) {
-      if (targetDeviceId && String(device.id) !== targetDeviceId) continue;
-      const group = cleanAccountGroups(device.accountGroups).find((item) => item.id === groupId && (!item.deviceId || String(item.deviceId) === String(device.id)));
+      const group = cleanAccountGroups(device.accountGroups).find((item) => item.id === groupId);
       if (group) {
         syncedDevice = device;
         syncedGroup = group;
@@ -723,29 +593,6 @@ export class PublisherStore {
     }
     const groupName = String(syncedGroup?.name || body.groupName || "默认账号组");
     const scheduled = body.mode === "scheduled";
-    const rawPublishMode = body.publishMode ?? body.publish_mode;
-    const requestedPublishMode = normalizePublishMode(rawPublishMode === undefined ? "direct" : rawPublishMode, "direct");
-    const explicitManualConfirmation = body.manual_confirmation === true || body.manualConfirmation === true;
-    // An explicit manual request applies to a single-mode job. Mixed jobs
-    // retain direct execution for the verified platforms and draft/manual
-    // execution for the remaining platforms independently.
-    const effectivePublishMode = explicitManualConfirmation && requestedPublishMode !== "mixed"
-      ? "draft"
-      : requestedPublishMode;
-    const directPlatformIds = platformDetails(platforms, effectivePublishMode, {
-      forceDraft: explicitManualConfirmation && effectivePublishMode !== "mixed"
-    })
-      .filter((item) => item.publish_mode === "direct")
-      .map((item) => item.id);
-    const autoDisallowed = directPlatformIds.filter((platformId) => !accountCanAutoPublish(syncedDevice, syncedGroup, platformId));
-    if (autoDisallowed.length) {
-      throw new PublisherError(
-        `以下平台当前不允许无人值守直接发布：${autoDisallowed.map((id) => platformById(id)?.name || id).join("、")}`,
-        409,
-        "PUBLISHER_AUTO_NOT_ALLOWED",
-        { platforms: autoDisallowed }
-      );
-    }
     const webUrl = String(body.webUrl || article.siteUrl || "");
     const hasWeb = requestedPlatforms.includes("web");
     const job = {
@@ -762,11 +609,6 @@ export class PublisherStore {
       account_group_id: groupId,
       group_id: groupId,
       group_name: groupName,
-      device_id: targetDeviceId || syncedDevice?.id || syncedGroup?.deviceId || null,
-      target_device_id: targetDeviceId || syncedDevice?.id || syncedGroup?.deviceId || null,
-      targetDeviceId: targetDeviceId || syncedDevice?.id || syncedGroup?.deviceId || null,
-      publish_mode: effectivePublishMode,
-      manual_confirmation_requested: explicitManualConfirmation,
       platforms,
       workerPlatforms: platforms,
       workerPlatformOrder: platforms,
@@ -784,14 +626,8 @@ export class PublisherStore {
         },
         account_group_id: groupId,
         group_id: groupId,
-        device_id: targetDeviceId || syncedDevice?.id || syncedGroup?.deviceId || null,
-        target_device_id: targetDeviceId || syncedDevice?.id || syncedGroup?.deviceId || null,
-        targetDeviceId: targetDeviceId || syncedDevice?.id || syncedGroup?.deviceId || null,
         interval_minutes: Math.max(5, Number(body.intervalMinutes || 60)),
-        publish_mode: effectivePublishMode,
-        platform_policies: platformDetails(requestedPlatforms, effectivePublishMode, {
-          forceDraft: explicitManualConfirmation && effectivePublishMode !== "mixed"
-        })
+        platform_policies: platformDetails(requestedPlatforms)
       },
       status: scheduled ? "scheduled" : platforms.length ? "queued" : hasWeb ? "publishing" : "success",
       createdAt: now(),
@@ -847,11 +683,7 @@ export class PublisherStore {
     await this.load();
     const job = this.state.jobs.find((item) => Number(item.id) === Number(id));
     if (!job) throw new Error("发布任务不存在。");
-    if (!deviceCanAccessJob(device, job)) throw new PublisherError("Publisher job route mismatch.", 409, "PUBLISHER_JOB_ROUTE_MISMATCH");
     if (job.claimedBy && job.claimedBy !== device.id && job.status === "running") throw new Error("发布任务正在由其他发布器执行。");
-    if (job.status !== "queued" && !(job.status === "running" && job.claimedBy === device.id)) {
-      throw new PublisherError("Publisher job is not claimable.", 409, "PUBLISHER_JOB_NOT_CLAIMABLE");
-    }
     job.claimedBy = device.id;
     job.status = "running";
     job.updatedAt = now();
@@ -863,8 +695,6 @@ export class PublisherStore {
     await this.load();
     const job = this.state.jobs.find((item) => Number(item.id) === Number(id));
     if (!job) throw new Error("发布任务不存在。");
-    if (!deviceCanAccessJob(device, job)) throw new PublisherError("Publisher job route mismatch.", 409, "PUBLISHER_JOB_ROUTE_MISMATCH");
-    if (job.claimedBy && job.claimedBy !== device.id) throw new PublisherError("Publisher job is claimed by another device.", 409, "PUBLISHER_JOB_CLAIMED");
     job.claimedBy = device.id;
     const workerState = String(body.state || "result_unknown");
     const incomingResults = body.platform_results || body.results;

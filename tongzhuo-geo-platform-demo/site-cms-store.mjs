@@ -1,6 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
 import { appendAuditLog } from "./production-audit.mjs";
-import { DEFAULT_SITE_TEMPLATE_KEY, isSiteTemplateKey, SITE_TEMPLATES } from "./site-template-registry.mjs";
 
 const CORE_PAGE_IDS = new Set(["home", "services", "about", "contact", "insights", "cases", "problem-map"]);
 const OPTIONAL_PATHS = new Set(["/cases/", "/faq/", "/team/", "/honors/", "/jobs/"]);
@@ -36,63 +35,6 @@ function cleanPublicUrl(value, { allowRelative = false } = {}) {
   } catch {
     return "";
   }
-}
-
-function cleanOptionalImage(value) {
-  return cleanPublicUrl(value, { allowRelative: true });
-}
-
-function cleanFooterHref(value) {
-  const candidate = cleanText(value, "", 1_000);
-  if (!candidate) return "";
-  if (candidate.startsWith("/") && !candidate.startsWith("//")) return normalizeCmsPath(candidate);
-  if (/^(?:mailto:|tel:)[^\s]+$/i.test(candidate)) return candidate;
-  return cleanPublicUrl(candidate);
-}
-
-function normalizeFooterLinks(value, maximum = 8) {
-  return (Array.isArray(value) ? value : []).slice(0, maximum).map((item, index) => ({
-    id: cleanId(item?.id, `footer-link-${index + 1}`),
-    label: cleanText(item?.label, `链接 ${index + 1}`, 120),
-    href: cleanFooterHref(item?.href || item?.path || "/")
-  })).filter((item) => item.label && item.href);
-}
-
-function normalizeFooter(value = {}) {
-  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  const rawColumns = Array.isArray(source.columns) ? source.columns : [];
-  return {
-    description: cleanText(source.description, "企业公开信息、产品服务与行业内容。", 800),
-    copyright: cleanText(source.copyright, "版权所有", 200),
-    icpNumber: cleanText(source.icpNumber, "", 120),
-    icpUrl: cleanPublicUrl(source.icpUrl),
-    policeRecordNumber: cleanText(source.policeRecordNumber, "", 160),
-    policeRecordUrl: cleanPublicUrl(source.policeRecordUrl),
-    showIcp: source.showIcp !== false,
-    showPoliceRecord: source.showPoliceRecord !== false,
-    showCopyright: source.showCopyright !== false,
-    showSocial: source.showSocial !== false,
-    columns: rawColumns.slice(0, 6).map((column, index) => ({
-      id: cleanId(column?.id, `footer-column-${index + 1}`),
-      title: cleanText(column?.title, `栏目 ${index + 1}`, 120),
-      links: normalizeFooterLinks(column?.links)
-    })).filter((column) => column.title && column.links.length),
-    socialLinks: normalizeFooterLinks(source.socialLinks, 12)
-  };
-}
-
-function normalizeTemplateConfigs(value = {}) {
-  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  return Object.fromEntries(SITE_TEMPLATES.map((template) => {
-    const current = source[template.key] && typeof source[template.key] === "object" ? source[template.key] : {};
-    return [template.key, {
-      defaultImageUrl: cleanOptionalImage(current.defaultImageUrl || (template.defaultImage ? `/assets/${template.defaultImage}` : "")),
-      defaultImageAlt: cleanText(current.defaultImageAlt, `${template.shortName}默认图片`, 180),
-      logoUrl: cleanOptionalImage(current.logoUrl),
-      faviconUrl: cleanOptionalImage(current.faviconUrl),
-      updatedAt: current.updatedAt || null
-    }];
-  }));
 }
 
 function cleanPublicUrlList(value, maximum = 12) {
@@ -187,7 +129,6 @@ function normalizeServices(value) {
     id: cleanId(item.id, `service-${index + 1}`), title: cleanText(item.title, `服务 ${index + 1}`, 160),
     eyebrow: cleanText(item.eyebrow, "SERVICE", 80), description: cleanText(item.description, "", 1_500),
     audience: cleanText(item.audience, "", 800), focus: cleanText(item.focus, "", 800),
-    image: cleanOptionalImage(item.image), imageAlt: cleanText(item.imageAlt, item.title || "服务图片", 180),
     href: normalizeCmsHref(item.href, "/contact/"), status: normalizePublishedStatus(item.status, "draft"),
     order: Math.max(1, Number.parseInt(item.order, 10) || index + 1), updatedAt: item.updatedAt || null
   })).sort((a, b) => a.order - b.order);
@@ -199,7 +140,6 @@ function normalizeCases(value) {
     id: cleanId(item.id, `case-${index + 1}`), title: cleanText(item.title, `案例 ${index + 1}`, 200),
     serviceId: cleanId(item.serviceId, ""), service: cleanText(item.service, "企业服务", 120), industry: cleanText(item.industry, "中小企业", 120),
     summary: cleanText(item.summary, "", 1_500), result: cleanText(item.result, "", 1_500),
-    image: cleanOptionalImage(item.image), imageAlt: cleanText(item.imageAlt, item.title || "案例图片", 180),
     href: normalizeCmsHref(item.href, "/contact/"),
     status: normalizePublishedStatus(item.status, "draft"), order: Math.max(1, Number.parseInt(item.order, 10) || index + 1),
     updatedAt: item.updatedAt || null
@@ -308,17 +248,10 @@ function normalizeModule(item, pageId, index) {
     content: cleanText(item?.content, item?.description || "", 10_000), source: cleanText(item?.source, "CMS 页面内容", 160),
     status: ["published", "draft", "hidden"].includes(item?.status) ? item.status : "draft",
     ctaLabel: cleanText(item?.ctaLabel, "", 80), ctaHref: normalizeCmsPath(item?.ctaHref, "/contact/"),
-    image: cleanOptionalImage(item?.image), imageAlt: cleanText(item?.imageAlt, title || "模块图片", 180),
-    stats: (Array.isArray(item?.stats) ? item.stats : []).slice(0, 5).map((entry) => {
-      const pair = Array.isArray(entry) ? entry : [entry?.number, entry?.label];
-      const number = cleanText(String(pair?.[0] ?? "").trim(), "", 40);
-      const label = cleanText(String(pair?.[1] ?? "").trim(), "", 80);
-      return number ? [number, label] : null;
-    }).filter(Boolean),
+    image: cleanText(item?.image, "", 500),
     items: (Array.isArray(item?.items) ? item.items : []).slice(0, 24).map((entry, itemIndex) => ({
       id: cleanId(entry?.id, `${pageId}-${type}-item-${itemIndex + 1}`), title: cleanText(entry?.title, `项目 ${itemIndex + 1}`, 160),
-      description: cleanText(entry?.description, entry?.content || "", 1_000), href: normalizeCmsPath(entry?.href, "/contact/"),
-      image: cleanOptionalImage(entry?.image), imageAlt: cleanText(entry?.imageAlt, entry?.title || "内容图片", 180)
+      description: cleanText(entry?.description, entry?.content || "", 1_000), href: normalizeCmsPath(entry?.href, "/contact/")
     }))
   };
 }
@@ -372,13 +305,6 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
     sameAs: cleanPublicUrlList(settingsSource.sameAs),
     allowAiCrawl: settingsSource.allowAiCrawl !== false, updatedAt: settingsSource.updatedAt || null
   };
-  const assetsSource = cms.assets && typeof cms.assets === "object" ? cms.assets : {};
-  const assets = {
-    logoUrl: cleanOptionalImage(assetsSource.logoUrl || settings.logoUrl),
-    faviconUrl: cleanOptionalImage(assetsSource.faviconUrl),
-    defaultImageUrl: cleanOptionalImage(assetsSource.defaultImageUrl || "/assets/template-01-default.png"),
-    defaultImageAlt: cleanText(assetsSource.defaultImageAlt, "企业默认图片", 180)
-  };
   const rawPages = Array.isArray(cms.pages) && cms.pages.length ? cms.pages : defaultPages();
   const pages = rawPages.filter((item) => item && typeof item === "object").slice(0, 60).map(normalizePage);
   for (const fallback of defaultPages()) if (!pages.some((page) => page.id === fallback.id)) pages.push(normalizePage(fallback, pages.length));
@@ -429,11 +355,6 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const themeSource = cms.theme && typeof cms.theme === "object" ? cms.theme : {};
   const primaryColor = /^#[0-9a-f]{6}$/i.test(themeSource.primaryColor || "") ? themeSource.primaryColor : "#155eef";
   const theme = { name: cleanText(themeSource.name, "企业官网 · 标准版", 120), primaryColor, cta: cleanText(themeSource.cta, "预约业务咨询", 80), version: Math.max(1, Number.parseInt(themeSource.version, 10) || 1), updatedAt: themeSource.updatedAt || null };
-  const templateKey = isSiteTemplateKey(cms.templateKey)
-    ? cms.templateKey
-    : isSiteTemplateKey(themeSource.templateKey)
-      ? themeSource.templateKey
-      : DEFAULT_SITE_TEMPLATE_KEY;
   const redirects = (Array.isArray(cms.redirects) ? cms.redirects : []).filter((item) => item && typeof item === "object").slice(0, 500).map((item, index) => ({
     id: cleanId(item.id, `redirect-${index + 1}`), from: normalizeCmsPath(item.from, "/"), to: normalizeCmsPath(item.to, "/"),
     status: item.status === "disabled" ? "disabled" : "active", reason: cleanText(item.reason, "地址变更", 300), updatedAt: item.updatedAt || item.createdAt || null
@@ -441,7 +362,7 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const standardRedirects = [["/index.html", "/"], ["/products.html", "/services/"], ["/products/", "/services/"], ["/about.html", "/about/"], ["/contact.html", "/contact/"], ["/insights.html", "/insights/"]];
   for (const [from, to] of standardRedirects) if (!redirects.some((item) => item.from === from)) redirects.push({ id: `standard-${slugify(from, "redirect")}`, from, to, status: "active", reason: "统一官网规范地址", updatedAt: null });
   return {
-    schemaVersion: 4, templateKey, settings, assets, templateConfigs: normalizeTemplateConfigs(cms.templateConfigs), footer: normalizeFooter(cms.footer), theme: { ...theme, templateKey }, pages, modules, categories, navItems, redirects,
+    schemaVersion: 2, settings, theme, pages, modules, categories, navItems, redirects,
     services: normalizeServices(cms.services), cases: normalizeCases(cms.cases), problemGroups: normalizeProblemGroups(cms.problemGroups),
     businessLines: normalizeBusinessLines(state), generatedAt: cleanText(cms.generatedAt, new Date().toISOString(), 80)
   };

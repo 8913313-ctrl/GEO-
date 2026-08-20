@@ -24,14 +24,11 @@
   });
 
   for (const group of document.querySelectorAll("[data-case-filter]")) {
-    const cards = document.querySelectorAll("[data-case-industry]");
+    const cards = document.querySelectorAll(".case-card[data-case-industry]");
     for (const button of group.querySelectorAll("[data-case-value]")) {
       button.addEventListener("click", () => {
         const value = button.dataset.caseValue || "all";
-        for (const sibling of group.querySelectorAll("[data-case-value]")) {
-          sibling.classList.toggle("is-active", sibling === button);
-          sibling.classList.toggle("active", sibling === button);
-        }
+        for (const sibling of group.querySelectorAll("[data-case-value]")) sibling.classList.toggle("is-active", sibling === button);
         for (const card of cards) card.hidden = value !== "all" && card.dataset.caseIndustry !== value;
       });
     }
@@ -239,20 +236,11 @@
     targets.forEach((target, index) => {
       target.classList.add("reveal-item");
       target.style.setProperty("--reveal-delay", `${Math.min(index % 6, 5) * 70}ms`);
-      if (observer) observer.observe(target);
+      observer?.observe(target);
     });
-    if (observer) return;
-    let revealFrame = 0;
-    const scheduleReveal = () => {
-      if (revealFrame) return;
-      revealFrame = window.requestAnimationFrame(() => {
-        revealFrame = 0;
-        revealVisible();
-      });
-    };
-    window.addEventListener("scroll", scheduleReveal, { passive: true });
-    window.addEventListener("resize", scheduleReveal);
-    scheduleReveal();
+    window.addEventListener("scroll", revealVisible, { passive: true });
+    window.addEventListener("resize", revealVisible);
+    window.requestAnimationFrame(revealVisible);
   }
 
   installHeroVisualCarousel();

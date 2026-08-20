@@ -8,10 +8,7 @@
 - `POST /api/ai/providers`：创建供应商。请求字段：`id`（可选）、`name`、`baseUrl`、`model`、`apiKey`（可选）、`kind`（`text` / `image` / `embedding`）、`status`（`enabled` / `disabled`）。
 - `PATCH /api/ai/providers/:id`：部分更新；省略 `apiKey` 表示保留，传空字符串或 `null` 表示清除。
 - `DELETE /api/ai/providers/:id`：删除供应商。
-- `POST /api/ai/providers/:id/test`：按供应商用途发起最小真实连接探针；`kind=text` 调用 Chat Completions，`kind=image` 调用 OpenAI-compatible `/images/generations`，`kind=embedding` 调用 OpenAI-compatible `/embeddings` 并校验向量维度。启用且上游返回成功时返回 `passed`，停用、超时或上游失败时返回 `failed`。响应只包含脱敏供应商状态，不返回原始 API Key。
-- `POST /api/ai/generate/image`：根据文章标题和短摘要生成一张图片，并将真实二进制保存为当前工作区知识资产。调用方必须显式传 `allowExternalContent: true`；写作台会先让操作者确认发送范围。服务端只保留提示词摘要、哈希、模型、运行编号和图片摘要，不保存完整 Base64 或 API Key。返回的图片资产默认是 `pending`，确认素材后才允许文章发布和知识索引。
-
-图片供应商应提供 OpenAI-compatible `/images/generations` 接口，返回 `data[0].b64_json`、data URI 或 HTTPS 图片 URL。服务端会校验图片魔数、限制 20 MB 大小，并拒绝不安全的远程地址。
+- `POST /api/ai/providers/:id/test`：按供应商用途发起最小真实连接探针；`kind=text` 调用 Chat Completions，`kind=embedding` 调用 OpenAI-compatible `/embeddings` 并校验向量维度。启用且上游返回成功时返回 `passed`，停用、超时或上游失败时返回 `failed`。响应只包含脱敏供应商状态，不返回原始 API Key。
 
 `kind=embedding` 的供应商用于企业知识库向量化和 RAG 检索，服务端调用其 OpenAI-compatible `/embeddings` 接口。建议通过 `TZ_EMBEDDING_PROVIDER_ID` 固定生产 embedding 供应商，避免模型切换造成同一知识库向量维度不一致。
 

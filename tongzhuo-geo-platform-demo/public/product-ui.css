@@ -1178,7 +1178,8 @@ body {
   .dashboard-grid { grid-template-columns: minmax(0, 1.35fr) minmax(300px, .8fr); }
   .route-planning .business-scope-card { grid-template-columns: minmax(210px, .8fr) minmax(260px, 1.2fr) auto; }
   .route-planning .business-scope-actions { grid-column: 1 / -1; justify-self: start; }
-  .planning-layout { grid-template-columns: 190px minmax(0, 1fr) 250px; }
+  .planning-layout { grid-template-columns: 250px minmax(0, 1fr); }
+  .planning-layout > :last-child { grid-column: 1 / -1; }
   .site-page-manager { grid-template-columns: 240px minmax(0, 1fr); }
   .site-page-settings { grid-column: 1 / -1; }
   .site-workspace { grid-template-columns: 200px minmax(0, 1fr); }
@@ -1220,11 +1221,6 @@ body {
   .knowledge-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .publish-platform-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .account-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (max-width: 1040px) {
-  .planning-layout { grid-template-columns: 1fr; }
-  .planning-layout > :last-child { position: static; grid-column: auto; max-height: none; overflow: visible; }
 }
 
 @media (max-width: 920px) {
