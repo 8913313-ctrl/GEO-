@@ -840,6 +840,59 @@ try {
     assert.equal(selectorProbeBrowser.profileProbeStarts.size, 0);
   }
 
+  // Regression coverage for the three direct-publish login contracts. Broad
+  // shells and generic class names must not turn an unauthenticated page into
+  // a ready session.
+  async function probeWithPage(platformId, pageOptions) {
+    let closeCalls = 0;
+    const page = readOnlyPage(pageOptions);
+    const context = {
+      pages: () => [page],
+      newPage: async () => { throw new Error('the login contract probe must reuse its startup page'); },
+      close: async () => { closeCalls += 1; },
+    };
+    const browser = new PlatformBrowser({
+      launchPersistentBrowser: async () => context,
+    });
+    const result = await browser.probeLogin(platformId, {
+      profileKey: platformId + '-login-contract',
+    });
+    assert.equal(closeCalls, 1, platformId + ' login contract probe must close its context');
+    return result;
+  }
+
+  const wechatLoginShell = await probeWithPage('wechat_mp', {
+    url: 'https://mp.weixin.qq.com/cgi-bin/bizlogin?action=startlogin',
+    visible: ['.weui-desktop-layout'],
+  });
+  assert.equal(wechatLoginShell.loggedIn, false, 'WeChat login shell must not be treated as authenticated');
+  assert.ok(wechatLoginShell.reason, 'WeChat login shell should expose a non-empty login/verification reason');
+  const wechatHome = await probeWithPage('wechat_mp', {
+    url: 'https://mp.weixin.qq.com/cgi-bin/home?t=home/index',
+  });
+  assert.equal(wechatHome.loggedIn, true, 'WeChat authenticated home URL must be accepted');
+  assert.equal(wechatHome.loginSignal, 'https://mp.weixin.qq.com/cgi-bin/home');
+  const zhihuTextareaOnly = await probeWithPage('zhihu', {
+    url: 'https://www.zhihu.com/signin',
+    attached: ['textarea[placeholder="??????..."]'],
+  });
+  assert.equal(zhihuTextareaOnly.loggedIn, false, 'a generic Zhihu textarea must not prove login');
+  const zhihuAvatar = await probeWithPage('zhihu', {
+    url: 'https://zhuanlan.zhihu.com/write',
+    visible: ['.AppHeader-profile'],
+  });
+  assert.equal(zhihuAvatar.loggedIn, true, 'Zhihu profile control must prove login');
+  const toutiaoGenericCreator = await probeWithPage('toutiao', {
+    url: 'https://mp.toutiao.com/',
+    visible: ['[class*="creator"]'],
+  });
+  assert.equal(toutiaoGenericCreator.loggedIn, false, 'generic Toutiao creator class must not prove login');
+  const toutiaoAvatar = await probeWithPage('toutiao', {
+    url: 'https://mp.toutiao.com/',
+    visible: ['.user-auth-avator'],
+  });
+  assert.equal(toutiaoAvatar.loggedIn, true, 'Toutiao account avatar must prove login');
+
   // Baijiahao's authenticated editor can render only a shell/iframe in a
   // headless profile, so its exact HTTPS origin + /builder/ path is a catalog
   // login signal. The public login URL, HTTP, and lookalike domains must stay

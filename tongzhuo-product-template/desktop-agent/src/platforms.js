@@ -18,10 +18,12 @@ const platformLoginSignals = Object.freeze({
     // .weui-desktop-layout is also present on the unauthenticated QR/login
     // shell, so it must never be used as a positive account signal.
     visible: ['#js_home', '.weui-desktop-account'],
-    urlPrefixes: ['https://mp.weixin.qq.com/cgi-bin/'],
+    // The login shell and /cgi-bin/bizlogin are unauthenticated. Only the
+    // concrete home path is a positive URL signal.
+    urlPrefixes: ['https://mp.weixin.qq.com/cgi-bin/home'],
   },
   zhihu: { visible: ['[data-za-detail-view-element_name="Avatar"]', '.AppHeader-profile'] },
-  toutiao: { visible: ['.user-panel .user-auth-avator', '.user-auth-avator', '[class*="userInfo" i] [class*="avatar" i]', '[class*="creator" i] [class*="avatar" i]', '.article-title input'] },
+  toutiao: { visible: ['.user-panel .user-auth-avator', '.user-auth-avator', '.article-title input', '.title-input'] },
   baijiahao: {
     visible: ['[class*="client-user" i]', '[class*="user-info" i] [class*="avatar" i]', 'a[href*="/builder/rc/edit"]'],
     urlPrefixes: ['https://baijiahao.baidu.com/builder/'],

@@ -249,7 +249,7 @@ class ArticleController extends Controller
                 'is_featured' => (bool) ($payload['is_featured'] ?? false),
             ]);
             if ($workflowState['status'] === 'published') {
-                $this->distributionOrchestrator->enqueueForArticle($article);
+                $this->enqueuePublisherArticle($article);
             }
         } catch (Throwable $e) {
             return back()->withInput()->withErrors(__('admin.article_create.error.create_exception', ['message' => $e->getMessage()]));
@@ -329,7 +329,7 @@ class ArticleController extends Controller
                 'is_featured' => (bool) ($payload['is_featured'] ?? false),
             ])->save();
             if ($workflowState['status'] === 'published') {
-                $this->distributionOrchestrator->enqueueForArticle($article);
+                $this->enqueuePublisherArticle($article);
             }
         } catch (Throwable $e) {
             return back()->withInput()->withErrors(__('admin.article_edit.error.update_exception', ['message' => $e->getMessage()]));
@@ -350,38 +350,55 @@ class ArticleController extends Controller
             return back()->withErrors('请先发布文章到官网，再送入发布助手。');
         }
 
-        $this->enqueuePublisherArticle($article);
+        if (! $this->enqueuePublisherArticle($article)) {
+            return back()->withErrors('No verified direct-publish account is enabled; no publisher task was created.');
+        }
 
         return redirect()
             ->route('admin.publisher-assistant')
             ->with('message', '文章已送入发布助手队列。请在任务中确认各平台的实际发布结果。');
     }
 
-    private function enqueuePublisherArticle(Article $article): void
+    private function enqueuePublisherArticle(Article $article): bool
     {
-        if (! (bool) config('publishing.center_v2_enabled', false)) {
+        if (! (bool) config('publishing.center_v2_enabled', false)
+            || ! (bool) config('publishing.platform_jobs_enabled', false)) {
             $this->distributionOrchestrator->enqueueForArticle($article);
 
-            return;
+            return true;
         }
 
-        $platformIds = $this->publisherPlatforms->activePlatforms()
-            ->filter(fn ($platform): bool => (string) $platform->support_level !== 'planned')
-            ->pluck('platform_id')
-            ->filter(fn ($id): bool => is_string($id) && $id !== '')
-            ->values()
-            ->all();
         $accountGroup = PublisherAccountGroup::query()
             ->where('status', 'active')
             ->orderBy('id')
             ->first();
+        $verifiedPlatformIds = PublisherPlatformCatalogService::VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS;
+        $platformIds = $this->publisherPlatforms->activePlatforms()
+            ->whereIn('platform_id', $verifiedPlatformIds)
+            ->pluck('platform_id')
+            ->filter(fn ($id): bool => is_string($id) && $id !== '')
+            ->values()
+            ->all();
+        if ($accountGroup instanceof PublisherAccountGroup) {
+            $enabledGroupPlatforms = $accountGroup->items()
+                ->where('enabled', true)
+                ->whereIn('platform_id', $verifiedPlatformIds)
+                ->pluck('platform_id')
+                ->all();
+            $platformIds = array_values(array_intersect($platformIds, $enabledGroupPlatforms));
+        }
+        if ($platformIds === []) {
+            return false;
+        }
         $this->publishingCenter->createBatch(
             article: $article,
             platformIds: $platformIds,
-            publishMode: $accountGroup?->default_publish_mode ?: 'draft',
+            publishMode: 'direct',
             accountGroup: $accountGroup,
             requestedByAdminId: auth('admin')->id(),
         );
+
+        return true;
     }
     /**
      * @return array{
@@ -780,7 +797,7 @@ class ArticleController extends Controller
             ]);
 
             if ($workflowState['status'] === 'published') {
-                $this->distributionOrchestrator->enqueueForArticle((int) $article->id);
+                $this->enqueuePublisherArticle(Article::query()->findOrFail((int) $article->id));
             }
         }
 
@@ -823,7 +840,7 @@ class ArticleController extends Controller
             ]);
 
             if ($workflowState['status'] === 'published') {
-                $this->distributionOrchestrator->enqueueForArticle((int) $article->id);
+                $this->enqueuePublisherArticle(Article::query()->findOrFail((int) $article->id));
             }
         }
 

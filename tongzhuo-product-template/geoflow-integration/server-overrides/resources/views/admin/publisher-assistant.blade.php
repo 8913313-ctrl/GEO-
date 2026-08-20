@@ -140,8 +140,8 @@
                     <label class="block">
                         <span class="text-sm font-semibold text-slate-800">发布方式</span>
                         <select name="publish_mode" required class="mt-2 block w-full rounded-xl border-slate-300 text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" data-publish-mode>
-                            <option value="draft" @selected(old('publish_mode', 'draft') === 'draft')>保存草稿</option>
-                            <option value="direct" @selected(old('publish_mode') === 'direct')>立即发布</option>
+                            <option value="draft" @selected(old('publish_mode', 'direct') === 'draft')>保存草稿</option>
+                            <option value="direct" @selected(old('publish_mode', 'direct') === 'direct')>立即发布</option>
                             <option value="scheduled" @selected(old('publish_mode') === 'scheduled')>定时发布</option>
                         </select>
                     </label>

@@ -6,8 +6,10 @@ use App\Exceptions\ApiException;
 use App\Models\ArticleDistribution;
 use App\Models\PublisherDevice;
 use App\Models\PublisherPlatformJob;
+use App\Models\PublisherPlatformSession;
 use App\Services\Publishing\PublisherDeviceCredential;
 use App\Services\Publishing\PublisherBatchSummaryService;
+use App\Services\Publishing\PublisherPlatformCatalogService;
 use App\Services\Publishing\PublisherPlatformJobLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,13 +41,13 @@ class PublisherPlatformJobController extends BaseApiController
         $limit = max(1, min(50, $request->integer('limit', 20)));
         $now = now();
         $items = PublisherPlatformJob::query()
-            ->with(['distribution.article', 'session', 'platform'])
+            ->with(['distribution.article', 'distribution.publisherAccountGroup', 'session.device', 'device', 'platform'])
             ->where(function ($query) use ($device): void {
                 $query->whereNull('publisher_device_id')->orWhere('publisher_device_id', $device->id);
             })
-            ->whereIn('status', ['queued', 'waiting_for_device', 'processing', 'claimed'])
+            ->whereIn('status', ['queued', 'processing', 'claimed'])
             ->where(function ($query) use ($now, $device): void {
-                $query->whereIn('status', ['queued', 'waiting_for_device'])
+                $query->where('status', 'queued')
                     ->orWhere(function ($active) use ($now, $device): void {
                         $active->whereIn('status', ['processing', 'claimed'])
                             ->where(function ($lease) use ($now, $device): void {
@@ -103,7 +105,7 @@ class PublisherPlatformJobController extends BaseApiController
         $claimed = DB::transaction(function () use ($job, $device): PublisherPlatformJob {
             /** @var PublisherPlatformJob|null $item */
             $item = PublisherPlatformJob::query()
-                ->with(['distribution.article', 'session', 'platform'])
+                ->with(['distribution.article', 'distribution.publisherAccountGroup', 'session.device', 'device', 'platform'])
                 ->whereKey($job)
                 ->lockForUpdate()
                 ->first();
@@ -130,7 +132,7 @@ class PublisherPlatformJobController extends BaseApiController
             }
             $expiredLeaseCanBeReclaimed = in_array((string) $item->status, ['processing', 'claimed'], true)
                 && ($item->lease_expires_at === null || $item->lease_expires_at->lte($now));
-            if (! in_array((string) $item->status, ['queued', 'waiting_for_device'], true)
+            if ((string) $item->status !== 'queued'
                 && ! $expiredLeaseCanBeReclaimed) {
                 // Direct calls must not bypass the scheduler or a login/
                 // verification hold merely because the job ID is known.
@@ -180,7 +182,7 @@ class PublisherPlatformJobController extends BaseApiController
                 'progress_step' => $item->progress_step ?: '已领取，等待本地执行器处理',
             ])->save();
 
-            return $item->fresh(['distribution.article', 'session', 'platform']);
+            return $item->fresh(['distribution.article', 'distribution.publisherAccountGroup', 'session.device', 'device', 'platform']);
         });
 
         return $this->success($request, [
@@ -218,7 +220,7 @@ class PublisherPlatformJobController extends BaseApiController
                 'result' => array_replace($this->sanitizeResult(is_array($item->result) ? $item->result : []), $progressResult),
             ])->save();
 
-            return $item->fresh(['distribution.article', 'session', 'platform']);
+            return $item->fresh(['distribution.article', 'distribution.publisherAccountGroup', 'session.device', 'device', 'platform']);
         });
 
         return $this->success($request, [
@@ -292,7 +294,7 @@ class PublisherPlatformJobController extends BaseApiController
                 // stored result, error, or remote URL.
 
                 return [
-                    'job' => $item->fresh(['distribution.article', 'session', 'platform']),
+                    'job' => $item->fresh(['distribution.article', 'distribution.publisherAccountGroup', 'session.device', 'device', 'platform']),
                     'batch' => $this->summary->refresh($distribution),
                 ];
             }
@@ -342,7 +344,7 @@ class PublisherPlatformJobController extends BaseApiController
             $summary = $this->summary->refresh($distribution);
 
             return [
-                'job' => $item->fresh(['distribution.article', 'session', 'platform']),
+                'job' => $item->fresh(['distribution.article', 'distribution.publisherAccountGroup', 'session.device', 'device', 'platform']),
                 'batch' => $summary,
             ];
         });
@@ -437,19 +439,37 @@ class PublisherPlatformJobController extends BaseApiController
         if (! $this->desiredStateAllowsPlatform($device, $platformId)) {
             return false;
         }
-        if ($capabilities !== [] && ! in_array($platformId, $capabilities, true)) {
+        if (! in_array($platformId, $capabilities, true)) {
             return false;
         }
         $session = $job->session;
-        if ($session && (int) $session->publisher_device_id !== (int) $device->id) {
+        if (! $session instanceof PublisherPlatformSession
+            || (int) $session->publisher_device_id !== (int) $device->id
+            || (string) $session->login_state !== 'ready') {
             return false;
         }
-        if ($session && ! in_array((string) $session->login_state, ['ready', 'open'], true)
-            && ! in_array((string) $job->status, ['waiting_for_device'], true)) {
+        $platform = $job->platform;
+        if (! $platform) {
             return false;
+        }
+        $directIntent = in_array((string) $job->publish_mode, ['direct', 'scheduled'], true);
+        if ($directIntent) {
+            $allowsDirectSubmit = in_array(
+                $platformId,
+                PublisherPlatformCatalogService::VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS,
+                true,
+            ) && (bool) $platform->supports_direct_publish
+                && (bool) $session->auto_allowed;
+
+            // A direct request may have been created before the account was
+            // verified or while unattended submission was disabled. The
+            // serializer/preflight contract downgrades that job to draft;
+            // allow the worker to claim it so the draft can be saved instead
+            // of leaving the queue permanently blocked.
+            return $allowsDirectSubmit || (bool) $platform->supports_draft;
         }
 
-        return true;
+        return (bool) $platform->supports_draft;
     }
 
     /**
@@ -491,26 +511,116 @@ class PublisherPlatformJobController extends BaseApiController
     {
         $distribution = $job->distribution;
         $article = $distribution?->article;
+        $accountGroup = $distribution?->publisherAccountGroup;
+        $device = $job->device ?? $job->session?->device;
         $payload = is_array($job->payload_snapshot) ? $job->payload_snapshot : [];
         $result = $this->sanitizeResult(is_array($job->result) ? $job->result : []);
         $preflight = is_array($result['preflight'] ?? null) ? $result['preflight'] : [];
         $platform = $job->platform;
         $supportLevel = trim((string) ($preflight['support_level'] ?? $platform?->support_level ?? 'unknown')) ?: 'unknown';
-        $manualConfirmation = array_key_exists('manual_confirmation', $preflight)
-            ? (bool) $preflight['manual_confirmation']
-            : ($supportLevel === 'manual' || ! (bool) ($job->session?->auto_allowed ?? false));
+        $isVerifiedDirect = in_array(
+            (string) $job->platform_id,
+            PublisherPlatformCatalogService::VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS,
+            true,
+        );
+        $snapshotAllowsDirect = ! array_key_exists('supports_direct_publish', $preflight)
+            || (bool) $preflight['supports_direct_publish'];
+        $snapshotAllowsScheduled = ! array_key_exists('supports_scheduled', $preflight)
+            || (bool) $preflight['supports_scheduled'];
+        $supportsDraft = (bool) ($platform?->supports_draft ?? $preflight['supports_draft'] ?? false);
+        $supportsDirectPublish = $isVerifiedDirect
+            && (bool) ($platform?->supports_direct_publish ?? false)
+            && $snapshotAllowsDirect;
+        $supportsScheduled = $supportsDirectPublish
+            && (bool) ($platform?->supports_scheduled ?? false)
+            && $snapshotAllowsScheduled;
+        $sessionAllowsAuto = (bool) ($job->session?->auto_allowed ?? false);
+        $storedPublishMode = trim((string) $job->publish_mode) ?: 'draft';
+        $requestedPublishMode = trim((string) ($distribution?->publish_mode ?? '')) ?: $storedPublishMode;
+        $effectivePublishMode = $storedPublishMode === 'scheduled' ? 'direct' : $storedPublishMode;
+        $supportsRequestedPublish = $requestedPublishMode === 'scheduled'
+            ? $supportsScheduled
+            : $supportsDirectPublish;
+        if (in_array($storedPublishMode, ['direct', 'scheduled'], true)
+            && (! $supportsRequestedPublish || ! $sessionAllowsAuto)) {
+            $effectivePublishMode = 'draft';
+        }
+        $snapshotManualConfirmation = (bool) ($preflight['manual_confirmation'] ?? false);
+        $manualConfirmation = $snapshotManualConfirmation
+            || $effectivePublishMode !== 'direct'
+            || $supportLevel === 'manual'
+            || ! $sessionAllowsAuto;
+        $executionMode = $effectivePublishMode === 'direct' && ! $manualConfirmation
+            ? 'assistant_submit'
+            : 'assistant_confirm';
+        $capabilities = [
+            'draft' => $supportsDraft,
+            'direct_publish' => $supportsDirectPublish,
+            'scheduled' => $supportsScheduled,
+        ];
+
         $sessionMeta = is_array($job->session?->meta) ? $job->session->meta : [];
-        $localGroupId = trim((string) ($result['account_group_external_id'] ?? $sessionMeta['group_id'] ?? ''));
+        $accountGroupExternalId = trim((string) ($accountGroup?->external_id ?? ''));
+        $snapshotGroupId = trim((string) ($result['account_group_external_id'] ?? ''));
+        $sessionGroupId = trim((string) ($sessionMeta['group_id'] ?? ''));
+        $localGroupId = $accountGroupExternalId !== ''
+            ? $accountGroupExternalId
+            : ($snapshotGroupId !== '' ? $snapshotGroupId : $sessionGroupId);
+        $accountGroupData = $accountGroup || $localGroupId !== '' ? [
+            'id' => $localGroupId !== '' ? $localGroupId : (string) $accountGroup?->id,
+            'database_id' => $accountGroup?->id !== null ? (int) $accountGroup->id : null,
+            'external_id' => $accountGroupExternalId !== '' ? $accountGroupExternalId : null,
+            'name' => $accountGroup?->name,
+        ] : null;
+
+        $targetDeviceId = trim((string) ($device?->device_id ?? ''));
+        $targetDevice = $device ? [
+            'id' => $targetDeviceId !== '' ? $targetDeviceId : null,
+            'database_id' => (int) $device->id,
+            'device_id' => $targetDeviceId !== '' ? $targetDeviceId : null,
+            'name' => (string) $device->name,
+            'status' => (string) $device->status,
+        ] : null;
+        $platformDetails = [
+            'id' => (string) $job->platform_id,
+            'platform_id' => (string) $job->platform_id,
+            'name' => (string) ($platform?->name ?? $job->platform_id),
+            'support_level' => $supportLevel,
+            'requested_publish_mode' => $requestedPublishMode,
+            'publish_mode' => $effectivePublishMode,
+            'effective_publish_mode' => $effectivePublishMode,
+            'manual_confirmation' => $manualConfirmation,
+            'supports_draft' => $supportsDraft,
+            'supports_direct_publish' => $supportsDirectPublish,
+            'supports_scheduled' => $supportsScheduled,
+            'capabilities' => $capabilities,
+            'execution_mode' => $executionMode,
+        ];
+
         $data = [
             'id' => (int) $job->id,
             'article_distribution_id' => (int) $job->article_distribution_id,
             'distribution_id' => (int) $job->article_distribution_id,
             'platform_id' => (string) $job->platform_id,
+            'platforms' => [(string) $job->platform_id],
+            'platform_details' => [$platformDetails],
+            'publisher_account_group_id' => $distribution?->publisher_account_group_id !== null
+                ? (int) $distribution->publisher_account_group_id
+                : null,
+            'account_group_id' => $localGroupId !== '' ? $localGroupId : null,
             'group_id' => $localGroupId !== '' ? $localGroupId : null,
+            'account_group' => $accountGroupData,
+            'group' => $accountGroupData,
             'publisher_device_id' => $job->publisher_device_id !== null ? (int) $job->publisher_device_id : null,
+            'device_id' => $targetDeviceId !== '' ? $targetDeviceId : null,
+            'target_device_id' => $targetDeviceId !== '' ? $targetDeviceId : null,
+            'device' => $targetDevice,
+            'target_device' => $targetDevice,
             'publisher_platform_session_id' => $job->publisher_platform_session_id !== null ? (int) $job->publisher_platform_session_id : null,
             'profile_key' => $job->profile_key,
-            'publish_mode' => (string) $job->publish_mode,
+            'requested_publish_mode' => $requestedPublishMode,
+            'publish_mode' => $effectivePublishMode,
+            'effective_publish_mode' => $effectivePublishMode,
             'status' => (string) $job->status,
             'progress_step' => $job->progress_step,
             'progress_percent' => (int) $job->progress_percent,
@@ -526,19 +636,14 @@ class PublisherPlatformJobController extends BaseApiController
             'error_category' => $job->error_category,
             'error_message' => $job->error_message,
             'next_operator_action' => $job->next_operator_action,
-            // Let the desktop distinguish unattended adapters from tasks
-            // that must stop at the editor for operator confirmation.
             'support_level' => $supportLevel,
             'manual_confirmation' => $manualConfirmation,
-            'platform' => [
-                'id' => (string) $job->platform_id,
-                'name' => (string) ($platform?->name ?? $job->platform_id),
-                'support_level' => $supportLevel,
-                'supports_draft' => (bool) ($preflight['supports_draft'] ?? $platform?->supports_draft ?? false),
-                'supports_direct_publish' => (bool) ($preflight['supports_direct_publish'] ?? $platform?->supports_direct_publish ?? false),
-                'supports_scheduled' => (bool) ($preflight['supports_scheduled'] ?? $platform?->supports_scheduled ?? false),
-                'manual_confirmation' => $manualConfirmation,
-            ],
+            'supports_draft' => $supportsDraft,
+            'supports_direct_publish' => $supportsDirectPublish,
+            'supports_scheduled' => $supportsScheduled,
+            'capabilities' => $capabilities,
+            'execution_mode' => $executionMode,
+            'platform' => $platformDetails,
             'payload' => $payload,
             'payload_snapshot' => $payload,
             'result' => $result,

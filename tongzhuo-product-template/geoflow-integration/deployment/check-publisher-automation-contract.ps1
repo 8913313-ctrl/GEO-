@@ -25,6 +25,7 @@ $requiredFiles = @(
     'database/migrations/2026_07_21_085000_add_pairing_fields_to_publisher_devices_table.php',
     'database/migrations/2026_08_15_000000_add_publisher_profile_lease_index.php',
     'database/migrations/2026_08_15_010000_add_publisher_account_group_source_fields.php',
+    'database/migrations/2026_08_19_000000_align_publisher_platform_capabilities.php',
     'app/Services/Publishing/PublisherPreflightService.php',
     'app/Services/Publishing/PublishingCenterService.php',
     'app/Services/Publishing/PublisherDeviceCredential.php',
@@ -167,7 +168,9 @@ Assert-Contains $pairingMigration "Schema::hasColumn('publisher_devices', 'conne
 
 $catalog = Read-Override 'app/Services/Publishing/PublisherPlatformCatalogService.php'
 Assert-Contains $catalog 'EXPECTED_EXTERNAL_PLATFORM_COUNT = 28' 'Backend catalog does not declare all 28 external platforms.'
-Assert-Contains $catalog "'supports_direct_publish' => false" 'Backend catalog must not advertise direct public publishing by default.'
+Assert-Contains $catalog 'VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS' 'Backend catalog does not declare the verified direct-publish allowlist.'
+Assert-Contains $catalog "'supports_direct_publish' => `$isVerifiedDirect" 'Backend catalog does not derive direct-publish capability from the verified allowlist.'
+Assert-Contains $catalog "'supports_scheduled' => `$isVerifiedDirect" 'Backend catalog does not derive scheduled capability from the verified allowlist.'
 $expectedPlatformIds = @(
     'wechat_mp', 'zhihu', 'weibo', 'xiaohongshu', 'juejin', 'csdn', 'jianshu', 'toutiao',
     'douyin', 'bilibili', 'baijiahao', 'yuque', 'douban', 'sohu', 'xueqiu', 'woshipm',
@@ -183,9 +186,7 @@ $unexpectedPlatformIds = @($catalogIds | Where-Object { $_ -notin $expectedPlatf
 if ($missingPlatformIds.Count -gt 0 -or $unexpectedPlatformIds.Count -gt 0) {
     throw "Backend catalog IDs diverge from the desktop contract. Missing: $($missingPlatformIds -join ', '); unexpected: $($unexpectedPlatformIds -join ', ')."
 }
-if ($catalog.Contains("'planned'")) {
-    throw 'Backend catalog still contains planned platforms that the desktop advertises as supported.'
-}
+Assert-Contains $catalog "'support_level' => `$isHidden ? 'planned' : (`$isVerifiedDirect ? 'ready' : 'manual')" 'Backend catalog support levels do not enforce ready/manual/hidden policy.'
 Assert-Contains $catalog "public const HIDDEN_PLATFORM_IDS = ['x']" 'Backend catalog does not retain the explicit hidden-platform policy.'
 Assert-Contains $catalog "->whereNotIn('platform_id', self::HIDDEN_PLATFORM_IDS)" 'Hidden platforms are still exposed by the publishing-console catalog.'
 $platformJobs = Read-Override 'app/Http/Controllers/Api/V1/PublisherPlatformJobController.php'
@@ -193,6 +194,9 @@ Assert-Contains $platformJobs 'desiredStateAllowsPlatform' 'V2 claim path does n
 Assert-Contains $platformJobs 'publisher_platform_job_not_claimable' 'V2 claim path can bypass scheduler or login holds.'
 Assert-Contains $platformJobs "'support_level'" 'V2 job response does not expose support_level.'
 Assert-Contains $platformJobs "'manual_confirmation'" 'V2 job response does not expose manual_confirmation.'
+foreach ($field in @('requested_publish_mode', 'effective_publish_mode', 'execution_mode', 'capabilities', 'publisher_account_group_id', 'account_group_id', 'target_device_id', 'platform_details', 'payload', 'article')) {
+    Assert-Contains $platformJobs "'$field'" "V2 job response does not expose $field."
+}
 Assert-Contains $platformJobs 'lockProfileClaimBoundary' 'V2 claim path does not serialize profile-level claim decisions.'
 Assert-Contains $platformJobs 'PublisherDevice::query()' 'V2 profile claim boundary does not lock the device row.'
 
@@ -221,9 +225,12 @@ Assert-Contains $center '$groupItem?->profile_key' 'Account-group jobs lose thei
 $preflight = Read-Override 'app/Services/Publishing/PublisherPreflightService.php'
 Assert-Contains $preflight '?PublisherAccountGroup $accountGroup' 'Publishing preflight cannot scope sessions to a selected account group.'
 Assert-Contains $preflight "['direct', 'scheduled']" 'Scheduled publishing does not use the direct-publish capability gate.'
+Assert-Contains $preflight 'bool $manualConfirmation = true' 'Draft and blocked preflight items must default to manual confirmation.'
 
 $adminAssistant = Read-Override 'app/Http/Controllers/Admin/PublisherAssistantController.php'
 Assert-Contains $adminAssistant 'createPublishingBatch' 'Publishing console has no explicit one-click batch action.'
+Assert-Contains $adminAssistant "publishMode: 'direct'" 'One-click publishing does not request direct mode explicitly.'
+Assert-Contains $adminAssistant 'VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS' 'One-click publishing is not restricted to verified direct platforms.'
 Assert-Contains $adminAssistant "'platform_ids' => ['required', 'array', 'min:1']" 'Publishing batch action does not require explicit target platforms.'
 Assert-Contains $adminAssistant "'scheduled_at' => ['nullable', 'required_if:publish_mode,scheduled', 'date', 'after:now']" 'Publishing batch action does not require a future execution time for scheduled jobs.'
 Assert-Contains $adminAssistant "'idempotency_key' => ['required', 'string', 'max:120']" 'Publishing batch action has no double-submit idempotency token.'

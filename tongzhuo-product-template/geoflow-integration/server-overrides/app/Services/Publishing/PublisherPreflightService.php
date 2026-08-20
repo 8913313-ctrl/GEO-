@@ -118,7 +118,11 @@ class PublisherPreflightService
         }
 
         $requestsPublicPublish = in_array($requestedMode, ['direct', 'scheduled'], true);
-        if ($requestsPublicPublish && ! $platform->supports_direct_publish) {
+        $supportsDirectPublish = $this->supportsDirectPublish($platform);
+        $supportsRequestedPublish = $requestedMode === 'scheduled'
+            ? $supportsDirectPublish && (bool) $platform->supports_scheduled
+            : $supportsDirectPublish;
+        if ($requestsPublicPublish && ! $supportsRequestedPublish) {
             if (! $platform->supports_draft) {
                 return $this->item(
                     $platformId,
@@ -144,7 +148,21 @@ class PublisherPreflightService
             );
         }
 
-        $manualConfirmation = $platform->support_level === 'manual' || ! $ready->auto_allowed;
+        if ($requestsPublicPublish && ! $ready->auto_allowed) {
+            return $this->item(
+                $platformId,
+                $platform,
+                'draft_only',
+                'Automatic submission is disabled for this account. The task was downgraded to a draft for manual confirmation.',
+                $ready,
+                true,
+                'draft',
+            );
+        }
+
+        $manualConfirmation = $requestedMode === 'draft'
+            || $platform->support_level === 'manual'
+            || ! $ready->auto_allowed;
         return $this->item(
             $platformId,
             $platform,
@@ -156,6 +174,13 @@ class PublisherPreflightService
         );
     }
 
+    private function supportsDirectPublish(?PublisherPlatform $platform): bool
+    {
+        return $platform instanceof PublisherPlatform
+            && in_array((string) $platform->platform_id, PublisherPlatformCatalogService::VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS, true)
+            && (bool) $platform->supports_direct_publish;
+    }
+
     /** @return array<string,mixed> */
     private function item(
         string $platformId,
@@ -163,7 +188,7 @@ class PublisherPreflightService
         string $state,
         string $message,
         ?PublisherPlatformSession $session = null,
-        bool $manualConfirmation = false,
+        bool $manualConfirmation = true,
         ?string $effectiveMode = null,
     ): array {
         return [
@@ -171,8 +196,9 @@ class PublisherPreflightService
             'platform_name' => $platform?->name ?? $platformId,
             'support_level' => (string) ($platform?->support_level ?? 'unknown'),
             'supports_draft' => (bool) ($platform?->supports_draft ?? false),
-            'supports_direct_publish' => (bool) ($platform?->supports_direct_publish ?? false),
-            'supports_scheduled' => (bool) ($platform?->supports_scheduled ?? false),
+            'supports_direct_publish' => $this->supportsDirectPublish($platform),
+            'supports_scheduled' => $this->supportsDirectPublish($platform)
+                && (bool) ($platform?->supports_scheduled ?? false),
             'state' => $state,
             'message' => $message,
             'effective_mode' => $effectiveMode,

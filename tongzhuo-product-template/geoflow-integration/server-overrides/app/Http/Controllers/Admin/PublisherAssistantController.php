@@ -116,7 +116,8 @@ class PublisherAssistantController extends Controller
 
     public function createPublishingBatch(Request $request): RedirectResponse
     {
-        if (! (bool) config('publishing.center_v2_enabled', false)) {
+        if (! (bool) config('publishing.center_v2_enabled', false)
+            || ! (bool) config('publishing.platform_jobs_enabled', false)) {
             return back()->withInput()->withErrors('发布中心 V2 尚未启用，不能创建平台子任务。');
         }
 
@@ -197,35 +198,69 @@ class PublisherAssistantController extends Controller
     {
         $this->ensureDefaultDesktopPublisherChannel();
 
+        $useV2 = (bool) config('publishing.center_v2_enabled', false)
+            && (bool) config('publishing.platform_jobs_enabled', false);
+        $accountGroup = null;
+        $platformIds = [];
+        if ($useV2) {
+            $accountGroup = PublisherAccountGroup::query()
+                ->where('status', 'active')
+                ->orderBy('id')
+                ->first();
+            $verifiedPlatformIds = PublisherPlatformCatalogService::VERIFIED_DIRECT_PUBLISH_PLATFORM_IDS;
+            $platformIds = $this->publisherPlatforms->activePlatforms()
+                ->whereIn('platform_id', $verifiedPlatformIds)
+                ->pluck('platform_id')
+                ->values()
+                ->all();
+            if ($accountGroup instanceof PublisherAccountGroup) {
+                $enabledGroupPlatforms = $accountGroup->items()
+                    ->where('enabled', true)
+                    ->whereIn('platform_id', $verifiedPlatformIds)
+                    ->pluck('platform_id')
+                    ->all();
+                $platformIds = array_values(array_intersect($platformIds, $enabledGroupPlatforms));
+            }
+            if ($platformIds === []) {
+                return redirect()
+                    ->route('admin.publisher-assistant')
+                    ->withErrors('The selected account group does not enable any verified direct-publish platform.');
+            }
+        }
+
         $count = 0;
+        $failures = 0;
         Article::query()
             ->where('status', 'published')
             ->orderByDesc('id')
             ->limit(200)
             ->get()
-            ->each(function (Article $article) use (&$count): void {
-                if ((bool) config('publishing.center_v2_enabled', false)) {
-                    $platformIds = $this->publisherPlatforms->activePlatforms()
-                        ->filter(fn ($platform): bool => (string) $platform->support_level !== 'planned')
-                        ->pluck('platform_id')
-                        ->values()
-                        ->all();
-                    $accountGroup = PublisherAccountGroup::query()
-                        ->where('status', 'active')
-                        ->orderBy('id')
-                        ->first();
-                    $this->publishingCenter->createBatch(
-                        article: $article,
-                        platformIds: $platformIds,
-                        publishMode: $accountGroup?->default_publish_mode ?: 'draft',
-                        accountGroup: $accountGroup,
-                        requestedByAdminId: auth('admin')->id(),
-                    );
-                } else {
-                    $this->distributionOrchestrator->enqueueForArticle($article);
+            ->each(function (Article $article) use (&$count, &$failures, $useV2, $accountGroup, $platformIds): void {
+                try {
+                    if ($useV2) {
+                        $this->publishingCenter->createBatch(
+                            article: $article,
+                            platformIds: $platformIds,
+                            publishMode: 'direct',
+                            accountGroup: $accountGroup,
+                            requestedByAdminId: auth('admin')->id(),
+                        );
+                    } else {
+                        $this->distributionOrchestrator->enqueueForArticle($article);
+                    }
+                    $count++;
+                } catch (Throwable $exception) {
+                    report($exception);
+                    $failures++;
                 }
-                $count++;
             });
+
+        if ($failures > 0) {
+            return redirect()
+                ->route('admin.publisher-assistant')
+                ->with('message', "Queued {$count} published article(s).")
+                ->withErrors("Failed to queue {$failures} published article(s); see the application log.");
+        }
 
         return redirect()
             ->route('admin.publisher-assistant')

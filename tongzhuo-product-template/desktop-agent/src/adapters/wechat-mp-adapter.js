@@ -31,20 +31,37 @@ function loginRequired(adapter, page, reason = '') {
 
 export class WechatMpAdapter extends BaseAdapter {
   async prepare(page) {
+    this.activePage = page;
     await page.goto(this.platform.editorUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
     await page.waitForTimeout(1500);
+
+    // WeChat may open the actual article editor in a new tab/window after
+    // clicking ?????/?????. Capture that popup before the click so
+    // the rest of the adapter never fills the dashboard shell by mistake.
+    const context = typeof page.context === 'function' ? page.context() : null;
+    const popupPromise = context && typeof context.waitForEvent === 'function'
+      ? context.waitForEvent('page', { timeout: 2500 }).catch(() => null)
+      : Promise.resolve(null);
     await clickFirstVisible(page, [
-      'text=新的创作',
-      'text=写新图文',
-      'text=图文消息',
-      'a:has-text("图文消息")',
-      'button:has-text("图文消息")',
+      'text=????',
+      'text=????',
+      'text=????',
+      'a:has-text("????")',
+      'button:has-text("????")',
     ]).catch(() => {});
-    await page.waitForTimeout(1200);
+    const popup = await popupPromise;
+    if (popup && popup !== page && !(typeof popup.isClosed === 'function' && popup.isClosed())) {
+      await Promise.resolve(popup.waitForLoadState?.('domcontentloaded', { timeout: 15000 })).catch(() => {});
+      await Promise.resolve(popup.waitForTimeout?.(1200)).catch(() => {});
+      await Promise.resolve(popup.bringToFront?.()).catch(() => {});
+      this.activePage = popup;
+    }
+    await Promise.resolve(this.activePage.waitForTimeout?.(1200)).catch(() => {});
   }
 
   async publishDraft(page, article) {
     await this.prepare(page, article);
+    page = this.activePage || page;
     const blocked = await detectAccessBlocked(page);
     if (blocked.blocked) return loginRequired(this, page, blocked.reason);
 

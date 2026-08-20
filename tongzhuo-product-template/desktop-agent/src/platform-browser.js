@@ -148,9 +148,9 @@ function isClosedBrowserTarget(error) {
 }
 
 const platformSessionSelectors = Object.freeze({
-  zhihu: ['[data-za-detail-view-element_name="Avatar"]', '.AppHeader-profile', 'textarea[placeholder]'],
+  zhihu: ['[data-za-detail-view-element_name="Avatar"]', '.AppHeader-profile'],
   wechat_mp: ['#js_home', '.weui-desktop-account'],
-  toutiao: ['.article-title input', '.title-input', '[class*="creator" i]'],
+  toutiao: ['.article-title input', '.title-input', '.user-panel .user-auth-avator', '.user-auth-avator'],
   x: ['[data-testid="SideNav_AccountSwitcher_Button"]', '[data-testid="tweetTextarea_0"]'],
 });
 
@@ -616,7 +616,10 @@ export class PlatformBrowser {
         };
         this.pages.set(windowId, record);
         page.on?.('close', () => {
-          if (this.pages.get(windowId) === record) this.pages.delete(windowId);
+          // A dedicated adapter may promote a popup; closing the original
+          // dashboard page must not delete the managed record now attached to
+          // the promoted editor page.
+          if (this.pages.get(windowId) === record && record.page === page) this.pages.delete(windowId);
         });
         page.on?.('framenavigated', () => {
           record.url = this.pageUrl(page);
@@ -1003,8 +1006,23 @@ export class PlatformBrowser {
       if (this.pageUrl(page) === 'about:blank') await this.closePage(record.id);
       throw error;
     }
-    record.url = this.pageUrl(page);
-    record.title = await page.title().catch(() => '');
+    const activePage = adapter.activePage || page;
+    if (activePage !== page) {
+      // Dedicated adapters may promote a popup into the real editor. Keep the
+      // managed window record attached to that page so status, close and
+      // result URLs never point back to the dashboard shell.
+      const originalPage = record.page;
+      record.page = activePage;
+      activePage.on?.('close', () => {
+        if (this.pages.get(record.id) === record && record.page === activePage) this.pages.delete(record.id);
+      });
+      activePage.on?.('framenavigated', () => {
+        record.url = this.pageUrl(record.page);
+      });
+      await originalPage.close?.({ runBeforeUnload: false }).catch(() => {});
+    }
+    record.url = this.pageUrl(activePage);
+    record.title = await activePage.title().catch(() => '');
     const decorated = { ...result, adapter: result.adapter || adapter.constructor.name };
     const selectorTelemetry = buildSelectorTelemetry(decorated);
     return {

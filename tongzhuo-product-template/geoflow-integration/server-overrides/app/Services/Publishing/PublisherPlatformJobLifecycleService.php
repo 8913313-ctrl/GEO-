@@ -25,7 +25,7 @@ class PublisherPlatformJobLifecycleService
      * for a device/session.  This method is deliberately idempotent and safe to
      * call from every polling request.
      *
-     * @return array{scheduled:int,leases_released:int,bound:int,login_recovered:int}
+     * @return array{scheduled:int,leases_released:int,bound:int,login_recovered:int,readiness_blocked:int}
      */
     public function reconcile(?Carbon $at = null): array
     {
@@ -36,6 +36,7 @@ class PublisherPlatformJobLifecycleService
             'leases_released' => 0,
             'bound' => 0,
             'login_recovered' => 0,
+            'readiness_blocked' => 0,
         ];
 
         DB::transaction(function () use ($at, &$distributionIds, &$counts): void {
@@ -104,6 +105,53 @@ class PublisherPlatformJobLifecycleService
                 if ($candidate instanceof PublisherPlatformSession) {
                     $counts['bound']++;
                 }
+            }
+
+            $queuedWithoutReadySession = PublisherPlatformJob::query()
+                ->with(['distribution.publisherAccountGroup', 'session.device'])
+                ->where('status', 'queued')
+                ->whereDoesntHave('session', function ($session) use ($at): void {
+                    $session->where('login_state', 'ready')
+                        ->whereHas('device', function ($device) use ($at): void {
+                            $device->whereNull('disabled_at')
+                                ->whereNotNull('last_seen_at')
+                                ->where('last_seen_at', '>=', $at->copy()->subMinutes($this->deviceOnlineMinutes()));
+                        });
+                })
+                ->lockForUpdate()
+                ->limit($this->reconcileLimit())
+                ->get();
+
+            foreach ($queuedWithoutReadySession as $job) {
+                $candidate = $this->findReadySession($job, $at);
+                if ($candidate instanceof PublisherPlatformSession) {
+                    $job->forceFill([
+                        'publisher_device_id' => $candidate->publisher_device_id,
+                        'publisher_platform_session_id' => $candidate->id,
+                        'next_retry_at' => $at,
+                        'progress_step' => 'Ready account session rebound; waiting for publisher device',
+                        'error_category' => null,
+                        'error_message' => null,
+                        'next_operator_action' => null,
+                    ])->save();
+                    $distributionIds[(int) $job->article_distribution_id] = true;
+                    $counts['bound']++;
+                    continue;
+                }
+
+                $hasKnownSession = $job->session instanceof PublisherPlatformSession;
+                $job->forceFill([
+                    'status' => $hasKnownSession ? 'login_required' : 'waiting_for_device',
+                    'next_retry_at' => $at,
+                    'progress_step' => $hasKnownSession
+                        ? 'Account session is not ready; waiting for login recovery'
+                        : 'No ready account session; waiting for a publisher device',
+                    'error_category' => $hasKnownSession ? 'login_required' : null,
+                    'error_message' => $hasKnownSession ? 'The bound account session is not ready.' : null,
+                    'next_operator_action' => $hasKnownSession ? 'relogin_platform' : null,
+                ])->save();
+                $distributionIds[(int) $job->article_distribution_id] = true;
+                $counts['readiness_blocked']++;
             }
 
             $waiting = PublisherPlatformJob::query()
