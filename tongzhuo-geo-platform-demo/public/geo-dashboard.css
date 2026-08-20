@@ -161,11 +161,9 @@ body {
 .notification-button { border-color: #e7edf7; background: #fff; }
 .assistant-pill { color: #219b73; border-color: #d4f1e5; background: #f2fcf8; }
 .soft-button:hover,
-.search-trigger:hover,
-.icon-button:hover { color: var(--blue); border-color: #cfdaff; background: #f7f9ff; }
+.search-trigger:hover { color: var(--blue); border-color: #cfdaff; background: #f7f9ff; }
 .search-trigger { min-width: 208px; color: var(--muted-2); }
 .search-trigger kbd { color: #98a5b8; border-color: var(--line); background: #f8faff; }
-.avatar-button { color: #fff; background: linear-gradient(145deg, #6f8aff, #4e6bff); box-shadow: 0 8px 17px rgba(78, 107, 255, .22); }
 
 #main-content {
   min-height: calc(100vh - 72px);
@@ -205,7 +203,6 @@ body {
 .route-dashboard .page-head h2 { margin-bottom: 6px; color: var(--ink-strong); font-size: 29px; letter-spacing: -.8px; }
 .route-dashboard .page-head p { color: #7a88a0; font-size: 13px; }
 .route-dashboard .page-actions { position: relative; z-index: 2; }
-.route-dashboard .page-actions .primary-button { min-height: 42px; padding: 0 18px; border-radius: 11px; background: linear-gradient(135deg, #5c79ff, #4e6bff); box-shadow: 0 10px 22px rgba(78, 107, 255, .23); }
 
 /* KPI cards */
 .route-dashboard .metric-grid { gap: 16px; margin-bottom: 18px; }
@@ -451,7 +448,7 @@ body {
 .nav-main a:hover,
 .nav-secondary a:hover { color: #294fc8; }
 .nav-main a.active,
-.nav-secondary a.active { color: #294fc8; }
+.nav-secondary a.active { color: var(--blue); }
 .nav-main::before,
 .nav-secondary::before { color: #657692; }
 .deploy-badge { color: #6c7d98; }
@@ -537,24 +534,24 @@ body {
 .nav-effect-toggle:hover,
 .nav-effect-group[open] > .nav-effect-toggle,
 .nav-effect-group.active > .nav-effect-toggle {
-  color: #6940e7;
-  background: #f5f1ff;
+  color: var(--blue);
+  background: var(--blue-soft);
 }
 
 .nav-main a.active,
 .nav-secondary a.active {
   color: #fff;
-  background: linear-gradient(100deg, #7442ed 0%, #9a75ff 100%);
-  box-shadow: 0 9px 18px rgba(112, 65, 237, .20);
+  background: var(--blue);
+  box-shadow: var(--shadow-md);
 }
 
 .nav-main a.active .nav-icon,
-.nav-secondary a.active .nav-icon { color: #fff; }
-.nav-main a.active .nav-dot { background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.18); }
+.nav-secondary a.active .nav-icon { color: var(--blue); }
+.nav-main a.active .nav-dot { background: var(--blue); box-shadow: 0 0 0 3px var(--blue-soft); }
 .nav-effect-chevron { color: #7d708d; }
 .nav-effect-items { padding-left: 16px; }
 .nav-effect-items a { min-height: 37px; font-weight: 560; }
-.nav-effect-items a.active { color: #6940e7; background: #f3eeff; box-shadow: none; }
+.nav-effect-items a.active { color: var(--blue); background: var(--blue-soft); box-shadow: none; }
 .nav-secondary { padding: 10px 16px 4px; border-top-color: #eeeaf7; }
 .nav-secondary em { color: #38b98e; }
 .deploy-badge { padding: 0 5px; color: #8b8ba2; }
@@ -602,19 +599,12 @@ body {
 }
 
 .topbar-left::before {
-  display: block;
-  width: 18px;
-  height: 18px;
-  margin-right: 11px;
-  border-radius: 5px;
-  background: radial-gradient(circle at 25% 25%, #5c2bbf 0 20%, transparent 23%), radial-gradient(circle at 75% 25%, #7d4fff 0 20%, transparent 23%), radial-gradient(circle at 25% 75%, #7d4fff 0 20%, transparent 23%), radial-gradient(circle at 75% 75%, #5c2bbf 0 20%, transparent 23%);
-  content: "";
+  display: none;
 }
 .breadcrumbs { display: none; }
 .topbar h1 { margin: 0; color: #26213c; font-size: 18px; font-weight: 780; }
 .search-trigger { min-width: 240px; border-color: #eeeaf6; background: #faf9fe; }
 .assistant-pill { color: #6d45de; border-color: #e6defc; background: #f7f3ff; }
-.avatar-button { background: linear-gradient(145deg, #8058ff, #673ce8); }
 
 #main-content {
   padding: 26px 32px 58px;
@@ -653,7 +643,6 @@ body {
 }
 .route-dashboard .page-head h2 { color: #201d36; font-size: 31px; }
 .route-dashboard .page-head p { color: #57566f; font-size: 13px; font-weight: 560; }
-.route-dashboard .page-actions .primary-button { border-radius: 10px; background: linear-gradient(100deg, #7543ed, #946dff); box-shadow: 0 12px 24px rgba(116, 67, 237, .28); }
 
 .route-dashboard .metric-grid { gap: 14px; margin-bottom: 16px; }
 .route-dashboard .metric-card { min-height: 140px; border-color: #efebf8; border-top: 1px solid #efebf8; border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 9px 20px rgba(85, 58, 138, .065); }
@@ -694,7 +683,6 @@ body {
 .route-dashboard .card { border-color: #ece8f7; border-radius: 15px; box-shadow: 0 9px 20px rgba(85, 58, 138, .06); }
 .route-dashboard .card-header { min-height: 64px; padding: 0 25px; }
 .route-dashboard .card-header h3 { color: #2d2850; }
-.route-dashboard .card-header .text-button { color: #7848f7; }
 .todo-list { padding: 5px 25px 12px; }
 .todo-item { min-height: 63px; }
 .todo-icon { border-radius: 12px; color: #7848f7; background: #f0ebff; }
@@ -732,7 +720,6 @@ body {
 .dashboard-health-card .onboarding-progress { position: relative; z-index: 1; height: 5px; margin: 3px 0 10px; background: #ece8f8; }
 .dashboard-health-card .onboarding-progress i { background: linear-gradient(90deg, #7949f5, #9e7bff); }
 .dashboard-health-card p { position: relative; z-index: 1; color: #737087; font-size: 11px; line-height: 1.6; }
-.dashboard-health-card .secondary-button { position: relative; z-index: 1; color: #7445ee; border-color: #dfd3ff; background: #f8f5ff; }
 
 .route-dashboard aside.stack > .card:nth-child(2) .card-header { padding: 0 22px; }
 .system-list { padding: 8px 22px 14px; }

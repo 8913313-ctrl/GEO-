@@ -724,7 +724,7 @@ function defaultState() {
       {
         id: "WA-PURCHASE", name: "工业品采购决策顾问", description: "面向采购、技术和管理者，输出可比较、可验证的决策指南。", avatar: "采", color: "violet", builtIn: false, status: "active",
         businessLineIds: ["BL-GEO"], contentTypes: ["深度文章", "系列文章"], template: "guide", role: "工业品采购决策顾问", audience: "采购负责人、技术负责人和企业管理者", tone: "理性、务实、不夸张", style: "决策框架 · 对比维度 · 验证清单", structure: ["明确目标", "比较维度", "验证证据", "决策清单"], required: "给出可执行的比较标准，并标记企业事实引用。", banned: "不得输出未经证实的排名或绝对化推荐。", cta: "提供下一步核验清单。",
-        systemPrompt: GEO_AGENT_PROMPT_FOUNDATION + "\n\n专属任务：围绕采购目标、比较维度、公开证据和验收标准输出决策指南；不直接给无依据的榜单或唯一推荐，必须说明适合谁、不适合谁以及如何核验。", geoPromptVersion: 2, strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", preferredKnowledgeBaseIds: ["KB-GEO-001", "KB-CASE-001"], modelMode: "inherit", creativity: 0.3, minWords: 1400, maxWords: 2200, version: 3, usageCount: 4, createdBy: "王宁", createdAt: minutesAgo(8640), updatedAt: minutesAgo(360)
+        systemPrompt: GEO_AGENT_PROMPT_FOUNDATION + "\n\n专属任务：围绕采购目标、比较维度、公开证据和验收标准输出决策指南；不直接给无依据的榜单或唯一推荐，必须说明适合谁、不适合谁以及如何核验。", geoPromptVersion: 2, strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", preferredKnowledgeBaseIds: ["KB-GEO-001", "KB-CASE-001"], modelMode: "inherit", creativity: 0.3, minWords: 1400, maxWords: 2200, version: 3, usageCount: 4, createdBy: currentUserName() || "系统管理员", createdAt: minutesAgo(8640), updatedAt: minutesAgo(360)
       },
       {
         id: "WA-BRAND-STORY", name: "品牌口吻编辑", description: "沿用企业语气，把业务事实组织成自然、有温度的品牌叙事。", avatar: "品", color: "rose", builtIn: false, status: "active",
@@ -3486,7 +3486,7 @@ function defaultAgentForLine(line, contentType = null) {
 }
 
 function snapshotWritingAgent(agent, options = {}) {
-  return createWritingAgentSnapshot(agent, { modelName: state.settings.model, selectedBy: "王宁", ...options });
+  return createWritingAgentSnapshot(agent, { modelName: state.settings.model, selectedBy: currentUserName() || "系统管理员", ...options });
 }
 
 function resolvePlanWritingAgent(plan) {
@@ -3729,7 +3729,7 @@ function saveState() {
   queueWorkspaceSync();
 }
 
-function addOperationLog(category, detail, actor = "王宁") {
+function addOperationLog(category, detail, actor = currentUserName() || "系统管理员") {
   const logs = state.settings.operationLogs = Array.isArray(state.settings.operationLogs) ? state.settings.operationLogs : [];
   logs.unshift({ id: uid("LOG"), occurredAt: Date.now(), category, actor, detail });
   if (logs.length > 120) logs.length = 120;
@@ -4002,7 +4002,9 @@ function updateShell() {
     link.classList.toggle("active", link.dataset.route === ui.route);
   });
   const effectGroup = document.querySelector("[data-effect-nav-group]");
-  if (inEffectRoute && ui.effectNavRoute !== ui.route) ui.effectNavExpanded = true;
+  // The current route is the single source of truth for this compound nav state:
+  // effect routes open the group; every other route closes it and clears child state.
+  ui.effectNavExpanded = inEffectRoute;
   ui.effectNavRoute = inEffectRoute ? ui.route : null;
   effectGroup?.classList.toggle("active", inEffectRoute);
   if (effectGroup) effectGroup.open = ui.effectNavExpanded;
@@ -4053,7 +4055,32 @@ function render() {
   hydrateEffectMonitoringBudgetControl(view);
   enhanceArticleTaskSelection(view);
   hydratePublisherConnectivity();
+  if (ui.route === "monitoring") animateMonitoringPage(view);
   document.body.classList.remove("sidebar-open");
+}
+
+/* 运营诊断（官网实测）：GSAP 入场与数字滚动动画。
+ * 私有化部署本地引入 /vendor/gsap.min.js；尊重 prefers-reduced-motion。 */
+function animateMonitoringPage(root) {
+  if (!root || !window.gsap) return;
+  if (root.dataset.tzAnimated === "1") return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  root.dataset.tzAnimated = "1";
+  const gsap = window.gsap;
+  const sections = root.querySelectorAll(".diagnostic-content > *");
+  gsap.from(sections, { y: 32, opacity: 0, filter: "blur(6px)", duration: .7, stagger: .12, ease: "power3.out", clearProps: "all" });
+  root.querySelectorAll(".diagnostic-stat-grid article, .monitoring-realtime-card, .diagnostic-evidence-card, .diagnostic-operation-section").forEach((el) => {
+    gsap.from(el.querySelectorAll("[data-icon]"), { scale: .6, opacity: 0, duration: .5, ease: "back.out(1.8)", delay: .3, clearProps: "all" });
+  });
+  root.querySelectorAll(".diagnostic-traffic-stats .card b, .diagnostic-package-badge b, .monitoring-realtime-head b, .monitor-real-list li b").forEach((el) => {
+    const parts = el.innerHTML.match(/^([\d,]+)([\s\S]*)$/);
+    if (!parts) return;
+    const target = parseFloat(parts[1].replace(/,/g, "")) || 0;
+    if (target <= 0) return;
+    const suffix = parts[2];
+    const state = { v: 0 };
+    gsap.to(state, { v: target, duration: 1.6, ease: "power2.out", onUpdate: () => { el.innerHTML = Math.round(state.v).toLocaleString("zh-CN") + suffix; } });
+  });
 }
 
 // The monitoring budget control is kept as a real DOM field even when older
@@ -4123,6 +4150,24 @@ function latestKnowledgeUpdatedAt() {
   return formatRelative(Math.max(...items));
 }
 
+function enterpriseFactEntries(profile = state.enterpriseProfile) {
+  const source = profile || {};
+  return [
+    ["企业主体", source.companyName, "经人工确认的企业全称"],
+    ["品牌名称", source.brandName, "官网与内容平台统一使用"],
+    ["主营服务", source.primaryService, source.serviceDescription],
+    ["服务客户", source.audience, "用于限定文章适用范围"],
+    ["服务区域", source.serviceArea, "公开对外服务范围"],
+    ["官方信源", source.officialDomain, "企业可长期控制的公开信源"]
+  ];
+}
+
+function enterpriseFactCompletion(profile = state.enterpriseProfile) {
+  const facts = enterpriseFactEntries(profile);
+  const completed = facts.filter(([, value]) => String(value || "").trim()).length;
+  return facts.length ? Math.round((completed / facts.length) * 100) : 0;
+}
+
 function renderDashboard() {
   const pendingReview = state.articles.filter((article) => article.reviewStatus === "pending" && article.reviewStage === "manual_review").length;
   const readyToPublish = state.articles.filter((article) => article.reviewStatus === "approved" && article.status === "draft").length;
@@ -4158,6 +4203,8 @@ function renderDashboard() {
   const trendSpan = Math.max(1, trendMax - trendMin);
 
   const line = activeBusinessLine();
+  const enterpriseCompletion = enterpriseFactCompletion();
+  const incompleteEnterpriseFacts = enterpriseFactEntries().filter(([, value]) => !String(value || "").trim()).length;
   const recentArticles = [...state.articles].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 3);
   const tp = dashboardTrendValues.map((value, index) => {
     const x = 6 + (index * 628) / Math.max(1, dashboardTrendValues.length - 1);
@@ -4256,7 +4303,7 @@ function renderDashboard() {
           <div class="tasks">
             <button class="task" type="button" data-action="show-pending-articles"><b>审核待处理文章</b><span>${pendingReview} 篇 →</span></button>
             <button class="task" type="button" data-nav="publish"><b>确认发布结果</b><span>${actionTargets} 条 →</span></button>
-            <button class="task" type="button" data-action="open-onboarding"><b>补充企业事实资料</b><span>${state.enterpriseProfile.steps.filter((step) => step.status !== "complete").length} 项 →</span></button>
+            <button class="task" type="button" data-action="open-onboarding"><b>补充企业事实资料</b><span>${incompleteEnterpriseFacts} 项 →</span></button>
           </div>
         </section>
 
@@ -4267,11 +4314,11 @@ function renderDashboard() {
             <div class="health-ring">
               <svg width="84" height="84" viewBox="0 0 84 84">
                 <circle class="bg" cx="42" cy="42" r="36" fill="none" stroke-width="5"/>
-                <circle class="fg" cx="42" cy="42" r="36" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="${Math.round(226.2 * (1 - state.enterpriseProfile.completion / 100))}"/>
+                <circle class="fg" cx="42" cy="42" r="36" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="${Math.round(226.2 * (1 - enterpriseCompletion / 100))}"/>
               </svg>
-              <div class="label">${state.enterpriseProfile.completion}</div>
+              <div class="label">${enterpriseCompletion}</div>
             </div>
-            <div class="ring-legend">${state.enterpriseProfile.steps.slice(0, 3).every((step) => step.status === "complete") ? "企业身份、产品与服务资料已完整" : "企业基础资料待补充"}<br>${state.enterpriseProfile.steps.find((step) => step.id === "evidence")?.status === "complete" ? "案例、FAQ 与证据已就绪" : "案例、FAQ 与证据待补充"}<br>最近更新 · ${formatRelative(latestKnowledgeUpdatedAt())}</div>
+            <div class="ring-legend">${incompleteEnterpriseFacts ? `还有 ${incompleteEnterpriseFacts} 项企业事实待补充` : "企业身份、产品与服务资料已完整"}<br>${state.enterpriseProfile.steps.find((step) => step.id === "evidence")?.status === "complete" ? "案例、FAQ 与证据已就绪" : "案例、FAQ 与证据待补充"}<br>最近更新 · ${formatRelative(latestKnowledgeUpdatedAt())}</div>
           </div>
         </section>
       </div>
@@ -4281,7 +4328,7 @@ function renderDashboard() {
         <p class="sub">通过审核的内容进入发布流程</p>
         <table class="data-table">
           <thead>
-            <tr><th>文章 / 任务</th><th>分类</th><th>状态</th><th>作者</th><th style="text-align:right">操作</th></tr>
+            <tr><th>文章 / 任务</th><th>分类</th><th>状态</th><th>作者</th><th class="text-right">操作</th></tr>
           </thead>
           <tbody>
             ${recentArticles.map((article) => `<tr>
@@ -4289,7 +4336,7 @@ function renderDashboard() {
               <td><span class="tag-line">${escapeHtml(article.category || "未分类")}</span></td>
               <td>${articleReviewBadge(article)}</td>
               <td>${escapeHtml(article.author || "未署名")}</td>
-              <td style="text-align:right;white-space:nowrap"><button class="link-button" type="button" data-action="open-article" data-article-id="${escapeHtml(article.id)}">打开</button><button class="link-button" type="button" data-action="open-article-studio" data-article-id="${escapeHtml(article.id)}">AI 协作</button></td>
+              <td class="text-right text-nowrap"><button class="link-button" type="button" data-action="open-article" data-article-id="${escapeHtml(article.id)}">打开</button><button class="link-button" type="button" data-action="open-article-studio" data-article-id="${escapeHtml(article.id)}">AI 协作</button></td>
             </tr>            `).join("")}
           </tbody>
         </table>
@@ -4491,7 +4538,7 @@ function renderKeywordWorkspace() {
   }).join("");
   let resultItems = "";
   if (ui.expanding) {
-    resultItems = Array.from({ length: 5 }).map((_, index) => '<div class="topic-item" aria-hidden="true"><span class="skeleton" style="width:17px;height:17px"></span><div><div class="skeleton" style="height:15px;width:' + (78 - index * 5) + '%"></div><div class="skeleton" style="height:10px;width:92%;margin-top:10px"></div></div><div class="skeleton" style="height:16px;width:50px"></div></div>').join("");
+    resultItems = Array.from({ length: 5 }).map((_, index) => '<div class="topic-item" aria-hidden="true"><span class="skeleton skeleton-sm"></span><div><div class="skeleton" style="height:15px;width:' + (78 - index * 5) + '%"></div><div class="skeleton" style="height:10px;width:92%;margin-top:10px"></div></div><div class="skeleton" style="height:16px;width:50px"></div></div>').join("");
   } else if (!visibleQuestions.length) {
     resultItems = '<div class="empty-state"><div><span data-icon="compass"></span><h3>还没有问题词包</h3><p>先拓展并确认种子词，再根据种子词生成问题词包。</p></div></div>';
   } else {
@@ -4544,11 +4591,11 @@ function renderQuestionLibrary() {
     const referenceText = refs.plans.length || refs.articles.length ? `${refs.plans.length} 计划 · ${refs.articles.length} 文章` : "暂无引用";
     const topicAction = activeTopics.length ? "" : `<button class="link-button" type="button" data-action="question-to-topic" data-question-id="${escapeHtml(question.id)}" ${ui.topicGenerating ? "disabled" : ""}>${questionGenerating ? "生成中" : "生成选题"}</button>`;
     const coreKeywordText = (question.sourceCoreKeywords || []).join("、");
-    return `<tr><td><input class="checkbox" type="checkbox" data-question-select="${question.id}" aria-label="选择问题 ${escapeHtml(question.question)}" ${question.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(question.question)}</b><small>${escapeHtml(question.id)} · v${escapeHtml(question.version || 1)} · ${escapeHtml(question.source)}</small></td><td><b>${escapeHtml(question.sourceSeedKeyword || question.sourceKeyword)}</b>${coreKeywordText ? `<small style="display:block;color:var(--muted-2);margin-top:4px">核心词：${escapeHtml(coreKeywordText)}</small>` : ""}</td><td><span class="small-tag ${question.coverage === "未覆盖" ? "teal" : ""}">${escapeHtml(question.coverage)}</span></td><td>${topicState}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${topicAction}<button class="link-button" type="button" data-action="edit-question" data-question-id="${escapeHtml(question.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-question" data-question-id="${escapeHtml(question.id)}">归档</button></div></td></tr>`;
+    return `<tr><td><input class="checkbox" type="checkbox" data-question-select="${question.id}" aria-label="选择问题 ${escapeHtml(question.question)}" ${question.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(question.question)}</b><small>${escapeHtml(question.id)} · v${escapeHtml(question.version || 1)} · ${escapeHtml(question.source)}</small></td><td><b>${escapeHtml(question.sourceSeedKeyword || question.sourceKeyword)}</b>${coreKeywordText ? `<small class="block-subtext">核心词：${escapeHtml(coreKeywordText)}</small>` : ""}</td><td><span class="small-tag ${question.coverage === "未覆盖" ? "teal" : ""}">${escapeHtml(question.coverage)}</span></td><td>${topicState}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${topicAction}<button class="link-button" type="button" data-action="edit-question" data-question-id="${escapeHtml(question.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-question" data-question-id="${escapeHtml(question.id)}">归档</button></div></td></tr>`;
   }).join("");
   return `
     <section class="card toolbar-card question-add-bar"><div class="field grow"><label for="question-input">手动添加客户问题</label><input class="input ${ui.questionError ? "input-error" : ""}" id="question-input" value="${escapeHtml(ui.questionInput)}" placeholder="例如：制造企业如何开始做 AI 搜索优化？" autocomplete="off" />${ui.questionError ? '<small class="error-text">' + escapeHtml(ui.questionError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="add-question"><span data-icon="plus"></span>添加问题</button></section>
-    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 问题词库</h3><p>关键词拓展、人工录入和监测缺口统一沉淀在这里；已归档问题可在归档管理中恢复。</p></div><div style="display:flex;gap:10px;align-items:center"><input class="input" style="width:220px" placeholder="搜索问题或来源词" value="${escapeHtml(ui.questionLibrarySearch || "")}" data-question-library-search /><span class="small-tag blue">${questions.length} 个问题</span></div>${generationProgressMarkup}${questions.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("question-library", questions.length, selected.length, "全选问题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>标准问题</th><th>来源种子词 / 核心词</th><th>覆盖</th><th>选题状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="help"></span><h3>还没有问题</h3><p>先到关键词拓展生成问题，或在上方手动添加。</p></div></div>'}</section>
+    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 问题词库</h3><p>关键词拓展、人工录入和监测缺口统一沉淀在这里；已归档问题可在归档管理中恢复。</p></div><div class="card-header-tools"><input class="input" placeholder="搜索问题或来源词" value="${escapeHtml(ui.questionLibrarySearch || "")}" data-question-library-search /><span class="small-tag blue">${questions.length} 个问题</span></div></div>${generationProgressMarkup}${questions.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("question-library", questions.length, selected.length, "全选问题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>标准问题</th><th>来源种子词 / 核心词</th><th>覆盖</th><th>选题状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="help"></span><h3>还没有问题</h3><p>先到关键词拓展生成问题，或在上方手动添加。</p></div></div>'}</section>
     ${selected.length ? '<div class="selection-bar"><span>已选择 <b>' + selected.length + '</b> 个问题</span><button class="primary-button button-small" type="button" data-action="questions-to-topics" ' + (ui.topicGenerating ? "disabled" : "") + '><span data-icon="arrow"></span>' + (ui.topicGenerating ? "正在生成…" : "生成选题") + '</button></div>' : ""}
   `;
 }
@@ -4572,10 +4619,10 @@ function renderTopicLibrary() {
     const referenceText = `${plans.length} 计划 · ${articles.length} 文章`;
     const directAction = `<button class="link-button topic-direct-button" type="button" data-action="direct-generate-topic" data-topic-id="${escapeHtml(topic.id)}">${article ? "查看文章" : "直接生成文章"}</button>`;
     const planAction = article ? "" : `<button class="link-button" type="button" data-action="topic-to-plan" data-topic-id="${escapeHtml(topic.id)}">加入计划</button>`;
-    return `<tr><td><input class="checkbox" type="checkbox" data-topic-select="${topic.id}" aria-label="选择选题 ${escapeHtml(topic.title)}" ${topic.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)}</small></td><td class="article-title-cell"><b>${escapeHtml(coreQuestion)}</b></td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension)}</span></td><td><b>${topic.recommendation}</b><small style="display:block;color:var(--muted-2);margin-top:4px">模型建议强度</small></td><td>${lifecycle}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${directAction}${planAction}<button class="link-button" type="button" data-action="edit-topic" data-topic-id="${escapeHtml(topic.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-topic" data-topic-id="${escapeHtml(topic.id)}">归档</button></div></td></tr>`;
+    return `<tr><td><input class="checkbox" type="checkbox" data-topic-select="${topic.id}" aria-label="选择选题 ${escapeHtml(topic.title)}" ${topic.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)}</small></td><td class="article-title-cell"><b>${escapeHtml(coreQuestion)}</b></td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension)}</span></td><td><b>${topic.recommendation}</b><small class="block-subtext">模型建议强度</small></td><td>${lifecycle}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${directAction}${planAction}<button class="link-button" type="button" data-action="edit-topic" data-topic-id="${escapeHtml(topic.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-topic" data-topic-id="${escapeHtml(topic.id)}">归档</button></div></td></tr>`;
   }).join("");
   return `
-    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 选题库</h3><p>AI 生成的选题直接进入选题库，可编辑后生成文章或加入内容计划。</p></div><div style="display:flex;gap:10px;align-items:center"><input class="input" style="width:220px" placeholder="搜索选题或意图" value="${escapeHtml(ui.topicLibrarySearch || "")}" data-topic-library-search /><span class="small-tag blue">${topics.length} 个选题</span></div></div>${selectableTopics.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("topic-library", selectableTopics.length, selected.length, "全选选题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>选题标题</th><th>核心回答问题</th><th>内容方向</th><th>优先级</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="clipboard"></span><h3>还没有选题</h3><p>到问题词库选择客户问题并生成选题。</p><button class="primary-button button-small" type="button" data-action="planning-tab" data-tab="questions">去问题词库</button></div></div>'}</section>
+    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 选题库</h3><p>AI 生成的选题直接进入选题库，可编辑后生成文章或加入内容计划。</p></div><div class="card-header-tools"><input class="input" placeholder="搜索选题或意图" value="${escapeHtml(ui.topicLibrarySearch || "")}" data-topic-library-search /><span class="small-tag blue">${topics.length} 个选题</span></div></div>${selectableTopics.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("topic-library", selectableTopics.length, selected.length, "全选选题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>选题标题</th><th>核心回答问题</th><th>内容方向</th><th>优先级</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="clipboard"></span><h3>还没有选题</h3><p>到问题词库选择客户问题并生成选题。</p><button class="primary-button button-small" type="button" data-action="planning-tab" data-tab="questions">去问题词库</button></div></div>'}</section>
     ${selected.length ? '<div class="selection-bar"><span>已选择 <b>' + selected.length + '</b> 个选题</span><div><button class="ghost-button button-small" type="button" data-action="clear-topics">清空</button><button class="primary-button button-small" type="button" data-action="open-plan"><span data-icon="clock"></span>创建内容计划</button></div></div>' : ""}
   `;
 }
@@ -4598,7 +4645,7 @@ function renderPlanningArchive() {
       const canDelete = !refs.plans.length && !refs.articles.length;
       const brief = topic.geoBrief || buildGeoTopicBrief(topic, refs.question);
       const coreQuestion = topic.coreQuestion || brief.coreQuestion || refs.question?.question || topic.title || "—";
-      return `<tr class="topic-row-archived"><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)} · 归档于 ${formatRelative(topic.archivedAt || topic.updatedAt || topic.createdAt)}</small></td><td>${escapeHtml(coreQuestion)}</td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension || "未分类")}</span></td><td><b>${escapeHtml(topic.recommendation || "—")}</b><small style="display:block;color:var(--muted-2);margin-top:4px">模型建议强度</small></td><td><span class="status-badge status-archived">已归档</span></td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions"><button class="secondary-button button-small" type="button" data-action="restore-planning-record" data-kind="topic" data-record-id="${escapeHtml(topic.id)}"><span data-icon="refresh"></span>恢复</button>${refs.plans.length || refs.articles.length ? `<button class="link-button" type="button" data-action="view-planning-relations" data-kind="topic" data-record-id="${escapeHtml(topic.id)}">引用详情</button>` : ""}<button class="danger-button button-small" type="button" data-action="request-delete-archive" data-kind="topic" data-record-id="${escapeHtml(topic.id)}" ${canDelete ? "" : "disabled"}>永久删除</button></div></td></tr>`;
+      return `<tr class="topic-row-archived"><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)} · 归档于 ${formatRelative(topic.archivedAt || topic.updatedAt || topic.createdAt)}</small></td><td>${escapeHtml(coreQuestion)}</td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension || "未分类")}</span></td><td><b>${escapeHtml(topic.recommendation || "—")}</b><small class="block-subtext">模型建议强度</small></td><td><span class="status-badge status-archived">已归档</span></td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions"><button class="secondary-button button-small" type="button" data-action="restore-planning-record" data-kind="topic" data-record-id="${escapeHtml(topic.id)}"><span data-icon="refresh"></span>恢复</button>${refs.plans.length || refs.articles.length ? `<button class="link-button" type="button" data-action="view-planning-relations" data-kind="topic" data-record-id="${escapeHtml(topic.id)}">引用详情</button>` : ""}<button class="danger-button button-small" type="button" data-action="request-delete-archive" data-kind="topic" data-record-id="${escapeHtml(topic.id)}" ${canDelete ? "" : "disabled"}>永久删除</button></div></td></tr>`;
     }).join("");
   const total = archivedQuestions.length + archivedTopics.length;
   const table = kind === "questions"
@@ -4621,8 +4668,8 @@ function renderContentPlans() {
     const agentSnapshot = plan.writingAgentSnapshot;
     const agentCurrent = writingAgentById(agentSnapshot?.agentId || plan.writingAgentId);
     const versionHint = agentCurrent && Number(agentCurrent.version) > Number(agentSnapshot?.version || 0) ? " · 有新版" : "";
-    const agentCell = agentSnapshot ? `<b>${escapeHtml(agentSnapshot.nameSnapshot)}</b><small style="display:block;color:var(--muted-2);margin-top:4px">v${escapeHtml(agentSnapshot.version)}${versionHint}</small>` : '<span class="status-badge status-review">未选择</span>';
-    return `<tr><td class="article-title-cell"><b>${escapeHtml(plan.name)}</b><small>${plan.id} · 创建于 ${formatRelative(plan.createdAt)}</small></td><td><b>${plan.topicIds.length}</b> 个选题</td><td>${agentCell}</td><td><button class="knowledge-count-button" type="button" data-action="preview-plan-knowledge" data-plan-id="${plan.id}"><b>${scope.resolvedBaseIds.length}</b> 库 · <b>${approved}</b> 条</button><small style="display:block;color:var(--muted-2);margin-top:4px">${changes}</small></td><td>${escapeHtml(plan.scheduledFor)}</td><td>${escapeHtml(plan.owner)}</td><td>${escapeHtml(plan.contentType)}</td><td>${planStatusBadge(plan.status)}</td><td><button class="link-button" type="button" data-action="${plan.status === "produced" ? "view-plan-content" : "execute-plan"}" data-plan-id="${plan.id}">${plan.status === "produced" ? "查看内容" : "创建内容任务"}</button></td></tr>`;
+    const agentCell = agentSnapshot ? `<b>${escapeHtml(agentSnapshot.nameSnapshot)}</b><small class="block-subtext">v${escapeHtml(agentSnapshot.version)}${versionHint}</small>` : '<span class="status-badge status-review">未选择</span>';
+    return `<tr><td class="article-title-cell"><b>${escapeHtml(plan.name)}</b><small>${plan.id} · 创建于 ${formatRelative(plan.createdAt)}</small></td><td><b>${plan.topicIds.length}</b> 个选题</td><td>${agentCell}</td><td><button class="knowledge-count-button" type="button" data-action="preview-plan-knowledge" data-plan-id="${plan.id}"><b>${scope.resolvedBaseIds.length}</b> 库 · <b>${approved}</b> 条</button><small class="block-subtext">${changes}</small></td><td>${escapeHtml(plan.scheduledFor)}</td><td>${escapeHtml(plan.owner)}</td><td>${escapeHtml(plan.contentType)}</td><td>${planStatusBadge(plan.status)}</td><td><button class="link-button" type="button" data-action="${plan.status === "produced" ? "view-plan-content" : "execute-plan"}" data-plan-id="${plan.id}">${plan.status === "produced" ? "查看内容" : "创建内容任务"}</button></td></tr>`;
   }).join("");
   const planned = plans.filter((plan) => ["draft", "planned"].includes(plan.status)).length;
   const produced = plans.filter((plan) => plan.status === "produced").length;
@@ -4655,6 +4702,11 @@ function contentSectionTabs() {
   return '<div class="content-section-tabs" role="tablist">' + items.map(([id, label, iconName, count]) => `<button class="${ui.contentView === id ? "active" : ""}" type="button" data-action="content-view" data-view="${id}"><span data-icon="${iconName}"></span><span><b>${label}</b><small>${id === "studio" ? count : count + (id === "articles" ? " 篇" : " 个启用")}</small></span></button>`).join("") + "</div>";
 }
 
+function contentPageShell(body, actions = "") {
+  const line = activeBusinessLine();
+  return `<div class="page-container content-page-container">${pageHead("内容生产", `${line?.name || "当前业务线"} · 按内容计划管理文章任务，也可以进入 AI 创作台直接起稿。`, actions)}<div class="tabs-row topic-center-tab-row content-section-tabs-row">${contentSectionTabs()}<span class="health"><i></i>${ui.contentView === "studio" ? "自动保存会话" : "内容任务工作区"}</span></div>${body}</div>`;
+}
+
 function writingAgentCard(agent) {
   const lineNames = !agent.businessLineIds?.length
     ? ["全部业务线"]
@@ -4684,13 +4736,9 @@ function renderWritingAgents() {
   const builtIn = (state.writingAgents || []).filter((agent) => agent.builtIn).map(writingAgentCard).join("");
   const custom = (state.writingAgents || []).filter((agent) => !agent.builtIn).map(writingAgentCard).join("");
   return `
-    <div class="page-container">
-      ${pageHead("写作智能体", "把可复用的写作角色、结构、语气和知识使用规则保存下来，创建内容时按需选择。", '<button class="primary-button" type="button" data-action="create-writing-agent"><span data-icon="plus"></span>创建智能体</button>')}
-      ${contentSectionTabs()}
-      <section class="writing-agent-principle"><span data-icon="info"></span><div><b>写作智能体决定怎么写</b><p>企业知识决定依据什么事实写，AI 模型决定用什么执行。智能体只能在内容计划冻结的知识范围内调整写法和召回顺序。</p></div></section>
-      <section class="writing-agent-group"><div class="writing-agent-group-head"><div><h3>系统内置</h3><p>稳定的基础写作能力不可直接修改，可以复制成企业自己的版本。</p></div><span>${(state.writingAgents || []).filter((agent) => agent.builtIn).length} 个</span></div><div class="writing-agent-grid">${builtIn}</div></section>
-      <section class="writing-agent-group"><div class="writing-agent-group-head"><div><h3>企业自建</h3><p>按业务、内容类型和品牌口吻维护；修改后版本递增，历史文章继续使用原快照。</p></div><span>${(state.writingAgents || []).filter((agent) => !agent.builtIn).length} 个</span></div><div class="writing-agent-grid">${custom || '<div class="card empty-state"><div><span data-icon="sparkle"></span><h3>还没有自定义智能体</h3><p>复制系统模板或从零创建一个。</p></div></div>'}</div></section>
-    </div>
+    <section class="writing-agent-principle"><span data-icon="info"></span><div><b>写作智能体决定怎么写</b><p>企业知识决定依据什么事实写，AI 模型决定用什么执行。智能体只能在内容计划冻结的知识范围内调整写法和召回顺序。</p></div></section>
+    <section class="writing-agent-group"><div class="writing-agent-group-head"><div><h3>系统内置</h3><p>稳定的基础写作能力不可直接修改，可以复制成企业自己的版本。</p></div><span>${(state.writingAgents || []).filter((agent) => agent.builtIn).length} 个</span></div><div class="writing-agent-grid">${builtIn}</div></section>
+    <section class="writing-agent-group"><div class="writing-agent-group-head"><div><h3>企业自建</h3><p>按业务、内容类型和品牌口吻维护；修改后版本递增，历史文章继续使用原快照。</p></div><span>${(state.writingAgents || []).filter((agent) => !agent.builtIn).length} 个</span></div><div class="writing-agent-grid">${custom || '<div class="card empty-state"><div><span data-icon="sparkle"></span><h3>还没有自定义智能体</h3><p>复制系统模板或从零创建一个。</p></div></div>'}</div></section>
   `;
 }
 
@@ -4964,7 +5012,8 @@ function renderContentStudio() {
   const line = state.businessLines.find((item) => item.id === workspace.businessLineId);
   const agent = writingAgentById(conversation?.selectedAgentId) || writingAgentById(workspace.writingAgentId);
   const knowledgeCount = studioApprovedKnowledgeEntries(workspace).length;
-  return `<div class="page-container"><div class="tabs-row topic-center-tab-row">${contentSectionTabs()}<span class="health"><i></i>自动保存会话</span></div><section class="content-studio-page"><div class="studio-topbar"><button class="studio-back-button" type="button" data-action="back-to-articles"><span data-icon="arrow"></span>文章任务</button><div class="studio-doc-meta"><span>${article ? escapeHtml(article.id) + " · " + escapeHtml(article.version) : "直接创作 · 尚未生成文章"}</span><strong class="studio-doc-title">${escapeHtml(article?.title || workspace.topic?.title || "新文章")}</strong><small class="studio-save-state">${article ? "已保存到客户空间" : "创作上下文已保存"}</small><div class="studio-context-chips"><span class="studio-context-chip"><span data-icon="briefcase"></span><b>${escapeHtml(line?.name || "未设置业务线")}</b></span><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(agent?.name || workspace.writingAgentSnapshot?.nameSnapshot || "未选择智能体")}</b></span><span class="studio-context-chip teal"><span data-icon="database"></span><b>${studioKnowledgeBases(workspace).length} 库 / ${knowledgeCount} 条可用资料</b></span><span class="studio-context-chip"><span data-icon="file"></span><b>${workspace.mode === "quick" ? "直接创作" : "文章任务"}</b></span></div></div><div class="studio-top-actions"><button class="secondary-button" type="button" data-action="save-studio-draft"><span data-icon="check"></span><span>保存草稿</span></button>${article?.reviewStatus === "approved" ? `<button class="primary-button" type="button" data-action="open-publish" data-article-id="${escapeHtml(article.id)}"><span data-icon="send"></span><span>发布文章</span></button>` : `<button class="primary-button" type="button" data-action="submit-studio-review" ${article ? "" : "disabled"}><span data-icon="shield"></span><span>提交审核</span></button>`}</div></div><div class="studio-mobile-tabs"><button class="${ui.studioPane === "editor" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="editor">正文</button><button class="${ui.studioPane === "chat" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="chat">AI 协作</button><button class="${ui.studioPane === "info" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="info">文章信息</button></div><div class="studio-shell" data-active-pane="${escapeHtml(ui.studioPane)}">${renderStudioEditor(workspace, article)}${renderStudioChat(workspace, conversation, article)}${renderStudioInfo(workspace, article)}</div></section></div>`;
+  const studio = `<section class="content-studio-page"><div class="studio-topbar"><button class="studio-back-button" type="button" data-action="back-to-articles"><span data-icon="arrow"></span>文章任务</button><div class="studio-doc-meta"><span>${article ? escapeHtml(article.id) + " · " + escapeHtml(article.version) : "直接创作 · 尚未生成文章"}</span><strong class="studio-doc-title">${escapeHtml(article?.title || workspace.topic?.title || "新文章")}</strong><small class="studio-save-state">${article ? "已保存到客户空间" : "创作上下文已保存"}</small><div class="studio-context-chips"><span class="studio-context-chip"><span data-icon="briefcase"></span><b>${escapeHtml(line?.name || "未设置业务线")}</b></span><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(agent?.name || workspace.writingAgentSnapshot?.nameSnapshot || "未选择智能体")}</b></span><span class="studio-context-chip teal"><span data-icon="database"></span><b>${studioKnowledgeBases(workspace).length} 库 / ${knowledgeCount} 条可用资料</b></span><span class="studio-context-chip"><span data-icon="file"></span><b>${workspace.mode === "quick" ? "直接创作" : "文章任务"}</b></span></div></div><div class="studio-top-actions"><button class="secondary-button" type="button" data-action="save-studio-draft"><span data-icon="check"></span><span>保存草稿</span></button>${article?.reviewStatus === "approved" ? `<button class="primary-button" type="button" data-action="open-publish" data-article-id="${escapeHtml(article.id)}"><span data-icon="send"></span><span>发布文章</span></button>` : `<button class="primary-button" type="button" data-action="submit-studio-review" ${article ? "" : "disabled"}><span data-icon="shield"></span><span>提交审核</span></button>`}</div></div><div class="studio-mobile-tabs"><button class="${ui.studioPane === "editor" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="editor">正文</button><button class="${ui.studioPane === "chat" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="chat">AI 协作</button><button class="${ui.studioPane === "info" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="info">文章信息</button></div><div class="studio-shell" data-active-pane="${escapeHtml(ui.studioPane)}">${renderStudioEditor(workspace, article)}${renderStudioChat(workspace, conversation, article)}${renderStudioInfo(workspace, article)}</div></section>`;
+  return contentPageShell(studio, '<button class="secondary-button" type="button" data-nav="planning"><span data-icon="clock"></span>进入选题中心</button><button class="primary-button" type="button" data-action="open-content-studio"><span data-icon="sparkle"></span>直接创作</button>');
 }
 
 function contentPlanForArticle(article) {
@@ -5217,7 +5266,7 @@ function renderContentPlanTasks() {
   }).join("");
   const directRow = directArticles.length ? `<tr><td class="article-title-cell"><button class="plan-name-button" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="__direct__">直接创作</button><small>未关联内容计划 · 独立文章工作区</small></td><td>—<br><small>${directArticles.length} 篇文章</small></td><td><div class="plan-progress"><div class="plan-progress-track"><i style="width:100%"></i></div><div class="plan-progress-meta"><b>—</b><small>直接创作不纳入计划进度</small></div></div></td><td>—</td><td>—</td><td><span class="small-tag blue">独立创作</span></td><td><button class="link-button" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="__direct__">查看文章</button></td></tr>` : "";
   const summary = `<section class="content-plan-summary"><article class="card summary-card"><span data-icon="clock"></span><div><b>${plans.length}</b><small>内容计划</small></div></article><article class="card summary-card"><span class="amber" data-icon="clipboard"></span><div><b>${allPlannedArticles.length}</b><small>计划文章</small></div></article><article class="card summary-card"><span class="green" data-icon="file"></span><div><b>${pending}</b><small>待审核</small></div></article><article class="card summary-card"><span class="purple" data-icon="send"></span><div><b>${published}</b><small>已发布</small></div></article></section>`;
-  return `${contentTaskViewSwitcher()}${summary}<section class="card table-card"><div class="card-header"><div><h3>内容计划任务</h3><p>先按计划查看进度，再进入计划查看每个选题对应的文章状态。</p></div><button class="secondary-button button-small" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="all">查看全部文章</button></div>${rows || directRow ? `<div class="table-scroll"><table class="data-table content-plan-table"><thead><tr><th>计划</th><th>选题 / 文章</th><th>文章进度与状态</th><th>截止日期</th><th>负责人</th><th>计划状态</th><th style="text-align:right">操作</th></tr></thead><tbody>${rows}${directRow}</tbody></table></div>` : '<div class="empty-state"><div><span data-icon="clock"></span><h3>还没有内容计划</h3><p>先从选题中心创建计划，或直接进入 AI 创作台。</p><button class="primary-button button-small" type="button" data-nav="planning">进入选题中心</button></div></div>'}</section>`;
+  return `${contentTaskViewSwitcher()}${summary}<section class="card table-card"><div class="card-header"><div><h3>内容计划任务</h3><p>先按计划查看进度，再进入计划查看每个选题对应的文章状态。</p></div><button class="secondary-button button-small" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="all">查看全部文章</button></div>${rows || directRow ? `<div class="table-scroll"><table class="data-table content-plan-table"><thead><tr><th>计划</th><th>选题 / 文章</th><th>文章进度与状态</th><th>截止日期</th><th>负责人</th><th>计划状态</th><th class="text-right">操作</th></tr></thead><tbody>${rows}${directRow}</tbody></table></div>` : '<div class="empty-state"><div><span data-icon="clock"></span><h3>还没有内容计划</h3><p>先从选题中心创建计划，或直接进入 AI 创作台。</p><button class="primary-button button-small" type="button" data-nav="planning">进入选题中心</button></div></div>'}</section>`;
 }
 
 function renderContentArticleList() {
@@ -5269,7 +5318,7 @@ function renderContentArticleList() {
     const agentCell = agent
       ? `<span class="article-agent-cell"><b>${escapeHtml(agent.nameSnapshot)}</b><small>v${escapeHtml(agent.version)} · ${escapeHtml(agent.style || agent.template || "写作配置")}</small></span>`
       : '<span class="article-agent-cell legacy"><b>历史默认配置</b><small>未记录智能体</small></span>';
-    return `<tr><td class="article-title-cell"><button type="button" data-action="open-article" data-article-id="${article.id}">${escapeHtml(article.title)}</button><small>${escapeHtml(article.id)} · ${escapeHtml(article.version)} · 更新于 ${formatRelative(article.updatedAt)}</small></td><td>${sourceCell}</td><td><span class="source-tag">${escapeHtml(article.category)}</span></td><td>${agentCell}</td><td>${article.status === "published" ? statusBadge("published") : article.status === "publishing" ? statusBadge("publishing") : statusBadge("draft")}</td><td>${articleReviewBadge(article)}</td><td>${articleCitations(article).length ? `<span class="status-badge status-approved">${articleCitations(article).length} 条证据</span><small style="display:block;margin-top:4px;color:var(--muted-2)">${article.knowledgeStatus?.gapCount || 0} 项缺口已省略</small>` : '<span class="status-badge status-review">未映射</span>'}</td><td>${articleRiskBadge(article)}<small style="display:block;margin-top:4px;color:var(--muted-2)">绑定 ${article.version}</small></td><td>${escapeHtml(article.author)}</td><td><div class="table-actions"><button class="link-button" type="button" data-action="open-article" data-article-id="${article.id}">打开</button><button class="link-button" type="button" data-action="open-article-studio" data-article-id="${article.id}">AI 协作</button>${article.reviewStatus === "approved" && article.status === "draft" && articleCitations(article).length && articleBusinessLineIsActive(article) ? `<button class="link-button" type="button" data-action="open-publish" data-article-id="${article.id}">发布</button>` : ""}<button class="link-button danger-link" type="button" data-action="delete-content-article" data-article-id="${article.id}">删除</button></div></td></tr>`;
+    return `<tr><td class="article-title-cell"><button type="button" data-action="open-article" data-article-id="${article.id}">${escapeHtml(article.title)}</button><small>${escapeHtml(article.id)} · ${escapeHtml(article.version)} · 更新于 ${formatRelative(article.updatedAt)}</small></td><td>${sourceCell}</td><td><span class="source-tag">${escapeHtml(article.category)}</span></td><td>${agentCell}</td><td>${article.status === "published" ? statusBadge("published") : article.status === "publishing" ? statusBadge("publishing") : statusBadge("draft")}</td><td>${articleReviewBadge(article)}</td><td>${articleCitations(article).length ? `<span class="status-badge status-approved">${articleCitations(article).length} 条证据</span><small class="block-subtext">${article.knowledgeStatus?.gapCount || 0} 项缺口已省略</small>` : '<span class="status-badge status-review">未映射</span>'}</td><td>${articleRiskBadge(article)}<small class="block-subtext">绑定 ${article.version}</small></td><td>${escapeHtml(article.author)}</td><td><div class="table-actions"><button class="link-button" type="button" data-action="open-article" data-article-id="${article.id}">打开</button><button class="link-button" type="button" data-action="open-article-studio" data-article-id="${article.id}">AI 协作</button>${article.reviewStatus === "approved" && article.status === "draft" && articleCitations(article).length && articleBusinessLineIsActive(article) ? `<button class="link-button" type="button" data-action="open-publish" data-article-id="${article.id}">发布</button>` : ""}<button class="link-button danger-link" type="button" data-action="delete-content-article" data-article-id="${article.id}">删除</button></div></td></tr>`;
   }).join("");
   const missingRows = selectedPlan && selectedPlanProgress.missingTopicIds.length && ["all", "uncreated"].includes(ui.articleTab)
     ? selectedPlanProgress.missingTopicIds.map((topicId) => {
@@ -5290,7 +5339,7 @@ function renderContentArticleList() {
   const emptyState = selectedPlan
     ? `<div class="empty-state"><div><span data-icon="file"></span><h3>当前状态没有文章</h3><p>${selectedPlanProgress.missing ? `该计划还有 ${selectedPlanProgress.missing} 个选题尚未生成，可继续创建计划文章。` : "该计划在当前状态下没有文章，可返回计划任务查看整体进度。"}</p>${selectedPlanProgress.missing ? `<button class="primary-button button-small" type="button" data-action="execute-plan" data-plan-id="${escapeHtml(selectedPlan.id)}"><span data-icon="sparkle"></span>继续生成计划文章</button>` : '<button class="secondary-button button-small" type="button" data-action="content-task-view" data-view="plans">返回计划任务</button>'}</div></div>`
     : '<div class="empty-state"><div><span data-icon="file"></span><h3>当前筛选没有文章</h3><p>可以直接生成一篇文章，或回到选题中心创建内容计划。</p><button class="primary-button button-small" type="button" data-action="open-content-studio">直接创作</button></div></div>';
-  const taskTable = rows ? `<div class="table-scroll"><table class="data-table content-article-table"><thead><tr><th>文章 / 任务</th><th>来源计划 / 选题</th><th>分类</th><th>写作智能体</th><th>内容状态</th><th>审核状态</th><th>知识证据</th><th>风控状态</th><th>作者</th><th style="text-align:right">操作</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState;
+  const taskTable = rows ? `<div class="table-scroll"><table class="data-table content-article-table"><thead><tr><th>文章 / 任务</th><th>来源计划 / 选题</th><th>分类</th><th>写作智能体</th><th>内容状态</th><th>审核状态</th><th>知识证据</th><th>风控状态</th><th>作者</th><th class="text-right">操作</th></tr></thead><tbody>${rows}</tbody></table></div>` : emptyState;
   const activeAdvancedFilters = Number(ui.articleRiskFilter !== "all") + Number(ui.articleKnowledgeFilter !== "all");
   const advancedFilters = ui.articleFilterExpanded
     ? `<div class="content-advanced-filters"><label><span>风控状态</span><select class="select" data-content-risk-filter><option value="all" ${ui.articleRiskFilter === "all" ? "selected" : ""}>全部风控状态</option><option value="clean" ${ui.articleRiskFilter === "clean" ? "selected" : ""}>风控通过</option><option value="unscanned" ${ui.articleRiskFilter === "unscanned" ? "selected" : ""}>尚未检测</option><option value="stale" ${ui.articleRiskFilter === "stale" ? "selected" : ""}>结果已过期</option><option value="warning" ${ui.articleRiskFilter === "warning" ? "selected" : ""}>需注意</option><option value="blocked" ${ui.articleRiskFilter === "blocked" ? "selected" : ""}>已阻断</option></select></label><label><span>知识证据</span><select class="select" data-content-knowledge-filter><option value="all" ${ui.articleKnowledgeFilter === "all" ? "selected" : ""}>全部证据状态</option><option value="mapped" ${ui.articleKnowledgeFilter === "mapped" ? "selected" : ""}>已映射企业知识</option><option value="unmapped" ${ui.articleKnowledgeFilter === "unmapped" ? "selected" : ""}>未映射企业知识</option><option value="outdated" ${ui.articleKnowledgeFilter === "outdated" ? "selected" : ""}>引用知识已更新</option></select></label><button class="ghost-button button-small" type="button" data-action="clear-content-filters" ${activeAdvancedFilters || ui.articleSearch ? "" : "disabled"}>清除筛选</button></div>`
@@ -5300,9 +5349,9 @@ function renderContentArticleList() {
 
 function renderContent() {
   if (ui.contentView === "studio") return renderContentStudio();
-  if (ui.contentView === "agents") return renderWritingAgents();
-  const line = activeBusinessLine();
-  return `<div class="page-container">${pageHead("内容生产", `${line?.name || "当前业务线"} · 按内容计划管理文章任务，也可以进入 AI 创作台直接起稿。`, '<button class="secondary-button" type="button" data-nav="planning"><span data-icon="clock"></span>进入选题中心</button><button class="primary-button" type="button" data-action="open-content-studio"><span data-icon="sparkle"></span>直接创作</button>')}${contentSectionTabs()}${ui.articleTaskView === "plans" ? renderContentPlanTasks() : renderContentArticleList()}</div>`;
+  const actions = '<button class="secondary-button" type="button" data-nav="planning"><span data-icon="clock"></span>进入选题中心</button><button class="primary-button" type="button" data-action="open-content-studio"><span data-icon="sparkle"></span>直接创作</button>';
+  if (ui.contentView === "agents") return contentPageShell(renderWritingAgents(), '<button class="secondary-button" type="button" data-nav="planning"><span data-icon="clock"></span>进入选题中心</button><button class="primary-button" type="button" data-action="create-writing-agent"><span data-icon="plus"></span>创建智能体</button>');
+  return contentPageShell(ui.articleTaskView === "plans" ? renderContentPlanTasks() : renderContentArticleList(), actions);
 }
 
 function articleAssetRecords() {
@@ -5490,19 +5539,20 @@ function publishBatchPlatformState(entry, group, selectedArticles) {
   if (!entry) return { available: false, status: "not_connected", reason: "平台不存在" };
   if (!entry.enabled) return { available: false, status: entry.support === "planned" ? "planned" : "not_connected", reason: entry.description || "该平台当前不可用" };
   const existingCount = selectedArticles.filter((article) => articleExistingPublishPlatforms(article).has(entry.id)).length;
-  if (existingCount) return { available: false, status: "queued", reason: `${existingCount} 篇文章已有该平台任务` };
-  if (entry.id === "web") return { available: true, status: "online", reason: `${state.site.domain} · 服务器发布` };
+  const existingState = { existingCount, skippedCount: existingCount };
+  if (entry.id === "web") return { available: true, status: "online", reason: `${state.site.domain} · 服务器发布`, ...existingState };
   const catalog = publisherPlatform(entry.id);
-  if (publisherSnapshot.loaded && (!catalog || !catalog.enabled)) return { available: false, status: "not_connected", reason: "本地发布器未声明该平台" };
+  if (publisherSnapshot.loaded && (!catalog || !catalog.enabled)) return { available: false, status: "not_connected", reason: "本地发布器未声明该平台", ...existingState };
   const connection = publisherAccountConnection(group, entry.id);
   const account = connection.account;
-  if (!account) return { available: false, status: "not_connected", reason: "当前账号组尚未绑定账号" };
-  if (!connection.ready) return { available: false, status: connection.status, reason: publisherConnectionMessage(connection) };
+  if (!account) return { available: false, status: "not_connected", reason: "当前账号组尚未绑定账号", ...existingState };
+  if (!connection.ready) return { available: false, status: connection.status, reason: publisherConnectionMessage(connection), ...existingState };
   return {
     available: true,
     status: "online",
     reason: publisherConnectionMessage(connection),
-    session: connection.session
+    session: connection.session,
+    ...existingState
   };
 }
 
@@ -5524,10 +5574,10 @@ function publishBatchPlatformCards() {
     const stateMeta = publishBatchPlatformState(entry, group, selectedArticles);
     const formal = FORMAL_PUBLISH_PLATFORM_IDS.has(entry.id);
     const selected = (selection.platforms || []).includes(entry.id) && stateMeta.available && formal;
-    const isExisting = stateMeta.status === "queued";
-    const status = isExisting ? "queued" : stateMeta.status;
+    const status = stateMeta.status;
     const platform = PLATFORM_META[entry.id] || { name: entry.id, short: "平", logoClass: "generic" };
-    return `<label class="publish-platform-card ${selected ? "selected" : ""} ${stateMeta.available && formal ? "" : "disabled"}"><div class="publish-platform-card-top"><input class="checkbox" type="checkbox" data-publish-batch-platform="${entry.id}" ${selected ? "checked" : ""} ${stateMeta.available && formal ? "" : "disabled"} /><span class="platform-logo ${platform.logoClass}">${platform.short}</span><span class="publish-platform-card-name"><b>${escapeHtml(platform.name)}</b><small>${escapeHtml(entry.role)}</small></span>${formal ? statusBadge(status) : '<span class="small-tag">规划中</span>'}</div><div class="publish-platform-card-meta"><span>${escapeHtml(entry.capabilities)}</span><span>${formal ? escapeHtml(stateMeta.reason) : "首期未正式支持，暂不可发布"}</span></div>${entry.id === "web" ? '<em class="publish-platform-role">推荐主信源</em>' : ""}</label>`;
+    const skipNote = Number(stateMeta.existingCount || 0) > 0 ? `<em class="publish-platform-skip-note">${stateMeta.existingCount} 篇已有该平台任务，本次将跳过</em>` : "";
+    return `<label class="publish-platform-card ${selected ? "selected" : ""} ${stateMeta.available && formal ? "" : "disabled"}"><div class="publish-platform-card-top"><input class="checkbox" type="checkbox" data-publish-batch-platform="${entry.id}" ${selected ? "checked" : ""} ${stateMeta.available && formal ? "" : "disabled"} /><span class="platform-logo ${platform.logoClass}">${platform.short}</span><span class="publish-platform-card-name"><b>${escapeHtml(platform.name)}</b><small>${escapeHtml(entry.role)}</small></span>${formal ? statusBadge(status) : '<span class="small-tag">规划中</span>'}</div><div class="publish-platform-card-meta"><span>${escapeHtml(entry.capabilities)}</span><span>${formal ? escapeHtml(stateMeta.reason) : "首期未正式支持，暂不可发布"}</span></div>${skipNote}${entry.id === "web" ? '<em class="publish-platform-role">推荐主信源</em>' : ""}</label>`;
   }).join("");
   return cards || '<div class="empty-state compact"><div><span data-icon="search"></span><h3>没有匹配的平台</h3><p>换一个平台名称或切换平台分类。</p></div></div>';
 }
@@ -5555,7 +5605,7 @@ function renderPublishComposer() {
   const selectedArticles = state.articles.filter((article) => selection.articleIds.includes(article.id));
   const selectedPlatforms = selection.platformOrder || selection.platforms || [];
   const group = publishBatchGroup();
-  const availableCount = selectedArticles.length * selectedPlatforms.length;
+  const availableCount = selectedArticles.reduce((sum, article) => sum + selectedPlatforms.filter((platform) => !articleExistingPublishPlatforms(article).has(platform)).length, 0);
   const groups = state.accountGroups.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === group?.id ? "selected" : ""}>${escapeHtml(item.name)} · ${escapeHtml(item.deviceName || "本地设备")}</option>`).join("");
   const availablePlatformCount = PUBLISH_PLATFORM_REGISTRY.filter((entry) => FORMAL_PUBLISH_PLATFORM_IDS.has(entry.id) && publishBatchPlatformState(entry, group, selectedArticles).available).length;
   const mode = selection.mode || "immediate";
@@ -5599,10 +5649,14 @@ async function submitPublishBatch() {
   const group = publishBatchGroup();
   const articles = selection.articleIds.map((id) => state.articles.find((article) => article.id === id)).filter(Boolean);
   const created = [];
+  let skippedPairs = 0;
   for (const article of articles) {
     const eligibility = articlePublishEligibility(article);
     if (!eligibility.ok) continue;
-    const platforms = selection.platformOrder.filter((platform) => publishBatchPlatformState(publishBatchPlatformEntry(platform), group, [article]).available);
+    const platforms = selection.platformOrder.filter((platform) => {
+      if (articleExistingPublishPlatforms(article).has(platform)) { skippedPairs++; return false; }
+      return true;
+    });
     if (!platforms.length) continue;
     let formal;
     try { formal = await contentPublisherPayload(article); } catch (error) {
@@ -5624,13 +5678,16 @@ async function submitPublishBatch() {
     });
     if (result.job) created.push(result.job);
   }
-  if (!created.length) return showToast("没有可创建的任务", "请确认文章已审核，并且账号组中存在已登录的平台账号。", "error");
+  if (!created.length) {
+    if (skippedPairs) return showToast("所选文章均已发布过所选平台", "已发布过的文章不会重复创建任务，请取消勾选已发布的平台或选择其他文章。", "warning");
+    return showToast("没有可创建的任务", "请确认文章已审核，并且账号组中存在已登录的平台账号。", "error");
+  }
   ui.publishBatchSelection = null;
   ui.publishView = "tasks";
   ui.publishTab = "running";
   await refreshPublisherSnapshot();
   navigate("publish");
-  showToast("发布任务已交给本地发布器", `${created.length} 篇文章已进入平台任务队列，等待本地软件按顺序领取。`);
+  showToast("发布任务已交给本地发布器", `${created.length} 篇文章已进入平台任务队列，等待本地软件按顺序领取。${skippedPairs ? `已跳过 ${skippedPairs} 个已发布过的文章-平台组合。` : ""}`);
 }
 
 function taskNeedsAction(task) {
@@ -5960,7 +6017,7 @@ function monitoringTrendBars(points) {
   const firstActiveIndex = values.findIndex((value) => value > 0);
   const dataStartNote = firstActiveIndex > 0 ? `<div class="monitor-real-trend-note">自 ${escapeHtml(monitoringTrendLabel(points[firstActiveIndex].label))} 起开始采集，此前无成功页面请求记录</div>` : "";
   const dots = points.map((item, index) => `<circle tabindex="0" role="button" aria-label="${escapeHtml(monitoringTrendLabel(item.label))} ${monitoringDisplayNumber(item.value)} 次成功页面请求" data-monitor-point data-index="${index}" data-label="${escapeHtml(item.label)}" data-value="${item.value}" data-human="${item.humanPv}" data-ai="${item.aiBotPv}" data-search="${item.searchBotPv}" data-other="${item.otherBotPv}" data-unknown="${item.unknownPv}" cx="${x(index).toFixed(2)}" cy="${y(values[index]).toFixed(2)}" r="${index === points.length - 1 ? 3.5 : 2.6}"></circle>`).join("");
-  return `<div class="monitor-real-trend-chart" role="img" aria-label="${escapeHtml(points.length)} 天成功页面请求趋势"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><line class="monitor-real-chart-grid" x1="${left}" y1="${top}" x2="${width - right}" y2="${top}" /><line class="monitor-real-chart-grid" x1="${left}" y1="${top + plotHeight / 2}" x2="${width - right}" y2="${top + plotHeight / 2}" /><line class="monitor-real-chart-grid" x1="${left}" y1="${top + plotHeight}" x2="${width - right}" y2="${top + plotHeight}" /><path class="monitor-real-chart-area" d="${area}" /><path class="monitor-real-chart-line" d="${line}" />${dots}</svg><div class="monitor-real-trend-labels">${ticks}</div>${dataStartNote}<div class="monitor-real-tooltip" data-monitor-tooltip hidden></div></div>`;
+  return `<div class="monitor-real-trend-chart" role="img" aria-label="${escapeHtml(points.length)} 天成功页面请求趋势"><svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="tz-trend-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(184, 68, 47, .3)"/><stop offset="100%" stop-color="rgba(184, 68, 47, 0)"/></linearGradient></defs><line class="monitor-real-chart-grid" x1="${left}" y1="${top}" x2="${width - right}" y2="${top}" /><line class="monitor-real-chart-grid" x1="${left}" y1="${top + plotHeight / 2}" x2="${width - right}" y2="${top + plotHeight / 2}" /><line class="monitor-real-chart-grid" x1="${left}" y1="${top + plotHeight}" x2="${width - right}" y2="${top + plotHeight}" /><path class="monitor-real-chart-area" d="${area}" /><path class="monitor-real-chart-line" pathLength="1" d="${line}" />${dots}</svg><div class="monitor-real-trend-labels">${ticks}</div>${dataStartNote}<div class="monitor-real-tooltip" data-monitor-tooltip hidden></div></div>`;
 }
 function monitoringProductionStats() {
   const overview = monitoringSnapshot.overview || {};
@@ -6955,17 +7012,6 @@ function diagnosticDataState() {
   return `<div class="monitor-real-note warning"><span data-icon="alert"></span><div><b>研究数据服务待连接</b><small>${escapeHtml(diagnosticSnapshot.error || "尚未读取研究数据包与更新状态。官网实测仍可独立使用。")}</small></div></div>`;
 }
 
-function renderDiagnosticTabs() {
-  const tabs = [
-    ["evidence", "官网实测"],
-    ["analysis", "AI 分析工作台"],
-    ["reports", "报告中心"],
-    ["rules", "规则与口径"]
-  ];
-  const reportCount = (analysisWorkbenchSnapshot.sessions || []).filter((session) => Number(session.artifactCount || 0) > 0).length;
-  return `<div class="diagnostic-tabs" role="tablist">${tabs.map(([id, label]) => `<button class="diagnostic-tab ${id === "evidence" ? "diagnostic-tab-primary" : ""} ${ui.diagnosticSection === id ? "active" : ""}" type="button" data-action="diagnostic-section" data-section="${id}" role="tab" aria-selected="${ui.diagnosticSection === id}">${id === "analysis" ? '<span data-icon="sparkle"></span>' : id === "evidence" ? '<span data-icon="globe"></span>' : ""}${escapeHtml(label)}${id === "reports" ? `<em>${reportCount}</em>` : ""}</button>`).join("")}</div>`;
-}
-
 function analysisRunStatusMeta(status) {
   return {
     queued: ["排队中", "pending"],
@@ -7301,7 +7347,7 @@ function renderDiagnosticOperationalEvidence() {
         <article class="card diagnostic-evidence-card website">
           <div class="diagnostic-evidence-card-head">${icon("globe")}<div><small>官网信源能力</small><h4>网站 GEO 诊断</h4></div><b>${monitoringDisplayNumber(scores.total)}<em>/100</em></b></div>
           <div class="diagnostic-run-status ${escapeHtml(diagnosticState.className)}"><b>${escapeHtml(diagnosticState.label)}</b><small>${escapeHtml(diagnosticState.message)}</small></div>
-          <div class="diagnostic-mini-metrics"><span>Schema <b>${monitoringDisplayNumber(scores.schema)}</b></span><span>内容 <b>${monitoringDisplayNumber(scores.content)}</b></span><span>Meta <b>${monitoringDisplayNumber(scores.meta)}</b></span><span>引用与链接 <b>${monitoringDisplayNumber(scores.authority)}</b></span></div>
+          <div class="diagnostic-mini-metrics"><span style="--score:${Math.min(100, Math.max(0, Number(scores.schema) || 0))}">Schema <b>${monitoringDisplayNumber(scores.schema)}</b></span><span style="--score:${Math.min(100, Math.max(0, Number(scores.content) || 0))}">内容 <b>${monitoringDisplayNumber(scores.content)}</b></span><span style="--score:${Math.min(100, Math.max(0, Number(scores.meta) || 0))}">Meta <b>${monitoringDisplayNumber(scores.meta)}</b></span><span style="--score:${Math.min(100, Math.max(0, Number(scores.authority) || 0))}">引用与链接 <b>${monitoringDisplayNumber(scores.authority)}</b></span></div>
           <div class="diagnostic-run-row"><input class="input" id="monitoring-diagnostic-url" value="${escapeHtml(diagnosticUrl)}" placeholder="https://www.example.com/" /><button class="secondary-button button-small" type="button" data-action="run-monitoring-diagnostic" ${diagnosticBusy ? "disabled" : ""}>开始实测</button></div>
           <div class="monitoring-suggestion-control"><label><input type="checkbox" id="monitoring-suggestion-generation" ${ui.monitoringSuggestionGeneration ? "checked" : ""} /> <span>使用已配置文本模型整理建议</span></label><select class="select" id="monitoring-suggestion-provider" ${!textProviders.length ? "disabled" : ""}>${suggestionProviderOptions}</select><small>默认仅使用规则建议；勾选后，模型只会整理已发现的问题和证据，不参与评分。</small></div>
           ${monitoringDiagnosticEvidenceMarkup(diagnostic)}
@@ -10129,7 +10175,7 @@ function renderEffectDiagnosticWorkspace() {
   if (!effectRelaySnapshot.attempted && !effectRelaySnapshot.loading) queueMicrotask(() => refreshEffectRelay({ renderAfter: true }));
   const brand = String(ui.effectDiagnosticBrand || "").trim();
   if (!brand) {
-    return `<div class="page-container effect-demo-page effect-diagnostic-page">${pageHead("品牌诊断", "先输入品牌名称，再配置竞品、AI 推荐问题、平台与每个平台的独立采样次数。", '<span class="small-tag blue">灼见 AI 检测</span>')}${effectPagesTabs("effect-diagnostic")}<section class="card effect-diagnostic-start-card"><div><span class="effect-demo-kicker">BRAND DIAGNOSTIC</span><h2>从品牌名称开始</h2><p>品牌名称确认后，才会出现品牌配置、竞品配置与 AI 问题推荐。执行结果只读取客户服务端验收并写入 <code>diagnostic_evidence(live)</code> 的真实交付。</p></div><div class="effect-diagnostic-start-fields"><label class="effect-demo-input"><span>${icon("users")}品牌名称 <em>*</em></span><input id="effect-diagnostic-start-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="请输入需要诊断的品牌名称" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-start-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><button class="primary-button" type="button" data-action="effect-diagnostic-start">开始品牌配置 ${icon("arrow")}</button></div></section>${effectDiagnosticHistory()}</div>`;
+    return `<div class="page-container effect-demo-page effect-diagnostic-page">${pageHead("品牌诊断", "先输入品牌名称，再配置竞品、AI 推荐问题、平台与每个平台的独立采样次数。", '<span class="small-tag blue">灼见 AI 检测</span>')}${effectPagesTabs("effect-diagnostic")}<section class="card effect-diagnostic-start-card"><div class="effect-diagnostic-start-copy"><span class="effect-diagnostic-start-mark" aria-hidden="true">${icon("target")}</span><div><span class="effect-demo-kicker">BRAND DIAGNOSTIC</span><h2>从品牌名称开始</h2><p>品牌名称确认后，才会出现品牌配置、竞品配置与 AI 问题推荐。执行结果只读取客户服务端验收并写入 <code>diagnostic_evidence(live)</code> 的真实交付。</p></div></div><div class="effect-diagnostic-start-fields"><label class="effect-demo-input"><span>${icon("users")}品牌名称 <em>*</em></span><input id="effect-diagnostic-start-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="请输入需要诊断的品牌名称" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-start-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><button class="primary-button" type="button" data-action="effect-diagnostic-start">开始品牌配置 ${icon("arrow")}</button></div></section>${effectDiagnosticHistory()}</div>`;
   }
   const questions = effectDiagnosticQuestionList();
   const draftQuestions = effectDiagnosticDraftQuestions();
@@ -10162,15 +10208,8 @@ function renderEffectMonitor() {
 function renderRealMonitoring() {
   if (!monitoringSnapshot.loaded && !monitoringSnapshot.loading) queueMicrotask(() => refreshRealMonitoring({ silent: true }));
   if (!diagnosticSnapshot.loaded && !diagnosticSnapshot.loading && !diagnosticSnapshot.attempted) queueMicrotask(() => refreshOperationDiagnostics({ silent: true }));
-  if (!["analysis", "evidence", "reports", "rules", "projects"].includes(ui.diagnosticSection)) ui.diagnosticSection = "evidence";
-  const content = ui.diagnosticSection === "analysis" ? renderAnalysisWorkbench() : ui.diagnosticSection === "evidence" ? renderDiagnosticEvidencePage() : ui.diagnosticSection === "projects" ? renderDiagnosticProjects() : ui.diagnosticSection === "reports" ? renderDiagnosticReports() : renderDiagnosticRules();
-  const actions = ui.diagnosticSection === "analysis"
-    ? `<button class="secondary-button" type="button" data-action="analysis-refresh" ${analysisWorkbenchSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新会话</button><button class="primary-button" type="button" data-action="analysis-new-session"><span data-icon="plus"></span>新建分析</button>`
-    : ui.diagnosticSection === "evidence"
-      ? `<button class="secondary-button" type="button" data-action="refresh-monitoring" ${monitoringSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新官网数据</button><button class="primary-button" type="button" data-action="run-monitoring-diagnostic" ${monitoringSnapshot.loading || monitoringDiagnosticRunInFlight || monitoringDiagnosticPollReportId ? "disabled" : ""}><span data-icon="shield"></span>运行网站诊断</button>`
-      : `<button class="secondary-button" type="button" data-action="diagnostic-refresh-all" ${monitoringSnapshot.loading || diagnosticSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新数据</button>`;
-  const dataState = ["analysis", "evidence", "reports"].includes(ui.diagnosticSection) ? "" : diagnosticDataState();
-  return `<div class="page-container monitor-real-page diagnostic-page">${pageHead("运营诊断", "先查看官网实测，再基于可追溯数据进入 AI 分析与报告；访问和抓取不等同于 AI 引用、推荐或排名。", actions)}${dataState}${renderDiagnosticTabs()}<main class="diagnostic-content">${content}</main></div>`;
+  const actions = `<button class="secondary-button" type="button" data-action="refresh-monitoring" ${monitoringSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新官网数据</button><button class="primary-button" type="button" data-action="run-monitoring-diagnostic" ${monitoringSnapshot.loading || monitoringDiagnosticRunInFlight || monitoringDiagnosticPollReportId ? "disabled" : ""}><span data-icon="shield"></span>运行网站诊断</button>`;
+  return `<div class="page-container monitor-real-page diagnostic-page">${pageHead("运营诊断", "官网访问与抓取实测：按 User-Agent 识别浏览器与自动化流量；访问和抓取不等同于 AI 引用、推荐或排名。", actions)}<main class="diagnostic-content">${renderDiagnosticEvidencePage()}</main></div>`;
 }
 
 function renderMonitoring() {
@@ -10554,12 +10593,13 @@ function renderSiteNavigation() {
   const footerColumnRows = (footer.columns || []).map((column) => `<div class="site-footer-config-row"><div><b>${escapeHtml(column.title || "未命名栏目")}</b><small>${(column.links || []).length} 个链接</small></div><div class="site-footer-config-actions"><button class="link-button" type="button" data-action="site-footer-edit-column" data-column-id="${escapeHtml(column.id)}">编辑</button><button class="icon-button" type="button" data-action="site-footer-delete-column" data-column-id="${escapeHtml(column.id)}" aria-label="删除页脚栏目"><span data-icon="trash"></span></button></div></div>`).join("");
   const footerSocialRows = (footer.socialLinks || []).map((link) => `<div class="site-footer-config-row"><div><b>${escapeHtml(link.label || "未命名链接")}</b><small>${escapeHtml(link.href || "/")}</small></div><div class="site-footer-config-actions"><button class="link-button" type="button" data-action="site-footer-edit-social" data-social-id="${escapeHtml(link.id)}">编辑</button><button class="icon-button" type="button" data-action="site-footer-delete-social" data-social-id="${escapeHtml(link.id)}" aria-label="删除页脚链接"><span data-icon="trash"></span></button></div></div>`).join("");
   const footerManagement = `<section class="site-footer-management-grid"><section class="card"><div class="card-header"><div><h3>页脚栏目</h3><p>模板只负责布局，栏目标题和链接由这里统一维护。</p></div><button class="secondary-button button-small" type="button" data-action="site-footer-add-column"><span data-icon="plus"></span>添加栏目</button></div><div class="site-footer-config-list">${footerColumnRows || '<div class="empty-state compact"><div><h3>使用模板默认栏目</h3><p>添加自定义栏目后，官网会优先使用你的配置。</p></div></div>'}</div></section><section class="card"><div class="card-header"><div><h3>页脚入口</h3><p>可维护官网、公众号或其他公开入口地址。</p></div><button class="secondary-button button-small" type="button" data-action="site-footer-add-social"><span data-icon="plus"></span>添加入口</button></div><div class="site-footer-config-list">${footerSocialRows || '<div class="empty-state compact"><div><h3>使用模板默认入口</h3><p>添加后会替换模板默认的联系、资讯和案例入口。</p></div></div>'}</div></section></section>`;
+  const sectionJumpNav = `<nav class="site-navigation-jump-nav" aria-label="导航与外观页面分区"><span>继续配置</span><a class="site-section-jump" href="#site-template-section">官网模板</a><a class="site-section-jump" href="#site-footer-management-section">页脚与入口</a><a class="site-section-jump" href="#site-navigation-section">主导航与首页模块</a><a class="site-section-jump" href="#site-public-settings-section">品牌素材与公共资料</a></nav>`;
   return `
     <div class="site-page-toolbar"><div><h2>导航与外观</h2><p>一处维护模板、品牌、导航、首页模块和公共信息，不改变文章事实内容。</p></div><button class="primary-button button-small" type="button" data-action="site-nav-save"><span data-icon="check"></span>保存外观设置</button></div>
-    ${renderSiteTemplates()}
-    ${footerManagement}
-    <div class="site-navigation-grid"><section class="card"><div class="card-header"><div><h3>主导航</h3><p>顺序、名称、地址与显示状态均可维护。</p></div><button class="secondary-button button-small" type="button" data-action="site-nav-add"><span data-icon="plus"></span>添加导航项</button></div><div class="site-nav-list">${navItems.map((item, index) => `<div class="site-nav-row"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><span class="site-module-grip">⋮⋮</span><div><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.path)} · ${escapeHtml(item.type)}</small></div><span class="status-badge ${item.visible ? "status-approved" : "status-draft"}">${item.visible ? "显示" : "隐藏"}</span><button class="icon-button" type="button" data-action="site-nav-edit" data-nav-id="${escapeHtml(item.id)}" aria-label="编辑导航"><span data-icon="edit"></span></button></div>`).join("")}</div></section><section class="card"><div class="card-header"><div><h3>首页语义模块</h3><p>每个模块均可关联知识、产品、案例或资讯。</p></div></div><div class="site-nav-list">${modules.slice(0, 5).map((module, index) => `<div class="site-nav-row compact"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><div><b>${escapeHtml(module.title)}</b><small>${escapeHtml(module.description)}</small></div><span>${module.status === "published" ? statusBadge("published") : statusBadge("draft")}</span><button class="link-button" type="button" data-action="site-module-edit" data-page-id="home" data-module-id="${escapeHtml(module.id)}">编辑</button></div>`).join("")}</div></section></div>
-    <section class="card site-theme-card"><div class="card-header"><div><h3>品牌与公共信息</h3><p>维护品牌主色和默认 CTA；Logo、联系方式、页脚与备案信息等公共字段也统一由这里承载。当前版本 v${escapeHtml(theme.version || 1)}。</p></div></div><div class="field-row"><div class="field"><label for="site-theme-color">品牌主色</label><div class="color-setting"><i style="background:${escapeHtml(theme.primaryColor)}"></i><input class="input" id="site-theme-color" value="${escapeHtml(theme.primaryColor)}" /></div></div><div class="field"><label for="site-theme-cta">默认 CTA 文案</label><input class="input" id="site-theme-cta" value="${escapeHtml(theme.cta)}" /></div></div></section>
+    ${sectionJumpNav}<div id="site-template-section">${renderSiteTemplates()}</div>
+    <div id="site-footer-management-section">${footerManagement}</div>
+    <div id="site-navigation-section" class="site-navigation-grid"><section class="card"><div class="card-header"><div><h3>主导航</h3><p>顺序、名称、地址与显示状态均可维护。</p></div><button class="secondary-button button-small" type="button" data-action="site-nav-add"><span data-icon="plus"></span>添加导航项</button></div><div class="site-nav-list">${navItems.map((item, index) => `<div class="site-nav-row"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><span class="site-module-grip">⋮⋮</span><div><b>${escapeHtml(item.label)}</b><small>${escapeHtml(item.path)} · ${escapeHtml(item.type)}</small></div><span class="status-badge ${item.visible ? "status-approved" : "status-draft"}">${item.visible ? "显示" : "隐藏"}</span><button class="icon-button" type="button" data-action="site-nav-edit" data-nav-id="${escapeHtml(item.id)}" aria-label="编辑导航"><span data-icon="edit"></span></button></div>`).join("")}</div></section><section class="card"><div class="card-header"><div><h3>首页语义模块</h3><p>每个模块均可关联知识、产品、案例或资讯。</p></div></div><div class="site-nav-list">${modules.slice(0, 5).map((module, index) => `<div class="site-nav-row compact"><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span><div><b>${escapeHtml(module.title)}</b><small>${escapeHtml(module.description)}</small></div><span>${module.status === "published" ? statusBadge("published") : statusBadge("draft")}</span><button class="link-button" type="button" data-action="site-module-edit" data-page-id="home" data-module-id="${escapeHtml(module.id)}">编辑</button></div>`).join("")}</div></section></div>
+    <section id="site-public-settings-section" class="card site-theme-card"><div class="card-header"><div><h3>品牌与公共信息</h3><p>维护品牌主色和默认 CTA；Logo、联系方式、页脚与备案信息等公共字段也统一由这里承载。当前版本 v${escapeHtml(theme.version || 1)}。</p></div></div><div class="field-row"><div class="field"><label for="site-theme-color">品牌主色</label><div class="color-setting"><i style="background:${escapeHtml(theme.primaryColor)}"></i><input class="input" id="site-theme-color" value="${escapeHtml(theme.primaryColor)}" /></div></div><div class="field"><label for="site-theme-cta">默认 CTA 文案</label><input class="input" id="site-theme-cta" value="${escapeHtml(theme.cta)}" /></div></div></section>
     <div class="site-public-settings-grid"><section class="card site-public-assets-card"><div class="card-header"><div><h3>品牌素材与默认图片</h3><p>有内容图片时显示内容图片；没有时按当前模板、全站默认图片的顺序兜底。</p></div></div><div class="field-row"><div class="field"><label for="site-assets-logo">官网 Logo 图片地址</label><input class="input" id="site-assets-logo" value="${escapeHtml(assets.logoUrl || siteCms().settings?.logoUrl || "")}" placeholder="/assets/logo.png 或 https://..." /></div><div class="field"><label for="site-assets-favicon">浏览器图标地址</label><input class="input" id="site-assets-favicon" value="${escapeHtml(assets.faviconUrl || "")}" placeholder="/assets/favicon.png" /></div></div><div class="field-row"><div class="field"><label for="site-assets-default-image">全站默认图片</label><input class="input" id="site-assets-default-image" value="${escapeHtml(assets.defaultImageUrl || "")}" placeholder="/assets/default-cover.webp" /></div><div class="field"><label for="site-assets-default-image-alt">默认图片说明</label><input class="input" id="site-assets-default-image-alt" value="${escapeHtml(assets.defaultImageAlt || "企业默认图片")}" placeholder="用于无障碍说明" /></div></div><div class="site-template-image-list"><div class="site-template-image-list-head"><b>模板专属默认图片</b><small>每套模板可以有自己的图片；留空时继承全站默认图片。</small></div>${templateDefaultImageRows}</div></section><section class="card site-public-footer-card"><div class="card-header"><div><h3>页脚与备案</h3><p>这些内容属于企业公开信息，发布后会同步到所有已适配模板。</p></div></div><div class="field"><label for="site-footer-description">页脚说明</label><textarea class="textarea" id="site-footer-description" rows="3" placeholder="一句话说明企业和官网定位">${escapeHtml(footer.description || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-footer-copyright">版权文字</label><input class="input" id="site-footer-copyright" value="${escapeHtml(footer.copyright || "")}" placeholder="版权所有" /></div><div class="field"><label for="site-footer-icp">ICP备案号</label><input class="input" id="site-footer-icp" value="${escapeHtml(footer.icpNumber || "")}" placeholder="例如：京ICP备XXXXXXXX号" /></div></div><div class="field-row"><div class="field"><label for="site-footer-icp-url">ICP备案链接</label><input class="input" id="site-footer-icp-url" value="${escapeHtml(footer.icpUrl || "")}" placeholder="https://beian.miit.gov.cn/" /></div><div class="field"><label for="site-footer-police">公安备案号</label><input class="input" id="site-footer-police" value="${escapeHtml(footer.policeRecordNumber || "")}" placeholder="例如：京公网安备XXXXXXXX号" /></div></div><div class="field"><label for="site-footer-police-url">公安备案链接</label><input class="input" id="site-footer-police-url" value="${escapeHtml(footer.policeRecordUrl || "")}" placeholder="https://beian.mps.gov.cn/" /></div><div class="site-footer-switches"><label class="toggle ${footer.showIcp !== false ? "on" : ""}"><input type="checkbox" id="site-footer-show-icp" ${footer.showIcp !== false ? "checked" : ""} /><span></span><b>显示 ICP</b></label><label class="toggle ${footer.showPoliceRecord !== false ? "on" : ""}"><input type="checkbox" id="site-footer-show-police" ${footer.showPoliceRecord !== false ? "checked" : ""} /><span></span><b>显示公安备案</b></label><label class="toggle ${footer.showCopyright !== false ? "on" : ""}"><input type="checkbox" id="site-footer-show-copyright" ${footer.showCopyright !== false ? "checked" : ""} /><span></span><b>显示版权</b></label></div></section></div>
   `;
 }
@@ -10572,7 +10612,7 @@ function renderSiteLeads() {
   const contacted = leads.filter((lead) => lead.status === "contacted").length;
   const qualified = leads.filter((lead) => lead.status === "qualified").length;
   const leadStatus = { new: ["新线索", "status-review"], contacted: ["已联系", "status-publishing"], qualified: ["有效商机", "status-approved"] };
-  return `<section class="card table-card"><div class="card-header"><div><h2>官网咨询线索</h2><p>来自官网表单的咨询，支持来源页面、跟进状态和导出。</p></div><div style="display:flex;gap:10px;align-items:center"><input class="input" style="width:200px" placeholder="搜索姓名 / 企业 / 服务 / 来源" value="${escapeHtml(ui.siteLeadSearch || "")}" data-lead-search /><button class="secondary-button button-small" type="button" data-action="export-leads"><span data-icon="download"></span>导出 CSV</button></div></div><div class="site-lead-summary"><div><b>${pending}</b><span>待跟进</span></div><div><b>${leads.length}</b><span>已收录线索</span></div><div><b>${qualified}</b><span>有效商机</span></div><div><b>${leads.length ? Math.round((qualified / leads.length) * 100) : 0}%</b><span>转化率</span></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>联系人</th><th>企业</th><th>咨询服务</th><th>提交时间</th><th>来源页面</th><th>状态</th><th></th></tr></thead><tbody>${(() => { const paged = lightPaged(filteredLeads, "siteLeads"); return paged.visible.map((lead) => { const meta = leadStatus[lead.status] || leadStatus.new; return `<tr><td><b>${escapeHtml(lead.name)}</b><small class="table-subtext">${escapeHtml(lead.owner || "未分配")}</small></td><td>${escapeHtml(lead.company)}</td><td>${escapeHtml(lead.service)}</td><td>${escapeHtml(lead.createdAt)}</td><td><span class="source-tag">${escapeHtml(lead.sourcePage || "官网")}</span></td><td><span class="status-badge ${meta[1]}">${meta[0]}</span></td><td><button class="link-button" type="button" data-action="site-lead-follow" data-lead-id="${escapeHtml(lead.id)}">${lead.status === "new" ? "跟进" : "查看"}</button><button class="link-button danger-link" type="button" data-action="delete-site-lead" data-lead-id="${escapeHtml(lead.id)}">删除</button></td></tr>`; }).join("") || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:28px">没有匹配的线索</td></tr>'} )()}</tbody></table></div>${(() => { const paged = lightPaged(filteredLeads, "siteLeads"); return paged.toggle; })()}<div class="site-category-tip"></table></div><div class="site-category-tip"><span data-icon="info"></span><span>${contacted} 条线索正在跟进；每次跟进会写入时间、负责人和下一步计划。</span></div></section>`;
+  return `<section class="card table-card"><div class="card-header"><div><h2>官网咨询线索</h2><p>来自官网表单的咨询，支持来源页面、跟进状态和导出。</p></div><div class="card-header-tools"><input class="input" placeholder="搜索姓名 / 企业 / 服务 / 来源" value="${escapeHtml(ui.siteLeadSearch || "")}" data-lead-search /><button class="secondary-button button-small" type="button" data-action="export-leads"><span data-icon="download"></span>导出 CSV</button></div></div><div class="site-lead-summary"><div><b>${pending}</b><span>待跟进</span></div><div><b>${leads.length}</b><span>已收录线索</span></div><div><b>${qualified}</b><span>有效商机</span></div><div><b>${leads.length ? Math.round((qualified / leads.length) * 100) : 0}%</b><span>转化率</span></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>联系人</th><th>企业</th><th>咨询服务</th><th>提交时间</th><th>来源页面</th><th>状态</th><th></th></tr></thead><tbody>${(() => { const paged = lightPaged(filteredLeads, "siteLeads"); return paged.visible.map((lead) => { const meta = leadStatus[lead.status] || leadStatus.new; return `<tr><td><b>${escapeHtml(lead.name)}</b><small class="table-subtext">${escapeHtml(lead.owner || "未分配")}</small></td><td>${escapeHtml(lead.company)}</td><td>${escapeHtml(lead.service)}</td><td>${escapeHtml(lead.createdAt)}</td><td><span class="source-tag">${escapeHtml(lead.sourcePage || "官网")}</span></td><td><span class="status-badge ${meta[1]}">${meta[0]}</span></td><td><button class="link-button" type="button" data-action="site-lead-follow" data-lead-id="${escapeHtml(lead.id)}">${lead.status === "new" ? "跟进" : "查看"}</button><button class="link-button danger-link" type="button" data-action="delete-site-lead" data-lead-id="${escapeHtml(lead.id)}">删除</button></td></tr>`; }).join("") || '<tr><td class="empty-cell" colspan="7">没有匹配的线索</td></tr>'} )()}</tbody></table></div>${(() => { const paged = lightPaged(filteredLeads, "siteLeads"); return paged.toggle; })()}<div class="site-category-tip"></table></div><div class="site-category-tip"><span data-icon="info"></span><span>${contacted} 条线索正在跟进；每次跟进会写入时间、负责人和下一步计划。</span></div></section>`;
 }
 
 function renderSiteSettings() {
@@ -10662,8 +10702,8 @@ function renderSiteArticleMetaModal() {
     <div class="modal-head"><div><h2 id="modal-title">编辑官网文章信息</h2><p>${escapeHtml(article.title)}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="field-row"><div class="field"><label for="site-article-meta-category">主栏目</label><select class="select" id="site-article-meta-category">${categoryOptions}</select></div><div class="field"><label for="site-article-meta-canonical">规范 URL（可留空）</label><input class="input" id="site-article-meta-canonical" value="${escapeHtml(meta.canonicalUrl || article.siteCanonicalUrl || "")}" placeholder="/insights/文章-slug/" /></div></div>
-      <div class="field" style="margin-top:13px"><label for="site-article-meta-tags">标签（逗号分隔）</label><input class="input" id="site-article-meta-tags" value="${escapeHtml((article.siteTags || article.tags || []).join("、"))}" placeholder="例如：GEO、企业信源" /></div>
-      <div class="field" style="margin-top:13px"><label for="site-article-meta-seo">SEO / AI 摘要</label><textarea class="textarea" id="site-article-meta-seo" rows="3">${escapeHtml(article.siteSeoDescription || article.seoDescription || article.excerpt || "")}</textarea></div>
+      <div class="field mt-md"><label for="site-article-meta-tags">标签（逗号分隔）</label><input class="input" id="site-article-meta-tags" value="${escapeHtml((article.siteTags || article.tags || []).join("、"))}" placeholder="例如：GEO、企业信源" /></div>
+      <div class="field mt-md"><label for="site-article-meta-seo">SEO / AI 摘要</label><textarea class="textarea" id="site-article-meta-seo" rows="3">${escapeHtml(article.siteSeoDescription || article.seoDescription || article.excerpt || "")}</textarea></div>
       <div class="privacy-note"><span data-icon="info"></span><span>发布到官网后，栏目、标签、摘要和 SEO 描述会同步到文章页与机器入口。</span></div>
     </div>
     <div class="modal-foot"><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-site-article-meta">保存修改</button></div></div>
@@ -11063,7 +11103,7 @@ function renderSiteCategoryManagerModal() {
 function renderSiteCategoryModal() {
   const category = ui.modal?.categoryId ? siteCategories(true).find((item) => item.id === ui.modal.categoryId) : null;
   const isNew = !category;
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "新增资讯栏目" : "编辑资讯栏目"}</h2><p>官网栏目可由每个客户独立配置，不等同于内部产品或业务线。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-category-name">栏目名称 *</label><input class="input" id="site-category-name" value="${escapeHtml(category?.name || "")}" /></div><div class="field"><label for="site-category-slug">栏目 slug *</label><input class="input" id="site-category-slug" value="${escapeHtml(category?.slug || "")}" placeholder="industry-news" /></div></div><div class="field"><label for="site-category-description">栏目说明</label><textarea class="textarea" id="site-category-description" rows="3">${escapeHtml(category?.description || "")}</textarea></div><div class="field"><label for="site-category-seo">SEO / AI 摘要</label><textarea class="textarea" id="site-category-seo" rows="3">${escapeHtml(category?.seoDescription || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-category-status">栏目状态</label><select class="select" id="site-category-status"><option value="active" ${category?.status !== "archived" ? "selected" : ""}>启用</option><option value="archived" ${category?.status === "archived" ? "selected" : ""}>归档</option></select></div><label class="field"><span>导航显示</span><span style="display:flex;align-items:center;gap:8px;padding-top:8px"><input type="checkbox" id="site-category-nav" ${category?.navVisible !== false ? "checked" : ""} /> 显示在资讯导航中</span></label></div>${category && siteCategoryCount(category) ? `<div class="archive-impact-note"><span data-icon="info"></span><span>该栏目已有 ${siteCategoryCount(category)} 篇文章，不能永久删除；可以停用或归档，文章仍保留历史归属。</span></div>` : ""}</div><div class="modal-foot"><span>${isNew ? "新栏目创建后立即可在文章发布时选择" : "变更会同步栏目页和导航"}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-category" data-category-id="${escapeHtml(category?.id || "")}"><span data-icon="check"></span>保存栏目</button></div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "新增资讯栏目" : "编辑资讯栏目"}</h2><p>官网栏目可由每个客户独立配置，不等同于内部产品或业务线。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-category-name">栏目名称 *</label><input class="input" id="site-category-name" value="${escapeHtml(category?.name || "")}" /></div><div class="field"><label for="site-category-slug">栏目 slug *</label><input class="input" id="site-category-slug" value="${escapeHtml(category?.slug || "")}" placeholder="industry-news" /></div></div><div class="field"><label for="site-category-description">栏目说明</label><textarea class="textarea" id="site-category-description" rows="3">${escapeHtml(category?.description || "")}</textarea></div><div class="field"><label for="site-category-seo">SEO / AI 摘要</label><textarea class="textarea" id="site-category-seo" rows="3">${escapeHtml(category?.seoDescription || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-category-status">栏目状态</label><select class="select" id="site-category-status"><option value="active" ${category?.status !== "archived" ? "selected" : ""}>启用</option><option value="archived" ${category?.status === "archived" ? "selected" : ""}>归档</option></select></div><label class="field"><span>导航显示</span><span class="check-line"><input type="checkbox" id="site-category-nav" ${category?.navVisible !== false ? "checked" : ""} /> 显示在资讯导航中</span></label></div>${category && siteCategoryCount(category) ? `<div class="archive-impact-note"><span data-icon="info"></span><span>该栏目已有 ${siteCategoryCount(category)} 篇文章，不能永久删除；可以停用或归档，文章仍保留历史归属。</span></div>` : ""}</div><div class="modal-foot"><span>${isNew ? "新栏目创建后立即可在文章发布时选择" : "变更会同步栏目页和导航"}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-category" data-category-id="${escapeHtml(category?.id || "")}"><span data-icon="check"></span>保存栏目</button></div></div>`, { wide: true });
 }
 
 function saveSiteCategory(categoryId) {
@@ -11103,13 +11143,13 @@ function renderSiteArticlePreviewModal() {
   const body = sanitizeStudioHtml(articleContentForPublicPreview(article) || `<p>${escapeHtml(article.excerpt || "尚无正文预览")}</p>`);
   const citations = articleCitations(article);
   const schemaPreview = { "@context": "https://schema.org", "@type": "Article", headline: article.title, author: article.siteAuthor || article.author || "企业内容团队", articleSection: category, url: `https://${state.site.domain}/insights/${slug}/` };
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网文章预览</h2><p>${escapeHtml(article.id)} · ${escapeHtml(article.version || "v1")} · ${escapeHtml(category)}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><article class="site-preview" style="padding:28px"><span class="small-tag blue">${escapeHtml(category)}</span><h1 style="margin:12px 0 8px;color:#172033;font-size:26px">${escapeHtml(article.title)}</h1><p style="color:#68758a">${escapeHtml(article.siteExcerpt || article.excerpt || "")}</p><div style="display:flex;gap:12px;color:#7b8798;font-size:11px;margin:12px 0 20px"><span>${escapeHtml(article.siteAuthor || article.author || "企业内容团队")}</span><span>·</span><span>${escapeHtml(article.sitePublishedAt ? siteDisplayTime(article.sitePublishedAt) : "预览未发布")}</span></div><div class="article-content read-only">${body}</div></article><div class="site-publish-checks"><div><span class="check-dot ok">✓</span><span><b>知识证据</b><small>${citations.length} 条引用随当前版本冻结</small></span></div><div><span class="check-dot ok">✓</span><span><b>Article Schema</b><small>${escapeHtml(JSON.stringify(schemaPreview))}</small></span></div></div></div><div class="modal-foot"><span>预览地址 /insights/${escapeHtml(slug)}/</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭</button>${article.siteStatus === "published" ? "" : article.reviewStatus === "approved" && article.riskStatus === "clean" && citations.length ? `<button class="primary-button" type="button" data-action="site-publish-article" data-article-id="${escapeHtml(article.id)}"><span data-icon="send"></span>发布到官网</button>` : ""}</div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">官网文章预览</h2><p>${escapeHtml(article.id)} · ${escapeHtml(article.version || "v1")} · ${escapeHtml(category)}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><article class="site-preview"><span class="small-tag blue">${escapeHtml(category)}</span><h1>${escapeHtml(article.title)}</h1><p>${escapeHtml(article.siteExcerpt || article.excerpt || "")}</p><div class="site-preview-meta"><span>${escapeHtml(article.siteAuthor || article.author || "企业内容团队")}</span><span>·</span><span>${escapeHtml(article.sitePublishedAt ? siteDisplayTime(article.sitePublishedAt) : "预览未发布")}</span></div><div class="article-content read-only">${body}</div></article><div class="site-publish-checks"><div><span class="check-dot ok">✓</span><span><b>知识证据</b><small>${citations.length} 条引用随当前版本冻结</small></span></div><div><span class="check-dot ok">✓</span><span><b>Article Schema</b><small>${escapeHtml(JSON.stringify(schemaPreview))}</small></span></div></div></div><div class="modal-foot"><span>预览地址 /insights/${escapeHtml(slug)}/</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭</button>${article.siteStatus === "published" ? "" : article.reviewStatus === "approved" && article.riskStatus === "clean" && citations.length ? `<button class="primary-button" type="button" data-action="site-publish-article" data-article-id="${escapeHtml(article.id)}"><span data-icon="send"></span>发布到官网</button>` : ""}</div></div>`, { wide: true });
 }
 
 function renderSiteNavModal() {
   const navItem = ui.modal?.navId ? siteNavItems().find((item) => item.id === ui.modal.navId) : null;
   const isNew = !navItem;
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "添加导航项" : "编辑导航项"}</h2><p>导航可以指向固定页面、资讯栏目或自定义站内地址。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-nav-label">导航名称 *</label><input class="input" id="site-nav-label" value="${escapeHtml(navItem?.label || "")}" /></div><div class="field"><label for="site-nav-type">链接类型</label><select class="select" id="site-nav-type"><option ${navItem?.type === "固定页面" ? "selected" : ""}>固定页面</option><option ${navItem?.type === "资讯列表" ? "selected" : ""}>资讯列表</option><option ${navItem?.type === "资讯栏目" ? "selected" : ""}>资讯栏目</option><option ${navItem?.type === "自定义链接" ? "selected" : ""}>自定义链接</option></select></div></div><div class="field"><label for="site-nav-path">站内地址 *</label><input class="input" id="site-nav-path" value="${escapeHtml(navItem?.path || "/")}" /></div><label class="field"><span>显示状态</span><span style="display:flex;align-items:center;gap:8px;padding-top:8px"><input type="checkbox" id="site-nav-visible" ${navItem?.visible !== false ? "checked" : ""} /> 在主导航显示</span></label></div><div class="modal-foot"><span>导航顺序按列表保存，新增项会排在末尾</span><div class="modal-foot-right">${!isNew ? `<button class="danger-button" type="button" data-action="site-delete-nav" data-nav-id="${escapeHtml(navItem.id)}">删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-nav" data-nav-id="${escapeHtml(navItem?.id || "")}"><span data-icon="check"></span>保存导航</button></div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "添加导航项" : "编辑导航项"}</h2><p>导航可以指向固定页面、资讯栏目或自定义站内地址。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-nav-label">导航名称 *</label><input class="input" id="site-nav-label" value="${escapeHtml(navItem?.label || "")}" /></div><div class="field"><label for="site-nav-type">链接类型</label><select class="select" id="site-nav-type"><option ${navItem?.type === "固定页面" ? "selected" : ""}>固定页面</option><option ${navItem?.type === "资讯列表" ? "selected" : ""}>资讯列表</option><option ${navItem?.type === "资讯栏目" ? "selected" : ""}>资讯栏目</option><option ${navItem?.type === "自定义链接" ? "selected" : ""}>自定义链接</option></select></div></div><div class="field"><label for="site-nav-path">站内地址 *</label><input class="input" id="site-nav-path" value="${escapeHtml(navItem?.path || "/")}" /></div><label class="field"><span>显示状态</span><span class="check-line"><input type="checkbox" id="site-nav-visible" ${navItem?.visible !== false ? "checked" : ""} /> 在主导航显示</span></label></div><div class="modal-foot"><span>导航顺序按列表保存，新增项会排在末尾</span><div class="modal-foot-right">${!isNew ? `<button class="danger-button" type="button" data-action="site-delete-nav" data-nav-id="${escapeHtml(navItem.id)}">删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-nav" data-nav-id="${escapeHtml(navItem?.id || "")}"><span data-icon="check"></span>保存导航</button></div></div>`, { wide: true });
 }
 
 function footerLinkText(links = []) {
@@ -11327,7 +11367,7 @@ function testSiteDeployment() {
 function renderSiteRedirectsModal() {
   const redirects = siteCms().redirects || [];
   const rows = redirects.map((item) => `<div class="site-nav-row"><div><b>${escapeHtml(item.from)} → ${escapeHtml(item.to)}</b><small>${escapeHtml(item.reason || "手动创建")} · ${escapeHtml(siteDisplayTime(item.updatedAt || item.createdAt))}</small></div><span class="status-badge ${item.status === "active" ? "status-approved" : "status-draft"}">${item.status === "active" ? "301 生效" : "已停用"}</span><button class="link-button" type="button" data-action="site-toggle-redirect" data-redirect-id="${escapeHtml(item.id)}">${item.status === "active" ? "停用" : "启用"}</button><button class="icon-button" type="button" data-action="site-delete-redirect" data-redirect-id="${escapeHtml(item.id)}" aria-label="删除重定向"><span data-icon="trash"></span></button></div>`).join("");
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">URL 301 重定向</h2><p>页面或栏目路径变更时自动创建；也可以手动增加站内重定向。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-redirect-from">原地址</label><input class="input" id="site-redirect-from" placeholder="/old-path/" /></div><div class="field"><label for="site-redirect-to">目标地址</label><input class="input" id="site-redirect-to" placeholder="/new-path/" /></div></div><div class="field"><label for="site-redirect-reason">变更原因</label><input class="input" id="site-redirect-reason" placeholder="例如：专题页地址调整" /></div><button class="secondary-button" type="button" data-action="site-add-redirect"><span data-icon="plus"></span>添加重定向</button><div class="site-nav-list" style="padding:12px 0 0">${rows || '<div class="empty-state compact"><div><span data-icon="link"></span><h3>还没有重定向</h3><p>修改页面或栏目地址时，系统会自动在这里生成记录。</p></div></div>'}</div></div><div class="modal-foot"><span>${redirects.filter((item) => item.status === "active").length} 条规则正在生效</span><button class="primary-button" type="button" data-action="close-modal">完成</button></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">URL 301 重定向</h2><p>页面或栏目路径变更时自动创建；也可以手动增加站内重定向。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-redirect-from">原地址</label><input class="input" id="site-redirect-from" placeholder="/old-path/" /></div><div class="field"><label for="site-redirect-to">目标地址</label><input class="input" id="site-redirect-to" placeholder="/new-path/" /></div></div><div class="field"><label for="site-redirect-reason">变更原因</label><input class="input" id="site-redirect-reason" placeholder="例如：专题页地址调整" /></div><button class="secondary-button" type="button" data-action="site-add-redirect"><span data-icon="plus"></span>添加重定向</button><div class="redirect-list">${rows || '<div class="empty-state compact"><div><span data-icon="link"></span><h3>还没有重定向</h3><p>修改页面或栏目地址时，系统会自动在这里生成记录。</p></div></div>'}</div></div><div class="modal-foot"><span>${redirects.filter((item) => item.status === "active").length} 条规则正在生效</span><button class="primary-button" type="button" data-action="close-modal">完成</button></div>`, { wide: true });
 }
 
 function addSiteRedirect() {
@@ -11433,14 +11473,13 @@ function renderKnowledgeLibraries() {
       <article class="card knowledge-library-card">
         <div class="knowledge-library-head">
           <span class="knowledge-icon ${base.kind === "qa" ? "purple" : ""}" data-icon="${base.kind === "qa" ? "help" : "book"}"></span>
+          <h3 class="knowledge-library-title">${escapeHtml(base.name)}</h3>
           <div class="knowledge-library-badges"><span class="small-tag ${base.kind === "qa" ? "purple" : "blue"}">${knowledgeKindLabel(base.kind)}</span>${base.status === "ready" ? '<span class="status-badge status-approved">条目就绪</span>' : '<span class="status-badge status-review">处理中</span>'}</div>
         </div>
-        <h3>${escapeHtml(base.name)}</h3>
         <p>${escapeHtml(base.description || "尚未填写知识库说明")}</p>
         <div class="knowledge-library-scope"><span data-icon="layers"></span><span>${escapeHtml(knowledgeScopeLabel(base))}</span><b>版本索引</b></div>
         <div class="knowledge-library-stats"><span><b>${items.length}</b> 条知识</span><span><b>${approved}</b> 条可用于写作</span></div>
-        <button class="knowledge-library-open" type="button" data-action="open-knowledge-base" data-base-id="${base.id}"><span>进入知识库</span><span data-icon="arrow"></span></button>
-        <div class="knowledge-library-actions"><button class="link-button" type="button" data-action="edit-knowledge-base" data-base-id="${base.id}">编辑</button><button class="link-button danger-link" type="button" data-action="delete-knowledge-base" data-base-id="${base.id}">删除知识库</button></div>
+        <div class="knowledge-library-footer"><button class="knowledge-library-open" type="button" data-action="open-knowledge-base" data-base-id="${base.id}"><span>进入知识库</span><span data-icon="arrow"></span></button><div class="knowledge-library-actions"><button class="link-button" type="button" data-action="edit-knowledge-base" data-base-id="${base.id}">编辑</button><button class="link-button danger-link" type="button" data-action="delete-knowledge-base" data-base-id="${base.id}">删除知识库</button></div></div>
       </article>
     `;
   }).join("");
@@ -11484,15 +11523,9 @@ function renderKnowledgePackages() {
 
 function renderEnterpriseFacts() {
   const profile = state.enterpriseProfile;
-  const facts = [
-    ["企业主体", profile.companyName, "经人工确认的企业全称"],
-    ["品牌名称", profile.brandName, "官网与内容平台统一使用"],
-    ["主营服务", profile.primaryService, profile.serviceDescription],
-    ["服务客户", profile.audience, "用于限定文章适用范围"],
-    ["服务区域", profile.serviceArea, "公开对外服务范围"],
-    ["官方信源", profile.officialDomain, "企业可长期控制的公开信源"]
-  ];
-  return `<section class="facts-layout"><div class="card fact-summary"><span class="completion-ring"><b>${profile.completion}%</b></span><div><h3>企业事实完成度</h3><p>事实卡用于快速校验，详细原文与版本仍保存在文档库和问答库。</p><button class="secondary-button button-small" type="button" data-action="edit-knowledge" data-knowledge="profile">继续完善企业档案</button></div></div><div class="fact-grid">${facts.map(([label, value, note]) => '<article class="card fact-card"><span>' + label + '</span><b>' + escapeHtml(value || "待补充") + '</b><p>' + escapeHtml(note || "") + '</p></article>').join("")}</div></section>`;
+  const facts = enterpriseFactEntries(profile);
+  const completion = enterpriseFactCompletion(profile);
+  return `<section class="facts-layout"><div class="card fact-summary"><span class="completion-ring" style="--completion:${completion}%"><b>${completion}%</b></span><div><h3>企业事实完成度</h3><p>事实卡用于快速校验，详细原文与版本仍保存在文档库和问答库。</p><button class="secondary-button button-small" type="button" data-action="edit-knowledge" data-knowledge="profile">继续完善企业档案</button></div></div><div class="fact-grid">${facts.map(([label, value, note]) => '<article class="card fact-card"><span>' + label + '</span><b>' + escapeHtml(value || "待补充") + '</b><p>' + escapeHtml(note || "") + '</p></article>').join("")}</div></section>`;
 }
 
 function knowledgePreparationMaterials() {
@@ -11806,7 +11839,7 @@ function renderAssistant() {
       <section class="card assistant-download-card"><div class="assistant-download-copy"><span class="download-app-icon" data-icon="monitor"></span><div><span class="section-kicker">桌面客户端 · Windows</span><h3>桐灼 GEO 桌面发布器</h3><p>桌面软件启动后会在本机托盘运行，账号登录态只留在客户电脑；后台通过任务队列把审核后的文章交给它执行。</p></div></div><div class="assistant-download-actions"><a class="primary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载 Windows 桌面软件</a><button class="secondary-button" type="button" data-action="pair-device"><span data-icon="link"></span>生成配对码</button></div></section>
       <div class="stack">${groups || '<section class="card empty-state"><div><span data-icon="monitor"></span><h3>尚未连接本地发布器</h3><p>下载软件、安装后点击“生成配对码”，再把配对码填入桌面软件。</p><button class="primary-button" type="button" data-action="pair-device">生成配对码</button></div></section>'}</div>
       <section class="card assistant-platform-catalog"><div class="card-header"><div><h3>发布平台目录</h3><p>首期正式支持企业官网、微信公众号、知乎与头条号；其余平台为本地发布器规划目录，暂不进入发布选择。状态按当前账号组的本地登录会话实时同步。</p></div><div class="assistant-catalog-tools">${catalogGroupOptions ? `<label><span>账号组</span><select class="select" data-assistant-catalog-group>${catalogGroupOptions}</select></label>` : ""}<span class="small-tag teal">${catalogPlatforms.filter((platform) => FORMAL_PLATFORM_IDS.has(platform.id)).length} 个正式支持 · ${loggedInPlatformCount} 个已登录</span></div></div><div class="assistant-platform-list">${catalogRows || '<div class="empty-state compact"><p>等待桌面发布器目录同步。</p></div>'}</div></section>
-      <div class="privacy-note"><span data-icon="lock"></span><span><b style="display:block;color:var(--ink);margin-bottom:2px">平台登录态只留在本机</b>密码、Cookie、验证码与浏览器 Profile 不会上送服务器；后台只保存设备状态、账号别名、任务状态和发布结果。</span></div>
+      <div class="privacy-note"><span data-icon="lock"></span><span><b class="block-title">平台登录态只留在本机</b>密码、Cookie、验证码与浏览器 Profile 不会上送服务器；后台只保存设备状态、账号别名、任务状态和发布结果。</span></div>
     </div>
   `;
 }
@@ -11863,7 +11896,7 @@ function renderSettingsPanel() {
           <div class="setting-row"><div><b>默认向量模型</b><small>用于企业知识库分块向量化和 RAG 检索</small></div><div class="setting-value">${state.settings.embeddingProviderId ? '<small class="setting-value-sub">已绑定 embedding API</small>' : '<small class="setting-value-sub warning">使用本地兜底向量</small>'}</div><button class="secondary-button button-small" type="button" data-action="edit-model" data-model-kind="embedding">更换</button></div>
           <div class="setting-row"><div><b>写作智能体</b><small>提示词、写作角色和知识策略在内容生产中独立管理</small></div><div class="setting-value">${(state.writingAgents || []).filter((agent) => agent.status === "active").length} 个启用</div><button class="secondary-button button-small" type="button" data-action="open-writing-agent-manager">进入管理</button></div>
         </div>
-        <div class="privacy-note" style="margin:0 18px 18px"><span data-icon="lock"></span><span>API 密钥使用 AES-256-GCM 在服务器端加密保存；浏览器只显示供应商状态和密钥掩码，主密钥与业务数据库分开保管。</span></div>
+        <div class="privacy-note panel"><span data-icon="lock"></span><span>API 密钥使用 AES-256-GCM 在服务器端加密保存；浏览器只显示供应商状态和密钥掩码，主密钥与业务数据库分开保管。</span></div>
       </section>
       <section class="card ai-provider-section"><div class="card-header"><div><h3>模型供应商 / API</h3><p>一个供应商可以提供多个文本、图片或向量模型；添加后再在“更换模型”中选择。</p></div><span class="small-tag blue">服务端管理</span></div>${renderAiProviderCards()}</section>
     `;
@@ -11871,13 +11904,13 @@ function renderSettingsPanel() {
   if (ui.settingsTab === "members") {
     const canManageUsers = currentUserCan("users.manage");
     const memberBadge = (member) => member.status === "active" ? '<span class="status-badge status-approved">已启用</span>' : '<span class="status-badge status-error">已停用</span>';
-    const rows = (state.settings.members || []).map((member) => `<tr><td><b>${escapeHtml(member.name)}</b><small style="display:block;color:var(--muted)">${escapeHtml(member.username || member.email)}</small></td><td>${escapeHtml(member.role)}</td><td>${member.lastLoginAt ? escapeHtml(formatRelative(member.lastLoginAt)) : "尚未登录"}</td><td>${memberBadge(member)}</td><td>${canManageUsers ? `<button class="link-button" type="button" data-action="manage-member" data-member-id="${escapeHtml(member.id)}">管理</button>` : "—"}</td></tr>`).join("");
+    const rows = (state.settings.members || []).map((member) => `<tr><td><b>${escapeHtml(member.name)}</b><small class="block-subtext text-muted">${escapeHtml(member.username || member.email)}</small></td><td>${escapeHtml(member.role)}</td><td>${member.lastLoginAt ? escapeHtml(formatRelative(member.lastLoginAt)) : "尚未登录"}</td><td>${memberBadge(member)}</td><td>${canManageUsers ? `<button class="link-button" type="button" data-action="manage-member" data-member-id="${escapeHtml(member.id)}">管理</button>` : "—"}</td></tr>`).join("");
     return `
       <section class="card table-card">
         <div class="card-header"><div><h3>成员与权限</h3><p>账号、密码、角色和登录状态由当前客户服务器统一管理，所有权限由服务端执行。</p></div>${canManageUsers ? '<button class="primary-button button-small" type="button" data-action="invite-member"><span data-icon="plus"></span>创建成员</button>' : ""}</div>
         <div class="table-scroll"><table class="data-table"><thead><tr><th>成员</th><th>角色</th><th>最近登录</th><th>状态</th><th></th></tr></thead><tbody>
           ${rows || '<tr><td colspan="5">暂无成员</td></tr>'}
-        </tbody></table></div><div class="privacy-note" style="margin:14px 18px 18px"><span data-icon="lock"></span><span>密码使用 scrypt 保存；登录会话和 CSRF Token 在数据库中只保存摘要。停用账号会立即撤销其所有会话。</span></div>
+        </tbody></table></div><div class="privacy-note panel"><span data-icon="lock"></span><span>密码使用 scrypt 保存；登录会话和 CSRF Token 在数据库中只保存摘要。停用账号会立即撤销其所有会话。</span></div>
       </section>
     `;
   }
@@ -12106,12 +12139,12 @@ function renderPlanningRelationsModal() {
   if (kind === "question") {
     const refs = planningQuestionReferences(record);
     const topics = refs.topics.map((topic) => `<div class="relation-step"><span class="relation-step-index">选题</span><div><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)} · ${planningTopicPlans(topic).length} 个计划 · ${planningTopicArticles(topic).length} 篇文章</small></div></div>`).join("");
-    return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">问题引用关系</h2><p>${escapeHtml(record.question)} · ${escapeHtml(record.id)}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="relation-chain"><div class="relation-step"><span class="relation-step-index">问题</span><div><b>${escapeHtml(record.question)}</b><small>${escapeHtml(record.sourceKeyword || "无来源关键词")} · v${escapeHtml(record.version || 1)}</small></div></div><span class="relation-arrow">↓</span>${topics || '<div class="archive-empty empty-state"><div><h3>还没有生成选题</h3><p>这个问题可以继续生成一个选题。</p></div></div>'}</div><div class="side-list" style="margin-top:16px"><div><span>内容计划</span><b>${refs.plans.length} 个</b></div><div><span>文章任务</span><b>${refs.articles.length} 篇</b></div><div><span>管理规则</span><b>${record.status === "archived" ? "已归档，不参与新计划" : "使用中"}</b></div></div></div><div class="modal-foot"><span>归档不会破坏历史来源链</span><div class="modal-foot-right"><button class="primary-button" type="button" data-action="close-modal">完成</button></div></div>`, { wide: true });
+    return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">问题引用关系</h2><p>${escapeHtml(record.question)} · ${escapeHtml(record.id)}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="relation-chain"><div class="relation-step"><span class="relation-step-index">问题</span><div><b>${escapeHtml(record.question)}</b><small>${escapeHtml(record.sourceKeyword || "无来源关键词")} · v${escapeHtml(record.version || 1)}</small></div></div><span class="relation-arrow">↓</span>${topics || '<div class="archive-empty empty-state"><div><h3>还没有生成选题</h3><p>这个问题可以继续生成一个选题。</p></div></div>'}</div><div class="side-list mt-lg"><div><span>内容计划</span><b>${refs.plans.length} 个</b></div><div><span>文章任务</span><b>${refs.articles.length} 篇</b></div><div><span>管理规则</span><b>${record.status === "archived" ? "已归档，不参与新计划" : "使用中"}</b></div></div></div><div class="modal-foot"><span>归档不会破坏历史来源链</span><div class="modal-foot-right"><button class="primary-button" type="button" data-action="close-modal">完成</button></div></div>`, { wide: true });
   }
   const refs = planningTopicReferences(record);
   const plans = refs.plans.map((plan) => `<div class="relation-step"><span class="relation-step-index">计划</span><div><b>${escapeHtml(plan.name)}</b><small>${escapeHtml(plan.id)} · ${escapeHtml(plan.status || "")}</small></div></div>`).join("");
   const articles = refs.articles.map((article) => `<div class="relation-step"><span class="relation-step-index">文章</span><div><b>${escapeHtml(article.title)}</b><small>${escapeHtml(article.id)} · ${escapeHtml(article.version || "")}</small></div></div>`).join("");
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">选题引用关系</h2><p>${escapeHtml(record.title)} · ${escapeHtml(record.id)}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="relation-chain"><div class="relation-step"><span class="relation-step-index">选题</span><div><b>${escapeHtml(record.title)}</b><small>${escapeHtml(refs.question?.question || "历史问题")} · v${escapeHtml(record.version || 1)}</small></div></div><span class="relation-arrow">↓</span>${plans || '<div class="relation-step"><span class="relation-step-index">计划</span><div><b>尚未加入内容计划</b></div></div>'}<span class="relation-arrow">↓</span>${articles || '<div class="relation-step"><span class="relation-step-index">文章</span><div><b>尚未生成文章</b></div></div>'}</div><div class="side-list" style="margin-top:16px"><div><span>来源问题</span><b>${escapeHtml(refs.question?.id || "未找到")}</b></div><div><span>计划数量</span><b>${refs.plans.length} 个</b></div><div><span>文章数量</span><b>${refs.articles.length} 篇</b></div><div><span>管理规则</span><b>${record.status === "archived" ? "已归档，不参与新计划" : "使用中"}</b></div></div></div><div class="modal-foot"><span>归档不会删除已生成文章</span><div class="modal-foot-right"><button class="primary-button" type="button" data-action="close-modal">完成</button></div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">选题引用关系</h2><p>${escapeHtml(record.title)} · ${escapeHtml(record.id)}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="relation-chain"><div class="relation-step"><span class="relation-step-index">选题</span><div><b>${escapeHtml(record.title)}</b><small>${escapeHtml(refs.question?.question || "历史问题")} · v${escapeHtml(record.version || 1)}</small></div></div><span class="relation-arrow">↓</span>${plans || '<div class="relation-step"><span class="relation-step-index">计划</span><div><b>尚未加入内容计划</b></div></div>'}<span class="relation-arrow">↓</span>${articles || '<div class="relation-step"><span class="relation-step-index">文章</span><div><b>尚未生成文章</b></div></div>'}</div><div class="side-list mt-lg"><div><span>来源问题</span><b>${escapeHtml(refs.question?.id || "未找到")}</b></div><div><span>计划数量</span><b>${refs.plans.length} 个</b></div><div><span>文章数量</span><b>${refs.articles.length} 篇</b></div><div><span>管理规则</span><b>${record.status === "archived" ? "已归档，不参与新计划" : "使用中"}</b></div></div></div><div class="modal-foot"><span>归档不会删除已生成文章</span><div class="modal-foot-right"><button class="primary-button" type="button" data-action="close-modal">完成</button></div></div>`, { wide: true });
 }
 
 function renderPlanningArchiveDeleteModal() {
@@ -12298,7 +12331,7 @@ function renderBatchReviewModal() {
   const reviewable = entries.filter((entry) => !entry.reason);
   const blocked = entries.filter((entry) => entry.reason);
   const rows = entries.map(({ article, reason }) => `<div class="batch-review-item ${reason ? "blocked" : "ready"}"><span class="batch-review-state" data-icon="${reason ? "alert" : "check"}"></span><div><b>${escapeHtml(article.title)}</b><small>${escapeHtml(article.id)} · ${reason ? escapeHtml(reason) : "满足审核条件"}</small></div></div>`).join("");
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量人工审核</h2><p>将对已选择的待审核文章执行人工审核，通过后才允许进入发布流程。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="batch-review-summary"><div><span>已选择</span><b>${entries.length}</b><small>篇文章</small></div><div class="ready"><span>可审核通过</span><b>${reviewable.length}</b><small>篇</small></div><div class="blocked"><span>不参与本次</span><b>${blocked.length}</b><small>篇</small></div></div>${blocked.length ? '<div class="privacy-note warning"><span data-icon="alert"></span><span>已审核文章不会重复审核；缺少证据或未通过风控的文章也会被跳过，原状态保持不变。</span></div>' : ""}<div class="batch-review-list">${rows || '<div class="empty-state compact"><div><span data-icon="file"></span><h3>没有可审核文章</h3><p>请返回文章任务列表重新选择。</p></div></div>'}</div></div><div class="modal-foot"><span>审核人：王宁 · 审核通过后会记录时间和当前文章版本</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="confirm-batch-review" ${reviewable.length ? "" : "disabled"}><span data-icon="check"></span>确认审核通过${reviewable.length ? `（${reviewable.length}篇）` : ""}</button></div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量人工审核</h2><p>将对已选择的待审核文章执行人工审核，通过后才允许进入发布流程。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="batch-review-summary"><div><span>已选择</span><b>${entries.length}</b><small>篇文章</small></div><div class="ready"><span>可审核通过</span><b>${reviewable.length}</b><small>篇</small></div><div class="blocked"><span>不参与本次</span><b>${blocked.length}</b><small>篇</small></div></div>${blocked.length ? '<div class="privacy-note warning"><span data-icon="alert"></span><span>已审核文章不会重复审核；缺少证据或未通过风控的文章也会被跳过，原状态保持不变。</span></div>' : ""}<div class="batch-review-list">${rows || '<div class="empty-state compact"><div><span data-icon="file"></span><h3>没有可审核文章</h3><p>请返回文章任务列表重新选择。</p></div></div>'}</div></div><div class="modal-foot"><span>审核人：${escapeHtml(currentUserName() || "系统管理员")} · 审核通过后会记录时间和当前文章版本</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="confirm-batch-review" ${reviewable.length ? "" : "disabled"}><span data-icon="check"></span>确认审核通过${reviewable.length ? `（${reviewable.length}篇）` : ""}</button></div></div>`, { wide: true });
 }
 
 function renderArticleModal() {
@@ -12371,7 +12404,7 @@ function renderArticleModal() {
     <div class="modal-body">
       ${!lineActive ? '<div class="knowledge-update-banner danger"><span data-icon="lock"></span><div><b>所属业务线已删除</b><p>历史正文和引用证据仍可查看；恢复业务线后才能编辑、审核或创建新的发布任务。</p></div></div>' : ""}
       ${hasKnowledgeUpdates ? '<div class="knowledge-update-banner"><span data-icon="history"></span><div><b>企业知识已有新版本</b><p>本文继续引用生成时冻结的旧版本；如需使用最新知识，请从内容计划重新生成新版本。</p></div></div>' : ""}
-      ${manualReview ? `<div class="manual-review-banner"><span class="manual-review-step active"><i>1</i><b>人工审核中</b><small>正文、引用、风险</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>2</i><b>审核通过</b><small>冻结当前版本</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>3</i><b>进入发布</b><small>官网 / 多平台</small></span></div><div class="manual-review-meta"><div><span>当前状态</span><b class="status-badge status-review">待人工审核</b></div><div><span>提交时间</span><b>${escapeHtml(submittedAt)}</b></div><div><span>提交人</span><b>${escapeHtml(article.reviewSubmittedBy || "内容团队")}</b></div><div><span>审核版本</span><b>${escapeHtml(article.version)}</b></div></div><div class="manual-review-checklist"><b>审核清单</b><span class="ok">正文完整</span><span class="${citations.length ? "ok" : "warning"}">${citations.length ? "企业知识已引用" : "缺少企业知识引用"}</span><span class="${article.riskStatus === "clean" ? "ok" : "warning"}">${article.riskStatus === "clean" ? "风控已通过" : "待完成风控"}</span><small>审核通过后才会解锁发布，修改正文后会自动生成新版本并重新审核。</small></div>` : revisionRequested ? `<div class="knowledge-update-banner"><span data-icon="edit"></span><div><b>已退回修改</b><p>${escapeHtml(article.reviewNote || "请根据审核意见修改后重新提交。")}</p></div></div>` : reviewPending ? `<div class="knowledge-update-banner"><span data-icon="clock"></span><div><b>当前为编辑草稿</b><p>确认正文、企业知识引用和风险状态后，再提交人工审核；未提交的草稿不能审核或发布。</p></div></div>` : `<div class="manual-review-complete"><span data-icon="check"></span><div><b>人工审核已通过 · 当前版本可发布</b><p>审核人：${escapeHtml(article.reviewedBy || "内容团队")} · ${escapeHtml(reviewedAt)} · 已冻结 ${escapeHtml(article.version)} 的正文与知识引用</p></div></div>`}
+      ${manualReview ? `<div class="manual-review-banner"><span class="manual-review-step active"><i>1</i><b>人工审核中</b><small>正文、引用、风险</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>2</i><b>审核通过</b><small>冻结当前版本</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>3</i><b>进入发布</b><small>官网 / 多平台</small></span></div><div class="manual-review-meta"><div><span>当前状态</span><b class="status-badge status-review">待人工审核</b></div><div><span>提交时间</span><b>${escapeHtml(submittedAt)}</b></div><div><span>提交人</span><b>${escapeHtml(article.reviewSubmittedBy || "内容团队")}</b></div><div><span>审核版本</span><b>${escapeHtml(article.version)}</b></div></div><div class="manual-review-checklist"><b>审核清单</b><span class="ok">正文完整</span><span class="${citations.length ? "ok" : "warning"}">${citations.length ? "企业知识已引用" : "缺少企业知识引用"}</span><span class="${article.riskStatus === "clean" ? "ok" : "warning"}">${article.riskStatus === "clean" ? "风控已通过" : "待完成风控"}</span><small>审核通过后才会解锁发布，修改正文后会自动生成新版本并重新审核。</small></div>` : revisionRequested ? `<div class="knowledge-update-banner"><span data-icon="edit"></span><div><b>已退回修改</b><p>${escapeHtml(article.reviewNote || "请根据审核意见修改后重新提交。")}</p></div></div>` : reviewPending ? `<div class="knowledge-update-banner"><span data-icon="clock"></span><div><b>当前为编辑草稿</b><p>确认正文、企业知识引用和风险状态后，再提交人工审核；未提交的草稿不能审核或发布。</p></div></div>` : `<div class="manual-review-complete"><span data-icon="check"></span><div><b>人工审核已通过 · 当前版本可发布</b><p>审核人：${escapeHtml(article.reviewedBy || "内容团队")} · ${escapeHtml(reviewedAt)} · 已冻结 ${escapeHtml(article.version)} 的正文与知识引用</p></div></div><div class="manual-review-complete-actions">${canPublish && canPublishContent ? '<button class="primary-button button-small" type="button" data-action="open-publish" data-article-id="' + escapeHtml(article.id) + '"><span data-icon="send"></span>去发布</button>' : ""}</div>`}
       <div class="article-drawer-grid">
         <div>
           <textarea class="editor-title" id="article-title-editor" rows="2" ${canEditArticle ? "" : "readonly"}>${escapeHtml(article.title)}</textarea>
@@ -12399,7 +12432,7 @@ function renderArticleModal() {
           <div class="side-panel">
             <h4>关联选题</h4>
             <p>${escapeHtml(topic?.title || "未关联选题")}</p>
-            <div class="side-list" style="margin-top:8px"><div><span>业务线</span><b>${escapeHtml(businessLine?.name || "未关联")}</b></div><div><span>内容计划</span><b>${escapeHtml(plan?.name || "未经过计划")}</b></div></div>
+            <div class="side-list mt-sm"><div><span>业务线</span><b>${escapeHtml(businessLine?.name || "未关联")}</b></div><div><span>内容计划</span><b>${escapeHtml(plan?.name || "未经过计划")}</b></div></div>
           </div>
           <div class="side-panel">
             <h4>企业知识引用</h4>
@@ -12411,7 +12444,7 @@ function renderArticleModal() {
           <div class="side-panel">
             <h4>内容风控</h4>
             <div class="risk-score"><span class="risk-state-icon ${riskMeta.tone === "warning" ? "warning" : ""}" data-icon="shield"></span><p><b style="display:block;color:${riskMeta.tone === "warning" ? "var(--amber)" : "var(--green)"}">${riskMeta.label}</b>${riskMeta.text}</p></div>
-            <button class="text-button" type="button" data-action="open-risk" data-article-id="${article.id}" style="margin-top:8px">查看风险详情 <span data-icon="arrow"></span></button>
+            <button class="text-button" type="button" data-action="open-risk" data-article-id="${article.id}" >查看风险详情 <span data-icon="arrow"></span></button>
           </div>
           <div class="side-panel">
             <h4>关键词</h4>
@@ -12422,14 +12455,14 @@ function renderArticleModal() {
       </div>
     </div>
     <div class="modal-foot">
-      <span style="color:var(--muted);font-size:10px">最后更新：${formatRelative(article.updatedAt)} · ${escapeHtml(article.author)}</span>
+      <span class="text-muted text-xs">最后更新：${formatRelative(article.updatedAt)} · ${escapeHtml(article.author)}</span>
       <div class="modal-foot-right">
         <button class="secondary-button" type="button" data-action="copy-article-text">复制全文</button>
         ${canEditArticle ? '<button class="secondary-button" type="button" data-action="open-article-studio" data-article-id="' + article.id + '"><span data-icon="sparkle"></span>AI 创作台</button><button class="secondary-button" type="button" data-action="save-article">保存草稿</button>' : ""}
         ${actions}
       </div>
     </div>
-  `, { drawer: true });
+  `, { className: "article-review-modal" });
 }
 
 function archiveArticleRevision(article, reason = "manual_edit", reasonLabel = "历史版本") {
@@ -12755,7 +12788,7 @@ async function approveSelectedArticles() {
     article.reviewStatus = "approved";
     article.reviewStage = "ready_to_publish";
     article.reviewedAt = reviewedAt;
-    article.reviewedBy = "王宁";
+    article.reviewedBy = currentUserName() || "系统管理员";
     citations.forEach((citation) => { citation.status = "verified"; citation.supportStatus = "supported"; citation.articleVersion = article.version; });
     article.sources = citations.length;
     if (article.knowledgeSnapshot) {
@@ -13157,7 +13190,7 @@ function renderTaskModal() {
     <div class="modal-body">
       <div class="publish-article"><b>${escapeHtml(task.articleTitle)}</b><span>各平台结果独立记录；草稿、验证码、审核或失败都不会自动记为“已发布”。</span></div>
       <div class="publish-platforms">${targetRows}</div>
-      <h3 style="margin:20px 0 6px;font-size:13px">执行日志</h3>
+      <h3 class="section-title-sm">执行日志</h3>
       <div class="log-list">${logs}</div>
     </div>
     <div class="modal-foot"><span>任务状态：${STATUS_META[task.status]?.[0] || task.status}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">关闭</button></div></div>
@@ -13184,7 +13217,7 @@ function commandResultsHtml() {
   ];
   const query = ui.commandQuery.trim().toLowerCase();
   const filtered = commands.filter((command) => !query || (command.title + command.description + command.keys).toLowerCase().includes(query));
-  if (!filtered.length) return '<div class="empty-state" style="min-height:160px"><div><span data-icon="search"></span><h3>没有匹配结果</h3><p>换一个关键词试试。</p></div></div>';
+  if (!filtered.length) return '<div class="empty-state compact"><div><span data-icon="search"></span><h3>没有匹配结果</h3><p>换一个关键词试试。</p></div></div>';
   return filtered.map((command) => `
     <button class="command-item" type="button" data-command-route="${command.route || ""}" data-command-action="${command.action || ""}">
       <span data-icon="${command.icon}"></span><span><b>${command.title}</b><small>${command.description}</small></span><kbd>↵</kbd>
@@ -13196,7 +13229,7 @@ function renderNotificationsModal() {
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">通知</h2><p>1 条需要处理的运营消息</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      <button class="todo-item" type="button" data-action="notification-task" style="width:100%">
+      <button class="todo-item" type="button" data-action="notification-task">
         <span class="todo-icon red" data-icon="alert"></span><span class="todo-copy"><strong>头条号发布结果待核验</strong><span>平台提交后连接中断，为避免重复发文，任务已暂停自动重试。</span></span><span class="todo-meta"><i class="todo-arrow">›</i></span>
       </button>
       <div class="todo-item"><span class="todo-icon" data-icon="check"></span><span class="todo-copy"><strong>企业知识同步完成</strong><span>36 份资料已完成更新，可用于内容生成。</span></span><span class="todo-meta"><small>1小时前</small></span></div>
@@ -13210,12 +13243,12 @@ function renderPairModal() {
   const expires = ui.pairingExpiresAt ? new Date(ui.pairingExpiresAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "10分钟内有效";
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">配对本地 GEO 发布器</h2><p>将当前客户后台与 Windows 桌面软件连接</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body" style="text-align:center">
-      <span class="device-icon" style="margin:0 auto 14px" data-icon="monitor"></span>
-      <p style="margin:0;color:var(--muted)">在桌面发布器的“绑定节点”中填写当前后台地址和下面的配对码。</p>
-      <div style="margin:18px auto;padding:15px;border:1px dashed #9db5dc;border-radius:12px;background:#f7faff;color:var(--blue);font-size:28px;font-weight:800;letter-spacing:4px">${escapeHtml(code)}</div>
-      <p style="margin:0;color:var(--muted);font-size:12px">${escapeHtml(expires)}</p>
-      <div class="security-inline" style="text-align:left"><span data-icon="lock"></span><span>配对只建立设备令牌。平台密码、Cookie、验证码和浏览器 Profile 只保存在客户电脑。</span></div>
+    <div class="modal-body text-center">
+      <span class="device-icon" data-icon="monitor"></span>
+      <p class="pairing-note">在桌面发布器的“绑定节点”中填写当前后台地址和下面的配对码。</p>
+      <div class="pairing-code">${escapeHtml(code)}</div>
+      <p class="pairing-note small">${escapeHtml(expires)}</p>
+      <div class="security-inline text-left"><span data-icon="lock"></span><span>配对只建立设备令牌。平台密码、Cookie、验证码和浏览器 Profile 只保存在客户电脑。</span></div>
     </div>
     <div class="modal-foot"><span>桌面软件完成绑定后会显示在线</span><div class="modal-foot-right"><button class="secondary-button" data-action="refresh-publisher"><span data-icon="refresh"></span>刷新状态</button><button class="secondary-button" data-action="close-modal">完成</button></div></div>
   `);
@@ -13273,8 +13306,8 @@ function renderKnowledgeModal() {
     <div class="modal-head"><div><h2 id="modal-title">管理${escapeHtml(definition.name)}</h2><p>保存后立即写入当前客户空间，并在企业知识页回显</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="side-panel"><h4>统一事实原则</h4><p>${escapeHtml(definition.help)} 保存后直接作为企业可用资料供官网、文章和发布引用；内容规则只参与风险检查。</p></div>
-      <div class="field" style="margin-top:14px"><label for="legacy-knowledge-name">卡片名称</label><input class="input" id="legacy-knowledge-name" value="${escapeHtml(record.name || definition.name)}" /></div>
-      <div class="field" style="margin-top:12px"><label for="legacy-knowledge-content">${escapeHtml(definition.label)}</label><textarea class="textarea" id="legacy-knowledge-content" style="min-height:240px" placeholder="每行填写一条内容">${escapeHtml(content)}</textarea><small>${escapeHtml(definition.help)}</small></div>
+      <div class="field mt-md"><label for="legacy-knowledge-name">卡片名称</label><input class="input" id="legacy-knowledge-name" value="${escapeHtml(record.name || definition.name)}" /></div>
+      <div class="field mt-md"><label for="legacy-knowledge-content">${escapeHtml(definition.label)}</label><textarea class="textarea textarea-lg" id="legacy-knowledge-content" placeholder="每行填写一条内容">${escapeHtml(content)}</textarea><small>${escapeHtml(definition.help)}</small></div>
     </div>
     <div class="modal-foot"><span>当前记录：${Number(record.count) || 0} 条 · ${escapeHtml(record.updated || "尚未维护")}</span><div class="modal-foot-right"><button class="secondary-button" data-action="close-modal">取消</button><button class="primary-button" data-action="save-knowledge" data-knowledge="${escapeHtml(type)}"><span data-icon="check"></span>保存并回显</button></div></div>
   `, { wide: true });
@@ -13366,7 +13399,7 @@ function syncLegacyKnowledgeImages(entries) {
       mime: asset.mime || "image/*",
       knowledgeBaseId: base.id,
       reviewStatus: "approved",
-      reviewedBy: "王宁",
+      reviewedBy: currentUserName() || "系统管理员",
       reviewedAt: new Date().toISOString(),
       license: rawLicense || "企业自有 · 已确认",
       altText: rawAlt || name,
@@ -13458,9 +13491,9 @@ function renderImportKnowledgeModal() {
     <div class="modal-body">
       ${preparation ? `<section class="knowledge-import-guide"><span class="knowledge-icon ${preparation.id === "pricing_delivery" ? "amber" : preparation.id === "brand_compliance" || preparation.id === "faq" ? "purple" : ""}" data-icon="${preparation.icon}"></span><div><span>正在准备：${escapeHtml(preparation.title)}</span><b>${escapeHtml(preparation.purpose)}</b><p><strong>建议优先上传：</strong>${escapeHtml(preparation.materials.join("；"))}</p></div></section>` : ""}
       <div class="field"><label for="knowledge-import-base">导入到 *</label><select class="select" id="knowledge-import-base">${options}</select></div>
-      <div class="field" style="margin-top:14px"><label for="knowledge-import-file">选择资料文件 *</label><input class="input" id="knowledge-import-file" type="file" accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml" multiple /><small>可一次选择多个 PDF、DOCX、XLSX 或普通文档；系统分批解析，失败文件会单独列出。扫描文档需要先配置 OCR。</small></div>
-      <div class="field" style="margin-top:14px"><label for="knowledge-import-content">正文或关键摘录（PDF / Word 建议填写）</label><textarea class="textarea" id="knowledge-import-content" rows="8" placeholder="可粘贴资料正文或关键摘录。若是文本类文件，可留空由系统读取。"></textarea></div>
-      <div class="privacy-note" style="margin-top:14px"><span data-icon="lock"></span><span>原文件保存在客户私有服务器；PDF 会拆分为文字知识、内嵌图片和来源页码，扫描件在后台继续 OCR。上传资料不会自动修改或发布已有文章。</span></div>
+      <div class="field mt-md"><label for="knowledge-import-file">选择资料文件 *</label><input class="input" id="knowledge-import-file" type="file" accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml" multiple /><small>可一次选择多个 PDF、DOCX、XLSX 或普通文档；系统分批解析，失败文件会单独列出。扫描文档需要先配置 OCR。</small></div>
+      <div class="field mt-md"><label for="knowledge-import-content">正文或关键摘录（PDF / Word 建议填写）</label><textarea class="textarea" id="knowledge-import-content" rows="8" placeholder="可粘贴资料正文或关键摘录。若是文本类文件，可留空由系统读取。"></textarea></div>
+      <div class="privacy-note mt-md"><span data-icon="lock"></span><span>原文件保存在客户私有服务器；PDF 会拆分为文字知识、内嵌图片和来源页码，扫描件在后台继续 OCR。上传资料不会自动修改或发布已有文章。</span></div>
     </div>
     <div class="modal-foot"><span>上传即入库；处理失败的文件会单独提示，不阻塞其他资料</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-import"><span data-icon="upload"></span>上传并入库</button></div></div>
   `, { wide: true });
@@ -13475,9 +13508,9 @@ function renderCreateKnowledgeBaseModal() {
         <label><input type="radio" name="knowledge-kind" value="document" checked /><span class="knowledge-icon" data-icon="book"></span><b>文档库</b><small>PDF、Word、网页、产品资料、案例等长资料</small></label>
         <label><input type="radio" name="knowledge-kind" value="qa" /><span class="knowledge-icon purple" data-icon="help"></span><b>问答库</b><small>标准问题、官方答案、异议处理和服务边界</small></label>
       </div>
-      <div class="field" style="margin-top:16px"><label for="knowledge-base-name">知识库名称 *</label><input class="input" id="knowledge-base-name" placeholder="例如：GEO 产品资料库" autocomplete="off" /></div>
-      <div class="field-row" style="margin-top:13px"><div class="field"><label for="knowledge-base-scope">使用范围</label><select class="select" id="knowledge-base-scope"><option value="business_line">业务线专用</option><option value="enterprise">全企业共享</option></select></div><div class="field"><label for="knowledge-base-line">所属业务线</label><select class="select" id="knowledge-base-line">${lineOptions}</select></div></div>
-      <div class="field" style="margin-top:13px"><label for="knowledge-base-description">用途说明</label><textarea class="textarea" id="knowledge-base-description" rows="3" placeholder="说明这里存放什么，以及允许哪些内容任务使用"></textarea></div>
+      <div class="field mt-lg"><label for="knowledge-base-name">知识库名称 *</label><input class="input" id="knowledge-base-name" placeholder="例如：GEO 产品资料库" autocomplete="off" /></div>
+      <div class="field-row mt-md"><div class="field"><label for="knowledge-base-scope">使用范围</label><select class="select" id="knowledge-base-scope"><option value="business_line">业务线专用</option><option value="enterprise">全企业共享</option></select></div><div class="field"><label for="knowledge-base-line">所属业务线</label><select class="select" id="knowledge-base-line">${lineOptions}</select></div></div>
+      <div class="field mt-md"><label for="knowledge-base-description">用途说明</label><textarea class="textarea" id="knowledge-base-description" rows="3" placeholder="说明这里存放什么，以及允许哪些内容任务使用"></textarea></div>
       <div class="privacy-note"><span data-icon="database"></span><span><b>企业 RAG 索引</b><br />系统按知识条目和不可变版本进行分块、向量化与混合检索；可由管理员配置正式向量库和 embedding 模型。</span></div>
     </div>
     <div class="modal-foot"><span>新建后可继续添加文档或标准问答</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-base"><span data-icon="plus"></span>创建知识库</button></div></div>
@@ -13515,9 +13548,9 @@ function renderKnowledgeItemModal() {
       <div class="modal-head"><div><h2 id="modal-title">编辑知识并新建版本</h2><p>${escapeHtml(base.name)} · 当前 v${escapeHtml(version?.version || "1")} 会保留给历史文章引用</p></div><button class="icon-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}" aria-label="关闭"><span data-icon="x"></span></button></div>
       <div class="modal-body">
         ${base.kind === "qa" ? `<div class="field"><label for="knowledge-item-question">标准问题 *</label><input class="input" id="knowledge-item-question" value="${escapeHtml(item.question || item.title)}" /></div>` : `<div class="field"><label for="knowledge-item-title">资料标题 *</label><input class="input" id="knowledge-item-title" value="${escapeHtml(item.title)}" /></div>`}
-        <div class="field" style="margin-top:13px"><label for="knowledge-item-content">${base.kind === "qa" ? "企业标准答案 *" : "资料原文 *"}</label><textarea class="textarea" id="knowledge-item-content" rows="8">${escapeHtml(version?.content || item.content || "")}</textarea></div>
-        <div class="field-row" style="margin-top:13px"><div class="field"><label for="knowledge-item-source">来源文件 / URL</label><input class="input" id="knowledge-item-source" value="${escapeHtml(knowledgeSourceLabel(item, version))}" /></div><div class="field"><label for="knowledge-item-locator">页码 / 章节</label><input class="input" id="knowledge-item-locator" value="${escapeHtml(knowledgeLocator(item, version))}" /></div></div>
-        <div class="field" style="margin-top:13px"><label for="knowledge-item-visibility">对外范围</label><select class="select" id="knowledge-item-visibility"><option value="public" ${item.visibility !== "internal" ? "selected" : ""}>可用于对外内容</option><option value="internal" ${item.visibility === "internal" ? "selected" : ""}>仅内部参考</option></select></div>
+        <div class="field mt-md"><label for="knowledge-item-content">${base.kind === "qa" ? "企业标准答案 *" : "资料原文 *"}</label><textarea class="textarea" id="knowledge-item-content" rows="8">${escapeHtml(version?.content || item.content || "")}</textarea></div>
+        <div class="field-row mt-md"><div class="field"><label for="knowledge-item-source">来源文件 / URL</label><input class="input" id="knowledge-item-source" value="${escapeHtml(knowledgeSourceLabel(item, version))}" /></div><div class="field"><label for="knowledge-item-locator">页码 / 章节</label><input class="input" id="knowledge-item-locator" value="${escapeHtml(knowledgeLocator(item, version))}" /></div></div>
+        <div class="field mt-md"><label for="knowledge-item-visibility">对外范围</label><select class="select" id="knowledge-item-visibility"><option value="public" ${item.visibility !== "internal" ? "selected" : ""}>可用于对外内容</option><option value="internal" ${item.visibility === "internal" ? "selected" : ""}>仅内部参考</option></select></div>
         <div class="privacy-note"><span data-icon="history"></span><span>保存后会立即生成新版本并自动建立索引；历史计划和文章仍引用原来的已冻结版本。</span></div>
       </div>
       <div class="modal-foot"><span>新版本保存后自动进入 RAG</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}">取消</button><button class="primary-button" type="button" data-action="save-knowledge-item-edit" data-item-id="${item.id}"><span data-icon="check"></span>保存新版本</button></div></div>
@@ -13526,16 +13559,16 @@ function renderKnowledgeItemModal() {
   if (item) {
     return modalChrome(`
       <div class="modal-head"><div><h2 id="modal-title">${escapeHtml(item.title || item.question)}</h2><p>${escapeHtml(base.name)} · v${escapeHtml(version?.version || "1")} · ${escapeHtml(knowledgeLocator(item, version))}</p></div><button class="icon-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}" aria-label="返回"><span data-icon="x"></span></button></div>
-      <div class="modal-body"><div class="source-document"><span>${base.kind === "qa" ? "企业标准答案" : "知识原文"}</span>${item.question ? '<h3>问：' + escapeHtml(item.question) + '</h3>' : ""}<p>${escapeHtml(version?.content || item.content || "暂无正文")}</p></div><div class="side-list" style="margin-top:14px"><div><span>资料状态</span><b>${version?.extractionStatus && ["queued", "processing", "pending"].includes(version.extractionStatus) ? "处理中" : "可用"}</b></div><div><span>来源</span><b>${escapeHtml(knowledgeSourceLabel(item, version))}</b></div><div><span>定位</span><b>${escapeHtml(knowledgeLocator(item, version))}</b></div><div><span>对外范围</span><b>${item.visibility === "internal" ? "仅内部" : "可对外"}</b></div></div></div>
+      <div class="modal-body"><div class="source-document"><span>${base.kind === "qa" ? "企业标准答案" : "知识原文"}</span>${item.question ? '<h3>问：' + escapeHtml(item.question) + '</h3>' : ""}<p>${escapeHtml(version?.content || item.content || "暂无正文")}</p></div><div class="side-list mt-lg"><div><span>资料状态</span><b>${version?.extractionStatus && ["queued", "processing", "pending"].includes(version.extractionStatus) ? "处理中" : "可用"}</b></div><div><span>来源</span><b>${escapeHtml(knowledgeSourceLabel(item, version))}</b></div><div><span>定位</span><b>${escapeHtml(knowledgeLocator(item, version))}</b></div><div><span>对外范围</span><b>${item.visibility === "internal" ? "仅内部" : "可对外"}</b></div></div></div>
       <div class="modal-foot"><span>查看的是当前知识版本，文章引用会另外冻结</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="edit-knowledge-item" data-item-id="${item.id}"><span data-icon="edit"></span>编辑并新建版本</button><button class="primary-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}">返回知识库</button></div></div>
     `);
   }
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">${base.kind === "qa" ? "新增标准问答" : "新增文档知识"}</h2><p>${escapeHtml(base.name)} · 保存后立即可用并自动索引</p></div><button class="icon-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      ${base.kind === "qa" ? '<div class="field"><label for="knowledge-item-question">标准问题 *</label><input class="input" id="knowledge-item-question" placeholder="例如：GEO 服务从哪里开始？" /></div><div class="field" style="margin-top:13px"><label for="knowledge-item-content">企业标准答案 *</label><textarea class="textarea" id="knowledge-item-content" rows="7" placeholder="只填写企业确认、允许使用的回答"></textarea></div>' : '<div class="field"><label for="knowledge-item-title">资料标题 *</label><input class="input" id="knowledge-item-title" placeholder="例如：GEO 服务交付说明" /></div><div class="field" style="margin-top:13px"><label>上传资料文件（可选）</label><label class="knowledge-file-dropzone" for="knowledge-item-file"><span class="knowledge-file-dropzone-icon" data-icon="upload"></span><span><b>点击选择本地文件</b><small>支持 PDF、Word、Excel、Markdown、文本和图片，单个文件不超过 20 MB</small></span><em>选择文件</em><input id="knowledge-item-file" type="file" accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml,.png,.jpg,.jpeg,.webp,.gif,image/*" /></label><div class="knowledge-file-summary" id="knowledge-item-file-summary"><span data-icon="info"></span><span>尚未选择文件；也可以直接在下方粘贴文字</span></div></div><div class="knowledge-input-divider"><span>或直接录入文字</span></div><div class="field"><label for="knowledge-item-content">资料原文（可选）</label><textarea class="textarea" id="knowledge-item-content" rows="6" placeholder="上传文件与粘贴文字二选一；如果同时填写，文字将作为文件的关键摘录"></textarea></div>'}
-      <div class="field-row" style="margin-top:13px"><div class="field"><label for="knowledge-item-source">来源文件 / URL</label><input class="input" id="knowledge-item-source" placeholder="方案.pdf 或 https://..." /></div><div class="field"><label for="knowledge-item-locator">页码 / 章节</label><input class="input" id="knowledge-item-locator" placeholder="第 6 页 / 标准答案" /></div></div>
-      <div class="field" style="margin-top:13px"><label for="knowledge-item-visibility">对外范围</label><select class="select" id="knowledge-item-visibility"><option value="public">可用于对外内容</option><option value="internal">仅内部参考</option></select></div>
+      ${base.kind === "qa" ? '<div class="field"><label for="knowledge-item-question">标准问题 *</label><input class="input" id="knowledge-item-question" placeholder="例如：GEO 服务从哪里开始？" /></div><div class="field mt-md"><label for="knowledge-item-content">企业标准答案 *</label><textarea class="textarea" id="knowledge-item-content" rows="7" placeholder="只填写企业确认、允许使用的回答"></textarea></div>' : '<div class="field"><label for="knowledge-item-title">资料标题 *</label><input class="input" id="knowledge-item-title" placeholder="例如：GEO 服务交付说明" /></div><div class="field mt-md"><label>上传资料文件（可选）</label><label class="knowledge-file-dropzone" for="knowledge-item-file"><span class="knowledge-file-dropzone-icon" data-icon="upload"></span><span><b>点击选择本地文件</b><small>支持 PDF、Word、Excel、Markdown、文本和图片，单个文件不超过 20 MB</small></span><em>选择文件</em><input id="knowledge-item-file" type="file" accept=".pdf,.docx,.xlsx,.txt,.md,.csv,.html,.htm,.json,.xml,.png,.jpg,.jpeg,.webp,.gif,image/*" /></label><div class="knowledge-file-summary" id="knowledge-item-file-summary"><span data-icon="info"></span><span>尚未选择文件；也可以直接在下方粘贴文字</span></div></div><div class="knowledge-input-divider"><span>或直接录入文字</span></div><div class="field"><label for="knowledge-item-content">资料原文（可选）</label><textarea class="textarea" id="knowledge-item-content" rows="6" placeholder="上传文件与粘贴文字二选一；如果同时填写，文字将作为文件的关键摘录"></textarea></div>'}
+      <div class="field-row mt-md"><div class="field"><label for="knowledge-item-source">来源文件 / URL</label><input class="input" id="knowledge-item-source" placeholder="方案.pdf 或 https://..." /></div><div class="field"><label for="knowledge-item-locator">页码 / 章节</label><input class="input" id="knowledge-item-locator" placeholder="第 6 页 / 标准答案" /></div></div>
+      <div class="field mt-md"><label for="knowledge-item-visibility">对外范围</label><select class="select" id="knowledge-item-visibility"><option value="public">可用于对外内容</option><option value="internal">仅内部参考</option></select></div>
       <div class="privacy-note"><span data-icon="database"></span><span>保存后立即进入知识库；文字自动索引，PDF 与图片按需进入后台解析和 OCR。知识资料不需要人工审核。</span></div>
     </div>
     <div class="modal-foot"><span>文件或文字保存后自动解析并进入 RAG</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="back-knowledge-base" data-base-id="${base.id}">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-item" data-base-id="${base.id}"><span data-icon="check"></span>上传并入库</button></div></div>
@@ -13660,7 +13693,7 @@ function renderCitationModal() {
 
 function renderOnboardingModal() {
   const profile = state.enterpriseProfile;
-  const isComplete = profile.completion === 100;
+  const isComplete = enterpriseFactCompletion(profile) === 100;
   const steps = [
     ["企业身份", "主体、品牌与官方域名"],
     ["业务边界", "服务、客户与禁止承诺"],
@@ -13677,14 +13710,14 @@ function renderOnboardingModal() {
   if (ui.onboardingStep === 1) {
     body = `
       <div class="field-row"><div class="field"><label for="onboard-company">企业全称 *</label><input class="input" id="onboard-company" value="${escapeHtml(profile.companyName)}" placeholder="请输入工商登记全称" /></div><div class="field"><label for="onboard-brand">展示品牌</label><input class="input" id="onboard-brand" value="${escapeHtml(profile.brandName)}" /></div></div>
-      <div class="field" style="margin-top:13px"><label for="onboard-intro">企业介绍 *</label><textarea class="textarea" id="onboard-intro" placeholder="说明企业定位、核心能力和服务对象">${escapeHtml(profile.introduction)}</textarea></div>
-      <div class="field-row" style="margin-top:13px"><div class="field"><label for="onboard-domain">官方域名</label><input class="input" id="onboard-domain" value="${escapeHtml(profile.officialDomain)}" /></div><div class="field"><label for="onboard-industry">行业与地区</label><input class="input" id="onboard-industry" value="${escapeHtml(profile.industryRegion)}" /></div></div>
+      <div class="field mt-md"><label for="onboard-intro">企业介绍 *</label><textarea class="textarea" id="onboard-intro" placeholder="说明企业定位、核心能力和服务对象">${escapeHtml(profile.introduction)}</textarea></div>
+      <div class="field-row mt-md"><div class="field"><label for="onboard-domain">官方域名</label><input class="input" id="onboard-domain" value="${escapeHtml(profile.officialDomain)}" /></div><div class="field"><label for="onboard-industry">行业与地区</label><input class="input" id="onboard-industry" value="${escapeHtml(profile.industryRegion)}" /></div></div>
     `;
   } else if (ui.onboardingStep === 2) {
     body = `
       <div class="field"><label for="onboard-service">主推产品 / 服务 *</label><input class="input" id="onboard-service" value="${escapeHtml(profile.primaryService)}" /></div>
-      <div class="field" style="margin-top:13px"><label for="onboard-service-desc">定位、能力与交付边界 *</label><textarea class="textarea" id="onboard-service-desc">${escapeHtml(profile.serviceDescription)}</textarea></div>
-      <div class="field-row" style="margin-top:13px"><div class="field"><label for="onboard-audience">目标客户</label><input class="input" id="onboard-audience" value="${escapeHtml(profile.audience)}" /></div><div class="field"><label>服务范围</label><input class="input" id="onboard-area" value="${escapeHtml(profile.serviceArea)}" /></div></div>
+      <div class="field mt-md"><label for="onboard-service-desc">定位、能力与交付边界 *</label><textarea class="textarea" id="onboard-service-desc">${escapeHtml(profile.serviceDescription)}</textarea></div>
+      <div class="field-row mt-md"><div class="field"><label for="onboard-audience">目标客户</label><input class="input" id="onboard-audience" value="${escapeHtml(profile.audience)}" /></div><div class="field"><label>服务范围</label><input class="input" id="onboard-area" value="${escapeHtml(profile.serviceArea)}" /></div></div>
       <div class="security-inline"><span data-icon="shield"></span><span>禁止承诺：不使用“保证排名、百分百收录、绝对第一”等无法验证的表述。</span></div>
     `;
   } else if (ui.onboardingStep === 3) {
@@ -13704,7 +13737,7 @@ function renderOnboardingModal() {
         <div><span class="knowledge-icon teal" data-icon="cpu"></span><p><b>客户可用检测能力</b><small>平台、终端与模式由中央服务实时回传，不在客户端写死平台名单。</small></p><span class="status-badge status-approved">实时读取</span></div>
         <div><span class="knowledge-icon amber" data-icon="users"></span><p><b>竞品基线</b><small>${isComplete ? "已确认首批竞品，后续可持续调整。" : "正式运行前还需确认真实竞品品牌。"}</small></p><span class="status-badge ${isComplete ? "status-approved" : "status-review"}">${isComplete ? "已确认" : "待确认"}</span></div>
       </div>
-      <div class="privacy-note" style="margin:14px 0 0"><span data-icon="info"></span><span>完成建档后会生成企业事实卡和品牌基线配置；正式监测任务由客户服务端按授权创建，首次运行前会再次报价并冻结问题集。</span></div>
+      <div class="privacy-note inset"><span data-icon="info"></span><span>完成建档后会生成企业事实卡和品牌基线配置；正式监测任务由客户服务端按授权创建，首次运行前会再次报价并冻结问题集。</span></div>
     `;
   }
 
@@ -13725,8 +13758,8 @@ function renderBusinessLineModal() {
     <div class="modal-head"><div><h2 id="modal-title">${isEdit ? "编辑业务线" : "新增产品 / 业务线"}</h2><p>业务线是关键词、问题、选题和内容计划的共同归属</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="field"><label for="business-line-name">业务线名称 *</label><input class="input ${ui.businessLineError ? "input-error" : ""}" id="business-line-name" value="${escapeHtml(editing?.name || "")}" placeholder="例如：工业清洗设备" autocomplete="off" />${ui.businessLineError ? '<small class="error-text">' + escapeHtml(ui.businessLineError) + "</small>" : ""}</div>
-      <div class="field" style="margin-top:13px"><label for="business-line-product">主推产品 / 服务</label><input class="input" id="business-line-product" value="${escapeHtml(editing?.product || "")}" placeholder="例如：激光清洗设备与交付服务" /></div>
-      <div class="field-row" style="margin-top:13px"><div class="field"><label for="business-line-audience">目标客户</label><input class="input" id="business-line-audience" value="${escapeHtml(editing?.audience || "")}" placeholder="例如：汽车零部件制造企业" /></div><div class="field"><label for="business-line-scenario">核心场景</label><input class="input" id="business-line-scenario" value="${escapeHtml(editing?.positioning || editing?.scenario || "")}" placeholder="例如：除锈、除漆与模具清洁" /></div></div>
+      <div class="field mt-md"><label for="business-line-product">主推产品 / 服务</label><input class="input" id="business-line-product" value="${escapeHtml(editing?.product || "")}" placeholder="例如：激光清洗设备与交付服务" /></div>
+      <div class="field-row mt-md"><div class="field"><label for="business-line-audience">目标客户</label><input class="input" id="business-line-audience" value="${escapeHtml(editing?.audience || "")}" placeholder="例如：汽车零部件制造企业" /></div><div class="field"><label for="business-line-scenario">核心场景</label><input class="input" id="business-line-scenario" value="${escapeHtml(editing?.positioning || editing?.scenario || "")}" placeholder="例如：除锈、除漆与模具清洁" /></div></div>
       <div class="privacy-note"><span data-icon="info"></span><span>${isEdit ? "修改会同步到该业务线下的选题、计划和文章展示。" : "创建后会自动切换到新业务线，可立即添加种子关键词并开始拓展。"}</span></div>
     </div>
     <div class="modal-foot"><span>同一客户空间内业务线名称不能重复</span><div class="modal-foot-right"><button class="secondary-button" data-action="close-modal">取消</button><button class="primary-button" data-action="submit-business-line">${isEdit ? "保存修改" : '<span data-icon="plus"></span>创建业务线'}</button></div></div>
@@ -13826,7 +13859,7 @@ function renderContentPlanEditModal() {
     <div class="modal-head"><div><h2 id="modal-title">编辑内容计划</h2><p>${escapeHtml(plan.name)}</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="field-row"><div class="field"><label for="plan-edit-date">计划日期</label><input class="input" id="plan-edit-date" type="date" value="${escapeHtml((plan.scheduledFor || "").slice(0, 10))}" /></div><div class="field"><label for="plan-edit-owner">负责人</label><input class="input" id="plan-edit-owner" value="${escapeHtml(plan.owner || "")}" placeholder="填写负责人" /></div></div>
-      <div class="field" style="margin-top:13px"><label for="plan-edit-type">内容形式</label><select class="select" id="plan-edit-type">${typeOptions}</select></div>
+      <div class="field mt-md"><label for="plan-edit-type">内容形式</label><select class="select" id="plan-edit-type">${typeOptions}</select></div>
       <div class="privacy-note"><span data-icon="info"></span><span>选题、写作智能体和知识范围在创建时已冻结，如需调整请新建计划。</span></div>
     </div>
     <div class="modal-foot"><div class="modal-foot-right"><button class="secondary-button" data-action="close-modal">取消</button><button class="primary-button" data-action="submit-plan-edit">保存修改</button></div></div>
@@ -13870,8 +13903,8 @@ function renderContentPlanModal() {
     <div class="modal-head"><div><h2 id="modal-title">创建内容计划</h2><p>${escapeHtml(line?.name || "业务线")} · 已选择 ${selectedTopics.length} 个选题</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="field"><label for="content-plan-name">计划名称 *</label><input class="input ${ui.planError ? "input-error" : ""}" id="content-plan-name" value="${escapeHtml(line?.name || "业务线")} · ${defaultDueDate.getMonth() + 1} 月内容计划" />${ui.planError ? '<small class="error-text">' + escapeHtml(ui.planError) + "</small>" : ""}</div>
-      <div class="field-row" style="margin-top:13px"><div class="field"><label for="content-plan-date">计划完成日期 *</label><input class="input" id="content-plan-date" type="date" min="${todayValue}" value="${defaultDueDateValue}" /></div><div class="field"><label for="content-plan-owner">负责人</label><select class="select" id="content-plan-owner"><option>王宁</option><option>李晨</option><option>AI 内容助手</option></select></div></div>
-      <div class="field" style="margin-top:13px"><label for="content-plan-type">内容形式</label><select class="select" id="content-plan-type"><option>深度文章</option><option>系列文章</option><option>问答文章</option><option>案例解读</option></select></div>
+      <div class="field-row mt-md"><div class="field"><label for="content-plan-date">计划完成日期 *</label><input class="input" id="content-plan-date" type="date" min="${todayValue}" value="${defaultDueDateValue}" /></div><div class="field"><label for="content-plan-owner">负责人</label><select class="select" id="content-plan-owner"><option>${escapeHtml(currentUserName() || "系统管理员")}</option><option>李晨</option><option>AI 内容助手</option></select></div></div>
+      <div class="field mt-md"><label for="content-plan-type">内容形式</label><select class="select" id="content-plan-type"><option>深度文章</option><option>系列文章</option><option>问答文章</option><option>案例解读</option></select></div>
       <div class="plan-agent-panel"><div class="section-title"><div><h3>写作智能体 *</h3><p>决定文章角色、结构、语气与知识使用规则；保存计划时冻结当前版本</p></div><span class="small-tag blue">写法快照</span></div><select class="select" id="content-plan-agent" ${agentOptions ? "" : "disabled"}>${agentOptions || '<option value="">当前业务线没有可用智能体</option>'}</select>${defaultAgent ? `<div class="plan-agent-summary" id="plan-agent-summary"><span class="writing-agent-avatar ${escapeHtml(defaultAgent.color || "blue")}">${escapeHtml(defaultAgent.avatar || defaultAgent.name.slice(0, 1))}</span><span><b>${escapeHtml(defaultAgent.name)} · v${escapeHtml(defaultAgent.version)}</b><small>${escapeHtml(defaultAgent.style)} · ${defaultAgent.strictKnowledge ? "严格知识模式" : "普通知识模式"}</small></span></div>` : '<div class="knowledge-missing-inline"><span data-icon="alert"></span><span>请先到内容生产创建或恢复一个可用写作智能体。</span></div>'}</div>
       <details class="plan-platform-hints"><summary><span><b>预计适配平台（可选）</b><small>仅向 AI 提示写作风格，不锁定发布</small></span><span class="small-tag">不锁定发布</span></summary><div class="plan-platform-hint-body"><p>可多选，也可以不选。平台和账号仍然只在文章审核通过后到「发布运营」中确定。</p><div class="plan-platform-hint-grid" role="group" aria-label="预计适配平台（可选）">${platformHintChoices}</div></div></details>
       <div class="privacy-note"><span data-icon="send"></span><span>发布平台与账号将在文章审核通过后，到「发布运营」中选择；内容计划不预先锁定分发渠道。</span></div>
@@ -14057,8 +14090,8 @@ function renderVersionModal() {
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">关于当前版本</h2><p>Tongzhuo GEO Platform 1.0.0-alpha.1</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
-      <div class="privacy-note" style="margin-top:0"><span data-icon="shield"></span><span>生产底座已经启用正式数据库、服务端工作区、登录会话、四级角色权限、CSRF、审计日志和密钥加密。向量 RAG、真实官网 CMS 与运营诊断仍按后续产品化阶段接入。</span></div>
-      <div class="side-list" style="margin-top:16px"><div><span>业务数据</span><b>SQLite WAL + 完整修订</b></div><div><span>账号权限</span><b>服务端 RBAC + scrypt</b></div><div><span>模型密钥</span><b>AES-256-GCM</b></div><div><span>发布设备凭据</span><b>SHA-256 摘要认证</b></div></div>
+      <div class="privacy-note"><span data-icon="shield"></span><span>生产底座已经启用正式数据库、服务端工作区、登录会话、四级角色权限、CSRF、审计日志和密钥加密。向量 RAG、真实官网 CMS 与运营诊断仍按后续产品化阶段接入。</span></div>
+      <div class="side-list mt-lg"><div><span>业务数据</span><b>SQLite WAL + 完整修订</b></div><div><span>账号权限</span><b>服务端 RBAC + scrypt</b></div><div><span>模型密钥</span><b>AES-256-GCM</b></div><div><span>发布设备凭据</span><b>SHA-256 摘要认证</b></div></div>
     </div>
     <div class="modal-foot"><span>部署与恢复说明见 docs/PRIVATE-DEPLOYMENT.md</span><div class="modal-foot-right"><button class="primary-button" data-action="close-modal">我知道了</button></div></div>
   `);
@@ -14072,7 +14105,7 @@ function renderTrackedWorkModal() {
     <div class="modal-head"><div><h2 id="modal-title">添加其他平台 URL</h2><p>为这篇内容资产补充一个可访问的外部发布地址，保存后立即进入自动巡检。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="field"><label for="tracked-work-article">关联文章 *</label><select class="select" id="tracked-work-article">${articleOptions}</select><small>引用证据只会按规范化 URL 精确归属到这篇文章。</small></div>
-      <div class="field-row" style="margin-top:15px"><div class="field"><label for="tracked-work-site">发布平台 *</label><input class="input" id="tracked-work-site" value="" placeholder="例如：知乎专栏、行业媒体" /></div><div class="field"><label for="tracked-work-type">站点类型</label><select class="select" id="tracked-work-type">${["公众号", "内容平台", "行业媒体", "其他"].map((item) => `<option>${item}</option>`).join("")}</select></div></div>
+      <div class="field-row mt-lg"><div class="field"><label for="tracked-work-site">发布平台 *</label><input class="input" id="tracked-work-site" value="" placeholder="例如：知乎专栏、行业媒体" /></div><div class="field"><label for="tracked-work-type">站点类型</label><select class="select" id="tracked-work-type">${["公众号", "内容平台", "行业媒体", "其他"].map((item) => `<option>${item}</option>`).join("")}</select></div></div>
       <div class="field"><label for="tracked-work-url">作品 URL *</label><input class="input" id="tracked-work-url" value="" placeholder="https://" /></div>
     </div>
     <div class="modal-foot"><span>保存后由服务端巡检可访问性、跳转和内容变化</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-tracked-work"><span data-icon="check"></span>添加 URL</button></div></div>
@@ -14090,7 +14123,7 @@ function renderModelEditorModal() {
   const selectedProvider = providers.find((provider) => provider.id === selectedProviderId);
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">更换默认${label}模型</h2><p>选择已配置的 API 供应商；已有文章仍使用生成时保存的模型快照。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body model-editor-body"><div class="field"><label for="model-provider">API 供应商</label><select class="select" id="model-provider">${providerOptions}</select><small>${selectedProvider ? `${escapeHtml(selectedProvider.apiKeyMasked || "未配置 API Key")} · ${escapeHtml(aiProviderProtocolLabel(selectedProvider.protocol))}` : "尚未绑定供应商时不会发起真实 API 请求。"}</small></div><div class="field" style="margin-top:15px"><label for="model-custom-name">模型 ID / 名称 *</label><input class="input" id="model-custom-name" value="${escapeHtml(current)}" placeholder="例如：deepseek-chat、gpt-4o-mini、qwen-plus" /><small>选择供应商后，留空会使用供应商默认模型。</small></div><button class="secondary-button" type="button" data-action="add-ai-provider"><span data-icon="plus"></span>没有供应商？添加 API</button><div class="privacy-note" style="margin-top:4px"><span data-icon="lock"></span><span>API Key 只保存在服务端并以掩码显示，浏览器不会保存原始密钥。</span></div></div>
+    <div class="modal-body model-editor-body"><div class="field"><label for="model-provider">API 供应商</label><select class="select" id="model-provider">${providerOptions}</select><small>${selectedProvider ? `${escapeHtml(selectedProvider.apiKeyMasked || "未配置 API Key")} · ${escapeHtml(aiProviderProtocolLabel(selectedProvider.protocol))}` : "尚未绑定供应商时不会发起真实 API 请求。"}</small></div><div class="field mt-lg"><label for="model-custom-name">模型 ID / 名称 *</label><input class="input" id="model-custom-name" value="${escapeHtml(current)}" placeholder="例如：deepseek-chat、gpt-4o-mini、qwen-plus" /><small>选择供应商后，留空会使用供应商默认模型。</small></div><button class="secondary-button" type="button" data-action="add-ai-provider"><span data-icon="plus"></span>没有供应商？添加 API</button><div class="privacy-note mt-sm"><span data-icon="lock"></span><span>API Key 只保存在服务端并以掩码显示，浏览器不会保存原始密钥。</span></div></div>
     <div class="modal-foot"><span>当前：${escapeHtml(current)}</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-model" data-model-kind="${kind}"><span data-icon="check"></span>保存模型</button></div></div>
   `);
 }
@@ -14114,7 +14147,7 @@ function renderMemberEditorModal() {
   const canDelete = !existing || !(existing.role === "管理员" && adminCount <= 1);
   return modalChrome(`
     <div class="modal-head"><div><h2 id="modal-title">${existing ? "管理成员" : "创建成员账号"}</h2><p>${existing ? "角色、状态和密码修改会由服务端立即执行并记录审计。" : "创建后成员可以使用登录账号和初始密码进入当前企业后台。"}</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
-    <div class="modal-body"><div class="field-row"><div class="field"><label for="member-name">姓名 *</label><input class="input" id="member-name" value="${escapeHtml(existing?.name || "")}" placeholder="请输入成员姓名" /></div><div class="field"><label for="member-email">邮箱</label><input class="input" id="member-email" type="email" value="${escapeHtml(existing?.email || "")}" placeholder="name@company.com" /></div></div><div class="field-row"><div class="field"><label for="member-username">登录账号 *</label><input class="input" id="member-username" value="${escapeHtml(existing?.username || "")}" placeholder="例如：zhangsan" ${existing ? "disabled" : ""} autocomplete="username" /></div><div class="field"><label for="member-password">${existing ? "重置密码（留空不修改）" : "初始密码 *"}</label><input class="input" id="member-password" type="password" minlength="10" maxlength="200" placeholder="至少 10 个字符" autocomplete="new-password" /></div></div><div class="field-row"><div class="field"><label for="member-role">角色</label><select class="select" id="member-role">${Object.entries(ROLE_UI_LABELS).map(([value, label]) => `<option value="${value}" ${role === value ? "selected" : ""}>${label}</option>`).join("")}</select></div><div class="field"><label for="member-status">状态</label><select class="select" id="member-status">${[["active", "已启用"], ["disabled", "已停用"]].map(([value, label]) => `<option value="${value}" ${status === value ? "selected" : ""}>${label}</option>`).join("")}</select></div></div><div class="privacy-note" style="margin-top:16px"><span data-icon="lock"></span><span>初始密码只在本次提交中传送，不会写入浏览器存储；服务端使用 scrypt 保存密码摘要。</span></div></div>
+    <div class="modal-body"><div class="field-row"><div class="field"><label for="member-name">姓名 *</label><input class="input" id="member-name" value="${escapeHtml(existing?.name || "")}" placeholder="请输入成员姓名" /></div><div class="field"><label for="member-email">邮箱</label><input class="input" id="member-email" type="email" value="${escapeHtml(existing?.email || "")}" placeholder="name@company.com" /></div></div><div class="field-row"><div class="field"><label for="member-username">登录账号 *</label><input class="input" id="member-username" value="${escapeHtml(existing?.username || "")}" placeholder="例如：zhangsan" ${existing ? "disabled" : ""} autocomplete="username" /></div><div class="field"><label for="member-password">${existing ? "重置密码（留空不修改）" : "初始密码 *"}</label><input class="input" id="member-password" type="password" minlength="10" maxlength="200" placeholder="至少 10 个字符" autocomplete="new-password" /></div></div><div class="field-row"><div class="field"><label for="member-role">角色</label><select class="select" id="member-role">${Object.entries(ROLE_UI_LABELS).map(([value, label]) => `<option value="${value}" ${role === value ? "selected" : ""}>${label}</option>`).join("")}</select></div><div class="field"><label for="member-status">状态</label><select class="select" id="member-status">${[["active", "已启用"], ["disabled", "已停用"]].map(([value, label]) => `<option value="${value}" ${status === value ? "selected" : ""}>${label}</option>`).join("")}</select></div></div><div class="privacy-note mt-md"><span data-icon="lock"></span><span>初始密码只在本次提交中传送，不会写入浏览器存储；服务端使用 scrypt 保存密码摘要。</span></div></div>
     <div class="modal-foot"><span>${existing?.lastLoginAt ? "最近登录：" + formatDateTime(existing.lastLoginAt) : "尚未登录"}</span><div class="modal-foot-right">${existing ? `<button class="danger-button" type="button" data-action="delete-member" data-member-id="${escapeHtml(existing.id)}" ${canDelete ? "" : "disabled"}>删除</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="save-member" data-member-id="${escapeHtml(existing?.id || "")}"><span data-icon="check"></span>${existing ? "保存修改" : "创建账号"}</button></div></div>
   `);
 }
@@ -14190,9 +14223,9 @@ function renderRiskModal() {
   const hits = scan?.hits || [];
   const needsScan = ["unscanned", "stale"].includes(riskStatus) || !scan && ["warning", "blocked"].includes(riskStatus);
   const statusTitle = riskStatus === "blocked" ? `命中 ${hits.filter((hit) => hit.level === "blocked").length || 1} 条阻断规则` : riskStatus === "warning" ? `命中 ${hits.length || 1} 条需复核规则` : riskStatus === "stale" ? "旧结果已过期" : riskStatus === "unscanned" ? "当前版本尚未检测" : "当前版本通过风控";
-  let result = '<div class="empty-state" style="min-height:180px"><div><span data-icon="shield"></span><h3>当前版本通过风控</h3><p>没有命中当前企业内容规则；修改正文或规则后需要重新检测。</p></div></div>';
+  let result = '<div class="empty-state compact"><div><span data-icon="shield"></span><h3>当前版本通过风控</h3><p>没有命中当前企业内容规则；修改正文或规则后需要重新检测。</p></div></div>';
   if (hits.length) result = `<div class="risk-issue-list">${hits.map((hit) => `<div class="risk-issue"><span class="status-badge ${hit.level === "blocked" ? "status-error" : "status-review"}">${hit.level === "blocked" ? "阻断" : "复核"}</span><div><b>${escapeHtml(hit.label)} · 命中“${escapeHtml(hit.term)}”</b><p>片段：${escapeHtml(hit.excerpt)}</p><small>${escapeHtml(hit.message)}<br />规则：${escapeHtml(hit.rule)}</small></div></div>`).join("")}</div>`;
-  if (needsScan) result = '<div class="empty-state" style="min-height:180px"><div><span data-icon="refresh"></span><h3>' + (riskStatus === "stale" ? "正文已变化" : scan ? "规则已变化" : "尚无可追溯检测明细") + '</h3><p>请重新检测当前文章版本，再进入审核与发布。</p></div></div>';
+  if (needsScan) result = '<div class="empty-state compact"><div><span data-icon="refresh"></span><h3>' + (riskStatus === "stale" ? "正文已变化" : scan ? "规则已变化" : "尚无可追溯检测明细") + '</h3><p>请重新检测当前文章版本，再进入审核与发布。</p></div></div>';
   const counts = scan?.ruleCounts || Object.fromEntries(["adLaw", "sensitive", "banned"].map((type) => [type, riskRuleEntries(type).length]));
   const canRunRisk = currentUserCan("content.generate") || currentUserCan("content.review");
   return modalChrome(`
@@ -15014,7 +15047,7 @@ function saveWritingAgent(agentId) {
       return showToast("配置没有变化", "智能体仍保持 v" + existing.version + "，未创建无意义的新版本。");
     }
     existing.changeLog = Array.isArray(existing.changeLog) ? existing.changeLog : [];
-    existing.changeLog.unshift(createWritingAgentSnapshot(existing, { modelName: state.settings.model, selectedBy: "王宁", selectionSource: "version_history" }));
+    existing.changeLog.unshift(createWritingAgentSnapshot(existing, { modelName: state.settings.model, selectedBy: currentUserName() || "系统管理员", selectionSource: "version_history" }));
     Object.assign(existing, payload, { version: (Number(existing.version) || 1) + 1, updatedAt: Date.now() });
     saveState();
     closeModal();
@@ -15022,7 +15055,7 @@ function saveWritingAgent(agentId) {
     return showToast("智能体已更新", "「" + existing.name + "」已发布 v" + existing.version + "；历史计划和文章继续使用旧快照。");
   }
   const colors = ["blue", "teal", "amber", "violet", "rose"];
-  const agent = { id: uid("WA"), ...payload, color: colors[(state.writingAgents || []).length % colors.length], builtIn: false, status: "active", version: 1, usageCount: 0, changeLog: [], createdBy: "王宁", createdAt: Date.now(), updatedAt: Date.now() };
+  const agent = { id: uid("WA"), ...payload, color: colors[(state.writingAgents || []).length % colors.length], builtIn: false, status: "active", version: 1, usageCount: 0, changeLog: [], createdBy: currentUserName() || "系统管理员", createdAt: Date.now(), updatedAt: Date.now() };
   state.writingAgents.unshift(agent);
   saveState();
   closeModal();
@@ -15169,7 +15202,7 @@ function archivePlanningQuestion(questionId) {
   question.archivedFromStatus = question.status || "active";
   question.status = "archived";
   question.archivedAt = Date.now();
-  question.archivedBy = "王宁";
+  question.archivedBy = currentUserName() || "系统管理员";
   question.archivedReason = "运营人员归档";
   question.selected = false;
   saveState();
@@ -15183,7 +15216,7 @@ function archivePlanningTopic(topicId) {
   topic.archivedFromStatus = topic.status || "active";
   topic.status = "archived";
   topic.archivedAt = Date.now();
-  topic.archivedBy = "王宁";
+  topic.archivedBy = currentUserName() || "系统管理员";
   topic.archivedReason = "运营人员归档";
   topic.selected = false;
   saveState();
@@ -15456,7 +15489,7 @@ async function submitContentPlan() {
   const excludedBaseIds = inheritedBaseIds.filter((id) => !resolvedBaseIds.includes(id));
   const now = Date.now();
   const agentSnapshot = snapshotWritingAgent(agent, { selectedAt: new Date(now).toISOString(), selectionSource: agent.id === line.defaultWritingAgentId ? "business_default" : "manual" });
-  const plan = { id: uid("PLAN"), name, businessLineId: line.id, topicIds: selected.map((topic) => topic.id), topicSnapshots: selected.map((topic) => cloneData(topic)), scheduledFor: date, owner: document.getElementById("content-plan-owner")?.value || "王宁", contentType, status: "planned", articleIds: [], writingAgentId: agent.id, writingAgentVersion: agentSnapshot.version, writingAgentSnapshot: agentSnapshot, writingHints: { expectedPlatformIds, expectedPlatformNames, expectedPlatformGuidance, purpose: "ai_writing_style_only", locksPublishing: false, snapshottedAt: now }, knowledgeBaseIds: resolvedBaseIds, knowledgeScope: { inheritedBaseIds, addedBaseIds, excludedBaseIds, resolvedBaseIds, snapshottedAt: now }, createdAt: now, updatedAt: now };
+  const plan = { id: uid("PLAN"), name, businessLineId: line.id, topicIds: selected.map((topic) => topic.id), topicSnapshots: selected.map((topic) => cloneData(topic)), scheduledFor: date, owner: document.getElementById("content-plan-owner")?.value || currentUserName() || "系统管理员", contentType, status: "planned", articleIds: [], writingAgentId: agent.id, writingAgentVersion: agentSnapshot.version, writingAgentSnapshot: agentSnapshot, writingHints: { expectedPlatformIds, expectedPlatformNames, expectedPlatformGuidance, purpose: "ai_writing_style_only", locksPublishing: false, snapshottedAt: now }, knowledgeBaseIds: resolvedBaseIds, knowledgeScope: { inheritedBaseIds, addedBaseIds, excludedBaseIds, resolvedBaseIds, snapshottedAt: now }, createdAt: now, updatedAt: now };
   try {
     await syncContentPlan(plan);
   } catch (error) {
@@ -16108,7 +16141,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   article.topicSnapshot = cloneData(topic);
   article.businessLineId = line.id;
   article.category = contentType;
-  article.author = "王宁 · AI 协作";
+      article.author = (currentUserName() || "系统管理员") + " · AI 协作";
   if (remoteGeneration) {
     applyRemoteArticleResult(article, remoteGeneration);
   }
@@ -16125,7 +16158,7 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
     article.knowledgeStatus = { state: "needs_review", evidenceCount: 0, supportedClaims: 0, conflictCount: 0, gapCount: 0, message: "手工正文尚未映射企业知识引用，需要在 AI 协作或企业知识核验后再审核。" };
     article.generationSnapshot = { ...(article.generationSnapshot || {}), sourceType: "manual_editor", citationIds: [], topicSnapshot: cloneData(topic), instruction: "用户直接编辑的正文，未继承模板事实引用。" };
     article.sourceType = "manual_editor";
-    article.author = "王宁 · 编辑";
+    article.author = (currentUserName() || "系统管理员") + " · 编辑";
   } else if (options.preserveDraft && (draftTitle || draftContent)) {
     article.title = draftTitle || article.title;
     if (draftContent) {
@@ -16140,10 +16173,10 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
       article.knowledgeStatus = { state: "needs_review", evidenceCount: 0, supportedClaims: 0, conflictCount: 0, gapCount: 0, message: "手工正文尚未映射企业知识引用，需要在 AI 协作或企业知识核验后再审核。" };
       article.generationSnapshot = { ...(article.generationSnapshot || {}), sourceType: "manual_editor", citationIds: [], topicSnapshot: cloneData(topic), instruction: "用户直接编辑的正文，未继承模板事实引用。" };
       article.sourceType = "quick_editor_draft";
-      article.author = "王宁 · 编辑";
+      article.author = (currentUserName() || "系统管理员") + " · 编辑";
     } else {
       article.sourceType = "quick_editor_title";
-      article.author = "王宁 · 编辑";
+      article.author = (currentUserName() || "系统管理员") + " · 编辑";
     }
   }
   article.keywords = [topic.keyword, "直接创作", line.name];
@@ -16242,7 +16275,7 @@ function approveArticleAsset(articleId, assetId) {
   if (!article || !asset || !(article.assetIds || []).includes(assetId)) return showToast("素材不存在", "请刷新文章后重试。", "error");
   asset.reviewStatus = "approved";
   asset.reviewedAt = new Date().toISOString();
-  asset.reviewedBy = "王宁";
+  asset.reviewedBy = currentUserName() || "系统管理员";
   asset.license = String(asset.license || "来源已确认").replace("待确认", "已确认");
   article.updatedAt = Date.now();
   addOperationLog("素材审核", `已确认文章《${article.title}》中的素材「${asset.name}」可用`);
@@ -16999,7 +17032,7 @@ function verifyPublishResult(taskId, platform) {
 
 function runDiagnostic(button) {
   button.disabled = true;
-  button.innerHTML = '<span class="loading-spinner" style="border-color:#9bb7ee;border-top-color:var(--blue)"></span>检测中';
+  button.innerHTML = '<span class="loading-spinner dark"></span>检测中';
   window.setTimeout(() => {
     state.site.lastDiagnostic = new Date().toLocaleString("zh-CN", { hour12: false });
     state.site.diagnosticStatus = "正常";
@@ -17696,8 +17729,7 @@ document.addEventListener("click", async (event) => {
     return navigate("knowledge");
   }
   if (action === "finish-onboarding") {
-    state.enterpriseProfile.completion = 100;
-    state.enterpriseProfile.steps.forEach((step) => { step.status = "complete"; });
+    state.enterpriseProfile.completion = enterpriseFactCompletion();
     saveState();
     closeModal();
     navigate("planning");
@@ -18492,6 +18524,20 @@ ${plainText(article.contentHtml || article.content || "")}`;
   if (action === "site-tab") {
     ui.siteTab = actionElement.dataset.tab;
     return render();
+  }
+  if (action === "site-section-jump") {
+    const sectionTargets = {
+      template: ".site-template-section",
+      footer: ".site-footer-management-grid",
+      navigation: ".site-navigation-grid",
+      public: ".site-theme-card"
+    };
+    const section = document.querySelector(sectionTargets[actionElement.dataset.section] || "");
+    if (section) {
+      const top = window.scrollY + section.getBoundingClientRect().top - 82;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }
+    return;
   }
   if (action === "site-select-template") return selectSiteTemplate(actionElement.dataset.templateKey);
   if (action === "site-page") {

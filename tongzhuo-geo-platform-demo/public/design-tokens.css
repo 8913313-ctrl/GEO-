@@ -173,8 +173,6 @@ body,
 #view .effect-task-row small,
 #view .effect-task-row em,
 #view .effect-monitor-run-list article,
-#view .diagnostic-tab,
-#view .diagnostic-tab small,
 #view .diagnostic-range-control,
 #view .diagnostic-range-control small,
 #view .diagnostic-package-badge,
@@ -207,8 +205,6 @@ body,
 #view .monitoring-realtime-breakdown span,
 #view .monitoring-realtime-breakdown em,
 #view .monitoring-realtime-breakdown i,
-#view .diagnostic-tab em,
-#view .diagnostic-tab i,
 #view .diagnostic-package-badge em,
 #view .diagnostic-hero em {
   font-size: 12px !important;
@@ -322,20 +318,19 @@ body,
 
 .primary-button {
   color: #fff;
-  border: 1px solid transparent;
-  background: linear-gradient(100deg, #7442ed 0%, #9a75ff 100%);
-  box-shadow: 0 9px 18px rgba(112, 65, 237, .2);
+  border: 0;
+  background: var(--blue);
+  box-shadow: 0 2px 6px rgba(184, 68, 47, .22);
 }
-.primary-button:hover { filter: brightness(1.05); transform: translateY(-1px); }
-.primary-button:active { transform: translateY(0); }
+.primary-button:hover { filter: brightness(1.05); box-shadow: 0 3px 10px rgba(184, 68, 47, .28); }
 .primary-button:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .secondary-button {
-  color: var(--blue);
-  border: 1px solid #ddd3ff;
-  background: #f8f5ff;
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  background: #fff;
 }
-.secondary-button:hover { color: var(--blue-hover); border-color: #c9b8ff; background: #f2edff; }
+.secondary-button:hover { color: var(--ink); border-color: #c4beb2; background: var(--panel-soft); }
 .secondary-button:disabled { opacity: .55; cursor: not-allowed; }
 
 .soft-button {
@@ -343,7 +338,7 @@ body,
   border: 1px solid var(--line);
   background: #fff;
 }
-.soft-button:hover { color: var(--blue); border-color: #cfc2ff; background: #f7f5ff; }
+.soft-button:hover { color: var(--blue); border-color: var(--line-strong); background: var(--panel-soft); }
 
 .ghost-button {
   color: var(--blue);
@@ -417,20 +412,16 @@ body,
   box-shadow: var(--shadow-sm);
 }
 #view .card:hover { box-shadow: var(--shadow-md); }
-#view .card-header {
-  min-height: 60px;
-  padding: 0 22px;
-  border-bottom: 1px solid var(--line);
+#view .keyword-foundation-grid > .card .card-header {
+  padding-left: 62px;
 }
 #view .card-header h3 { color: var(--ink-strong); font-size: 15px; font-weight: 700; }
 #view .card-header p { color: var(--muted); font-size: 12px; }
 
 /* ============ 6. 输入框统一 ============ */
 #view .input,
-#view .select,
 #view .textarea,
 #view .field input,
-#view .field select,
 #view .field textarea {
   min-height: 40px;
   padding: 8px 12px;
@@ -442,14 +433,12 @@ body,
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 #view .input:focus,
-#view .select:focus,
 #view .textarea:focus,
 #view .field input:focus,
-#view .field select:focus,
 #view .field textarea:focus {
   outline: none;
   border-color: var(--blue);
-  box-shadow: 0 0 0 3px rgba(124, 77, 255, .14);
+  box-shadow: 0 0 0 3px rgba(184, 68, 47, .12);
 }
 #view .input.input-error,
 #view .field input.input-error {
@@ -458,6 +447,59 @@ body,
 }
 #view .input::placeholder,
 #view .field input::placeholder { color: var(--muted-2); }
+
+/* Monitoring's suggestion selector is an explicitly compact control. Keep
+   its 30px geometry after the shared 40px form primitive without changing
+   the shared input/select/textarea contract. */
+#view .monitoring-suggestion-control .select {
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+}
+
+/* Shared form primitives: compact checkboxes remain compact; radios stay circular
+   even when legacy markup carries the checkbox helper class. */
+#view .checkbox,
+#modal-root .checkbox {
+  width: 17px;
+  height: 17px;
+  border-color: var(--line-strong);
+  border-radius: 5px;
+}
+#view .keyword-chip > .checkbox { width: 15px; height: 15px; }
+#view input[type="radio"],
+#modal-root input[type="radio"] {
+  appearance: none;
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  flex: 0 0 17px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--panel);
+  cursor: pointer;
+}
+#view input[type="radio"]:checked,
+#modal-root input[type="radio"]:checked {
+  border-color: var(--blue);
+  background: radial-gradient(circle, var(--blue) 0 4px, var(--panel) 4.5px 100%);
+}
+#view input[type="checkbox"]:disabled,
+#view input[type="radio"]:disabled,
+#modal-root input[type="checkbox"]:disabled,
+#modal-root input[type="radio"]:disabled { cursor: not-allowed; opacity: .55; }
+
+/* Keyboard focus uses the same warm brand signal on every route. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid rgba(184, 68, 47, .2);
+  outline-offset: 2px;
+}
 
 /* ============ 7. 表格统一 ============ */
 #view .data-table {
@@ -481,7 +523,7 @@ body,
   color: var(--ink);
   vertical-align: middle;
 }
-#view .data-table tbody tr:hover td { background: #f8f6ff; }
+#view .data-table tbody tr:hover td { background: var(--panel-soft); }
 #view .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 
 /* ============ 8. 标签徽章统一 ============ */
@@ -499,15 +541,94 @@ body,
   white-space: nowrap;
 }
 #view .status-badge.status-approved,
-#view .status-badge.status-published { color: #12805e; background: var(--green-soft); }
+#view .status-badge.status-published,
+#view .status-badge.status-success,
+#view .status-badge.status-online { color: var(--green); background: var(--green-soft); }
+#view .status-badge.status-draft,
+#view .status-badge.status-archived { color: var(--muted); background: rgba(0, 0, 0, .055); }
 #view .status-badge.status-review,
-#view .status-badge.status-draft { color: #8a6414; background: var(--amber-soft); }
+#view .status-badge.status-pending,
+#view .status-badge.status-running,
+#view .status-badge.status-queued,
+#view .status-badge.status-publishing { color: var(--amber); background: var(--amber-soft); }
 #view .status-badge.status-error,
 #view .status-badge.status-failed,
-#view .status-badge.status-warning { color: #c24b39; background: var(--red-soft); }
-#view .status-badge.status-pending { color: #5f5bb0; background: var(--blue-soft); }
+#view .status-badge.status-warning,
+#view .status-badge.status-login { color: #c24b39; background: var(--red-soft); }
 #view .source-tag { color: var(--blue); background: var(--blue-soft); }
 #view .small-tag { color: var(--blue); background: var(--blue-soft); }
+
+/* Modal badges use the same semantic map as route content. */
+#modal-root .status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 620;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+#modal-root .status-badge.status-approved,
+#modal-root .status-badge.status-success,
+#modal-root .status-badge.status-online { color: var(--green); background: var(--green-soft); }
+#modal-root .status-badge.status-draft,
+#modal-root .status-badge.status-archived { color: var(--muted); background: rgba(0, 0, 0, .055); }
+#modal-root .status-badge.status-review,
+#modal-root .status-badge.status-pending,
+#modal-root .status-badge.status-running,
+#modal-root .status-badge.status-queued,
+#modal-root .status-badge.status-publishing { color: var(--amber); background: var(--amber-soft); }
+#modal-root .status-badge.status-error,
+#modal-root .status-badge.status-failed,
+#modal-root .status-badge.status-warning,
+#modal-root .status-badge.status-login { color: #c24b39; background: var(--red-soft); }
+
+/* Specialized editor controls are still inputs/textareas and share the same
+   warm keyboard and focus ring as the base form primitive. */
+#view .studio-title-input:focus,
+#view .studio-composer-input:focus,
+#view .studio-agent-select:focus,
+#view .analysis-follow-up textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(184, 68, 47, .12);
+}
+#view .studio-editor-body:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(184, 68, 47, .12);
+}
+#view .input:focus-visible,
+#view .select:focus-visible,
+#view .textarea:focus-visible,
+#view .field input:focus-visible,
+#view .field select:focus-visible,
+#view .field textarea:focus-visible,
+#view .effect-demo-input input:focus-visible,
+#view .effect-demo-input select:focus-visible,
+#view .effect-demo-input textarea:focus-visible {
+  outline: 3px solid rgba(184, 68, 47, .2);
+  outline-offset: 2px;
+}
+#modal-root .input:focus-visible,
+#modal-root .select:focus-visible,
+#modal-root .textarea:focus-visible,
+#modal-root .field input:focus-visible,
+#modal-root .field select:focus-visible,
+#modal-root .field textarea:focus-visible {
+  outline: 3px solid rgba(184, 68, 47, .2);
+  outline-offset: 2px;
+}
+#view .plan-platform-hints summary:focus-visible,
+#view .public-citation-setting input:focus-visible + i {
+  outline: 3px solid rgba(184, 68, 47, .2);
+  outline-offset: -3px;
+}
+.production-auth-card .production-password-toggle:focus-visible {
+  outline: 3px solid rgba(184, 68, 47, .2);
+  outline-offset: 2px;
+}
 
 /* ============ 9. 弹窗统一 ============ */
 .modal-backdrop {
@@ -591,8 +712,8 @@ body,
   width: 0;
   height: 2px;
   border-radius: 0 2px 2px 0;
-  background: linear-gradient(90deg, #7442ed, #9a75ff);
-  box-shadow: 0 1px 6px rgba(112, 65, 237, .45);
+  background: var(--blue);
+  box-shadow: 0 1px 6px rgba(184, 68, 47, .32);
   transition: width .3s ease;
 }
 
@@ -840,19 +961,8 @@ body { background: var(--bg) !important; }
 /* 按钮：纯色枫叶红主按钮 / 白底灰边次按钮 */
 .primary-button {
   background: var(--blue);
-  border-color: var(--blue);
-  box-shadow: none;
 }
-.primary-button:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
-.route-dashboard .page-actions .primary-button,
-.page-actions .primary-button { background: var(--blue); box-shadow: none; border-radius: var(--radius-sm); }
-.route-dashboard .page-actions .primary-button:hover,
-.page-actions .primary-button:hover { background: var(--blue-hover); }
-.secondary-button { background: #fff; border-color: var(--line-strong); color: var(--ink); }
-.secondary-button:hover { border-color: #c4beb2; background: var(--panel-soft); }
-.ghost-button,
-.soft-button { background: #fff; border-color: var(--line); color: var(--ink); }
-.danger-button { color: var(--red); border-color: rgba(194, 69, 56, .35); background: var(--red-soft); }
+.primary-button:hover { background: var(--blue-hover); }
 .link-button { color: var(--blue); font-size: 12.5px; }
 .danger-link { color: var(--red); }
 
@@ -901,7 +1011,6 @@ body { background: var(--bg) !important; }
 
 /* 表单 */
 .input,
-.select,
 .textarea {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
@@ -911,7 +1020,6 @@ body { background: var(--bg) !important; }
   box-shadow: none;
 }
 .input:focus,
-.select:focus,
 .textarea:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(184, 68, 47, .12);
@@ -944,26 +1052,9 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 
 /* 空状态收窄 */
 .empty-state { min-height: 150px; padding: 26px; }
-.empty-state span { width: 40px; height: 40px; border-radius: 10px; background: #f3f4f6; color: #8a8378; }
+.empty-state > div > span { width: 40px; height: 40px; border-radius: 10px; background: #f3f4f6; color: #8a8378; }
 .empty-state h3 { color: var(--ink-strong); font-size: 14px; }
 .empty-state p { color: var(--muted); font-size: 12px; }
-
-/* Tab 栏 */
-.tabs { border-bottom: 1px solid var(--line); }
-.tab-button,
-.content-tab {
-  border-radius: 7px 7px 0 0;
-  color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 550;
-}
-.tab-button.active,
-.content-tab.active {
-  color: var(--ink-strong);
-  font-weight: 650;
-  background: transparent;
-  box-shadow: inset 0 -2px 0 var(--blue);
-}
 
 /* 弹窗：无 blur、白底细边 */
 .modal-backdrop { background: rgba(23, 19, 13, .38); backdrop-filter: none; }
@@ -1194,12 +1285,12 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
   width: 30px; height: 30px;
   border: 0;
   border-radius: 7px;
-  background: linear-gradient(135deg, #c9573f, #a03a26);
-  color: #fff;
-  font-size: 11.5px;
-  font-weight: 600;
-  box-shadow: 0 3px 10px rgba(184, 68, 47, .28);
-  cursor: pointer;
+   background: linear-gradient(135deg, #c9573f, #a03a26);
+   color: #fff;
+   font-size: 11.5px;
+   font-weight: 600;
+   box-shadow: 0 2px 8px rgba(160, 58, 38, .25);
+   cursor: pointer;
 }
 .menu-button { display: none; }
 @media (max-width: 900px) {
@@ -1541,7 +1632,7 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 
 /* ============ 23. 侧边栏 demo 版（完整移植） ============ */
 .sidebar {
-  width: 212px;
+  width: var(--sidebar-width);
   padding: 20px 10px 14px;
   background: transparent;
   border-right: 1px solid var(--line);
@@ -1908,7 +1999,7 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 .step b { line-height: 1.2; }
 .task { line-height: 1.2; }
 #view .data-table th { line-height: 1.4; }
-#view .data-table tbody td { line-height: 1.3; color: #b8b3a6; }
+#view .data-table tbody td { line-height: 1.3; color: var(--ink); }
 #view .data-table td b { line-height: 1.3; color: #221d18; }
 .nav-promo b { line-height: 1.4; }
 .nav-promo p { line-height: 1.5; }
@@ -1922,7 +2013,7 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 
 /* 徽章对齐 demo（11px 圆角胶囊） */
 #view .status-badge {
-  font-size: 11px !important;
+  font-size: 12px;
   font-weight: 550;
   padding: 2px 9px;
   min-height: 0;
@@ -1941,22 +2032,6 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 .topbar-btn { padding: 7px 13px; }
 
 /* ============ 25. 选题中心等功能页细节修复（2026-08-20） ============ */
-
-/* 页签容器：去旧主题蓝灰底 #eef2f7，改透明+底部细线 */
-.tabs {
-  background: transparent;
-  border-color: var(--line);
-  border-radius: 0;
-  padding: 0;
-  gap: 2px;
-}
-.tabs .tab-button { min-height: 38px; padding: 0 14px; }
-
-/* 页签激活态：底部枫叶红指示线（原为顶部，方向反了） */
-.topic-center-tabs .tab-button.active,
-.tabs .tab-button.active {
-  box-shadow: inset 0 2px 0 var(--blue);
-}
 
 /* 关键词分类页签（全部结果/语义拓展…）：去旧蓝色边框，改枫叶红 */
 .category-tab.active {
@@ -2001,4 +2076,37 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
   border-color: rgba(184, 68, 47, .28);
   color: var(--blue);
   background: rgba(184, 68, 47, .08);
+}
+
+/* 新建发布批次：账号组 / 文章间隔 / 发布方式 三控件等高对齐 */
+#view .publish-config-grid {
+  align-items: stretch;
+}
+#view .publish-config-grid .field .select,
+#view .publish-config-grid .field .input {
+  min-height: 64px;
+  height: auto;
+}
+#view .publish-mode-picker {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+#view .publish-mode-options {
+  margin-top: 6px;
+}
+#view .publish-mode-option {
+  min-height: 64px;
+}
+
+/* 发布平台卡片：已有任务的文章数提示（琥珀色，不阻断选择） */
+#view .publish-platform-skip-note {
+  color: var(--amber, #b45309);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* 搜索框（compact-search）：图标预留左侧空间，文字不与图标重叠 */
+#view .compact-search .input {
+  padding-left: 31px;
 }
