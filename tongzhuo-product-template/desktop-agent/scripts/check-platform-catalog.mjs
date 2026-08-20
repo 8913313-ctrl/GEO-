@@ -1,4 +1,4 @@
-import { directPublishPlatformIds, executablePlatformIds, hiddenPlatformIds, platforms, readyPlatformIds, runnablePlatformIds } from '../src/platforms.js';
+import { directPublishPlatformIds, executablePlatformIds, hiddenPlatformIds, platforms, readyPlatformIds, runnablePlatformIds, visiblePlatforms } from '../src/platforms.js';
 
 const expectedPlatformIds = [
   'wechat_mp',
@@ -36,7 +36,7 @@ const ids = platforms.map((platform) => platform.id);
 const missing = expectedPlatformIds.filter((id) => !ids.includes(id));
 const duplicated = ids.filter((id, index) => ids.indexOf(id) !== index);
 const unexpected = ids.filter((id) => !expectedPlatformIds.includes(id));
-const assistedPlatformIds = [
+const automatedPlatformIds = [
   'baijiahao',
   'xiaohongshu',
   'weibo',
@@ -62,7 +62,7 @@ const assistedPlatformIds = [
   'smzdm',
   'netease',
 ];
-const connectedPlatformIds = ['wechat_mp', 'zhihu', 'toutiao', ...assistedPlatformIds];
+const connectedPlatformIds = ['wechat_mp', 'zhihu', 'toutiao', ...automatedPlatformIds];
 const expectedRemotePlatformCount = expectedPlatformIds.length - 2;
 const wrongCatalogSize = ids.length !== expectedPlatformIds.length || executablePlatformIds.length !== expectedRemotePlatformCount;
 const invalidHiddenPlatforms = hiddenPlatformIds.length === 1 && hiddenPlatformIds[0] === 'x'
@@ -91,14 +91,19 @@ const incorrectlyPromoted = plannedIds.filter((id) => {
   const platform = platforms.find((item) => item.id === id);
   return platform?.support !== 'planned' || platform?.execution?.mode !== 'planned';
 });
-const missingAssistedMetadata = assistedPlatformIds.filter((id) => {
+const missingAutomatedMetadata = automatedPlatformIds.filter((id) => {
   const platform = platforms.find((item) => item.id === id);
-  return platform?.support !== 'ready' || platform?.execution?.mode !== 'assisted' || platform?.execution?.autoSubmit !== false;
+  return platform?.support !== 'ready' || platform?.execution?.mode !== 'automated' || platform?.execution?.autoSubmit !== true;
 });
-const expectedDirectPublishIds = ['wechat_mp', 'zhihu', 'toutiao'];
+// Every catalog platform is now fully automated; assisted mode is reserved for
+// future platforms and must never reappear in the customer-visible catalog.
+const remainingAssistedPlatforms = visiblePlatforms
+  .filter((platform) => platform.execution?.mode === 'assisted')
+  .map((platform) => platform.id);
+const expectedDirectPublishIds = connectedPlatformIds;
 const missingDirectPublish = expectedDirectPublishIds.filter((id) => !directPublishPlatformIds.includes(id));
 const unexpectedDirectPublish = directPublishPlatformIds.filter((id) => !expectedDirectPublishIds.includes(id));
-const unexpectedAssistedAutoSubmit = assistedPlatformIds.filter((id) => {
+const unexpectedAssistedAutoSubmit = remainingAssistedPlatforms.filter((id) => {
   const platform = platforms.find((item) => item.id === id);
   return platform?.execution?.autoSubmit === true;
 });
@@ -110,9 +115,9 @@ const missingSessionSignals = connectedPlatformIds.filter((id) => {
 
 if (missing.length || unexpected.length || duplicated.length || wrongCatalogSize || invalidRemoteEndpoints.length
   || readyMissing.length || executableMissing.length || unexpectedExecutable.length || missingRunnable.length
-  || incorrectlyPromoted.length || missingAssistedMetadata.length || missingDirectPublish.length
-  || unexpectedDirectPublish.length || unexpectedAssistedAutoSubmit.length || missingSessionSignals.length
-  || invalidHiddenPlatforms.length) {
+  || incorrectlyPromoted.length || missingAutomatedMetadata.length || missingDirectPublish.length
+  || unexpectedDirectPublish.length || unexpectedAssistedAutoSubmit.length || remainingAssistedPlatforms.length
+  || missingSessionSignals.length || invalidHiddenPlatforms.length) {
   console.error({
     missing,
     unexpected,
@@ -124,10 +129,11 @@ if (missing.length || unexpected.length || duplicated.length || wrongCatalogSize
     unexpectedExecutable,
     missingRunnable,
     incorrectlyPromoted,
-    missingAssistedMetadata,
+    missingAutomatedMetadata,
     missingDirectPublish,
     unexpectedDirectPublish,
     unexpectedAssistedAutoSubmit,
+    remainingAssistedPlatforms,
     missingSessionSignals,
     invalidHiddenPlatforms,
   });

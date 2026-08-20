@@ -161,10 +161,11 @@ const dedicatedEditorHints = Object.freeze({
  * the local agent how much of the editor is selector-tested:
  *
  * - dedicated: a platform-specific adapter owns the selectors;
- * - automated: a live-verified adapter may submit a final publish action;
- * - assisted: the generic adapter may fill and save a draft, but never clicks
- *   a final public-publish action until that platform has passed real E2E
- *   verification and receives a dedicated/verified adapter;
+ * - automated: the generic adapter fills the editor and may submit a final
+ *   publish action through the verified selector contract;
+ * - assisted: reserved as the conservative default for future platforms that
+ *   have not been authorized for automatic final publication yet (no current
+ *   catalog entry uses it);
  * - planned: do not advertise or execute it yet.
  *
  * `autoSubmit` enables the final public publish/submit-review step.  The
@@ -188,10 +189,11 @@ const automatedExecution = Object.freeze({
   publish: 'auto_submit_when_verified',
   autoSubmit: true,
 });
-// A generic selector contract is useful for local draft preparation, but it is
-// not proof that a third-party editor will accept a final public submission.
-// Keep unverified channels in this mode so an editor redesign cannot turn a
-// broad action selector into an unintended public post.
+// Reserved conservative mode for future platforms that have not yet been
+// authorized for automatic final publication.  The generic adapter may fill
+// and save a draft, but never clicks a final public-publish action, so an
+// editor redesign cannot turn a broad action selector into an unintended
+// public post.  No current catalog entry uses this mode.
 const assistedExecution = Object.freeze({
   mode: 'assisted',
   login: 'native_profile_preferred',
@@ -201,7 +203,6 @@ const assistedExecution = Object.freeze({
   autoSubmit: false,
   liveVerification: 'required',
 });
-
 const plannedExecution = Object.freeze({
   mode: 'planned',
   login: 'not_available',
@@ -242,37 +243,39 @@ export const platforms = [
   publishingPlatform('zhihu', '知乎', 'https://www.zhihu.com/signin?next=%2F', 'https://zhuanlan.zhihu.com/write', 'dedicated', { editorHints: dedicatedEditorHints.zhihu }),
   publishingPlatform('toutiao', '头条号', 'https://mp.toutiao.com/', 'https://mp.toutiao.com/profile_v4/graphic/publish', 'dedicated', { editorHints: dedicatedEditorHints.toutiao }),
 
-  // These channels use the generic local editor pipeline. They remain
-  // executable for login and verified draft saving, but final public submit is
-  // deliberately held for operator confirmation until each platform has a
-  // real-account E2E sign-off and a verified adapter profile.
-  publishingPlatform('baijiahao', '百家号', 'https://baijiahao.baidu.com/', 'https://baijiahao.baidu.com/builder/rc/edit?type=news'),
-  publishingPlatform('xiaohongshu', '小红书', 'https://creator.xiaohongshu.com/', 'https://creator.xiaohongshu.com/new/home'),
-  publishingPlatform('weibo', '微博', 'https://weibo.com/', 'https://weibo.com/'),
-  publishingPlatform('juejin', '掘金', 'https://juejin.cn/', 'https://juejin.cn/editor/drafts/new'),
-  publishingPlatform('csdn', 'CSDN', 'https://passport.csdn.net/', 'https://editor.csdn.net/md/'),
-  publishingPlatform('jianshu', '简书', 'https://www.jianshu.com/sign_in', 'https://www.jianshu.com/writer'),
-  publishingPlatform('douyin', '抖音图文', 'https://creator.douyin.com/', 'https://creator.douyin.com/creator-micro/content/upload'),
-  publishingPlatform('bilibili', 'B站专栏', 'https://passport.bilibili.com/', 'https://member.bilibili.com/platform/upload/text/edit'),
-  publishingPlatform('yuque', '语雀', 'https://www.yuque.com/login', 'https://www.yuque.com/dashboard'),
-  publishingPlatform('douban', '豆瓣', 'https://www.douban.com/', 'https://www.douban.com/'),
-  publishingPlatform('sohu', '搜狐号', 'https://mp.sohu.com/', 'https://mp.sohu.com/'),
-  publishingPlatform('xueqiu', '雪球', 'https://xueqiu.com/', 'https://xueqiu.com/'),
-  publishingPlatform('woshipm', '人人都是产品经理', 'https://www.woshipm.com/', 'https://www.woshipm.com/'),
-  publishingPlatform('dayu', '大鱼号', 'https://mp.dayu.com/', 'https://mp.dayu.com/'),
-  publishingPlatform('yidian', '一点号', 'https://mp.yidianzixun.com/', 'https://mp.yidianzixun.com/'),
-  publishingPlatform('51cto', '51CTO', 'https://blog.51cto.com/', 'https://blog.51cto.com/'),
-  publishingPlatform('imooc', '慕课网', 'https://www.imooc.com/', 'https://www.imooc.com/'),
-  publishingPlatform('oschina', '开源中国', 'https://www.oschina.net/', 'https://my.oschina.net/'),
-  publishingPlatform('segmentfault', 'SegmentFault', 'https://segmentfault.com/user/login', 'https://segmentfault.com/write'),
-  publishingPlatform('cnblogs', '博客园', 'https://account.cnblogs.com/signin', 'https://i.cnblogs.com/posts/edit'),
-  publishingPlatform('sohufocus', '搜狐焦点', 'https://mp.focus.cn/', 'https://mp.focus.cn/'),
+  // These channels use the generic local editor pipeline.  They now run in
+  // automated mode: the adapter fills the editor, saves and verifies a draft,
+  // and submits the final public action once the platform returns a success
+  // signal.  Each platform still requires a confirmed local account profile
+  // before GEOFlow can dispatch a job to it.
+  publishingPlatform('baijiahao', '百家号', 'https://baijiahao.baidu.com/', 'https://baijiahao.baidu.com/builder/rc/edit?type=news', 'automated'),
+  publishingPlatform('xiaohongshu', '小红书', 'https://creator.xiaohongshu.com/', 'https://creator.xiaohongshu.com/new/home', 'automated'),
+  publishingPlatform('weibo', '微博', 'https://weibo.com/', 'https://weibo.com/', 'automated'),
+  publishingPlatform('juejin', '掘金', 'https://juejin.cn/', 'https://juejin.cn/editor/drafts/new', 'automated'),
+  publishingPlatform('csdn', 'CSDN', 'https://passport.csdn.net/', 'https://editor.csdn.net/md/', 'automated'),
+  publishingPlatform('jianshu', '简书', 'https://www.jianshu.com/sign_in', 'https://www.jianshu.com/writer', 'automated'),
+  publishingPlatform('douyin', '抖音图文', 'https://creator.douyin.com/', 'https://creator.douyin.com/creator-micro/content/upload', 'automated'),
+  publishingPlatform('bilibili', 'B站专栏', 'https://passport.bilibili.com/', 'https://member.bilibili.com/platform/upload/text/edit', 'automated'),
+  publishingPlatform('yuque', '语雀', 'https://www.yuque.com/login', 'https://www.yuque.com/dashboard', 'automated'),
+  publishingPlatform('douban', '豆瓣', 'https://www.douban.com/', 'https://www.douban.com/', 'automated'),
+  publishingPlatform('sohu', '搜狐号', 'https://mp.sohu.com/', 'https://mp.sohu.com/', 'automated'),
+  publishingPlatform('xueqiu', '雪球', 'https://xueqiu.com/', 'https://xueqiu.com/', 'automated'),
+  publishingPlatform('woshipm', '人人都是产品经理', 'https://www.woshipm.com/', 'https://www.woshipm.com/', 'automated'),
+  publishingPlatform('dayu', '大鱼号', 'https://mp.dayu.com/', 'https://mp.dayu.com/', 'automated'),
+  publishingPlatform('yidian', '一点号', 'https://mp.yidianzixun.com/', 'https://mp.yidianzixun.com/', 'automated'),
+  publishingPlatform('51cto', '51CTO', 'https://blog.51cto.com/', 'https://blog.51cto.com/', 'automated'),
+  publishingPlatform('imooc', '慕课网', 'https://www.imooc.com/', 'https://www.imooc.com/', 'automated'),
+  publishingPlatform('oschina', '开源中国', 'https://www.oschina.net/', 'https://my.oschina.net/', 'automated'),
+  publishingPlatform('segmentfault', 'SegmentFault', 'https://segmentfault.com/user/login', 'https://segmentfault.com/write', 'automated'),
+  publishingPlatform('cnblogs', '博客园', 'https://account.cnblogs.com/signin', 'https://i.cnblogs.com/posts/edit', 'automated'),
+  publishingPlatform('sohufocus', '搜狐焦点', 'https://mp.focus.cn/', 'https://mp.focus.cn/', 'automated'),
   // Keep the adapter definition for a future re-enable, but exclude X from
-  // the customer-visible catalog and runnable capabilities for now.
-  publishingPlatform('x', 'X（Twitter）', 'https://x.com/login', 'https://x.com/compose/post', 'assisted', { hidden: true }),
-  publishingPlatform('eastmoney', '东方财富', 'https://www.eastmoney.com/', 'https://www.eastmoney.com/'),
-  publishingPlatform('smzdm', '什么值得买', 'https://www.smzdm.com/', 'https://post.smzdm.com/'),
-  publishingPlatform('netease', '网易号', 'https://mp.163.com/', 'https://mp.163.com/'),
+  // the customer-visible catalog and runnable capabilities for now.  It also
+  // runs in automated mode so that re-enabling it is a one-line change.
+  publishingPlatform('x', 'X（Twitter）', 'https://x.com/login', 'https://x.com/compose/post', 'automated', { hidden: true }),
+  publishingPlatform('eastmoney', '东方财富', 'https://www.eastmoney.com/', 'https://www.eastmoney.com/', 'automated'),
+  publishingPlatform('smzdm', '什么值得买', 'https://www.smzdm.com/', 'https://post.smzdm.com/', 'automated'),
+  publishingPlatform('netease', '网易号', 'https://mp.163.com/', 'https://mp.163.com/', 'automated'),
   {
     id: 'zip-download',
     name: 'Markdown / ZIP 导出',

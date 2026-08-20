@@ -54,7 +54,8 @@ assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 
 assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, publish_mode: 'DIRECT' }), true);
 assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, manual_confirmation: true }), false);
 assert.equal(scheduler.allowsFinalSubmit('zhihu', { ...directJob, platform: { supports_direct_publish: false } }), false);
-assert.equal(scheduler.allowsFinalSubmit('baijiahao', directJob), false, 'an unverified local adapter must never final-submit');
+assert.equal(scheduler.allowsFinalSubmit('baijiahao', directJob), true, 'a locally automated adapter may final-submit when the task contract agrees');
+assert.equal(scheduler.allowsFinalSubmit('unlisted_platform', directJob), false, 'a platform outside the local autoSubmit allowlist must never final-submit');
 
 const perPlatformDirectJob = {
   // Platform-level contracts are authoritative over conservative task fields.
@@ -64,20 +65,19 @@ const perPlatformDirectJob = {
     { id: 'zhihu', publish_mode: 'direct', manual_confirmation: false, supports_direct_publish: true },
     { id: 'wechat_mp', publish_mode: 'direct', manual_confirmation: false, supports_direct_publish: true },
     { id: 'toutiao', publish_mode: 'direct', manual_confirmation: false, supports_direct_publish: true },
-    // A backend capability mistake must never override the local adapter gate.
+    // A backend capability mistake must never override the local adapter gate,
+    // but every catalog platform now carries the local automated contract.
     { id: 'baijiahao', publish_mode: 'direct', manual_confirmation: false, supports_direct_publish: true },
   ],
   payload: { article: { title: 'per-platform mode safety', text: 'body' } },
 };
-for (const platformId of ['zhihu', 'wechat_mp', 'toutiao']) {
+for (const platformId of ['zhihu', 'wechat_mp', 'toutiao', 'baijiahao']) {
   assert.equal(
     scheduler.allowsFinalSubmit(platformId, perPlatformDirectJob),
     true,
     `${platformId} per-platform direct contract should allow final submit`,
   );
 }
-assert.equal(scheduler.allowsFinalSubmit('baijiahao', perPlatformDirectJob), false,
-  'baijiahao must remain draft-only even when backend reports direct capability');
 assert.equal(scheduler.allowsFinalSubmit('unlisted_platform', perPlatformDirectJob), false,
   'a platform outside the local autoSubmit allowlist must never final-submit');
 
@@ -119,7 +119,7 @@ for (const platformId of ['zhihu', 'wechat_mp', 'toutiao', 'baijiahao']) {
 }
 assert.deepEqual(
   perPlatformSubmitOptions,
-  [['zhihu', true], ['wechat_mp', true], ['toutiao', true], ['baijiahao', false]],
+  [['zhihu', true], ['wechat_mp', true], ['toutiao', true], ['baijiahao', true]],
   'runPlatformWithRetry must enforce local autoSubmit for each platform detail',
 );
 
