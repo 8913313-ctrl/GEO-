@@ -674,9 +674,9 @@ textarea:focus-visible {
   text-align: center;
 }
 #view .empty-state h3,
-#view .empty-copy h3 { color: var(--ink); font-size: 15px; margin-bottom: 6px; }
+#view .empty-copy h3 { color: var(--ink); font-size: 15px; margin-bottom: 8px; }
 #view .empty-state p,
-#view .empty-copy p { font-size: 12px; color: var(--muted); }
+#view .empty-copy p { font-size: 12px; color: var(--muted); line-height: 1.6; }
 
 /* ============ 11. 加载态 ============ */
 .skeleton {
@@ -735,7 +735,9 @@ textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 14px 20px;
-  margin-bottom: 20px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
 }
 
 /* planning 分类页签：防止文字挤压溢出 */
@@ -752,7 +754,7 @@ textarea:focus-visible {
   flex-shrink: 0;
 }
 #view .page-head h2 { color: var(--ink-strong); font-size: 26px; font-weight: 620; letter-spacing: -.6px; line-height: 1.3; }
-#view .page-head p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+#view .page-head p { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.65; }
 #view .page-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* ============ 14. 移动端断点（统一 3 档） ============ */
@@ -1363,8 +1365,8 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
   font-size: 25px;
   font-weight: 640;
   color: var(--ink-strong);
-  margin: 7px 0 2px;
-  line-height: 1;
+  margin: 8px 0 4px;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
   letter-spacing: -.03em;
 }
@@ -1401,7 +1403,7 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 }
 .flow-step:hover { border-color: var(--line-strong); }
 .flow-step .n { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 10px; color: var(--muted-2); }
-.flow-step .t { font-size: 12.5px; font-weight: 550; color: var(--ink); margin: 6px 0 2px; }
+.flow-step .t { font-size: 12.5px; font-weight: 550; color: var(--ink); margin: 6px 0 4px; }
 .flow-step .m { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 10.5px; color: var(--muted-2); }
 .flow-step.active {
   background: linear-gradient(135deg, rgba(184, 68, 47, .07), rgba(184, 68, 47, .02));
@@ -1436,7 +1438,7 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
   box-shadow: 0 0 6px rgba(46, 138, 84, .7);
   animation: tz-pulse 1.5s ease-in-out infinite;
 }
-.card-sub { font-size: 11.5px; color: var(--muted-2); margin-top: 2px; }
+.card-sub { font-size: 11.5px; color: var(--muted-2); margin-top: 6px; line-height: 1.6; }
 .card-tag {
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 10px;
@@ -1458,9 +1460,9 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 
 /* 趋势折线 */
 .trend-chart { width: 100%; height: 64px; display: block; }
-.trend-chart .grid { stroke: rgba(0, 0, 0, .06); stroke-width: 1; }
-.trend-chart .line { fill: none; stroke: #b8442f; stroke-width: 1.6; stroke-linecap: round; }
-.trend-chart .area { stroke: none; fill: rgba(184, 68, 47, .1); }
+.trend-chart .grid { stroke: rgba(184, 68, 47, .1); stroke-width: 1; }
+.trend-chart .line { fill: none; stroke: #b8442f; stroke-width: 1.6; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(184, 68, 47, .4)); stroke-dasharray: 1; stroke-dashoffset: 1; animation: tz-draw-line 1.6s ease forwards .35s; }
+.trend-chart .area { stroke: none; fill: rgba(184, 68, 47, .12); }
 
 /* 待办列表 */
 .todo { padding: 4px 0; }
@@ -1486,7 +1488,7 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 }
 .todo-content { flex: 1; min-width: 0; }
 .todo-title { display: block; font-size: 13.5px; font-weight: 550; color: var(--ink); }
-.todo-sub { display: block; font-size: 11px; color: var(--muted-2); margin-top: 2px; }
+.todo-sub { display: block; font-size: 11px; color: var(--muted-2); margin-top: 4px; }
 .todo-meta { display: flex; align-items: center; gap: 8px; }
 .todo-tag {
   padding: 2px 6px;
@@ -1528,7 +1530,7 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
   color: var(--ink-strong);
 }
 .health-label { font-size: 13px; font-weight: 550; color: var(--ink); }
-.health-sub { font-size: 11px; color: var(--muted-2); margin-top: 2px; }
+.health-sub { font-size: 11px; color: var(--muted-2); margin-top: 4px; }
 .health-list { padding: 0 2px 12px; }
 .health-row {
   display: flex; align-items: center;
@@ -1598,9 +1600,9 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
   transition: all .12s;
 }
 .quick-action:hover { border-color: var(--line-strong); background: #f7f5ef; }
-.quick-action > span { color: var(--blue); margin-bottom: 2px; }
+.quick-action > span { color: var(--blue); margin-bottom: 6px; }
 .quick-action b { font-size: 12.5px; font-weight: 600; color: var(--ink); }
-.quick-action small { font-size: 10.5px; color: var(--muted-2); }
+.quick-action small { font-size: 11px; color: var(--muted-2); margin-top: 2px; }
 
 /* 表格细节 */
 .table-sub { font-size: 11px; color: var(--muted-2); }
@@ -1703,15 +1705,15 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 1px 0;
-  padding: 7px 10px;
+  margin: 2px 0;
+  padding: 8px 10px;
   border-radius: 7px;
   color: var(--nav-muted);
   font-size: 13px;
   font-weight: 450;
   text-decoration: none;
   position: relative;
-  min-height: 32px;
+  min-height: 34px;
   background: transparent;
   box-shadow: none;
   transition: background .12s, color .12s;
@@ -1888,15 +1890,15 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
   letter-spacing: .1em;
   color: #a89f91;
   opacity: 1;
-  margin-top: 1px;
+  margin-top: 3px;
 }
 
 /* 导航分组标签：demo 淡色 */
 .sidebar .nav-label { color: #a89f91; }
 
-/* 导航项：demo 31px 行高 */
-.sidebar .nav-item { min-height: 0; height: 31px; }
-.sidebar .nav-effect-items .nav-item { height: 30px; }
+/* 导航项：demo 34px 行高 */
+.sidebar .nav-item { min-height: 34px; height: 34px; }
+.sidebar .nav-effect-items .nav-item { height: 34px; }
 
 /* 激活态：demo 浅红底红字，无描边无竖条 */
 .sidebar .nav-item.active {
@@ -1910,8 +1912,8 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 /* promo：demo 尺寸、去阴影 */
 .sidebar .nav-promo { box-shadow: none; margin: 14px 4px 6px; }
 .sidebar .nav-promo b { font-size: 11.5px; }
-.sidebar .nav-promo p { font-size: 10px; margin: 3px 0 0; }
-.sidebar .nav-promo-go { font-size: 10.5px; line-height: 1.2; }
+.sidebar .nav-promo p { font-size: 11px; margin: 8px 0 0; line-height: 1.6; }
+.sidebar .nav-promo-go { font-size: 11px; line-height: 1.4; }
 
 /* 卡片：demo 纯白无阴影 */
 #view .card { background: #ffffff; box-shadow: none; }
@@ -1928,12 +1930,12 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 /* 表格：demo 透明细字表头 */
 #view .data-table thead th {
   background: transparent;
-  padding: 8px 12px;
-  font-size: 11px;
+  padding: 12px 16px;
+  font-size: 12px;
   font-weight: 600;
   color: #514c44;
 }
-#view .data-table tbody td { padding: 13px 12px; }
+#view .data-table tbody td { padding: 13px 16px; }
 #view .data-table tbody tr:hover td { background: transparent; }
 
 /* 双栏布局比例对齐 demo（1.55fr 1fr） */
@@ -1956,7 +1958,7 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 .step:hover { border-color: var(--line-strong); }
 .step .no { font-size: 11px; font-weight: 650; color: var(--blue); margin-bottom: 12px; letter-spacing: .05em; }
 .step b { display: block; font-size: 12.5px; font-weight: 580; color: var(--ink-strong); }
-.step small { display: block; margin-top: 3px; font-size: 11px; color: var(--muted-2); line-height: 1.5; }
+.step small { display: block; margin-top: 6px; font-size: 11px; color: var(--muted-2); line-height: 1.5; }
 
 /* demo 结构类：待办行 */
 .tasks { display: flex; flex-direction: column; }
@@ -1986,24 +1988,23 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 .health-ring .label { font-size: 20px; }
 .ring-legend { font-size: 11.5px; line-height: 1.8; color: var(--muted-2); }
 
-/* 行高对齐 demo（消除旧主题 1.55 行高导致的组件偏高） */
-#view .page-head { padding: 0; }
-#view .card h3 { line-height: 1.3; }
-#view .card .sub { line-height: 1.3; }
-#view .mini b { line-height: 1.3; }
-#view .mini span { line-height: 1.4; }
-.kpi-label { line-height: 1.3; }
-.kpi-desc { line-height: 1.3; }
-.kpi-foot { line-height: 1.2; color: #635d51; }
+/* 行高对齐 demo（消除旧主题 1.55 行高导致的组件偏高；保持最低 1.5 可读间距） */
+#view .card h3 { line-height: 1.5; }
+#view .card .sub { line-height: 1.5; }
+#view .mini b { line-height: 1.5; }
+#view .mini span { line-height: 1.5; }
+.kpi-label { line-height: 1.5; }
+.kpi-desc { line-height: 1.5; }
+.kpi-foot { line-height: 1.5; color: #635d51; }
 .step { color: var(--ink); }
-.step b { line-height: 1.2; }
-.task { line-height: 1.2; }
-#view .data-table th { line-height: 1.4; }
-#view .data-table tbody td { line-height: 1.3; color: var(--ink); }
-#view .data-table td b { line-height: 1.3; color: #221d18; }
-.nav-promo b { line-height: 1.4; }
-.nav-promo p { line-height: 1.5; }
-.step small { font-size: 10.5px; }
+.step b { line-height: 1.4; }
+.task { line-height: 1.4; }
+#view .data-table th { line-height: 1.5; }
+#view .data-table tbody td { line-height: 1.6; color: var(--ink); }
+#view .data-table td b { line-height: 1.5; color: #221d18; }
+.nav-promo b { line-height: 1.5; }
+.nav-promo p { line-height: 1.6; }
+.step small { font-size: 11px; }
 
 /* 深色文字统一 demo 色 #221d18 */
 #view .page-head h2 { color: #221d18; }

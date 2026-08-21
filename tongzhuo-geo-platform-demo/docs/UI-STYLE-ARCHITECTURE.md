@@ -147,8 +147,10 @@ CSS 加载顺序（见 `public/index.html`）：`styles.css` → `product-ui.css
 ## 10. 已知待办
 
 - ~~阶段 A（内联样式抽类）~~ 已完成（2026-08-20）。
-- ~~阶段 B：`.select` / `.tabs` / 按钮族 / `.card-header` / `.card` 组件收敛~~ 已完成（2026-08-20）。`.select` 结构与箭头、`.tabs` 页签、`.card` 系列均已在 styles.css 唯一定义；design-tokens 保留视觉（值引用变量）。
+- ~~阶段 B：`.select` / `.tabs` / 按钮族 / `.card-header` / `.card` / 徽章 / `.empty-state` 组件收敛~~ 已完成（2026-08-20）。结构归 styles.css、视觉走变量；design-tokens 保留视觉（值引用变量）。
+- ~~effect 系列页面（灼见搜索 / 品牌诊断 / 品牌监测）主标题与页签布局统一~~ 已完成（2026-08-20）：pageHead 不再排除 effect 路由，`.effect-monitor-view-tabs` 对齐全局 `.tabs`。
+- ~~styles.css 旧主题区工作台组件死规则（metric-* / quick-* / system-* 等）~~ 已清理（2026-08-20）；保留 geo-dashboard / design-tokens 无覆盖的唯一来源子元素规则（`.todo-copy strong` 等 7 条）。
+- styles.css 旧主题区**全局布局**（topbar / 侧边栏 / main-column / nav-* 等）与 geo-dashboard.css 中 102 条无 `.route-dashboard` 前缀的布局规则（`.sidebar` / `.topbar` / `.brand` 等）仍在原处：**全局布局样式散落在「首页专用」文件是当前最大耦合点**，迁移需要逐组件验证 + 全页面回归，按计划渐进处理。
 - product-ui.css 裸页面类待补 `.route-*` 作用域（渐进式：每次改页面顺手补，不批量改）。
-- styles.css 后半段旧主题区（topbar / 侧边栏 / 工作台指标等页面级规则）仍在原处，未迁移到对应层；其中 design-tokens 无对应定义的规则（dashboard-grid / metric-grid / metric-top / nav-count / todo-list 等）是唯一来源，改动时注意。
 - `index.html` 版本号目前手改，后续可考虑构建时注入。
 - app.js 存在个别重复模板片段（如 `lightPaged(filteredLeads, "siteLeads")` 调用两次），与样式无关，另行处理。

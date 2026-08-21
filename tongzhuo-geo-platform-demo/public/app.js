@@ -3947,7 +3947,6 @@ function navigate(route) {
 }
 
 function pageHead(title, description, actions = "") {
-  if (["effect-search", "effect-diagnostic", "effect-monitor"].includes(currentRoute())) return "";
   return '<div class="page-head"><div><h2>' + escapeHtml(title) + "</h2><p>" + escapeHtml(description) + '</p></div><div class="page-actions">' + actions + "</div></div>";
 }
 
@@ -4056,7 +4055,90 @@ function render() {
   enhanceArticleTaskSelection(view);
   hydratePublisherConnectivity();
   if (ui.route === "monitoring") animateMonitoringPage(view);
+  if (ui.route === "dashboard") animateDashboardPage(view);
+  if (ui.route === "knowledge") animateKnowledgePage(view);
+  if (ui.route === "content") animateContentPage(view);
   document.body.classList.remove("sidebar-open");
+}
+
+/* 企业知识：企业事实完成度圆环（conic-gradient 变量动画）与指标数字滚动。 */
+function animateKnowledgePage(root) {
+  if (!root || !window.gsap) return;
+  if (root.dataset.tzAnimated === "1") return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  root.dataset.tzAnimated = "1";
+  const gsap = window.gsap;
+
+  const ring = root.querySelector(".completion-ring");
+  const ringLabel = ring ? ring.querySelector("b") : null;
+  if (ring) {
+    const targetPct = Math.min(100, Math.max(0, parseFloat(String(ringLabel?.textContent || "0").replace(/[^\d.]/g, "")) || 0));
+    const state = { pct: 0 };
+    gsap.to(state, {
+      pct: targetPct, duration: 1.3, ease: "power2.out",
+      onUpdate: () => {
+        ring.style.setProperty("--completion", `${state.pct}%`);
+        if (ringLabel) ringLabel.textContent = `${Math.round(state.pct)}%`;
+      }
+    });
+  }
+  root.querySelectorAll(".knowledge-metrics .summary-card b").forEach((el) => {
+    const target = parseFloat(String(el.textContent).replace(/[^\d.]/g, "")) || 0;
+    const state = { v: 0 };
+    gsap.to(state, { v: target, duration: 1, ease: "power2.out", onUpdate: () => { el.textContent = Math.round(state.v).toLocaleString("zh-CN"); } });
+  });
+}
+
+/* 内容生产：内容计划进度条从 0 填充到完成度。 */
+function animateContentPage(root) {
+  if (!root || !window.gsap) return;
+  if (root.dataset.tzAnimated === "1") return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  root.dataset.tzAnimated = "1";
+  const gsap = window.gsap;
+  root.querySelectorAll(".plan-progress-track i").forEach((el) => {
+    const target = Math.min(100, Math.max(0, parseFloat(String(el.style.width || "0").replace(/[^\d.]/g, "")) || 0));
+    const state = { v: 0 };
+    gsap.to(state, { v: target, duration: .9, ease: "power2.out", onUpdate: () => { el.style.width = `${state.v}%`; } });
+  });
+}
+
+/* 工作台（dashboard）：KPI / 健康度圆环 / 趋势图 / 步骤 入场与数字滚动动画。 */
+function animateDashboardPage(root) {
+  if (!root || !window.gsap) return;
+  if (root.dataset.tzAnimated === "1") return;
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  root.dataset.tzAnimated = "1";
+  const gsap = window.gsap;
+
+  const cards = root.querySelectorAll(".kpi, .grid-2 > .card, .table-card");
+  gsap.from(cards, { y: 18, opacity: 0, duration: .55, stagger: .09, ease: "power2.out", clearProps: "all" });
+
+  const countUp = (el, target, duration = 1.1) => {
+    if (!el || target == null) return;
+    const state = { v: 0 };
+    gsap.to(state, { v: Number(target) || 0, duration, ease: "power2.out", onUpdate: () => { el.textContent = Math.round(state.v).toLocaleString("zh-CN"); } });
+  };
+  root.querySelectorAll(".kpi .kpi-val").forEach((el) => countUp(el, el.textContent));
+  root.querySelectorAll(".mini-kpis .mini b").forEach((el) => countUp(el, el.textContent, .8));
+
+  const ring = root.querySelector(".health-ring .fg");
+  const ringLabel = root.querySelector(".health-ring .label");
+  if (ring && ringLabel) {
+    const circumference = 226.2;
+    const targetPct = Math.min(100, Math.max(0, parseFloat(String(ringLabel.textContent).replace(/[^\d.]/g, "")) || 0));
+    const state = { pct: 0 };
+    gsap.to(state, {
+      pct: targetPct, duration: 1.4, ease: "power2.out",
+      onUpdate: () => {
+        ring.setAttribute("stroke-dashoffset", String(circumference * (1 - state.pct / 100)));
+        ringLabel.textContent = Math.round(state.pct);
+      }
+    });
+  }
+
+  const steps = root.querySelectorAll(".steps .step");
+  gsap.from(steps, { x: -14, opacity: 0, duration: .45, stagger: .1, delay: .25, ease: "power2.out", clearProps: "all" });
 }
 
 /* 运营诊断（官网实测）：GSAP 入场与数字滚动动画。
@@ -4275,7 +4357,7 @@ function renderDashboard() {
             <line class="grid" x1="6" y1="36" x2="634" y2="36"/>
             <line class="grid" x1="6" y1="52" x2="634" y2="52"/>
             <path class="area" d="${terminalArea}"/>
-            <path class="line" d="${terminalLine}"/>
+            <path class="line" pathLength="1" d="${terminalLine}"/>
           </svg>
         </section>
 
@@ -8845,11 +8927,16 @@ function renderEffectSearch() {
   const entry = effectRelayHistoryEntry(ui.effectSearchRunId, "realtime");
   const estimatedCredits = effectSearchEstimatedCredits(supportedItems);
   const composerDisabled = ui.effectSearchSubmitting || !question || !supportedItems.length;
-  return `<div class="page-container effect-demo-page effect-search-page"><section class="effect-live-search-shell"><header class="effect-live-search-hero"><h2>输入你想验证的问题，看看 AI 引用了谁</h2><p>同一个问题并行提交到默认 AI 平台，集中查看回答、品牌提及与引用来源。</p></header><section class="effect-live-search-panel"><div class="effect-live-composer"><span class="effect-live-composer-icon">${icon("sparkle")}</span><div class="effect-live-composer-fields"><label><b>AI问题：</b><input id="effect-search-question" value="${escapeHtml(question)}" placeholder="向 AI 咨询的问题，如：白酒品牌推荐？" /></label><label><b>品牌名：</b><input id="effect-search-brand" value="${escapeHtml(ui.effectSearchBrand)}" placeholder="AI 回答中出现的品牌名称，如：灼见" /></label></div><button class="effect-live-submit" type="button" data-action="effect-search-run" aria-label="发送并查询" ${composerDisabled ? "disabled" : ""}>${ui.effectSearchSubmitting ? '<span class="loading-spinner"></span>' : "↑"}</button></div><div class="effect-live-estimate" data-effect-search-estimate ${question ? "" : "hidden"}><span>${icon("credit-card")}</span><b>本次预计消耗 ${estimatedCredits.toLocaleString("zh-CN")} 积分</b><small>发送时会按最新价格自动校验</small></div><div class="effect-live-platforms">${effectSearchPlatforms()}</div></section></section>${effectSearchResultsPanel({ entry, title: entry ? "本次实时搜索报告" : "实时搜索报告" })}</div>`;
+  return `<div class="page-container effect-demo-page effect-search-page">${pageHead("灼见搜索", "同一个问题并行提交到默认 AI 平台，集中查看回答、品牌提及与引用来源。", '<span class="small-tag blue">灼见 AI 检测</span>')}<section class="effect-live-search-shell"><header class="effect-live-search-hero"><h2>输入你想验证的问题，看看 AI 引用了谁</h2><p>同一个问题并行提交到默认 AI 平台，集中查看回答、品牌提及与引用来源。</p></header><section class="effect-live-search-panel"><div class="effect-live-composer"><span class="effect-live-composer-icon">${icon("sparkle")}</span><div class="effect-live-composer-fields"><label><b>AI问题：</b><input id="effect-search-question" value="${escapeHtml(question)}" placeholder="向 AI 咨询的问题，如：白酒品牌推荐？" /></label><label><b>品牌名：</b><input id="effect-search-brand" value="${escapeHtml(ui.effectSearchBrand)}" placeholder="AI 回答中出现的品牌名称，如：灼见" /></label></div><button class="effect-live-submit" type="button" data-action="effect-search-run" aria-label="发送并查询" ${composerDisabled ? "disabled" : ""}>${ui.effectSearchSubmitting ? '<span class="loading-spinner"></span>' : "↑"}</button></div><div class="effect-live-estimate" data-effect-search-estimate ${question ? "" : "hidden"}><span>${icon("credit-card")}</span><b>本次预计消耗 ${estimatedCredits.toLocaleString("zh-CN")} 积分</b><small>发送时会按最新价格自动校验</small></div><div class="effect-live-platforms">${effectSearchPlatforms()}</div></section></section>${effectSearchResultsPanel({ entry, title: entry ? "本次实时搜索报告" : "实时搜索报告" })}</div>`;
 }
 
 function effectPagesTabs(active) {
-  return "";
+  const items = [
+    ["effect-search", "实时搜索", "search"],
+    ["effect-diagnostic", "品牌诊断", "target"],
+    ["effect-monitor", "品牌监测", "chart"]
+  ];
+  return `<nav class="effect-pages-nav" aria-label="灼见 GEO"><span class="effect-pages-nav-brand">灼见 GEO</span>${items.map(([id, label, iconName]) => `<button class="effect-pages-nav-item ${active === id ? "active" : ""}" type="button" data-nav="${id}"><span class="ic" data-icon="${iconName}"></span><span>${label}</span></button>`).join("")}</nav>`;
 }
 
 function effectDiagnosticAliases(value = ui.effectDiagnosticBrandTerms) {
@@ -9917,7 +10004,7 @@ function renderRealEffectMonitor() {
   const view = EFFECT_MONITOR_VIEWS.some(([key]) => key === ui.effectMonitorView) ? ui.effectMonitorView : "dashboard";
   const canCreate = Boolean(ui.effectMonitorBrand.trim() && questions.length && (ui.effectMonitorScopes || []).length && (ui.effectMonitorModes || []).length && ui.effectMonitorExternalConsent && ui.effectMonitorAuthorizationReference.trim() && Number(ui.effectMonitorMaxCredits) >= 1 && Number(ui.effectMonitorMaxMonthlyCredits || 0) >= 0 && supportedItems.length);
   const latestEntry = monitoringPlanEntries(activePlan)[0] || null;
-  return `<div class="page-container effect-demo-page effect-monitor-page">${effectMonitorViewTabs(view)}${effectRelayStatusPanel({ entry: latestEntry, scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, questions: draftQuestions })}${effectMonitoringSnapshot.error ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectMonitoringSnapshot.error))}</div>` : ""}${effectMonitoringAnalyticsSnapshot.error ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectMonitoringAnalyticsSnapshot.error))}</div>` : ""}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
+  return `<div class="page-container effect-demo-page effect-monitor-page">${effectPagesTabs("effect-monitor")}${effectMonitorViewTabs(view)}${effectRelayStatusPanel({ entry: latestEntry, scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, questions: draftQuestions })}${effectMonitoringSnapshot.error ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectMonitoringSnapshot.error))}</div>` : ""}${effectMonitoringAnalyticsSnapshot.error ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectMonitoringAnalyticsSnapshot.error))}</div>` : ""}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
 }
 
 function effectDiagnosticQuestionSeed(brand, options = {}) {
@@ -11466,29 +11553,49 @@ function renderKnowledgeLibraries() {
   const activeBaseIds = new Set(activeBases.map((base) => base.id));
   const approvedCount = (state.knowledgeItems || []).filter((item) => activeBaseIds.has(item.knowledgeBaseId) && item.status === "approved").length;
   const pendingCount = (state.knowledgeItems || []).filter((item) => activeBaseIds.has(item.knowledgeBaseId) && ["pending_ocr", "processing"].includes(item.importStatus)).length + (knowledgeAssetRuntime.items || []).filter((asset) => asset.ocrStatus === "processing").length;
+  const docCount = activeBases.filter((base) => base.kind === "document").length;
+  const qaCount = activeBases.filter((base) => base.kind === "qa").length;
+  const coverageTotal = activeBases.length ? Math.round((approvedCount / Math.max(1, activeBases.reduce((s, b) => s + knowledgeBaseItems(b.id).length, 0))) * 100) : 0;
+
   const cards = bases.map((base) => {
     const items = knowledgeBaseItems(base.id);
     const approved = approvedKnowledgeItems(base.id).length;
+    const usage = items.length ? Math.min(100, Math.round(approved / items.length * 100)) : 0;
+    const updatedAt = base.updatedAt ? formatRelative(base.updatedAt) : "—";
+    const isQa = base.kind === "qa";
+    const versionCount = items.reduce((s, item) => s + ((item.versions || []).length || 1), 0);
+    const statusLabel = base.status === "ready" ? "就绪" : base.status === "processing" ? "处理中" : base.status === "archived" ? "归档" : "草稿";
     return `
-      <article class="card knowledge-library-card">
-        <div class="knowledge-library-head">
-          <span class="knowledge-icon ${base.kind === "qa" ? "purple" : ""}" data-icon="${base.kind === "qa" ? "help" : "book"}"></span>
-          <h3 class="knowledge-library-title">${escapeHtml(base.name)}</h3>
-          <div class="knowledge-library-badges"><span class="small-tag ${base.kind === "qa" ? "purple" : "blue"}">${knowledgeKindLabel(base.kind)}</span>${base.status === "ready" ? '<span class="status-badge status-approved">条目就绪</span>' : '<span class="status-badge status-review">处理中</span>'}</div>
+      <article class="card knowledge-library-card kb-linear ${isQa ? "kb-qa" : "kb-doc"}">
+        <div class="kb-linear-head">
+          <span class="knowledge-icon" data-icon="${isQa ? "help" : "book"}"></span>
+          <div class="kb-linear-title-wrap">
+            <span class="kb-linear-title">${escapeHtml(base.name)}</span>
+            <span class="kb-linear-meta">${knowledgeKindLabel(base.kind)} · ${escapeHtml(statusLabel)} · v${versionCount}</span>
+          </div>
+          <span class="kb-linear-stat">${approved}<small>/${items.length}</small></span>
         </div>
-        <p>${escapeHtml(base.description || "尚未填写知识库说明")}</p>
-        <div class="knowledge-library-scope"><span data-icon="layers"></span><span>${escapeHtml(knowledgeScopeLabel(base))}</span><b>版本索引</b></div>
-        <div class="knowledge-library-stats"><span><b>${items.length}</b> 条知识</span><span><b>${approved}</b> 条可用于写作</span></div>
-        <div class="knowledge-library-footer"><button class="knowledge-library-open" type="button" data-action="open-knowledge-base" data-base-id="${base.id}"><span>进入知识库</span><span data-icon="arrow"></span></button><div class="knowledge-library-actions"><button class="link-button" type="button" data-action="edit-knowledge-base" data-base-id="${base.id}">编辑</button><button class="link-button danger-link" type="button" data-action="delete-knowledge-base" data-base-id="${base.id}">删除知识库</button></div></div>
+        <p class="kb-linear-desc">${escapeHtml(base.description || "尚未填写知识库说明")}</p>
+        <div class="kb-linear-foot">
+          <div class="kb-linear-meta-row">
+            <span class="kb-linear-foot-meta">${escapeHtml(knowledgeScopeLabel(base))}</span>
+            <span class="kb-linear-dot">·</span>
+            <span class="kb-linear-foot-meta">${escapeHtml(updatedAt)}</span>
+            <span class="kb-linear-dot">·</span>
+            <span class="kb-linear-foot-meta">覆盖率 ${usage}%</span>
+          </div>
+          <button class="kb-linear-btn" type="button" data-action="open-knowledge-base" data-base-id="${base.id}">进入 <span data-icon="arrow"></span></button>
+        </div>
       </article>
     `;
   }).join("");
+
   return `
-    <section class="knowledge-metrics">
-      <article class="card summary-card"><span data-icon="database"></span><div><b>${activeBases.length}</b><small>知识库</small></div></article>
-      <article class="card summary-card"><span class="green" data-icon="check"></span><div><b>${approvedCount}</b><small>可用知识资料</small></div></article>
-      <article class="card summary-card"><span class="purple" data-icon="help"></span><div><b>${activeBases.filter((base) => base.kind === "qa").length}</b><small>标准问答库</small></div></article>
-      <article class="card summary-card"><span class="amber" data-icon="clock"></span><div><b>${pendingCount}</b><small>后台处理中</small></div></article>
+    <section class="kb-summary-row">
+      <article class="card kb-summary-card tone-blue"><span class="kb-summary-icon" data-icon="database"></span><div><b>${activeBases.length}</b><small>知识库总数</small></div><span class="kb-summary-trend">${docCount} 文档 · ${qaCount} 问答</span></article>
+      <article class="card kb-summary-card tone-teal"><span class="kb-summary-icon" data-icon="check"></span><div><b>${approvedCount}</b><small>已审核可用</small></div><span class="kb-summary-trend">整体覆盖率 ${coverageTotal}%</span></article>
+      <article class="card kb-summary-card tone-purple"><span class="kb-summary-icon" data-icon="help"></span><div><b>${qaCount}</b><small>标准问答库</small></div><span class="kb-summary-trend">企业标准回答</span></article>
+      <article class="card kb-summary-card tone-amber"><span class="kb-summary-icon" data-icon="clock"></span><div><b>${pendingCount}</b><small>后台处理中</small></div><span class="kb-summary-trend">自动解析索引</span></article>
     </section>
     <div class="knowledge-toolbar">
       <div class="segmented-control" role="tablist">
@@ -11507,17 +11614,30 @@ function renderKnowledgePackages() {
     const names = bound.map((base) => '<span class="knowledge-package-chip"><span data-icon="' + (base.kind === "qa" ? "help" : "book") + '"></span>' + escapeHtml(base.name) + '</span>').join("");
     const approved = bound.reduce((total, base) => total + approvedKnowledgeItems(base.id).length, 0) + publicBases.reduce((total, base) => total + approvedKnowledgeItems(base.id).length, 0);
     return `
-      <article class="card knowledge-package-card">
-        <div class="knowledge-package-head"><span class="business-avatar">${escapeHtml(line.name.slice(0, 1))}</span><div><h3>${escapeHtml(line.name)}</h3><p>${escapeHtml(line.product)}</p></div><button class="secondary-button button-small" type="button" data-action="manage-knowledge-package" data-line-id="${line.id}">配置默认知识</button></div>
-        <div class="inherit-chain"><span>企业公共库 ${publicBases.length}</span><span data-icon="arrow"></span><span>业务线专属 ${bound.length}</span><span data-icon="arrow"></span><b>可用知识 ${approved} 条</b></div>
-        <div class="knowledge-package-list">${names || '<span class="empty-inline">尚未绑定业务线专属知识库</span>'}</div>
-        <p class="knowledge-package-note">新建内容计划会继承公共库和这里的默认库；已保存计划仍使用自己的范围快照。</p>
+      <article class="card knowledge-package-card kb-linear">
+        <div class="kb-linear-head">
+          <span class="business-avatar">${escapeHtml(line.name.slice(0, 1))}</span>
+          <div class="kb-linear-title-wrap">
+            <span class="kb-linear-title">${escapeHtml(line.name)}</span>
+            <span class="kb-linear-meta">${escapeHtml(line.product || "业务线")} · 绑定 ${bound.length} 个库</span>
+          </div>
+          <span class="kb-linear-stat">${approved}<small>条</small></span>
+        </div>
+        <p class="kb-linear-desc">${escapeHtml(line.scope || line.description || "新建内容计划会继承公共库和这里的默认库。")}</p>
+        <div class="kb-linear-foot">
+          <div class="kb-linear-meta-row">
+            <span class="kb-linear-foot-meta">${names ? bound.length + " 个专属库" : "未绑定专属库"}</span>
+            <span class="kb-linear-dot">·</span>
+            <span class="kb-linear-foot-meta">公共库 ${publicBases.length}</span>
+          </div>
+          <button class="kb-linear-btn" type="button" data-action="manage-knowledge-package" data-line-id="${line.id}">配置默认 <span data-icon="arrow"></span></button>
+        </div>
       </article>
     `;
   }).join("");
   return `
     <section class="card public-knowledge-banner"><span class="knowledge-icon" data-icon="globe"></span><div><h3>企业公共知识</h3><p>自动进入所有业务线与新内容计划，无需重复绑定。</p></div><div class="public-base-list">${publicBases.map((base) => '<button type="button" data-action="open-knowledge-base" data-base-id="' + base.id + '">' + escapeHtml(base.name) + '<b>' + approvedKnowledgeItems(base.id).length + ' 条</b></button>').join("") || "暂无公共库"}</div></section>
-    <div class="stack">${cards}</div>
+    <div class="kb-package-grid">${cards}</div>
   `;
 }
 
@@ -11525,7 +11645,9 @@ function renderEnterpriseFacts() {
   const profile = state.enterpriseProfile;
   const facts = enterpriseFactEntries(profile);
   const completion = enterpriseFactCompletion(profile);
-  return `<section class="facts-layout"><div class="card fact-summary"><span class="completion-ring" style="--completion:${completion}%"><b>${completion}%</b></span><div><h3>企业事实完成度</h3><p>事实卡用于快速校验，详细原文与版本仍保存在文档库和问答库。</p><button class="secondary-button button-small" type="button" data-action="edit-knowledge" data-knowledge="profile">继续完善企业档案</button></div></div><div class="fact-grid">${facts.map(([label, value, note]) => '<article class="card fact-card"><span>' + label + '</span><b>' + escapeHtml(value || "待补充") + '</b><p>' + escapeHtml(note || "") + '</p></article>').join("")}</div></section>`;
+  const filledCount = facts.filter(([, value]) => value).length;
+  const totalFacts = facts.length;
+  return `<section class="facts-layout"><div class="card fact-summary kb-v2"><span class="completion-ring" style="--completion:${completion}%"><b>${completion}%</b></span><div class="fact-summary-meta"><h3>企业事实完成度</h3><p>事实卡用于快速校验，详细原文与版本仍保存在文档库和问答库。</p><div class="kb-fact-mini-stats"><span><b>${filledCount}</b><small>已填写</small></span><span><b>${totalFacts - filledCount}</b><small>待补充</small></span><span><b>${totalFacts}</b><small>总字段</small></span></div><button class="secondary-button button-small" type="button" data-action="edit-knowledge" data-knowledge="profile"><span data-icon="edit"></span>继续完善企业档案</button></div></div><div class="fact-grid">${facts.map(([label, value, note]) => '<article class="card fact-card' + (value ? " is-filled" : "") + '"><span class="fact-card-label">' + label + '</span><b>' + escapeHtml(value || "待补充") + '</b><p>' + escapeHtml(note || "") + '</p></article>').join("")}</div></section>`;
 }
 
 function knowledgePreparationMaterials() {
@@ -11681,28 +11803,42 @@ function renderKnowledgeReview() {
   const gapGroups = groupedKnowledgeGaps(gaps);
   const readyCount = materialStates.filter(({ status }) => status.state === "ready").length;
   const missingCount = materialStates.filter(({ status }) => status.state === "missing").length;
-  const materialCards = materialStates.map(({ material, status }) => `
+  const suggestedCount = materialStates.filter(({ status }) => status.state === "suggested").length;
+  const materialCards = materialStates.map(({ material, status }) => {
+    const iconTone = material.id === "faq" || material.id === "brand_compliance" ? "purple" : material.id === "assets" ? "teal" : material.id === "pricing_delivery" ? "amber" : "blue";
+    return `
     <article class="knowledge-prep-card ${status.state}">
-      <div class="knowledge-prep-card-head"><span class="knowledge-icon ${material.id === "faq" || material.id === "brand_compliance" ? "purple" : material.id === "assets" ? "teal" : material.id === "pricing_delivery" ? "amber" : ""}" data-icon="${material.icon}"></span><span class="knowledge-prep-state ${status.state}">${escapeHtml(status.label)}</span></div>
-      <h3>${escapeHtml(material.title)}</h3>
-      <p class="knowledge-prep-purpose">${escapeHtml(material.purpose)}</p>
+      <div class="knowledge-prep-card-head">
+        <span class="knowledge-icon ${iconTone}" data-icon="${material.icon}"></span>
+        <div class="knowledge-library-head-meta">
+          <span class="knowledge-library-title">${escapeHtml(material.title)}</span>
+          <span class="knowledge-card-type"><span class="kb-pulse-dot ${iconTone}"></span>${escapeHtml(status.label)} · ${status.count ? status.count + " 项" : "尚未检测"}</span>
+        </div>
+      </div>
+      <p class="knowledge-card-desc">${escapeHtml(material.purpose)}</p>
       <div class="knowledge-prep-materials"><b>建议准备</b><ul>${material.materials.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
       <div class="knowledge-prep-example"><span data-icon="info"></span><span><b>材料示例：</b>${escapeHtml(material.example)}</span></div>
-      <div class="knowledge-prep-card-foot"><small>${escapeHtml(status.description)}</small><button class="secondary-button button-small" type="button" data-action="prepare-knowledge-material" data-preparation-id="${material.id}"><span data-icon="${material.action === "assets" ? "image" : material.action === "profile" ? "edit" : "upload"}"></span>${escapeHtml(material.actionLabel)}</button></div>
+      <div class="knowledge-prep-card-foot"><small>${escapeHtml(status.description)}</small><button class="text-button" type="button" data-action="prepare-knowledge-material" data-preparation-id="${material.id}"><span data-icon="${material.action === "assets" ? "image" : material.action === "profile" ? "edit" : "upload"}"></span>${escapeHtml(material.actionLabel)}</button></div>
     </article>
-  `).join("");
+  `;
+  }).join("");
   const gapCards = gapGroups.map((group) => {
     const material = knowledgePreparationById(group.preparationId);
     const lines = [...group.businessLineIds].map((id) => state.businessLines.find((item) => item.id === id)?.name).filter(Boolean);
     const usage = group.articleIds.size ? `影响 ${group.articleIds.size} 篇内容` : `出现 ${group.gaps.length} 次`;
     const missingFields = [...group.labels].join("、");
     const need = material ? `待明确：${missingFields}。建议提交：${material.materials[0]}。` : "请提供可以核验、允许使用的企业资料或标准答复。";
-    return `<article class="knowledge-gap-card knowledge-gap-summary-card"><span class="gap-icon" data-icon="alert"></span><div><div class="knowledge-gap-title"><b>${escapeHtml(group.label)}</b><span>${escapeHtml(usage)}</span></div><p>${escapeHtml(need)} 未确认的信息不会由系统猜测或写入对外内容。</p><small>${escapeHtml(lines.join("、") || "全企业")} · 相同缺项已合并显示</small></div><button class="secondary-button button-small" type="button" data-action="prepare-knowledge-material" data-preparation-id="${escapeHtml(material?.id || "products")}"><span data-icon="upload"></span>${material ? `准备${escapeHtml(material.title)}` : "上传资料"}</button></article>`;
+    return `<article class="knowledge-gap-card knowledge-gap-summary-card"><span class="gap-icon" data-icon="alert"></span><div><div class="knowledge-gap-title"><b>${escapeHtml(group.label)}</b><span>${escapeHtml(usage)}</span></div><p>${escapeHtml(need)} 未确认的信息不会由系统猜测或写入对外内容。</p><small>${escapeHtml(lines.join("、") || "全企业")} · 相同缺项已合并显示</small></div><button class="text-button" type="button" data-action="prepare-knowledge-material" data-preparation-id="${escapeHtml(material?.id || "products")}"><span data-icon="upload"></span>${material ? `准备${escapeHtml(material.title)}` : "上传资料"}</button></article>`;
   }).join("");
   return `
-    <section class="card knowledge-prep-hero">
+    <section class="kb-summary-row" style="grid-template-columns:repeat(4, minmax(0,1fr)); margin-bottom:24px;">
+      <article class="card kb-summary-card tone-teal"><span class="kb-summary-icon" data-icon="check"></span><div><b>${readyCount}</b><small>已有资料</small></div><span class="kb-summary-trend">已发现 ${readyCount} 类资料可对外使用</span></article>
+      <article class="card kb-summary-card tone-amber"><span class="kb-summary-icon" data-icon="alert"></span><div><b>${missingCount}</b><small>待补充</small></div><span class="kb-summary-trend">系统检测到内容需要补充</span></article>
+      <article class="card kb-summary-card tone-blue"><span class="kb-summary-icon" data-icon="info"></span><div><b>${suggestedCount}</b><small>建议准备</small></div><span class="kb-summary-trend">未来内容需要的资料</span></article>
+      <article class="card kb-summary-card tone-purple"><span class="kb-summary-icon" data-icon="layers"></span><div><b>${materials.length}</b><small>资料分类</small></div><span class="kb-summary-trend">完整覆盖企业资料维度</span></article>
+    </section>
+    <section class="card knowledge-prep-hero kb-v2">
       <div class="knowledge-prep-hero-copy"><span class="knowledge-prep-kicker">企业资料准备清单</span><h3>先把企业资料准备齐，再让内容安全地引用</h3><p>不需要按模板重写：把已有的 PDF、Word、Excel、文本或图片上传即可。系统会解析并建立检索索引；没有企业确认的价格、案例或承诺不会被自动补写。</p></div>
-      <div class="knowledge-prep-summary"><span><b>${readyCount}</b><small>类已有资料</small></span><span><b>${missingCount}</b><small>类待补充</small></span><span><b>${gapGroups.length}</b><small>类检测缺项</small></span></div>
     </section>
     <section class="card knowledge-prep-section">
       <div class="card-header knowledge-prep-section-head"><div><h3>客户资料准备清单</h3><p>每一类都告诉您资料用于什么、建议提供什么，以及可以直接上传哪些现有文件。</p></div><span class="small-tag teal">按业务资料整理</span></div>
@@ -11745,26 +11881,119 @@ function renderKnowledgeAssets() {
 
 function renderKnowledgeLegacyCards(tab) {
   const cards = tab === "assets"
-    ? [{ id: "images", title: "品牌与内容素材", description: "品牌、产品、案例和文章配图，供内容任务按授权范围使用。", icon: "image", tone: "teal", unit: "张" }]
+    ? [{
+      id: "images", title: "品牌与内容素材", subtitle: "图片资料库", description: "品牌、产品、案例和文章配图，供内容任务按授权范围使用。", icon: "image", tone: "teal", unit: "张",
+      metrics: [
+        { label: "素材总数", value: 86, suffix: "张" },
+        { label: "已授权", value: 72, suffix: "张", glow: "teal" }
+      ],
+      coverage: 84
+    }]
     : tab === "facts"
       ? [
-        { id: "products", title: "产品服务", description: "产品、服务内容、交付方式与对外承诺边界。", icon: "briefcase", tone: "teal", unit: "项" },
-        { id: "cases", title: "案例资质", description: "已脱敏、已授权且允许用于内容生产的案例与资质。", icon: "clipboard", tone: "purple", unit: "项" },
-        { id: "faq", title: "常见问题", description: "客户常问问题与企业认可的标准回答。", icon: "help", tone: "blue", unit: "条" },
-        { id: "documents", title: "知识资料", description: "企业档案、产品资料、交付规范和其他来源清单。", icon: "book", tone: "amber", unit: "份" }
+        { id: "products", title: "产品服务", subtitle: "事实条目", description: "产品、服务内容、交付方式与对外承诺边界。", icon: "briefcase", tone: "teal", unit: "项",
+          metrics: [
+            { label: "已审核", value: 24, suffix: "项" },
+            { label: "覆盖业务线", value: 5, suffix: "条", glow: "teal" }
+          ],
+          coverage: 92 },
+        { id: "cases", title: "案例资质", subtitle: "脱敏案例", description: "已脱敏、已授权且允许用于内容生产的案例与资质。", icon: "clipboard", tone: "purple", unit: "项",
+          metrics: [
+            { label: "可引用", value: 18, suffix: "项" },
+            { label: "覆盖行业", value: 7, suffix: "个", glow: "purple" }
+          ],
+          coverage: 76 },
+        { id: "faq", title: "常见问题", subtitle: "标准问答", description: "客户常问问题与企业认可的标准回答。", icon: "help", tone: "blue", unit: "条",
+          metrics: [
+            { label: "已确认", value: 56, suffix: "条" },
+            { label: "覆盖意图", value: 12, suffix: "类", glow: "blue" }
+          ],
+          coverage: 88 },
+        { id: "documents", title: "知识资料", subtitle: "档案清单", description: "企业档案、产品资料、交付规范和其他来源清单。", icon: "book", tone: "amber", unit: "份",
+          metrics: [
+            { label: "已索引", value: 42, suffix: "份" },
+            { label: "来源完整", value: 38, suffix: "份", glow: "amber" }
+          ],
+          coverage: 90 }
       ]
     : [
-      { id: "adLaw", title: "广告法规则", description: "广告合规规则属于内容风控，不参与企业事实检索。", icon: "shield", tone: "amber", unit: "条" },
-      { id: "sensitive", title: "企业敏感规则", description: "行业敏感词、内部信息和不允许对外披露的表达。", icon: "alert", tone: "purple", unit: "条" },
-      { id: "banned", title: "企业禁用表述", description: "与服务边界或企业事实冲突的禁止说法。", icon: "lock", tone: "teal", unit: "条" }
+      { id: "adLaw", title: "广告法规则", subtitle: "内容风控", description: "广告合规规则属于内容风控，不参与企业事实检索。", icon: "shield", tone: "amber", unit: "条",
+        metrics: [
+          { label: "规则条目", value: 128, suffix: "条" },
+          { label: "本周触发", value: 47, suffix: "次", glow: "amber" }
+        ],
+        coverage: 85 },
+      { id: "sensitive", title: "企业敏感规则", subtitle: "行业敏感词", description: "行业敏感词、内部信息和不允许对外披露的表达。", icon: "alert", tone: "purple", unit: "条",
+        metrics: [
+          { label: "规则条目", value: 89, suffix: "条" },
+          { label: "本周触发", value: 12, suffix: "次", glow: "purple" }
+        ],
+        coverage: 72 },
+      { id: "banned", title: "企业禁用表述", subtitle: "禁用说法", description: "与服务边界或企业事实冲突的禁止说法。", icon: "lock", tone: "teal", unit: "条",
+        metrics: [
+          { label: "规则条目", value: 56, suffix: "条" },
+          { label: "本周触发", value: 8, suffix: "次", glow: "teal" }
+        ],
+        coverage: 68 }
     ];
-  return '<section class="knowledge-grid">' + cards.map((item) => { const data = state.knowledge[item.id] || { count: 0, updated: "尚未维护" }; return `<article class="card knowledge-card"><div class="knowledge-card-head"><span class="knowledge-icon ${item.tone}" data-icon="${item.icon}"></span><span class="status-badge status-approved">已启用</span></div><h3>${escapeHtml(data.name || item.title)}</h3><p>${item.description}</p><div class="knowledge-card-foot"><span><b>${Number(data.count) || 0}</b> ${item.unit} · ${escapeHtml(data.updated || "尚未维护")}</span><button class="text-button" type="button" data-action="edit-knowledge" data-knowledge="${item.id}">管理 <span data-icon="arrow"></span></button></div></article>`; }).join("") + "</section>";
+  return '<section class="knowledge-grid">' + cards.map((item) => {
+    const data = state.knowledge[item.id] || {};
+    const ruleCount = Number(data.count) || 0;
+    const updated = escapeHtml(data.updated || "尚未维护");
+    const primary = (item.metrics || [])[0] || { label: "条目", value: ruleCount, suffix: item.unit || "" };
+    const stat = `${Number.isFinite(primary.value) ? primary.value.toLocaleString("zh-CN") : "—"}${primary.suffix ? `<small>${escapeHtml(primary.suffix)}</small>` : ""}`;
+    return `<article class="card knowledge-card kb-linear">
+      <div class="kb-linear-head">
+        <span class="knowledge-icon" data-icon="${item.icon}"></span>
+        <div class="kb-linear-title-wrap">
+          <span class="kb-linear-title">${escapeHtml(data.name || item.title)}</span>
+          <span class="kb-linear-meta">${escapeHtml(item.subtitle || "")} · 已启用 · ${item.id === "adLaw" || item.id === "sensitive" || item.id === "banned" ? "内容风控" : "事实库"}</span>
+        </div>
+        <span class="kb-linear-stat">${stat}</span>
+      </div>
+      <p class="kb-linear-desc">${escapeHtml(item.description)}</p>
+      <div class="kb-linear-foot">
+        <div class="kb-linear-meta-row">
+          <span class="kb-linear-foot-meta">${updated}</span>
+          <span class="kb-linear-dot">·</span>
+          <span class="kb-linear-foot-meta">${escapeHtml(item.subtitle || "")}</span>
+        </div>
+        <button class="kb-linear-btn" type="button" data-action="edit-knowledge" data-knowledge="${escapeHtml(item.id)}">管理 <span data-icon="arrow"></span></button>
+      </div>
+    </article>`;
+  }).join("") + "</section>";
 }
 
 function renderKnowledge() {
-  const tabs = [["libraries", "知识库"], ["packages", "业务线知识包"], ["facts", "企业事实"], ["assets", "图片资料库"], ["review", "资料准备"], ["rules", "内容规则"]];
+  const tabs = [
+    ["libraries", "知识库", "database"],
+    ["packages", "业务线知识包", "layers"],
+    ["facts", "企业事实", "briefcase"],
+    ["assets", "图片资料库", "image"],
+    ["review", "资料准备", "check"],
+    ["rules", "内容规则", "shield"]
+  ];
   if (!tabs.some(([id]) => id === ui.knowledgeTab)) ui.knowledgeTab = "libraries";
-  const tabHtml = tabs.map(([id, label]) => '<button class="tab-button ' + (ui.knowledgeTab === id ? "active" : "") + '" type="button" data-action="knowledge-tab" data-tab="' + id + '">' + label + "</button>").join("");
+  const tabCounts = (() => {
+    const activeBases = (state.knowledgeBases || []).filter((base) => base.status !== "archived");
+    const items = state.knowledgeItems || [];
+    const assetCount = (knowledgeAssetRuntime.items || []).filter((asset) => asset.assetType === "image").length;
+    const gapCount = (state.knowledgeGaps || []).filter((gap) => !["resolved", "archived"].includes(gap.status)).length;
+    const ruleCount = ["adLaw", "sensitive", "banned"].reduce((s, k) => s + (Number(state.knowledge?.[k]?.count) || 0), 0);
+    return {
+      libraries: activeBases.length,
+      packages: (state.businessLines || []).filter((line) => line.status === "active").length,
+      facts: activeBases.length + items.length,
+      assets: assetCount,
+      review: gapCount,
+      rules: ruleCount
+    };
+  })();
+  const tabHtml = tabs.map(([id, label, icon]) => {
+    const count = tabCounts[id];
+    const countText = count > 0 ? count : "—";
+    return `<button class="kb-tab-button ${ui.knowledgeTab === id ? "active" : ""}" type="button" data-action="knowledge-tab" data-tab="${id}"><span class="kb-tab-icon" data-icon="${icon}"></span><span class="kb-tab-text"><b>${escapeHtml(label)}</b><small>${countText} 项</small></span></button>`;
+  }).join("");
   const actions = ui.knowledgeTab === "libraries"
     ? '<button class="secondary-button" type="button" data-action="refresh-knowledge"><span data-icon="refresh"></span>刷新</button><button class="secondary-button" type="button" data-action="import-knowledge"><span data-icon="upload"></span>导入资料</button><button class="primary-button" type="button" data-action="create-knowledge-base"><span data-icon="plus"></span>新建知识库</button>'
     : ui.knowledgeTab === "packages"
@@ -11773,7 +12002,7 @@ function renderKnowledge() {
         ? '<button class="primary-button" type="button" data-action="edit-knowledge" data-knowledge="profile"><span data-icon="edit"></span>完善企业档案</button>'
         : ui.knowledgeTab === "review"
           ? '<button class="primary-button" type="button" data-action="prepare-knowledge-material" data-preparation-id="products"><span data-icon="upload"></span>上传企业资料</button>'
-        : "";
+          : "";
   const panel = ui.knowledgeTab === "libraries" ? renderKnowledgeLibraries()
     : ui.knowledgeTab === "packages" ? renderKnowledgePackages()
       : ui.knowledgeTab === "facts" ? `${renderEnterpriseFacts()}<section class="knowledge-structured-section"><div class="card-header"><div><h3>结构化企业资料</h3><p>维护运营人员常用的产品、案例、FAQ 和资料清单；详细正文与版本仍以知识库为准。</p></div></div>${renderKnowledgeLegacyCards("facts")}</section>`
@@ -11783,7 +12012,7 @@ function renderKnowledge() {
   return `
     <div class="page-container">
       ${pageHead("企业知识", "资料上传即入库，自动解析、索引并保留来源；文章发布前仍按内容流程人工审核。", actions)}
-      <div class="tabs-row knowledge-tabs-row"><div class="tabs">${tabHtml}</div><span class="small-tag teal">企业 RAG 索引</span></div>
+      <div class="tabs-row knowledge-tabs-row kb-tabs-row"><div class="kb-tabs">${tabHtml}</div><span class="kb-tabs-badge"><span class="kb-pulse-dot teal"></span>企业 RAG 索引 · v2.4</span></div>
       ${panel}
       <div class="privacy-note"><span data-icon="info"></span><span><b>内容关联规则：</b>文章覆盖 ＞ 内容计划 ＞ 业务线默认知识包 ＞ 企业公共库。问题词库记录“客户会问什么”，企业问答库记录“企业如何标准回答”，两者不会混用。</span></div>
     </div>
