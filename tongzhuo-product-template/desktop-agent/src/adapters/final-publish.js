@@ -16,23 +16,20 @@ export function selectorList(primary, fallback = [], options = {}) {
 
 export function publishSelectors(platform = {}) {
   const hints = platform.editorHints || {};
-  return selectorList(hints.publishSelectors, defaultPublishSelectors, {
-    replaceDefault: hints.replaceDefaultPublishSelectors === true,
-  });
+  // Platform-scoped controls win; the generic publish candidates remain as a
+  // fallback so a profile miss degrades safely instead of stranding a filled
+  // editor.  A visible success signal is still required before publication.
+  return selectorList(hints.publishSelectors, defaultPublishSelectors, { replaceDefault: false });
 }
 
 export function publishConfirmSelectors(platform = {}) {
   const hints = platform.editorHints || {};
-  return selectorList(hints.publishConfirmSelectors, defaultPublishConfirmSelectors, {
-    replaceDefault: hints.replaceDefaultPublishConfirmSelectors === true,
-  });
+  return selectorList(hints.publishConfirmSelectors, defaultPublishConfirmSelectors, { replaceDefault: false });
 }
 
 export function publishSuccessSelectors(platform = {}) {
   const hints = platform.editorHints || {};
-  return selectorList(hints.publishSuccessSelectors, defaultPublishSuccessSelectors, {
-    replaceDefault: hints.replaceDefaultPublishSuccessSelectors === true,
-  });
+  return selectorList(hints.publishSuccessSelectors, defaultPublishSuccessSelectors, { replaceDefault: false });
 }
 
 function mergedSelectorDetails(base, extra) {

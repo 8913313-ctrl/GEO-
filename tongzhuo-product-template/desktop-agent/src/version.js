@@ -1,5 +1,5 @@
 export const agentName = 'Tongzhuo GEO Desktop Agent';
-export const agentVersion = '1.8.20';
+export const agentVersion = '1.8.21';
 
 
 

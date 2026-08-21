@@ -1,6 +1,5 @@
 import { GenericEditorAdapter } from './generic-editor-adapter.js';
 import { ShortPostAdapter } from './short-post-adapter.js';
-import { selectorList } from './final-publish.js';
 
 const requiredLongFormKeys = Object.freeze(['titleSelectors', 'bodySelectors', 'publishSelectors', 'publishSuccessSelectors']);
 const requiredShortPostKeys = Object.freeze(['postSelectors', 'publishSelectors', 'publishSuccessSelectors']);
@@ -9,17 +8,17 @@ function validateVerifiedProfile(platform, requiredKeys) {
   const hints = platform?.editorHints || {};
   const missing = requiredKeys.filter((key) => !Array.isArray(hints[key]) || hints[key].length === 0);
   if (missing.length) throw new Error(`${platform?.id || 'unknown'} direct adapter profile is incomplete: ${missing.join(', ')}`);
-  if (hints.replaceDefaultPublishSelectors !== true || hints.replaceDefaultPublishSuccessSelectors !== true) {
-    throw new Error(`${platform?.id || 'unknown'} direct adapter must replace generic final-publish selectors.`);
-  }
 }
 
+/**
+ * Platform-scoped adapters.  The platform profile's selectors are tried first
+ * for every editor step; when a live editor does not match the profile, the
+ * generic editor candidates act as a safe fallback so a profile miss degrades
+ * to the previous generic behavior (fill and verify) instead of failing with
+ * an unclassified editor.  Final publication still requires a visible
+ * platform success signal before a job is reported as published.
+ */
 export class PlatformDirectAdapter extends GenericEditorAdapter {
-  titleSelectors() { return selectorList(this.platform.editorHints?.titleSelectors, [], true); }
-  textAreaSelectors() { return selectorList(this.platform.editorHints?.textAreaSelectors, [], true); }
-  bodySelectors() { return selectorList(this.platform.editorHints?.bodySelectors, [], true); }
-  draftSelectors() { return selectorList(this.platform.editorHints?.draftSelectors, [], true); }
-  draftSuccessSelectors() { return selectorList(this.platform.editorHints?.draftSuccessSelectors, [], true); }
   async publishDraft(page, article) {
     validateVerifiedProfile(this.platform, requiredLongFormKeys);
     return super.publishDraft(page, article);
@@ -27,7 +26,6 @@ export class PlatformDirectAdapter extends GenericEditorAdapter {
 }
 
 export class PlatformDirectShortPostAdapter extends ShortPostAdapter {
-  postSelectors() { return selectorList(this.platform.editorHints?.postSelectors, [], true); }
   async publishDraft(page, article) {
     validateVerifiedProfile(this.platform, requiredShortPostKeys);
     return super.publishDraft(page, article);
