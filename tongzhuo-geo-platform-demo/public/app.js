@@ -11923,7 +11923,7 @@ function renderAssistantLegacy() {
     <div class="page-container">
       ${pageHead("发布助手", "客户从这里下载本地桌面软件；账号登录与分组在客户电脑完成，后台只同步设备、账号别名和可用状态。", `<a class="secondary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载本地发布器</a><button class="primary-button" type="button" data-action="pair-device"><span data-icon="plus"></span>配对新设备</button>`)}
       <section class="card assistant-download-card">
-        <div class="assistant-download-copy"><span class="download-app-icon" data-icon="monitor"></span><div><span class="section-kicker">CLIENT APP · WINDOWS</span><h3>客户本地发布器</h3><p>安装在运营人员电脑上，在本地登录微信公众号、知乎、头条等平台账号。平台密码、Cookie、验证码和浏览器登录态不会上传到客户服务器。</p><div class="assistant-download-meta"><span class="small-tag blue">版本 1.8.20</span><span class="small-tag">Windows 10/11</span><span class="small-tag teal">默认端口 19380</span></div></div></div>
+        <div class="assistant-download-copy"><span class="download-app-icon" data-icon="monitor"></span><div><span class="section-kicker">CLIENT APP · WINDOWS</span><h3>客户本地发布器</h3><p>安装在运营人员电脑上，在本地登录微信公众号、知乎、头条等平台账号。平台密码、Cookie、验证码和浏览器登录态不会上传到客户服务器。</p><div class="assistant-download-meta"><span class="small-tag blue">版本 1.8.21</span><span class="small-tag">Windows 10/11</span><span class="small-tag teal">默认端口 19380</span></div></div></div>
         <div class="assistant-download-actions"><a class="primary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载 Windows 桌面软件</a><button class="secondary-button" type="button" data-action="pair-device"><span data-icon="link"></span>查看配对步骤</button><small>下载安装程序后双击运行，软件会自动创建桌面快捷方式和开始菜单入口。</small></div>
       </section>
       <section class="assistant-flow card">
@@ -11931,7 +11931,7 @@ function renderAssistantLegacy() {
         <div class="assistant-flow-steps"><div><i>1</i><b>下载并安装</b><small>客户在当前页面下载 Windows 桌面软件并完成安装。</small></div><div><i>2</i><b>绑定客户后台</b><small>输入配对码，建立设备令牌。</small></div><div><i>3</i><b>本地登录账号</b><small>按账号组逐个平台登录，后台只看到状态。</small></div><div><i>4</i><b>领取并执行</b><small>审核通过的排期由本地软件按平台顺序执行。</small></div></div>
       </section>
       <section class="card assistant-hero">
-        <div class="device-state"><span class="device-icon" data-icon="monitor"><i></i></span><div><h3>运营部电脑 · GEO-OPS-01</h3><p>Windows 11 · 桌面发布节点 1.8.20 · 最近心跳 ${formatRelative(state.accountGroups[0].updatedAt)}</p></div></div>
+        <div class="device-state"><span class="device-icon" data-icon="monitor"><i></i></span><div><h3>运营部电脑 · GEO-OPS-01</h3><p>Windows 11 · 桌面发布节点 1.8.21 · 最近心跳 ${formatRelative(state.accountGroups[0].updatedAt)}</p></div></div>
         <div class="assistant-meta"><span>设备状态<b>在线</b></span><span>账号组<b>${state.accountGroups.length} 组</b></span><span>平台账号<b>6 个</b></span></div>
       </section>
       <div class="stack">${groups}</div>
