@@ -17581,25 +17581,7 @@ function updateCommandResults() {
 }
 
 function officialConsultUrl() {
-  const configuredDomain = String(state.enterpriseProfile?.officialDomain || state.site?.domain || "").trim();
-  const isPlaceholder = /^(?:https?:\/\/)?(?:www\.)?tongzhuo\.com\/?$/i.test(configuredDomain);
-  if (configuredDomain && !isPlaceholder) {
-    try {
-      const origin = new URL(/^https?:\/\//i.test(configuredDomain) ? configuredDomain : `https://${configuredDomain}`);
-      origin.pathname = "/contact/";
-      origin.search = "";
-      origin.hash = "";
-      return origin.href;
-    } catch { /* fall through to the current deployment */ }
-  }
-  const current = new URL(window.location.href);
-  if (["localhost", "127.0.0.1", "::1"].includes(current.hostname) || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(current.hostname)) {
-    current.port = "19080";
-  }
-  current.pathname = "/contact/";
-  current.search = "";
-  current.hash = "";
-  return current.href;
+  return "https://tongzhuo.ink/insights/";
 }
 function monitoringShowTooltip(point) {
   const chart = point?.closest(".monitor-real-trend-chart");
