@@ -1087,6 +1087,32 @@ export class TongzhuoDesktopAgent extends EventEmitter {
           lastErrorMessage: inconclusiveReason,
           lastVerifiedAt: account.lastVerifiedAt || '',
         });
+        let syncState = account.syncState || '';
+        if (preservedState === 'ready') {
+          // The account was confirmed logged in earlier; this probe could not
+          // re-confirm it (platform bot detection or a native-window-only
+          // probe), but there is no logout signal either. Refresh the backend
+          // session with auto_allowed=true so the verified-direct platform
+          // contract stays usable instead of stranding the stale legacy false
+          // flag that blocks job creation.
+          const sync = await this.syncAccountSession(groupId, platformId, {
+            profile_key: profileKey,
+            account_name: account.accountName || '',
+            login_state: 'ready',
+            last_verified_at: account.lastVerifiedAt || null,
+            last_error_message: inconclusiveReason,
+            auto_allowed: true,
+            meta: {
+              event: 'login_probe_inconclusive_preserved',
+              group_id: groupId,
+              group_name: group.name || '',
+              reason: inconclusiveReason,
+              url: probe.url || '',
+              login_state_preserved: true,
+            },
+          }).catch(() => null);
+          if (sync) syncState = sync.syncState || syncState;
+        }
         return {
           platformId,
           groupId,
@@ -1098,7 +1124,7 @@ export class TongzhuoDesktopAgent extends EventEmitter {
           inconclusiveProbe: true,
           profileReleaseRetryExhausted: profileReleaseExhausted,
           localStatePreserved: preservedState === account.status,
-          syncState: account.syncState || '',
+          syncState,
           url: probe.url || '',
         };
       }

@@ -290,7 +290,9 @@ try {
   let inconclusiveSyncAttempts = 0;
   inconclusivePeriodicAgent.syncAccountSession = async () => {
     inconclusiveSyncAttempts += 1;
-    throw new Error('an inconclusive probe must not be reported as a logout');
+    // A preserved ready account refreshes its backend session with
+    // auto_allowed=true; it must never be reported as logged out.
+    return { synced: true, queued: false, syncState: 'synced', syncedAt: new Date().toISOString() };
   };
   inconclusivePeriodicAgent.browser = {
     status: () => ({ windows: [] }),
@@ -309,7 +311,7 @@ try {
   assert.equal(inconclusivePeriodicResults[0].loginState, 'ready');
   assert.equal(savedAccount.status, 'ready', 'absence of a known positive selector must not be treated as logged out');
   assert.equal(savedAccount.lastErrorMessage, 'session_signal_inconclusive');
-  assert.equal(inconclusiveSyncAttempts, 0);
+  assert.equal(inconclusiveSyncAttempts, 1, 'a preserved ready account must refresh its backend session (auto_allowed=true)');
   await inconclusivePeriodicAgent.shutdown();
 
   // A captcha overlay on a previously verified editor session is a risk gate,
