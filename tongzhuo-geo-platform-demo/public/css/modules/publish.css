@@ -1,0 +1,62 @@
+/* ============================================================
+ * 桐灼 GEO · publish 模块层
+ * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
+ * ============================================================ */
+.route-publish .publish-summary { gap: 10px; margin-bottom: 12px; }
+.route-publish .publish-summary .summary-card {
+  min-height: 70px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.route-publish .publish-summary .summary-card b { font-size: 20px; }
+.route-publish .publish-summary .summary-card small { font-size: 10px; }
+.route-publish .publish-list { gap: 10px; }
+.route-publish { min-width: 0; overflow-x: hidden; }
+.route-publish .publish-target { min-width: 0; }
+.route-publish .publish-target { overflow: hidden; }
+.route-publish .target-result { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 6px 10px; overflow-wrap: anywhere; }
+.route-publish .target-state-copy { color: var(--muted); line-height: 1.5; }
+.route-publish .verify-publish-button { flex: 0 0 auto; min-height: 30px; }
+.route-publish .publish-task {
+  overflow: hidden;
+  border-color: #d5dfeb;
+  border-radius: 11px;
+  box-shadow: 0 6px 18px rgba(30, 44, 72, .04);
+}
+.route-publish .publish-task-head { min-height: 58px; padding: 11px 15px; }
+.route-publish .publish-task-title h3 { font-size: 13px; }
+.route-publish .publish-task-title p { margin-top: 3px; font-size: 10px; }
+.route-publish .publish-targets { gap: 0; padding: 0 10px 10px; }
+.route-publish .publish-target { min-height: 66px; padding: 10px 11px; border-top-color: #edf0f4; }
+.route-publish .publish-target .platform-label { font-size: 11px; }
+.route-publish .publish-target .target-result { font-size: 10px; }
+.route-publish .tabs-row { margin-bottom: 10px; }
+  .route-publish .publish-task-head { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .route-publish .publish-targets { grid-template-columns: 1fr; }
+#view.route-publish .publish-summary {
+  gap: 0;
+  padding: 4px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #f2f6fb;
+}
+#view.route-publish .publish-summary .summary-card {
+  border: 0;
+  border-right: 1px solid #dbe3ee;
+  border-radius: 0;
+  background: transparent;
+}
+#view.route-publish .publish-summary .summary-card:last-child { border-right: 0; }
+#view.route-publish .publish-schedule-empty { border-style: dashed; border-color: #cbd8e8; background: rgba(255, 255, 255, .72); box-shadow: none; }
+#view.route-publish .publish-list {
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #dbe3ee;
+  border-radius: 16px;
+  background: #f2f6fb;
+}
+#view.route-publish .publish-task { border-color: #d5dfeb; box-shadow: 0 6px 16px rgba(28, 49, 83, .035); }
+#view.route-publish .publish-task:has(.status-error) { border-left: 3px solid var(--red); }
+#view.route-publish .publish-task:has(.status-login) { border-left: 3px solid var(--amber); }
+#view.route-publish .publish-task-head { background: #fff; }

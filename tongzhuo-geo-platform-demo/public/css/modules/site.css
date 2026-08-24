@@ -1,0 +1,11 @@
+/* ============================================================
+ * 桐灼 GEO · site 模块层
+ * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
+ * ============================================================ */
+  .route-site .site-cms-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .route-site .site-workspace-main { overflow: hidden; }
+  .route-site .site-cms-overview { grid-template-columns: minmax(0, 1fr); }
+  .route-site .site-cms-grid { grid-template-columns: minmax(0, 1fr); }

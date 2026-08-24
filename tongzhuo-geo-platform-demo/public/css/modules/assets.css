@@ -1,0 +1,37 @@
+/* ============================================================
+ * 桐灼 GEO · assets 模块层
+ * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
+ * ============================================================ */
+.route-assets .asset-summary { gap: 10px; margin-bottom: 10px; }
+.route-assets .asset-summary .summary-card {
+  min-height: 68px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.route-assets .asset-summary .summary-card b { font-size: 19px; }
+.route-assets .asset-summary .summary-card small { font-size: 10px; }
+.route-assets .asset-demo-note { margin-bottom: 10px; padding: 9px 12px; border-radius: 9px; font-size: 10px; }
+.route-assets .asset-demo-note small { font-size: 9px; }
+.route-assets .asset-workspace { border-color: #d5dfeb; box-shadow: 0 8px 22px rgba(30, 44, 72, .05); }
+.route-assets .asset-toolbar { min-height: 52px; padding: 0 12px; }
+.route-assets .asset-list { gap: 8px; padding: 10px; background: #f7f9fc; }
+.route-assets .asset-card { border-radius: 9px; box-shadow: none; }
+.route-assets .asset-card-main { padding: 13px 14px 11px; }
+.route-assets .asset-card-metrics > div { min-height: 70px; padding: 10px 12px; }
+.route-assets .asset-card-metrics b { font-size: 12px; }
+.route-assets .asset-card-metrics span { font-size: 10px; }
+  .route-assets .asset-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+#view.route-assets .asset-summary {
+  gap: 0;
+  padding: 4px;
+  border: 1px solid #dbe3ee;
+  border-radius: 12px;
+  background: #f2f6fb;
+}
+#view.route-assets .asset-summary .summary-card { border: 0; border-right: 1px solid #dbe3ee; border-radius: 0; background: transparent; }
+#view.route-assets .asset-summary .summary-card:last-child { border-right: 0; }
+#view.route-assets .asset-demo-note { border-left: 3px solid var(--blue); background: #f5f8fc; }
+#view.route-assets .asset-workspace { border-radius: 16px; box-shadow: 0 16px 34px rgba(28, 49, 83, .065); }
+#view.route-assets .asset-toolbar { background: #fff; }
+#view.route-assets .asset-list { border-top: 1px solid #dbe3ee; background: #f2f6fb; }

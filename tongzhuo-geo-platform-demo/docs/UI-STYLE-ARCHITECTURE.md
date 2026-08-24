@@ -29,13 +29,14 @@
 
 CSS 加载顺序（见 `public/index.html`）：`styles.css` → `product-ui.css` → `css/modules/dashboard.css` → `css/tokens.css` → `css/components.css` → `css/theme.css` → `css/layout.css` → `css/demo.css` → `css/modules/effect.css`。**加载顺序只用于同优先级规则的新旧覆盖，不是职责划分依据。**
 
-> 2026-08-24 变更：`design-tokens.css` 按内容分层拆为 `css/` 下的 5 个文件，`geo-dashboard.css` → `css/modules/dashboard.css`，`effect-ui.css` → `css/modules/effect.css`。源文件已删除，级联顺序等价、无视觉变化（已逐页实测验证）。
+> 2026-08-24 变更：`design-tokens.css` 按内容分层拆为 `css/` 下的 5 个文件，`geo-dashboard.css` → `css/modules/dashboard.css`，`effect-ui.css` → `css/modules/effect.css`；`product-ui.css` 按 route 作用域拆出 9 个模块文件（planning/content/publish/assets/monitoring/site/settings/knowledge/assistant），自身留基础布局层。源文件已删除/收窄，级联顺序等价、无视觉变化（已逐页实测验证）。
 
 | 层 | 文件 | 职责 | 写什么 / 不写什么 |
 |---|---|---|---|
-| 组件结构 | `styles.css` | 通用组件结构唯一来源（卡片、表格、表单、页签、按钮、弹窗、select、input） | 写 display / height / padding / gap / border 结构 / 布局；**不写**颜色值（引用变量） |
-| 页面布局 | `product-ui.css` | 页面级网格与布局（选题中心、发布、官网 CMS、AI 创作台等） | 只写**页面级** grid/flex/间距，必须带 `.route-*` 作用域（见 §7）；不改组件结构 |
+| 组件结构 | `styles.css` | 通用组件结构唯一来源（卡片、表格、表单、页签、按钮、弹窗、select、input） | 写 display / height / padding / gap / border 结构 / 布局；**不写**颜色值（引用变量）。**含历史遗留的交错模块类（monitor-*/studio-*/knowledge-* 等），暂未拆出** |
+| 页面布局 | `product-ui.css` | 页面级网格与布局基础（剩余非 route 通用部分） | 只写**页面级** grid/flex/间距，必须带 `.route-*` 作用域（见 §7）；不改组件结构 |
 | 首页布局 | `css/modules/dashboard.css` | 仅工作台（首页）版面（原 geo-dashboard.css） | 只写 `.route-dashboard` 作用域 |
+| 各业务模块 | `css/modules/{planning,content,publish,assets,monitoring,site,settings,knowledge,assistant}.css` | 各路由页面布局（原 product-ui.css 按 route 拆出） | 只写对应 `.route-*` 作用域规则 |
 | 设计令牌 | `css/tokens.css` | `:root` 变量 + 基础排版 + 全站字号下限 | 只定义变量与纯值规则 |
 | 组件视觉 | `css/components.css` | 通用组件（按钮/卡片/输入框/表格/徽章/弹窗/空状态/加载态/Toast/页头/分页）的视觉统一 | 写组件级视觉规则（引用变量） |
 | 主题落地 | `css/theme.css` | 枫叶红白底主题组件级落地 + 登录界面 | 写品牌主题视觉 |

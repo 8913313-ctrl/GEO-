@@ -1,0 +1,666 @@
+/* ============================================================
+ * 桐灼 GEO · planning 模块层
+ * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
+ * ============================================================ */
+.route-planning .business-scope-card {
+  grid-template-columns: minmax(220px, .8fr) minmax(280px, 1.35fr) auto auto;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 17px 18px;
+  border-color: #d9e4f4;
+  background: linear-gradient(110deg, #f7faff, #fff 46%);
+}
+  .route-planning .business-scope-card { grid-template-columns: minmax(210px, .8fr) minmax(260px, 1.2fr) auto; }
+  .route-planning .business-scope-actions { grid-column: 1 / -1; justify-self: start; }
+  .route-planning .planning-layout { grid-template-columns: 1fr; grid-template-areas: "candidate" "history" "basket"; }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-history-panel { grid-area: history; }
+  .route-planning .planning-basket-panel { grid-area: basket; }
+  .route-planning .planning-layout > :last-child { position: static; grid-column: auto; max-height: none; overflow: visible; }
+  .route-planning .planning-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "candidate candidate" "history basket"; }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-history-panel { grid-area: history; }
+  .route-planning .planning-basket-panel { grid-area: basket; }
+  .route-planning .planning-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "candidate candidate" "history basket"; }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-history-panel { grid-area: history; }
+  .route-planning .planning-basket-panel { grid-area: basket; }
+  .route-planning .business-scope-card { grid-template-columns: 1fr 1fr; }
+  .route-planning .business-scope-card { grid-template-columns: 1fr; }
+.route-planning .planning-page-shell .topic-center-tab-row { margin-bottom: 10px; }
+.route-planning .planning-lifecycle {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 8px;
+  overflow-x: auto;
+  border: 1px solid #e2e8f2;
+  border-radius: 12px;
+  background: #f8faff;
+  scrollbar-width: thin;
+}
+.route-planning .planning-lifecycle::-webkit-scrollbar { height: 6px; }
+.route-planning .planning-lifecycle::-webkit-scrollbar-thumb { border-radius: 999px; background: #cbd5e1; }
+.route-planning .planning-lifecycle-step {
+  display: flex;
+  min-width: 168px;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  text-align: left;
+}
+.route-planning .planning-lifecycle-step:hover { border-color: #d8e2ef; background: #fff; }
+.route-planning .planning-lifecycle-step.active { border-color: #f2c8c4; color: var(--ink); background: #fff; box-shadow: 0 2px 8px rgba(30, 44, 72, .05); }
+.route-planning .planning-lifecycle-index { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 6px; color: #52709d; background: #eaf0f8; font-size: 10px; font-weight: 800; }
+.route-planning .planning-lifecycle-step.active .planning-lifecycle-index { color: #a63c35; background: #fde9e6; }
+.route-planning .planning-lifecycle-step > span:last-child { display: grid; min-width: 0; gap: 3px; }
+.route-planning .planning-lifecycle-step b { color: inherit; font-size: 12px; line-height: 1.2; }
+.route-planning .planning-lifecycle-step small { overflow: hidden; color: var(--muted-2); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.route-planning .planning-lifecycle-arrow { display: grid; flex: 0 0 14px; place-items: center; align-self: center; color: #9aabc1; font-size: 14px; }
+.route-planning .planning-lifecycle-history { min-width: 138px; flex: 0 0 138px; }
+.route-planning .planning-scope-card { margin-top: 0; }
+.route-planning .planning-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin: 2px 0 10px; }
+.route-planning .planning-section-heading-results { margin-top: 2px; }
+.route-planning .planning-section-heading > div { min-width: 0; }
+.route-planning .planning-section-kicker { display: block; margin-bottom: 4px; color: #a94b43; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.route-planning .planning-section-heading h3 { margin: 0; color: var(--ink); font-size: 16px; }
+.route-planning .planning-section-heading p { max-width: 520px; margin: 0; color: var(--muted-2); font-size: 11px; line-height: 1.55; text-align: right; }
+.route-planning .planning-stage-card { border-color: #dfe7f2; }
+.route-planning .planning-layout > .card { padding: 0; }
+.route-planning .planning-history-panel { border-style: dashed; background: #fbfcfe; }
+.route-planning .planning-history-panel .card-header { background: transparent; }
+.route-planning .planning-candidate-panel { min-width: 0; }
+.route-planning .planning-basket-panel { min-width: 0; }
+.route-planning .keyword-result-table td:nth-child(3) { width: 70px; }
+.route-planning .keyword-result-table td:nth-child(4) { width: 86px; }
+.route-planning .planning-library-panel .table-scroll { min-height: 120px; }
+.route-planning .planning-scope-card {
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 10px 14px;
+}
+.route-planning .planning-scope-card > .field { display: flex; align-items: center; gap: 8px; }
+.route-planning .planning-scope-card > .field label { flex: 0 0 auto; white-space: nowrap; }
+.route-planning .planning-scope-card > .field .select { min-width: 106px; height: 34px; }
+.route-planning .planning-scope-card .business-scope-copy b { font-size: 12px; }
+.route-planning .planning-scope-card .business-scope-copy span { margin-top: 2px; font-size: 10px; }
+.route-planning .planning-scope-card .business-scope-stats { gap: 10px; font-size: 10px; }
+.route-planning .planning-scope-card .business-scope-stats b { font-size: 14px; }
+.route-planning .planning-scope-card .business-scope-actions { gap: 5px; }
+.route-planning .planning-scope-card .business-scope-actions .button-small { min-height: 29px; padding-inline: 9px; font-size: 11px; }
+.route-planning .planning-stage-card .card-header {
+  min-height: 48px;
+  padding-inline: 18px;
+}
+.route-planning .planning-stage-card .card-header p { margin-top: 3px; line-height: 1.35; }
+.route-planning .planning-stage-card .card-header::before { left: 18px; width: 24px; height: 24px; border-radius: 7px; font-size: 10px; }
+.route-planning .planning-stage-card .card-header { padding-left: 52px; }
+.route-planning .planning-stage-card .keyword-manager-body { padding: 11px 14px 12px; }
+.route-planning .planning-stage-card .keyword-chip-list { gap: 6px; margin-top: 9px; }
+.route-planning .planning-stage-card .keyword-chip { min-height: 30px; padding: 4px 7px; }
+.route-planning .planning-stage-card .keyword-selection-hint { margin-top: 8px; }
+.route-planning .planning-stage-card .seed-input-row { padding: 10px 14px 12px; }
+.route-planning .planning-stage-card .seed-input-row { gap: 9px; }
+.route-planning .planning-stage-card .seed-input-row > button { min-height: 36px; }
+.route-planning .planning-basket-panel .card-header { min-height: 48px; padding-inline: 14px; }
+.route-planning .planning-basket-panel .card-header p { margin-top: 2px; line-height: 1.35; }
+.route-planning .planning-history-panel .package-list { padding: 6px; }
+.route-planning .planning-history-panel .package-item { padding: 8px; }
+.route-planning .planning-history-panel .package-item strong { font-size: 11px; }
+.route-planning .planning-history-panel .package-item span { margin-top: 3px; font-size: 9px; }
+.route-planning .planning-history-panel .package-delete-button { min-height: 24px; font-size: 9px; }
+.route-planning .planning-basket-panel .basket-list { padding: 6px 10px; }
+.route-planning .planning-basket-panel .basket-empty { min-height: 122px; padding: 12px; }
+.route-planning .planning-basket-panel .basket-empty span { width: 34px; height: 34px; margin-bottom: 7px; border-radius: 9px; }
+.route-planning .planning-basket-panel .basket-empty svg { width: 16px; height: 16px; }
+.route-planning .planning-basket-panel .basket-empty b { font-size: 11px; }
+.route-planning .planning-basket-panel .basket-empty p { margin: 3px 0; font-size: 9px; }
+.route-planning .planning-basket-panel .basket-actions { gap: 6px; padding: 8px 10px 10px; }
+.route-planning .planning-basket-panel .basket-actions .ghost-button { min-height: 31px; font-size: 11px; }
+.route-planning .keyword-result-table th { height: 42px; padding-inline: 12px; }
+.route-planning .keyword-result-table td { height: 54px; padding: 7px 12px; }
+.route-planning .keyword-result-table .article-title-cell b { display: block; overflow: hidden; color: var(--ink-strong); font-size: 12px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.route-planning .keyword-result-table .article-title-cell small { display: block; margin-top: 3px; color: var(--muted-2); font-size: 10px !important; line-height: 1.3; }
+.route-planning .keyword-result-table .topic-score { gap: 2px; }
+.route-planning .keyword-result-table .topic-score b { font-size: 14px; font-weight: 650; }
+.route-planning .keyword-result-table .topic-score small { font-size: 8px; }
+.route-planning .keyword-result-table .status-badge { min-height: 20px; padding-inline: 7px; font-size: 10px; }
+.route-planning .keyword-result-table .status-badge::before { width: 5px; height: 5px; }
+  .route-planning .planning-scope-card > .field { display: grid; align-items: initial; gap: 5px; }
+  .route-planning .planning-scope-card > .field .select { width: 100%; }
+  .route-planning .planning-stage-card .card-header { padding-inline: 52px 14px; }
+  .route-planning .planning-scope-card { padding: 10px 12px; }
+  .route-planning .keyword-result-table th { height: 38px; padding-inline: 9px; }
+  .route-planning .keyword-result-table td { height: 50px; padding: 6px 9px; }
+  .route-planning .planning-lifecycle-step { min-width: 150px; }
+  .route-planning .planning-lifecycle-history { min-width: 130px; flex-basis: 130px; }
+  .route-planning .planning-lifecycle { margin-right: -2px; margin-left: -2px; }
+  .route-planning .planning-lifecycle-step { min-width: 148px; flex: 0 0 148px; }
+  .route-planning .planning-lifecycle-history { min-width: 130px; flex-basis: 130px; }
+  .route-planning .planning-lifecycle-arrow { flex-basis: 10px; }
+  .route-planning .planning-section-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .route-planning .planning-section-heading p { max-width: none; text-align: left; }
+.route-planning .planning-research-tools { margin: 0 0 14px; padding: 11px 13px 12px; border: 1px solid #dfe7f2; border-radius: 12px; background: #fff; }
+.route-planning .planning-workbench-section-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 9px; }
+.route-planning .planning-workbench-section-head h3 { margin: 0; color: var(--ink); font-size: 14px; }
+.route-planning .planning-workbench-section-head .planning-section-kicker { margin-bottom: 2px; }
+.route-planning .planning-workbench-context { flex: 0 0 auto; color: var(--muted-2); font-size: 10px; }
+.route-planning .planning-research-tools .keyword-foundation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.route-planning .planning-research-tools .planning-stage-card { box-shadow: none; }
+.route-planning .planning-research-tools .planning-stage-card .card-header { min-height: 43px; padding-top: 8px; padding-bottom: 8px; }
+.route-planning .planning-research-tools .planning-stage-card .card-header h3 { font-size: 13px; }
+.route-planning .planning-research-tools .planning-stage-card .card-header p { font-size: 10px; }
+.route-planning .planning-research-tools .keyword-manager-body, .route-planning .planning-research-tools .seed-input-row { padding-top: 9px; padding-bottom: 9px; }
+.route-planning .planning-research-tools .keyword-input-row, .route-planning .planning-research-tools .seed-input-row { gap: 8px; }
+.route-planning .planning-research-tools .keyword-input-row > button, .route-planning .planning-research-tools .seed-input-row > button { min-height: 34px; padding-inline: 10px; font-size: 11px; }
+.route-planning .planning-research-tools .keyword-chip-list { margin-top: 7px; }
+.route-planning .planning-research-tools .keyword-selection-hint { margin-top: 5px; font-size: 9px; }
+.route-planning .planning-section-heading-results { margin-top: 14px; margin-bottom: 8px; }
+.route-planning .planning-section-heading-results h3 { font-size: 17px; }
+.route-planning .planning-section-heading-results p { font-size: 10px; }
+.route-planning .planning-candidate-panel { border-color: #d4dfed; box-shadow: 0 8px 22px rgba(30, 44, 72, .06); }
+.route-planning .planning-candidate-panel .card-header { min-height: 56px; }
+.route-planning .planning-candidate-panel .model-note { padding-top: 7px; padding-bottom: 7px; font-size: 10px; }
+.route-planning .planning-candidate-panel .topic-score b { color: var(--muted); font-size: 13px; font-weight: 600; }
+.route-planning .planning-candidate-panel .topic-score small { font-size: 8px; }
+.route-planning .planning-candidate-panel .article-title-cell b { color: var(--ink-strong); }
+.route-planning .planning-history-panel, .route-planning .planning-basket-panel { box-shadow: none; }
+.route-planning .planning-history-panel .card-header, .route-planning .planning-basket-panel .card-header { min-height: 44px; }
+.route-planning .planning-history-panel .small-tag, .route-planning .planning-basket-panel .small-tag { font-size: 9px; }
+.route-planning .planning-basket-panel .basket-empty { min-height: 108px; }
+  .route-planning .planning-layout { grid-template-columns: minmax(0, 1fr) 278px; grid-template-areas: "candidate history" "candidate basket"; align-items: start; gap: 14px; }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-history-panel { grid-area: history; }
+  .route-planning .planning-basket-panel { grid-area: basket; }
+  .route-planning .planning-research-tools .keyword-foundation-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .route-planning .planning-layout { grid-template-columns: minmax(0, 1fr) 260px; grid-template-areas: "candidate history" "candidate basket"; gap: 12px; }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-history-panel { grid-area: history; }
+  .route-planning .planning-basket-panel { grid-area: basket; }
+  .route-planning .planning-candidate-panel .table-scroll { min-width: 0; overflow-x: hidden; }
+  #view.route-planning .planning-candidate-panel .keyword-result-table { width: 100%; min-width: 0; table-layout: fixed !important; }
+  #view.route-planning .planning-candidate-panel .keyword-result-table td:nth-child(1) { width: 38px; }
+  #view.route-planning .planning-candidate-panel .keyword-result-table td:nth-child(2) { width: auto; }
+  #view.route-planning .planning-candidate-panel .keyword-result-table td:nth-child(3) { width: 72px; }
+  #view.route-planning .planning-candidate-panel .keyword-result-table td:nth-child(4) { width: 72px; }
+  #view.route-planning .planning-candidate-panel .keyword-result-table td:nth-child(5) { width: 68px; }
+  .route-planning .planning-research-tools .keyword-foundation-grid { grid-template-columns: 1fr; }
+  .route-planning .planning-layout { grid-template-columns: 1fr; grid-template-areas: "candidate" "basket" "history"; }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-basket-panel { grid-area: basket; }
+  .route-planning .planning-history-panel { grid-area: history; }
+  .route-planning .planning-workbench-section-head { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .route-planning .planning-workbench-context { font-size: 9px; }
+  .route-planning .planning-research-tools { padding: 10px; }
+.route-planning .planning-support-rail {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  gap: 12px;
+}
+  .route-planning .planning-layout {
+    grid-template-columns: minmax(0, 1fr) 278px;
+    grid-template-areas: "candidate support";
+    align-items: start;
+    gap: 14px;
+  }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-support-rail { grid-area: support; }
+  .route-planning .planning-basket-panel { grid-area: auto; }
+  .route-planning .planning-layout {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    grid-template-areas: "candidate support";
+    align-items: start;
+    gap: 12px;
+  }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-support-rail { grid-area: support; }
+  .route-planning .planning-basket-panel { grid-area: auto; }
+  .route-planning .planning-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "candidate"
+      "support";
+    align-items: start;
+  }
+  .route-planning .planning-candidate-panel { grid-area: candidate; }
+  .route-planning .planning-support-rail { grid-area: support; }
+  .route-planning .planning-basket-panel { grid-area: auto; }
+.route-planning .planning-workbench-page { padding-bottom: 40px; }
+.route-planning .planning-workbench-head {
+  max-width: none;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+.route-planning .planning-workbench-head h2 {
+  color: var(--ink-strong);
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -.55px;
+}
+.route-planning .planning-workbench-head p {
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.route-planning .planning-head-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+.route-planning .planning-head-actions [data-icon] {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+.route-planning .planning-workflow-nav {
+  margin-bottom: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 5px 16px rgba(30, 44, 72, .035);
+}
+.route-planning .planning-workflow-meta {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted-2);
+  background: var(--panel-soft);
+  font-size: 10.5px;
+  font-weight: 650;
+}
+.route-planning .planning-workflow-meta .health { font-size: 10px; }
+.route-planning .planning-lifecycle {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.route-planning .planning-lifecycle-history {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 52px;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  flex: initial;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+  text-align: left;
+}
+.route-planning .planning-lifecycle-step:first-child { border-left: 0; }
+.route-planning .planning-lifecycle-step:hover { border-color: var(--line); background: var(--panel-soft); }
+.route-planning .planning-lifecycle-step.active {
+  border-color: var(--line);
+  color: var(--ink);
+  background: #fff8f6;
+  box-shadow: inset 0 -2px 0 var(--red);
+}
+.route-planning .planning-lifecycle-index {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border-radius: 7px;
+  color: var(--muted);
+  background: #eef2f7;
+  font-size: 10px;
+  font-weight: 750;
+}
+.route-planning .planning-lifecycle-step.active .planning-lifecycle-index { color: var(--red); background: var(--red-soft); }
+.route-planning .planning-lifecycle-copy { display: grid; min-width: 0; gap: 2px; }
+.route-planning .planning-lifecycle-step b { color: inherit; font-size: 11.5px; font-weight: 650; line-height: 1.25; }
+.route-planning .planning-lifecycle-step small {
+  overflow: hidden;
+  color: var(--muted-2);
+  font-size: 9.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.route-planning .planning-lifecycle-step em {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: var(--muted-2);
+  background: var(--panel-soft);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 650;
+  text-align: center;
+}
+.route-planning .planning-lifecycle-step.active em { color: var(--red); background: #fff; }
+.route-planning .planning-context-bar {
+  display: grid;
+  grid-template-columns: minmax(170px, .72fr) minmax(250px, 1.25fr) auto auto;
+  gap: 16px;
+  align-items: center;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: linear-gradient(110deg, #f8f9fb, #fff 52%);
+  box-shadow: none;
+}
+.route-planning .planning-context-switcher { display: grid; min-width: 0; gap: 4px; }
+.route-planning .planning-context-switcher > span {
+  color: var(--muted-2);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.route-planning .planning-context-switcher .select { width: 100%; height: 32px; font-size: 11.5px; }
+.route-planning .planning-context-bar .business-scope-copy { min-width: 0; }
+.route-planning .planning-context-bar .business-scope-copy b { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.route-planning .planning-context-bar .business-scope-copy span { overflow: hidden; margin-top: 2px; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.route-planning .planning-context-bar .business-scope-stats { gap: 14px; }
+.route-planning .planning-context-bar .business-scope-stats span { color: var(--muted-2); font-size: 9.5px; }
+.route-planning .planning-context-bar .business-scope-stats b { margin-right: 3px; color: var(--ink); font-size: 14px; font-weight: 650; }
+.route-planning .planning-context-bar .business-scope-actions { grid-column: auto; justify-self: auto; flex-wrap: nowrap; gap: 5px; }
+.route-planning .planning-context-bar .business-scope-actions .button-small { min-height: 30px; padding-inline: 9px; font-size: 10.5px; }
+.route-planning .planning-workbench-body { min-width: 0; }
+.route-planning .planning-research-context {
+  margin: 0 0 14px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: 0 5px 16px rgba(30, 44, 72, .035);
+}
+.route-planning .planning-workbench-section-head {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+.route-planning .planning-workbench-section-head > div { min-width: 0; }
+.route-planning .planning-workbench-section-head h3 { margin: 0; color: var(--ink); font-size: 14px; }
+.route-planning .planning-workbench-section-head p { margin: 3px 0 0; color: var(--muted-2); font-size: 10px; line-height: 1.4; }
+.route-planning .planning-workbench-context { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; color: var(--green); font-size: 10px; }
+.route-planning .planning-workbench-context i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.route-planning .planning-section-kicker { display: block; margin-bottom: 3px; color: var(--red); font-size: 9.5px; font-weight: 750; letter-spacing: .07em; }
+.route-planning .planning-research-tools .planning-tool-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.18fr) minmax(0, .82fr);
+  gap: 0;
+  margin: 0;
+}
+.route-planning .planning-tool-panel {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.route-planning .planning-tool-panel + .planning-tool-panel { border-left: 1px solid var(--line); }
+.route-planning .planning-tool-panel .card-header {
+  min-height: 44px;
+  padding: 7px 14px 7px 48px;
+  border-bottom: 0;
+  background: transparent;
+}
+.route-planning .planning-tool-panel .card-header::before {
+  left: 14px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  font-size: 9px;
+}
+.route-planning .planning-tool-panel .card-header h3 { font-size: 12.5px; }
+.route-planning .planning-tool-panel .card-header p { margin-top: 2px; font-size: 9.5px; }
+.route-planning .planning-tool-panel .seed-input-row { padding: 3px 14px 12px; }
+.route-planning .planning-tool-panel .seed-input-row { gap: 8px; }
+.route-planning .planning-tool-panel .field label { font-size: 10px; }
+.route-planning .planning-tool-panel .input { height: 36px; font-size: 11.5px; }
+.route-planning .planning-tool-panel .seed-input-row > button { min-width: 138px; min-height: 36px; padding-inline: 10px; font-size: 10.5px; }
+.route-planning .planning-tool-panel .keyword-chip-list { gap: 5px; margin-top: 7px; }
+.route-planning .planning-tool-panel .keyword-chip { min-height: 27px; padding: 3px 6px; border-radius: 7px; }
+.route-planning .planning-tool-panel .keyword-name-button { font-size: 10.5px; }
+.route-planning .planning-tool-panel .keyword-chip small { font-size: 8.5px; }
+.route-planning .planning-tool-panel .keyword-selection-hint { margin-top: 5px; color: var(--muted-2); font-size: 9px; }
+.route-planning .planning-section-heading-results {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 16px 0 9px;
+}
+.route-planning .planning-section-heading-results h3 { margin: 0; color: var(--ink-strong); font-size: 17px; }
+.route-planning .planning-section-heading-results p { max-width: 520px; margin: 0; color: var(--muted-2); font-size: 10.5px; line-height: 1.45; text-align: right; }
+.route-planning .planning-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-areas: "candidate support";
+  gap: 14px;
+  align-items: start;
+}
+.route-planning .planning-candidate-panel { grid-area: candidate; min-width: 0; overflow: hidden; padding: 0; border-color: #d4deea; box-shadow: 0 9px 24px rgba(30, 44, 72, .065); }
+.route-planning .planning-candidate-head {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.route-planning .planning-candidate-head > div:first-child { min-width: 0; }
+.route-planning .planning-candidate-head h3 { overflow: hidden; margin: 0; color: var(--ink-strong); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.route-planning .planning-candidate-head p { overflow: hidden; margin: 4px 0 0; color: var(--muted-2); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.route-planning .planning-candidate-summary { display: grid; flex: 0 0 auto; justify-items: end; }
+.route-planning .planning-candidate-summary b { color: var(--ink-strong); font-size: 23px; font-variant-numeric: tabular-nums; font-weight: 650; letter-spacing: -.04em; line-height: 1; }
+.route-planning .planning-candidate-summary span { margin-top: 4px; color: var(--muted-2); font-size: 9.5px; }
+.route-planning .planning-candidate-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-bottom: 1px solid var(--line); background: var(--panel-soft); }
+.route-planning .planning-candidate-toolbar .category-tabs { min-width: 0; padding: 8px 12px; border: 0; }
+.route-planning .planning-candidate-toolbar .category-tab { min-height: 30px; padding-inline: 9px; font-size: 10.5px; }
+.route-planning .planning-candidate-toolbar .category-tab i { font-size: 8.5px; }
+.route-planning .planning-candidate-toolbar .model-note {
+  margin-right: 14px;
+  padding: 0;
+  border: 0;
+  color: var(--muted-2);
+  background: transparent;
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+.route-planning .planning-candidate-toolbar .model-note [data-icon] { width: 13px; height: 13px; }
+.route-planning .planning-candidate-panel .keyword-bulk-row { margin: 9px 14px; padding: 7px 9px; border-color: var(--line); background: #fff; }
+.route-planning .planning-candidate-panel .keyword-bulk-row .danger-button { min-height: 28px; font-size: 9.5px; }
+.route-planning .planning-candidate-panel .table-scroll { border: 0; border-top: 1px solid var(--line); border-radius: 0; }
+#view.route-planning .planning-candidate-panel .keyword-result-table { width: 100%; min-width: 640px; table-layout: fixed; }
+.route-planning .planning-candidate-panel .keyword-result-table th {
+  height: 38px;
+  padding: 0 11px;
+  color: var(--muted-2);
+  background: #fafbfc;
+  font-size: 9.5px;
+  font-weight: 650;
+}
+.route-planning .planning-candidate-panel .keyword-result-table td {
+  height: 74px;
+  padding: 8px 11px;
+  border-bottom-color: #edf0f4;
+  background: #fff;
+  transition: background-color .16s ease, box-shadow .16s ease;
+}
+.route-planning .planning-candidate-panel .planning-question-row:hover td { background: #fbfcfe; }
+.route-planning .planning-candidate-panel .planning-question-row.is-selected td { background: #fff7f5; }
+.route-planning .planning-candidate-panel .planning-question-row.is-selected td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+.route-planning .planning-candidate-panel .planning-question-row:focus-within td { background: #fff9f7; }
+#view.route-planning .planning-candidate-panel .planning-question-copy b {
+  display: -webkit-box;
+  max-width: none;
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-size: 12.5px;
+  font-weight: 650;
+  line-height: 1.42;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.route-planning .planning-candidate-panel .planning-question-copy small { display: flex; min-width: 0; align-items: center; gap: 7px; margin-top: 4px; color: var(--muted-2); font-size: 9.5px !important; }
+.route-planning .planning-candidate-panel .planning-question-copy small span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-planning .planning-candidate-panel .planning-question-copy small span + span { padding-left: 7px; border-left: 1px solid var(--line); }
+.route-planning .planning-candidate-panel .status-badge { min-height: 19px; padding-inline: 6px; font-size: 9px; }
+.route-planning .planning-candidate-panel .topic-score { gap: 1px; }
+.route-planning .planning-candidate-panel .topic-score b { color: var(--muted); font-size: 12px; font-weight: 600; }
+.route-planning .planning-candidate-panel .topic-score small { font-size: 7.5px; }
+.route-planning .planning-candidate-panel .table-actions .danger-text { opacity: .58; font-size: 9.5px; }
+.route-planning .planning-candidate-panel tr:focus-within .table-actions .danger-text { opacity: 1; }
+.route-planning .planning-candidate-panel .checkbox { vertical-align: middle; }
+.route-planning .planning-support-rail {
+  position: sticky;
+  top: 14px;
+  display: flex;
+  min-width: 0;
+  grid-area: support;
+  flex-direction: column;
+  align-self: start;
+  gap: 10px;
+}
+.route-planning .planning-support-panel {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .72);
+}
+.route-planning .planning-support-panel .card-header { min-height: 46px; padding: 8px 12px; background: transparent; }
+.route-planning .planning-support-panel .card-header h3 { margin: 0; color: var(--ink); font-size: 11.5px; }
+.route-planning .planning-support-panel .card-header p { margin: 2px 0 0; color: var(--muted-2); font-size: 9px; line-height: 1.35; }
+.route-planning .planning-support-panel .small-tag { min-height: 18px; padding-inline: 6px; font-size: 8.5px; }
+.route-planning .planning-history-panel { border-color: #e3e7ed; background: transparent; }
+.route-planning .planning-history-panel .package-list { padding: 5px; }
+.route-planning .planning-history-panel .package-item-wrap { gap: 2px; }
+.route-planning .planning-history-panel .package-item { min-height: 45px; padding: 7px 8px; border-radius: 7px; }
+.route-planning .planning-history-panel .package-item:hover { background: #f8f9fb; }
+.route-planning .planning-history-panel .package-item.active { border-color: #efc5bf; background: #fff7f5; }
+.route-planning .planning-history-panel .package-item strong { font-size: 10.5px; font-weight: 650; }
+.route-planning .planning-history-panel .package-item span { margin-top: 2px; color: var(--muted-2); font-size: 8.5px; }
+.route-planning .planning-history-panel .package-delete-button { width: 34px; min-width: 34px; min-height: 24px; font-size: 8.5px; }
+.route-planning .planning-basket-panel { background: var(--panel); }
+.route-planning .planning-basket-panel.has-selection { border-color: #e8c6c1; }
+.route-planning .planning-basket-panel .basket-list { max-height: 300px; padding: 5px 9px; }
+.route-planning .planning-basket-panel .basket-empty { display: flex; min-height: 78px; align-items: center; padding: 10px 12px; text-align: left; }
+.route-planning .planning-basket-panel .basket-empty > div { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: center; column-gap: 9px; }
+.route-planning .planning-basket-panel .basket-empty span { width: 30px; height: 30px; grid-row: 1 / span 2; margin: 0; border-radius: 8px; }
+.route-planning .planning-basket-panel .basket-empty svg { width: 14px; height: 14px; }
+.route-planning .planning-basket-panel .basket-empty b { font-size: 10.5px; }
+.route-planning .planning-basket-panel .basket-empty p { margin: 2px 0 0; font-size: 8.8px; }
+.route-planning .planning-basket-panel .basket-item { margin: 5px 0; padding: 8px 26px 8px 8px; border-radius: 7px; }
+.route-planning .planning-basket-panel .basket-item b { font-size: 10px; line-height: 1.45; }
+.route-planning .planning-basket-panel .basket-item span { margin-top: 3px; font-size: 8.5px; }
+.route-planning .planning-basket-panel .basket-actions { gap: 5px; padding: 8px 9px 9px; }
+.route-planning .planning-basket-panel .basket-actions button { min-height: 31px; font-size: 10px; }
+.route-planning .planning-basket-panel .basket-actions button:disabled { opacity: .42; cursor: not-allowed; }
+  .route-planning .planning-layout { grid-template-columns: minmax(0, 1fr) 260px; }
+  .route-planning .planning-candidate-toolbar { grid-template-columns: 1fr; }
+  .route-planning .planning-candidate-toolbar .model-note { margin: 0; padding: 0 13px 8px; }
+  .route-planning .planning-workbench-head { align-items: flex-start; }
+  .route-planning .planning-lifecycle { display: flex; overflow-x: auto; scrollbar-width: thin; }
+  .route-planning .planning-lifecycle-history { min-width: 164px; flex: 0 0 164px; }
+  .route-planning .planning-context-bar { grid-template-columns: minmax(150px, .7fr) minmax(0, 1.3fr) auto; }
+  .route-planning .planning-context-bar .business-scope-actions { grid-column: 1 / -1; justify-self: end; margin-top: -2px; }
+  .route-planning .planning-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "candidate"
+      "support";
+  }
+  .route-planning .planning-support-rail { position: static; }
+  .route-planning .planning-workbench-head { flex-direction: column; gap: 12px; }
+  .route-planning .planning-head-actions { width: 100%; }
+  .route-planning .planning-head-actions button { flex: 1; }
+  .route-planning .planning-context-bar { grid-template-columns: minmax(145px, .8fr) minmax(0, 1.2fr); }
+  .route-planning .planning-context-bar .business-scope-stats { justify-self: start; }
+  .route-planning .planning-context-bar .business-scope-actions { grid-column: auto; justify-self: end; margin: 0; }
+  .route-planning .planning-section-heading-results { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .route-planning .planning-section-heading-results p { max-width: none; text-align: left; }
+  .route-planning .planning-context-bar { grid-template-columns: 1fr; gap: 9px; }
+  .route-planning .planning-context-bar .business-scope-actions { grid-column: auto; justify-self: stretch; }
+  .route-planning .planning-context-bar .business-scope-actions button { flex: 1; }
+  .route-planning .planning-research-tools .planning-tool-grid { grid-template-columns: 1fr; }
+  .route-planning .planning-tool-panel + .planning-tool-panel { border-top: 1px solid var(--line); border-left: 0; }
+  .route-planning .planning-tool-panel .seed-input-row { align-items: stretch; flex-direction: column; }
+  .route-planning .planning-tool-panel .seed-input-row > button { width: 100%; }
+  .route-planning .planning-candidate-head { align-items: flex-start; }
+  .route-planning .planning-candidate-summary b { font-size: 19px; }
+#view.route-planning .planning-workbench-body {
+  margin-top: 2px;
+  padding: 18px;
+  border: 1px solid #dbe3ee;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(247, 250, 253, .94), rgba(242, 246, 251, .82));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), 0 16px 38px rgba(28, 49, 83, .045);
+}
+#view.route-planning .planning-research-context {
+  margin-bottom: 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+#view.route-planning .planning-workbench-section-head {
+  min-height: 48px;
+  padding: 0 0 10px;
+  border-bottom: 1px solid #dbe3ee;
+  background: transparent;
+}
+#view.route-planning .planning-workbench-section-head h3 { font-size: 15px; letter-spacing: -.15px; }
+#view.route-planning .planning-workbench-section-head p { font-size: 11px; }
+#view.route-planning .planning-research-tools .planning-tool-grid {
+  margin-top: 12px;
+  border: 1px solid #dfe6ef;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .78);
+  box-shadow: 0 6px 18px rgba(28, 49, 83, .035);
+}
+#view.route-planning .planning-tool-panel + .planning-tool-panel { background: rgba(248, 250, 253, .72); }
+#view.route-planning .planning-layout { gap: 18px; margin-top: 18px; }
+#view.route-planning .planning-candidate-panel {
+  border-color: #cbd8e8;
+  border-radius: 14px;
+  box-shadow: 0 16px 36px rgba(28, 49, 83, .075);
+}
+#view.route-planning .planning-candidate-head { min-height: 72px; padding: 14px 18px; background: #fff; }
+#view.route-planning .planning-candidate-toolbar { background: #f5f8fc; }
+#view.route-planning .planning-support-rail { gap: 12px; }
+#view.route-planning .planning-support-panel { border-color: #d9e1ec; background: rgba(255, 255, 255, .82); box-shadow: 0 6px 18px rgba(28, 49, 83, .035); }
+#view.route-planning .planning-history-panel { background: rgba(248, 250, 253, .68); }
+#view.route-planning .planning-basket-panel.has-selection { box-shadow: 0 8px 22px rgba(199, 67, 77, .09); }
