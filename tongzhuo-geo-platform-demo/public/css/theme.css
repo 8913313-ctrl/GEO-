@@ -1,0 +1,267 @@
+/* ============================================================
+ * 桐灼 GEO · theme 层
+ * 由 design-tokens.css 静态拆出（2026-08-24），级联顺序等价，零视觉变化。
+ * 加载顺序：tokens → components → theme → layout → demo
+ * ============================================================ */
+
+/* --- 第 19 节（原 design-tokens.css） --- */
+/* ============ 19. 枫叶红白底主题 · 组件级落地 ============ */
+
+/* 页面背景：纯奶白（覆盖多套渐变光晕） */
+body { background: var(--bg) !important; }
+.app-shell { background: var(--bg); }
+.main-column { background: var(--bg); }
+#main-content { background: transparent; padding: 30px 34px 48px; }
+
+/* 侧边栏：奶白底 + 枫叶红激活态 */
+.sidebar { background: var(--nav); border-right: 1px solid var(--line); }
+.nav-main a,
+.nav-secondary a { color: var(--nav-muted); font-weight: 500; }
+.nav-main a:hover,
+.nav-secondary a:hover { background: var(--nav-soft); color: var(--ink); }
+.nav-main a.active,
+.nav-secondary a.active {
+  background: var(--purple-soft);
+  color: #a03a26;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(184, 68, 47, .14);
+}
+.nav-main a.active .nav-icon,
+.nav-secondary a.active .nav-icon { color: var(--blue); }
+.nav-effect-toggle:hover { background: var(--nav-soft); }
+.nav-effect-items a.active { background: var(--purple-soft); color: #a03a26; }
+.nav-group { color: var(--muted-2); }
+
+/* 页面头部：去掉 hero 渐变装饰 */
+.page-head > div:first-child { padding-left: 0; }
+.page-head > div:first-child::before { display: none; }
+.route-dashboard .page-head::before,
+.route-dashboard .page-head::after { display: none !important; }
+.route-dashboard .page-head { min-height: 0; overflow: visible; }
+.route-dashboard .page-head h2 { color: var(--ink-strong); font-size: 24px; letter-spacing: -.4px; }
+.route-dashboard .page-head p { color: var(--muted); font-weight: 400; }
+
+/* 卡片：白底细边框 */
+.card {
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--panel);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.card-header { border-bottom: 1px solid var(--line); }
+.card-header h3 { color: var(--ink-strong); font-size: 14px; font-weight: 650; }
+.card-header p { color: var(--muted); font-size: 12px; }
+
+/* 工作台 metric 卡：白底 + 顶部枫叶红细线 */
+.route-dashboard .metric-card {
+  position: relative;
+  border-color: var(--line);
+  border-top: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow-sm);
+}
+.route-dashboard .metric-card::after { display: none; }
+.route-dashboard .metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 14px; right: 14px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, transparent, rgba(184, 68, 47, .55), transparent);
+  pointer-events: none;
+}
+.route-dashboard .metric-card:nth-child(2)::before { background: linear-gradient(90deg, transparent, rgba(109, 93, 246, .5), transparent); }
+.route-dashboard .metric-card:nth-child(3)::before { background: linear-gradient(90deg, transparent, rgba(2, 132, 199, .5), transparent); }
+.route-dashboard .metric-card:nth-child(4)::before { background: linear-gradient(90deg, transparent, rgba(168, 116, 15, .5), transparent); }
+
+/* metric 图标：灰底方块 */
+.metric-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #f3f4f6;
+  color: var(--blue);
+}
+.metric-value { color: var(--ink-strong); font-size: 26px; font-weight: 680; letter-spacing: -.5px; font-variant-numeric: tabular-nums; }
+.metric-label { color: var(--muted); font-size: 12px; font-weight: 550; }
+.metric-trend { color: var(--muted-2); font-size: 11.5px; }
+
+/* 按钮：纯色枫叶红主按钮 / 白底灰边次按钮 */
+.primary-button {
+  background: var(--blue);
+}
+.primary-button:hover { background: var(--blue-hover); }
+.link-button { color: var(--blue); font-size: 12.5px; }
+.danger-link { color: var(--red); }
+
+/* 表格：浅灰表头 + 细分隔线 */
+.data-table th {
+  height: auto;
+  padding: 8px 12px;
+  background: #f7f6f2;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.data-table td {
+  height: auto;
+  padding: 13px 12px;
+  border-bottom: 1px solid #eeeae2;
+  color: #37332c;
+  font-size: 12.5px;
+  vertical-align: middle;
+}
+.data-table tbody tr:hover { background: #fbfaf6; }
+
+/* 徽章状态色 */
+.status-approved { color: #1f7a45; background: var(--green-soft); }
+.status-success,
+.status-publishing { color: #1f7a45; background: var(--green-soft); }
+.status-draft { color: #4a453d; background: rgba(0, 0, 0, .055); }
+.status-review,
+.status-pending { color: #8a5d0c; background: var(--amber-soft); }
+.status-error { color: #b42318; background: var(--red-soft); }
+.status-online { color: #1f7a45; background: var(--green-soft); }
+.source-tag,
+.small-tag {
+  border-radius: 6px;
+  background: rgba(0, 0, 0, .05);
+  color: #4a453d;
+  font-size: 11px;
+  font-weight: 550;
+}
+.small-tag.blue,
+.small-tag.teal,
+.small-tag.purple { background: var(--purple-soft); color: #a03a26; }
+
+/* 表单 */
+.input,
+.textarea {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  box-shadow: none;
+}
+.input:focus,
+.textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(184, 68, 47, .12);
+  outline: none;
+}
+.field label,
+label { color: #37332c; font-size: 12.5px; font-weight: 550; }
+.field small,
+.form-hint { color: var(--muted-2); font-size: 11.5px; }
+
+/* 统计小卡图标：灰底 */
+.summary-card > span {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #4a453d;
+}
+
+/* 工作流步骤：灰底方块序号 */
+.workflow-step { border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fbfaf6; }
+.workflow-step > span {
+  width: 44px; height: 44px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--blue);
+  background: var(--purple-soft);
+  box-shadow: none;
+}
+.workflow-step > span i { color: var(--blue); font-size: 12px; font-weight: 700; }
+
+/* 空状态收窄 */
+.empty-state { min-height: 150px; padding: 26px; }
+.empty-state > div > span { width: 40px; height: 40px; border-radius: 10px; background: #f3f4f6; color: #8a8378; }
+.empty-state h3 { color: var(--ink-strong); font-size: 14px; }
+.empty-state p { color: var(--muted); font-size: 12px; }
+
+/* 弹窗：无 blur、白底细边 */
+.modal-backdrop { background: rgba(23, 19, 13, .38); backdrop-filter: none; }
+.modal-dialog { border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+.modal-head { border-bottom: 1px solid var(--line); }
+.modal-foot { border-top: 1px solid var(--line); background: var(--panel-soft); }
+
+/* 侧边栏营销卡：白底细边 */
+.sidebar-promo {
+  margin: 8px 10px 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+}
+.sidebar-promo::after { display: none; }
+.sidebar-promo-mark {
+  width: 24px; height: 24px;
+  border-radius: 7px;
+  background: var(--blue);
+  box-shadow: none;
+  font-size: 9px;
+}
+.sidebar-promo-tag { color: var(--muted-2); font-size: 9px; letter-spacing: .06em; }
+.sidebar-promo strong { color: var(--ink-strong); font-size: 12px; }
+.sidebar-promo p { color: var(--muted-2); font-size: 10.5px; }
+.sidebar-promo a { border-radius: 7px; background: var(--ink); box-shadow: none; font-size: 11px; }
+
+/* toast */
+.toast { border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow-md); }
+
+
+/* --- 第 20 节（原 design-tokens.css） --- */
+/* ============ 20. 登录界面（奶白 + 枫叶红） ============ */
+.production-auth-root {
+  color: var(--ink);
+  background:
+    radial-gradient(1100px 500px at 82% -12%, rgba(184, 68, 47, .06), transparent 60%),
+    radial-gradient(900px 480px at 8% 112%, rgba(184, 68, 47, .05), transparent 55%),
+    var(--bg);
+}
+.production-auth-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: var(--shadow-lg);
+}
+.production-auth-brand > span {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, #c9573f, #a03a26);
+  box-shadow: 0 6px 16px rgba(184, 68, 47, .25);
+  font-size: 18px;
+}
+.production-auth-brand b { color: var(--ink-strong); }
+.production-auth-brand small { color: var(--muted-2); }
+.production-auth-kicker { color: var(--blue); }
+.production-auth-copy h1 { color: var(--ink-strong); }
+.production-auth-copy p, .production-auth-failure p { color: var(--muted); }
+.production-auth-card label { color: #37332c; }
+.production-auth-card input {
+  height: 44px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--ink);
+}
+.production-auth-card input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(184, 68, 47, .12); }
+.production-auth-card .production-password-toggle:hover { color: var(--blue); background: var(--purple-soft); }
+.production-auth-card button {
+  min-height: 44px;
+  border-radius: 8px;
+  background: var(--blue);
+  font-weight: 650;
+}
+.production-auth-card button:hover { background: var(--blue-hover); }
+.production-auth-message.info { color: var(--muted); }
+.production-auth-card footer { border-top-color: var(--line); color: var(--muted-2); }
+

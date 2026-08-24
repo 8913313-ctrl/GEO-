@@ -1,0 +1,314 @@
+/* ============================================================
+ * 桐灼 GEO · demo 层
+ * 由 design-tokens.css 静态拆出（2026-08-24），级联顺序等价，零视觉变化。
+ * 加载顺序：tokens → components → theme → layout → demo
+ * ============================================================ */
+
+/* --- 第 24 节（原 design-tokens.css） --- */
+/* ============ 24. Demo 一比一还原（2026-08-20） ============ */
+
+/* 侧边栏：去旧主题紫投影 */
+.sidebar { box-shadow: none; background: #ffffff; }
+
+/* 内容区：解除旧主题 1480px 限宽，与 demo 一致全宽 */
+.page-container { max-width: none; }
+
+/* 顶栏：demo 风格透明细行 */
+.topbar {
+  min-height: 0;
+  height: 48px;
+  padding: 0 28px;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(0, 0, 0, .07);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.topbar .icon-button {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 7px;
+}
+.topbar .icon-button svg { width: 16px; height: 16px; }
+.topbar .notification-button i { top: 6px; right: 6px; }
+.topbar .topbar-btn { height: 32px; min-height: 0; padding: 0 13px; }
+.topbar .avatar-button { width: 32px; height: 32px; font-size: 12px; }
+.crumb { font-size: 12px; color: #7a7368; gap: 8px; }
+.topbar .crumb { font-size: 12px; color: #7a7368; }
+.topbar .crumb-brand { color: #7a7368; font-weight: 500; }
+.topbar .crumb-now { color: #37332c; font-weight: 600; }
+.topbar .crumb-sep { color: rgba(0, 0, 0, .22); }
+.topbar-search {
+  width: 44px;
+  padding: 6px 10px;
+  border-color: transparent;
+  background: transparent;
+  justify-content: center;
+}
+.topbar-search:hover { border-color: var(--line-strong); background: #fff; }
+.topbar-search .search-placeholder { display: none; }
+.topbar-search kbd { display: none; }
+.topbar-btn {
+  padding: 7px 13px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
+/* 品牌区：demo 纯色方块 + CONSOLE 副标 */
+.sidebar .brand {
+  border-bottom: 1px solid rgba(0, 0, 0, .07);
+  margin-bottom: 12px;
+  padding-bottom: 18px;
+}
+.sidebar .brand-mark {
+  background: #b8442f;
+  box-shadow: none;
+}
+.sidebar .brand-text { font-size: 14px; font-weight: 650; color: #221d18; }
+.sidebar .brand-sub {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  color: #a89f91;
+  opacity: 1;
+  margin-top: 3px;
+}
+
+/* 导航分组标签：demo 淡色 */
+.sidebar .nav-label { color: #a89f91; }
+
+/* 导航项：demo 34px 行高 */
+.sidebar .nav-item { min-height: 34px; height: 34px; }
+.sidebar .nav-effect-items .nav-item { height: 34px; }
+
+/* 激活态：demo 浅红底红字，无描边无竖条 */
+.sidebar .nav-item.active {
+  background: rgba(168, 80, 58, .08);
+  color: #a03a26;
+  font-weight: 560;
+  box-shadow: none;
+}
+.sidebar .nav-item.active::before { display: none; }
+
+/* promo：demo 尺寸、去阴影 */
+.sidebar .nav-promo { box-shadow: none; margin: 14px 4px 6px; }
+.sidebar .nav-promo b { font-size: 11.5px; }
+.sidebar .nav-promo p { font-size: 11px; margin: 8px 0 0; line-height: 1.6; }
+.sidebar .nav-promo-go { font-size: 11px; line-height: 1.4; }
+
+/* 卡片：demo 纯白无阴影 */
+#view .card { background: #ffffff; box-shadow: none; }
+#view .card:hover { box-shadow: none; }
+
+/* 正文与卡片副标题：demo 暖灰（覆盖旧主题蓝字 #5f718e） */
+#view.route-view p { color: var(--muted); font-size: 13px; }
+#view .card .sub { color: var(--muted-2); font-size: 11.5px; }
+
+/* KPI：demo 无阴影 */
+.kpi { box-shadow: none; }
+.kpi:hover { box-shadow: none; }
+
+/* 表格：demo 透明细字表头 */
+#view .data-table thead th {
+  background: transparent;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #514c44;
+}
+#view .data-table tbody td { padding: 13px 16px; }
+#view .data-table tbody tr:hover td { background: transparent; }
+
+/* 双栏布局比例对齐 demo（1.55fr 1fr） */
+.grid-2 { grid-template-columns: 1.55fr 1fr; }
+
+/* demo 结构类：运营闭环三步 */
+.steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.step {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .12s;
+}
+.step:hover { border-color: var(--line-strong); }
+.step .no { font-size: 11px; font-weight: 650; color: var(--blue); margin-bottom: 12px; letter-spacing: .05em; }
+.step b { display: block; font-size: 12.5px; font-weight: 580; color: var(--ink-strong); }
+.step small { display: block; margin-top: 6px; font-size: 11px; color: var(--muted-2); line-height: 1.5; }
+
+/* demo 结构类：待办行 */
+.tasks { display: flex; flex-direction: column; }
+.task {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%;
+  padding: 11px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font-family: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.task:last-child { border-bottom: 0; }
+.task b { font-weight: 520; color: var(--ink); }
+.task span { color: var(--muted); font-size: 12px; }
+
+/* demo 结构类：健康度环 84px + 图例 */
+.ring-wrap { display: flex; align-items: center; gap: 18px; }
+.health-ring { width: 84px; height: 84px; margin: 0; }
+.health-ring svg { width: 84px; height: 84px; filter: none; }
+.health-ring .bg { stroke: #e8e4dd; }
+.health-ring .fg { stroke: #b8442f; }
+.health-ring .label { font-size: 20px; }
+.ring-legend { font-size: 11.5px; line-height: 1.8; color: var(--muted-2); }
+
+/* 行高对齐 demo（消除旧主题 1.55 行高导致的组件偏高；保持最低 1.5 可读间距） */
+#view .card h3 { line-height: 1.5; }
+#view .card .sub { line-height: 1.5; }
+#view .mini b { line-height: 1.5; }
+#view .mini span { line-height: 1.5; }
+.kpi-label { line-height: 1.5; }
+.kpi-desc { line-height: 1.5; }
+.kpi-foot { line-height: 1.5; color: #635d51; }
+.step { color: var(--ink); }
+.step b { line-height: 1.4; }
+.task { line-height: 1.4; }
+#view .data-table th { line-height: 1.5; }
+#view .data-table tbody td { line-height: 1.6; color: var(--ink); }
+#view .data-table td b { line-height: 1.5; color: #221d18; }
+.nav-promo b { line-height: 1.5; }
+.nav-promo p { line-height: 1.6; }
+.step small { font-size: 11px; }
+
+/* 深色文字统一 demo 色 #221d18 */
+#view .page-head h2 { color: #221d18; }
+#view .card h3 { color: #221d18; }
+#view .mini b { color: #221d18; }
+.kpi-val { color: #1d1912; }
+
+/* 徽章对齐 demo（11px 圆角胶囊） */
+#view .status-badge {
+  font-size: 12px;
+  font-weight: 550;
+  padding: 2px 9px;
+  min-height: 0;
+}
+
+/* 表格操作链接对齐 demo（纯文字链接） */
+#view .data-table .link-button {
+  padding: 0;
+  min-height: 0;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 550;
+}
+
+/* 顶栏按钮对齐 demo .btn */
+.topbar-btn { padding: 7px 13px; }
+
+/* ============ 25. 选题中心等功能页细节修复（2026-08-20） ============ */
+
+/* 关键词分类页签（全部结果/语义拓展…）：去旧蓝色边框，改枫叶红 */
+.category-tab.active {
+  border-color: rgba(184, 68, 47, .28);
+  background: rgba(184, 68, 47, .08);
+}
+.category-tab:hover { background: var(--panel-soft); }
+
+/* 历史词包：去红蓝混搭，枫叶红激活 */
+.package-item.active {
+  border-color: rgba(184, 68, 47, .28);
+  background: rgba(184, 68, 47, .08);
+}
+.package-item-wrap { align-items: center; }
+.package-item { padding: 10px 12px; }
+.package-item strong {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.package-item span {
+  margin-top: 4px;
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+.package-item span em {
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.package-delete-button {
+  width: 40px;
+  font-size: 10px;
+  align-self: center;
+  min-height: 28px;
+}
+
+/* 发布运营分类页签：去旧蓝色 */
+.publish-category-tab.active {
+  border-color: rgba(184, 68, 47, .28);
+  color: var(--blue);
+  background: rgba(184, 68, 47, .08);
+}
+
+/* 新建发布批次：账号组 / 文章间隔 / 发布方式 三控件等高对齐 */
+#view .publish-config-grid {
+  align-items: stretch;
+}
+#view .publish-config-grid .field .select,
+#view .publish-config-grid .field .input {
+  min-height: 64px;
+  height: auto;
+}
+#view .publish-mode-picker {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+#view .publish-mode-options {
+  margin-top: 6px;
+}
+#view .publish-mode-option {
+  min-height: 64px;
+}
+
+/* 发布平台卡片：已有任务的文章数提示（琥珀色，不阻断选择） */
+#view .publish-platform-skip-note {
+  color: var(--amber, #b45309);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* 搜索框（compact-search）：图标预留左侧空间，文字不与图标重叠 */
+#view .compact-search .input {
+  padding-left: 31px;
+}
+
+/* 2026-08-22 · 可读性与状态语义补丁
+   仅覆盖内容表格中的历史小字号，并让“已发布”与“已通过”保持可辨识。 */
+#view .article-agent-cell b,
+#view .article-source-cell b {
+  font-size: 12.5px !important;
+}
+#view .article-agent-cell small,
+#view .article-source-cell small {
+  font-size: 12px !important;
+}
+#view .status-badge.status-published {
+  color: #0f4d2e;
+  background: rgba(15, 77, 46, .12);
+}
+

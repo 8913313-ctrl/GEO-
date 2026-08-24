@@ -1,0 +1,285 @@
+/* ============================================================
+ * 桐灼 GEO · tokens 层
+ * 由 design-tokens.css 静态拆出（2026-08-24），级联顺序等价，零视觉变化。
+ * 加载顺序：tokens → components → theme → layout → demo
+ * ============================================================ */
+
+/* --- 第 1 节（原 design-tokens.css） --- */
+:root {
+  --bg: #faf7f1;
+  --panel: #ffffff;
+  --panel-soft: #fbf8f2;
+  --ink: #1d1912;
+  --ink-strong: #17130d;
+  --muted: #37332c;
+  --muted-2: #514c44;
+  --line: #e8e4dd;
+  --line-strong: #d8d2c8;
+  --nav: #fbf9f4;
+  --nav-soft: #f1eee7;
+  --nav-muted: #4a443b;
+  --blue: #b8442f;
+  --blue-hover: #a03a26;
+  --blue-soft: rgba(184, 68, 47, .09);
+  --teal: #2e8a54;
+  --teal-soft: rgba(46, 138, 84, .1);
+  --green: #2e8a54;
+  --green-soft: rgba(46, 138, 84, .1);
+  --amber: #a8740f;
+  --amber-soft: rgba(168, 116, 15, .1);
+  --red: #c24538;
+  --red-soft: rgba(194, 69, 56, .1);
+  --purple: #b8442f;
+  --purple-soft: rgba(184, 68, 47, .09);
+  --shadow-sm: 0 1px 2px rgba(23, 19, 13, .04), 0 1px 3px rgba(23, 19, 13, .03);
+  --shadow-md: 0 4px 14px rgba(23, 19, 13, .08);
+  --shadow-lg: 0 16px 40px rgba(23, 19, 13, .14);
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-lg: 12px;
+  --sidebar-width: 210px;
+  --font-ui: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-size-base: 14px;
+  --font-size-sm: 12px;
+}
+
+
+/* --- 第 2 节（原 design-tokens.css） --- */
+/* ============ 2. 基础排版 ============ */
+body,
+.app-shell,
+#view {
+  font-family: var(--font-ui);
+  color: var(--ink);
+  font-size: var(--font-size-base);
+}
+
+
+/* --- 第 3 节（原 design-tokens.css） --- */
+/* ============ 3. 字号下限：全站最小 12px ============ */
+/* 通用 small / 说明文字 / 弱化文字 */
+#view small,
+#view .small,
+#view .table-subtext,
+#view .status-badge,
+#view .source-tag,
+#view .small-tag,
+#view .filter-chip,
+#view .kicker,
+#view .eyebrow,
+#view .monitor-real-eyebrow,
+#view .metric-note,
+#view .workflow-step small,
+#view .todo-copy span,
+#view .quick-action small,
+#view .system-name small,
+#view .activity-copy p,
+#view .onboarding-card p,
+#view .health,
+#view .insight-card-head span,
+#view .insight-trend,
+#view .dashboard-trend-labels,
+#view .sidebar-promo p,
+#view .sidebar-promo-tag,
+#view .deploy-badge,
+#view .nav-main::before,
+#view .nav-secondary::before,
+#view .breadcrumbs,
+#view .assistant-pill,
+#view .search-trigger kbd,
+#view .monitor-real-note b,
+#view .monitor-real-note small,
+#view .monitor-real-score small,
+#view .monitor-real-score span,
+#view .monitor-real-score-grid span,
+#view .monitor-real-run label,
+#view .monitor-real-run small,
+#view .monitor-real-history > b,
+#view .monitor-real-empty,
+#view .monitor-real-pv small,
+#view .monitor-real-section-head p,
+#view .effect-demo-date,
+#view .effect-demo-kicker,
+#view .effect-demo-credit,
+#view .effect-input-hint,
+#view .effect-task-row small,
+#view .effect-task-row em,
+#view .effect-monitor-run-list article,
+#view .effect-center-filters,
+#view .effect-search-summary small,
+#view .diagnostic-package-meta dd,
+#view .diagnostic-update-flow small,
+#view .analysis-report-meta em,
+#view .business-line-manage-row small,
+#view .keyword-chip small,
+#view .citation-installed-list li small,
+#view .schedule-preview-table small,
+#view .site-recent-type,
+#view .site-recent-item small,
+#view .site-module-copy small,
+#view .site-module-copy em,
+#view .site-template-section-head p,
+#view .site-template-notice small,
+#view .site-release-bar small,
+#view .site-release-state small,
+#view .site-preview-address code,
+#view .knowledge-card-foot,
+#view .studio-context-chip,
+#view .studio-picker-item small,
+#view .studio-selected-context,
+#view .monitor-trend-list small,
+#view .monitor-run-list small,
+#view .fact-card p,
+#view .asset-publication-empty,
+#view .toast small,
+#view .modal-foot span,
+#view .field small,
+#view .form-hint,
+#view .empty-state p,
+#view .empty-copy p,
+#view .empty-copy small,
+#view .table-scroll small,
+#view .article-title-cell small,
+#view .site-tag-list em,
+#view .data-table td small,
+#view .pagination-info,
+#view .nav-effect-chevron,
+#view .sidebar-promo-mark,
+#view .sidebar-promo a,
+#view .log-row small,
+#view .audit-log-row small,
+#view .monitor-empty,
+#view .diagnostic-empty p,
+#view .diagnostic-list-head p,
+#view .effect-demo-query small,
+#view .effect-demo-field small,
+#view .effect-demo-history-item small,
+#view .effect-demo-form small,
+#view .effect-demo-input small,
+#view .site-tab small,
+#view .site-workspace-status small,
+#view .tabs-row small {
+  font-size: 12px !important;
+}
+
+/* 8px 级重灾区：monitoring 老诊断区与 effect 区的 small/说明统一 12px */
+#view .monitor-real-note,
+#view .monitor-real-score-grid span,
+#view .monitor-real-run small,
+#view .effect-demo-form small,
+#view .effect-demo-query small,
+#view .effect-demo-date,
+#view .effect-demo-kicker,
+#view .effect-task-row small,
+#view .effect-task-row em,
+#view .effect-monitor-run-list article,
+#view .diagnostic-range-control,
+#view .diagnostic-range-control small,
+#view .diagnostic-package-badge,
+#view .diagnostic-traffic-badge,
+#view .diagnostic-traffic-disclosure,
+#view .diagnostic-traffic-disclosure small,
+#view .diagnostic-run-status,
+#view .diagnostic-mini-metrics,
+#view .diagnostic-mini-metrics small,
+#view .monitoring-suggestion-control,
+#view .monitoring-diagnostic-details small,
+#view .monitoring-diagnostic-empty,
+#view .monitoring-realtime-head small,
+#view .monitoring-realtime-breakdown small,
+#view .monitor-real-trend-labels,
+#view .monitor-real-tooltip {
+  font-size: 12px !important;
+  line-height: 1.55;
+}
+
+/* monitoring 实时区（span/em/i 徽章全部 ≥12px） */
+#view .monitoring-realtime-grid,
+#view .monitoring-realtime-head,
+#view .monitoring-realtime-breakdown {
+  font-size: 12px;
+}
+#view .monitoring-realtime-head span,
+#view .monitoring-realtime-head em,
+#view .monitoring-realtime-head i,
+#view .monitoring-realtime-breakdown span,
+#view .monitoring-realtime-breakdown em,
+#view .monitoring-realtime-breakdown i,
+#view .diagnostic-package-badge em,
+#view .diagnostic-hero em {
+  font-size: 12px !important;
+}
+
+/* diagnostic 证据区剩余小字全量覆盖 */
+#view .diagnostic-evidence-section :where(span, em, b, label, summary, small),
+#view .diagnostic-operation-section :where(span, em, b, small),
+#view .diagnostic-section-title,
+#view .diagnostic-operation-head,
+#view .diagnostic-evidence-card-head b,
+#view .monitoring-suggestion-control label,
+#view .monitoring-suggestion-control input,
+#view .monitoring-diagnostic-details summary {
+  font-size: 12px !important;
+}
+
+/* site 官网运营页小字 */
+#view .site-current-template-mini span,
+#view .site-hero-card .stat-card em,
+#view .stats-grid .stat-card em,
+#view .site-flow-step i,
+#view .site-image-meter span,
+#view .site-image-rule,
+#view .site-image-rule span,
+#view .site-image-rule .check-dot {
+  font-size: 12px !important;
+}
+
+/* effect 三页小字 */
+#view .effect-live-estimate span,
+#view .effect-live-search-panel small,
+#view .effect-live-platforms small,
+#view .effect-search-summary em,
+#view .effect-search-summary small,
+#view .effect-diagnostic-start-fields .effect-demo-input span,
+#view .effect-diagnostic-start-fields .effect-demo-input em,
+#view .effect-diagnostic-start-fields code,
+#view .effect-monitor-view-tab,
+#view .effect-monitor-view-tab span,
+#view .effect-relay-status,
+#view .effect-relay-status span,
+#view .effect-relay-status em,
+#view .effect-relay-status b,
+#view .effect-monitor-hero small,
+#view .effect-monitor-empty,
+#view .effect-monitor-empty b,
+#view .effect-monitor-dashboard-view small {
+  font-size: 12px !important;
+}
+
+/* 尾批细节小字 */
+#view .workflow-step > span i,
+#view .workflow-step > span b,
+#view .package-delete-button,
+#view .platform-logo,
+#view .platform-label,
+#view .target-result,
+#view .target-result a,
+#view .effect-live-estimate,
+#view .effect-live-platforms,
+#view .effect-live-search-panel span,
+#view .effect-diagnostic-start-fields code,
+#view .effect-monitor-hero,
+#view .effect-monitor-hero span,
+#view .effect-monitor-hero em {
+  font-size: 12px !important;
+}
+
+/* 最后 4 处（effect 三页深层元素） */
+#view .effect-capability-empty,
+#view .effect-live-platforms .effect-capability-empty,
+#view .card div p code,
+#view .effect-search-empty,
+#view .effect-monitor-hero-meta {
+  font-size: 12px !important;
+}
+

@@ -27,14 +27,21 @@
 
 ## 2. 文件职责（分层，唯一权威）
 
-CSS 加载顺序（见 `public/index.html`）：`styles.css` → `product-ui.css` → `geo-dashboard.css` → `design-tokens.css`。**加载顺序只用于同优先级规则的新旧覆盖，不是职责划分依据。**
+CSS 加载顺序（见 `public/index.html`）：`styles.css` → `product-ui.css` → `css/modules/dashboard.css` → `css/tokens.css` → `css/components.css` → `css/theme.css` → `css/layout.css` → `css/demo.css` → `css/modules/effect.css`。**加载顺序只用于同优先级规则的新旧覆盖，不是职责划分依据。**
+
+> 2026-08-24 变更：`design-tokens.css` 按内容分层拆为 `css/` 下的 5 个文件，`geo-dashboard.css` → `css/modules/dashboard.css`，`effect-ui.css` → `css/modules/effect.css`。源文件已删除，级联顺序等价、无视觉变化（已逐页实测验证）。
 
 | 层 | 文件 | 职责 | 写什么 / 不写什么 |
 |---|---|---|---|
 | 组件结构 | `styles.css` | 通用组件结构唯一来源（卡片、表格、表单、页签、按钮、弹窗、select、input） | 写 display / height / padding / gap / border 结构 / 布局；**不写**颜色值（引用变量） |
 | 页面布局 | `product-ui.css` | 页面级网格与布局（选题中心、发布、官网 CMS、AI 创作台等） | 只写**页面级** grid/flex/间距，必须带 `.route-*` 作用域（见 §7）；不改组件结构 |
-| 首页布局 | `geo-dashboard.css` | 仅工作台（首页）版面 | 只写 `.route-dashboard` 作用域 |
-| 主题变量 | `design-tokens.css` | `:root` 变量 + 视觉主题（颜色、圆角、阴影、字体） | 只写**值引用变量的视觉规则**；**禁止**结构规则（display/height/padding/appearance 一律不写） |
+| 首页布局 | `css/modules/dashboard.css` | 仅工作台（首页）版面（原 geo-dashboard.css） | 只写 `.route-dashboard` 作用域 |
+| 设计令牌 | `css/tokens.css` | `:root` 变量 + 基础排版 + 全站字号下限 | 只定义变量与纯值规则 |
+| 组件视觉 | `css/components.css` | 通用组件（按钮/卡片/输入框/表格/徽章/弹窗/空状态/加载态/Toast/页头/分页）的视觉统一 | 写组件级视觉规则（引用变量） |
+| 主题落地 | `css/theme.css` | 枫叶红白底主题组件级落地 + 登录界面 | 写品牌主题视觉 |
+| 布局框架 | `css/layout.css` | 侧边栏/顶栏/内容区/工作台组件的布局与结构 | 写布局结构 |
+| demo 还原 | `css/demo.css` | Demo 一比一覆盖（最终兜底层） | 覆盖前面层的 demo 定制 |
+| AI 效果 | `css/modules/effect.css` | AI 效果三页（实时搜索/品牌诊断/品牌监测） | 只写 `.route-effect-*` 或 effect 专属类 |
 
 **结构 / 视觉分离**：组件结构归 styles.css，色彩圆角走变量。这是深色模式 / 主题切换的前提——主题层改结构会让主题切换直接失效。
 
@@ -56,6 +63,15 @@ CSS 加载顺序（见 `public/index.html`）：`styles.css` → `product-ui.css
 | 空状态 | `.empty-state` / `.empty-copy` | 布局、间距 | 文字色、图标色 |
 
 **不要**给通用组件加页面级类来绕过统一样式（如 `.publish-page .card-header {}`）——组件一旦被页面覆盖就失去复用价值。
+
+## 2b. 已知待办（2026-08-24 审查后追加）
+
+见 `docs/UI-CONSISTENCY-AUDIT.md`。核心问题与方向：
+- **按钮三套尺寸并存**：dashboard/site/settings 32px vs 标准 40px vs effect-diagnostic 48px → 收敛为单一标准 + `button-small` 修饰；
+- **卡片圆角/底色三套**：0/11/14px、白/透明/蓝灰 → 定标准 11px 白底暖灰边 + `card--flat` 修饰；
+- **select 四套 / input 高度差 2px / link 五种字号** → 统一收敛；
+- `styles.css`（5470 行）与 `product-ui.css`（4229 行）尚未拆分，是下一轮拆分对象；本次仅完成 design-tokens 层拆分。
+- `premium-theme.css` 死文件已删除。
 
 ## 4. 命名规范
 
