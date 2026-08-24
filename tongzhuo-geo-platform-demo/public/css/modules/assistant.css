@@ -73,8 +73,9 @@
 
 #view.route-assistant .assistant-catalog-toolbar .select {
   min-width: 120px;
-  height: 36px;
-  font-size: 11px;
+  min-height: 40px;
+  height: auto;
+  font-size: 13px;
 }
 
 #view.route-assistant .assistant-platform-list {
@@ -169,7 +170,7 @@
 
 #view.route-assistant .assistant-platform-footer .link-button {
   flex: 0 0 auto;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 #view.route-assistant .assistant-platform-row .platform-logo {
@@ -188,7 +189,7 @@
   min-height: 0;
   padding: 14px 18px;
   border-color: #d5dfeb;
-  border-radius: 14px;
+  border-radius: 11px;
   background: #f7f9fc;
   box-shadow: none;
 }

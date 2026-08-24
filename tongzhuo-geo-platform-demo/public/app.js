@@ -736,7 +736,7 @@ function defaultState() {
       {
         id: "WA-BRAND-STORY", name: "品牌口吻编辑", description: "沿用企业语气，把业务事实组织成自然、有温度的品牌叙事。", avatar: "品", color: "rose", builtIn: false, status: "active",
         businessLineIds: ["BL-VIDEO"], contentTypes: ["深度文章", "案例解读"], template: "story", role: "企业品牌内容编辑", audience: "客户、合作伙伴与行业从业者", tone: "真诚、自然、有温度", style: "场景开篇 · 品牌视角 · 事实落点", structure: ["真实场景", "企业观察", "解决过程", "行动邀请"], required: "品牌表达必须落到已审核的产品、服务或案例事实。", banned: "不得使用空洞口号或虚构品牌故事。", cta: "用自然邀请结束，不强行推销。",
-        systemPrompt: GEO_AGENT_PROMPT_FOUNDATION + "\n\n专属任务：可以从真实业务场景切入，但叙事必须回到企业主体、服务范围和公开证据；不得虚构人物、故事、客户反馈或结果。", geoPromptVersion: 2, strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", preferredKnowledgeBaseIds: [], modelMode: "inherit", creativity: 0.5, minWords: 1000, maxWords: 1800, version: 2, usageCount: 3, createdBy: "李晨", createdAt: minutesAgo(5760), updatedAt: minutesAgo(720)
+        systemPrompt: GEO_AGENT_PROMPT_FOUNDATION + "\n\n专属任务：可以从真实业务场景切入，但叙事必须回到企业主体、服务范围和公开证据；不得虚构人物、故事、客户反馈或结果。", geoPromptVersion: 2, strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", preferredKnowledgeBaseIds: [], modelMode: "inherit", creativity: 0.5, minWords: 1000, maxWords: 1800, version: 2, usageCount: 3, createdBy: "运营团队", createdAt: minutesAgo(5760), updatedAt: minutesAgo(720)
       }
     ],
     keywords: [
@@ -775,9 +775,9 @@ function defaultState() {
       { id: "TOP-048", packId: "KP-202607-04", keyword: "工业品采购决策内容", title: "工业品采购决策链中，哪些内容最值得企业长期沉淀？", dimension: "scenario", intent: "场景分析", recommendation: 87, business: 77, coverage: "未覆盖", reason: "覆盖销售、技术与采购共同参与的决策场景", selected: false }
     ],
     contentPlans: [
-      { id: "PLAN-202607-01", name: "7 月 GEO 方法论内容计划", businessLineId: "BL-GEO", topicIds: ["TOP-041"], scheduledFor: "2026-07-24", owner: "王宁", contentType: "深度文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-22T10:20:00+08:00" }, status: "produced", articleIds: ["ART-202607-031"], createdAt: minutesAgo(2880) },
-      { id: "PLAN-202607-02", name: "制造业 AI 搜索专题", businessLineId: "BL-GEO", topicIds: ["TOP-042", "TOP-046"], scheduledFor: "2026-07-29", owner: "李晨", contentType: "系列文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-22T22:00:00+08:00" }, status: "planned", articleIds: [], createdAt: minutesAgo(720) },
-      { id: "PLAN-202607-03", name: "区域品牌发现内容", businessLineId: "BL-GEO", topicIds: ["TOP-044"], scheduledFor: "2026-08-03", owner: "王宁", contentType: "问答文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-23T07:00:00+08:00" }, status: "draft", articleIds: [], createdAt: minutesAgo(180) }
+      { id: "PLAN-202607-01", name: "7 月 GEO 方法论内容计划", businessLineId: "BL-GEO", topicIds: ["TOP-041"], scheduledFor: "2026-07-24", owner: "运营团队", contentType: "深度文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-22T10:20:00+08:00" }, status: "produced", articleIds: ["ART-202607-031"], createdAt: minutesAgo(2880) },
+      { id: "PLAN-202607-02", name: "制造业 AI 搜索专题", businessLineId: "BL-GEO", topicIds: ["TOP-042", "TOP-046"], scheduledFor: "2026-07-29", owner: "运营团队", contentType: "系列文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-22T22:00:00+08:00" }, status: "planned", articleIds: [], createdAt: minutesAgo(720) },
+      { id: "PLAN-202607-03", name: "区域品牌发现内容", businessLineId: "BL-GEO", topicIds: ["TOP-044"], scheduledFor: "2026-08-03", owner: "运营团队", contentType: "问答文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-23T07:00:00+08:00" }, status: "draft", articleIds: [], createdAt: minutesAgo(180) }
     ],
     articles: [
       {
@@ -789,7 +789,7 @@ function defaultState() {
         status: "draft",
         reviewStatus: "approved",
         version: "v2",
-        author: "王宁",
+        author: "运营团队",
         category: "GEO 方法论",
         riskStatus: "clean",
         sources: 6,
@@ -884,7 +884,7 @@ function defaultState() {
         status: "draft",
         reviewStatus: "pending",
         version: "v3",
-        author: "李晨",
+        author: "运营团队",
         category: "基础知识",
         riskStatus: "warning",
         sources: 4,
@@ -906,7 +906,7 @@ function defaultState() {
         status: "published",
         reviewStatus: "approved",
         version: "v2",
-        author: "王宁",
+        author: "运营团队",
         category: "官网建设",
         riskStatus: "clean",
         sources: 7,
@@ -1070,14 +1070,7 @@ function defaultState() {
           columns: [],
           socialLinks: []
         },
-        leads: [
-          { id: "LEAD-001", name: "李先生", company: "山东某机械制造企业", service: "GEO 优化服务", createdAt: "今天 10:06", sourcePage: "服务页", status: "new", owner: "王宁", nextFollowAt: "今天 16:00", notes: "客户关注制造业 AI 搜索场景。", history: [] },
-          { id: "LEAD-002", name: "刘经理", company: "淄博某新材料公司", service: "企业 AI 落地", createdAt: "昨天 16:34", sourcePage: "服务页", status: "contacted", owner: "王宁", nextFollowAt: "2026-07-25 10:00", notes: "已电话沟通，待补充现有资料。", history: [{ at: "昨天 17:10", note: "完成首次电话沟通", status: "contacted" }] },
-          { id: "LEAD-003", name: "张总", company: "济南某工业设备企业", service: "官网 + GEO", createdAt: "7月20日", sourcePage: "首页", status: "qualified", owner: "张敏", nextFollowAt: "2026-07-28 14:00", notes: "已确认需求，等待方案沟通。", history: [{ at: "7月21日", note: "判断为有效商机", status: "qualified" }] },
-          { id: "LEAD-004", name: "王工", company: "山东某自动化企业", service: "内容运营", createdAt: "7月19日", sourcePage: "行业资讯", status: "new", owner: "王宁", nextFollowAt: "2026-07-25 14:00", notes: "通过行业文章表单提交咨询。", history: [] },
-          { id: "LEAD-005", name: "陈经理", company: "青岛某设备企业", service: "GEO 优化服务", createdAt: "7月18日", sourcePage: "专题页", status: "new", owner: "王宁", nextFollowAt: "2026-07-26 10:00", notes: "需要先了解服务边界。", history: [] },
-          { id: "LEAD-006", name: "赵总", company: "潍坊某制造企业", service: "企业 AI 落地", createdAt: "7月17日", sourcePage: "联系我们", status: "contacted", owner: "张敏", nextFollowAt: "2026-07-29 10:00", notes: "已发送资料清单。", history: [] }
-        ],
+        leads: [],
         redirects: [],
         deployment: { mode: "独立服务器", environment: "production", rootPath: "/var/www/tongzhuo-site", branch: "main", status: "online", lastDeployAt: "2026-07-24 09:20", lastTestAt: "2026-07-24 09:25", updatedAt: "2026-07-24T09:20:00.000Z" }
       }
@@ -1170,7 +1163,7 @@ function defaultState() {
         itemId: "KI-CORP-001",
         version: 2,
         reviewStatus: "approved",
-        reviewedBy: "王宁",
+        reviewedBy: "运营团队",
         reviewedAt: "2026-07-22T09:42:00+08:00",
         content: "桐灼科技面向工业品、制造业及中小企业，提供企业 GEO 优化、短视频获客运营与企业 AI 落地服务，服务区域为全国。",
         chunks: [{ id: "KC-CORP-001-01", section: "企业简介", text: "桐灼科技面向工业品、制造业及中小企业，提供企业 GEO 优化、短视频获客运营与企业 AI 落地服务，服务区域为全国。" }]
@@ -1180,7 +1173,7 @@ function defaultState() {
         itemId: "KI-CORP-002",
         version: 3,
         reviewStatus: "approved",
-        reviewedBy: "王宁",
+        reviewedBy: "运营团队",
         reviewedAt: "2026-07-22T10:05:00+08:00",
         content: "GEO 服务围绕企业知识整理、官网信源建设、内容生产、多平台发布和效果复盘形成持续运营闭环；不承诺固定排名或确定性收录结果。",
         chunks: [
@@ -1193,7 +1186,7 @@ function defaultState() {
         itemId: "KI-GEO-001",
         version: 4,
         reviewStatus: "approved",
-        reviewedBy: "李晨",
+        reviewedBy: "运营团队",
         reviewedAt: "2026-07-22T10:14:00+08:00",
         content: "项目首先核对企业档案、产品服务、案例、FAQ 与公开边界，再基于客户真实问题建立问题词库、选题库和内容计划。",
         chunks: [{ id: "KC-GEO-001-01", section: "启动流程", text: "项目首先核对企业档案、产品服务、案例、FAQ 与公开边界，再基于客户真实问题建立问题词库、选题库和内容计划。" }]
@@ -1203,7 +1196,7 @@ function defaultState() {
         itemId: "KI-GEO-002",
         version: 2,
         reviewStatus: "approved",
-        reviewedBy: "李晨",
+        reviewedBy: "运营团队",
         reviewedAt: "2026-07-22T10:18:00+08:00",
         content: "文章只调用已审核知识；通过事实审核与内容风控后冻结版本，再由官网或本地发布助手创建各平台独立任务。",
         chunks: [{ id: "KC-GEO-002-01", section: "审核发布", text: "文章只调用已审核知识；通过事实审核与内容风控后冻结版本，再由官网或本地发布助手创建各平台独立任务。" }]
@@ -1213,7 +1206,7 @@ function defaultState() {
         itemId: "KI-CASE-001",
         version: 2,
         reviewStatus: "approved",
-        reviewedBy: "王宁",
+        reviewedBy: "运营团队",
         reviewedAt: "2026-07-21T16:20:00+08:00",
         content: "为一家山东工业设备企业梳理产品参数、应用场景和售后问答，建立业务线知识包后，官网与内容平台统一引用同一版本资料。",
         chunks: [{ id: "KC-CASE-001-01", section: "实施结果", text: "为一家山东工业设备企业梳理产品参数、应用场景和售后问答，建立业务线知识包后，官网与内容平台统一引用同一版本资料。" }]
@@ -1223,7 +1216,7 @@ function defaultState() {
         itemId: "KI-CASE-002",
         version: 1,
         reviewStatus: "approved",
-        reviewedBy: "王宁",
+        reviewedBy: "运营团队",
         reviewedAt: "2026-07-21T17:10:00+08:00",
         content: "在制造业项目中，采购、技术和使用人员关注的问题不同，内容计划按决策阶段拆分，并将监测未覆盖问题回流选题中心。",
         chunks: [{ id: "KC-CASE-002-01", section: "选题方法", text: "采购、技术和使用人员关注的问题不同，内容计划按决策阶段拆分，并将监测未覆盖问题回流选题中心。" }]
@@ -1233,7 +1226,7 @@ function defaultState() {
         itemId: "KI-FAQ-001",
         version: 3,
         reviewStatus: "approved",
-        reviewedBy: "李晨",
+        reviewedBy: "运营团队",
         reviewedAt: "2026-07-22T09:58:00+08:00",
         content: "先统一企业介绍、产品参数、应用场景、案例、服务边界和常见问答，再围绕采购与技术人员会提出的问题策划内容。",
         chunks: [{ id: "KC-FAQ-001-01", section: "标准答案", text: "先统一企业介绍、产品参数、应用场景、案例、服务边界和常见问答，再围绕采购与技术人员会提出的问题策划内容。" }]
@@ -1243,7 +1236,7 @@ function defaultState() {
         itemId: "KI-FAQ-002",
         version: 2,
         reviewStatus: "approved",
-        reviewedBy: "李晨",
+        reviewedBy: "运营团队",
         reviewedAt: "2026-07-22T10:02:00+08:00",
         content: "文章审核通过并冻结版本后，按平台分别创建发布任务；一个平台失败不会改变其他平台任务或已冻结正文。",
         chunks: [{ id: "KC-FAQ-002-01", section: "标准答案", text: "文章审核通过并冻结版本后，按平台分别创建发布任务；一个平台失败不会改变其他平台任务或已冻结正文。" }]
@@ -1271,15 +1264,15 @@ function defaultState() {
       { id: "ASSET-KB-FAQ-01", kind: "knowledge_image", name: "多平台发布流程", mime: "image/svg+xml", knowledgeBaseId: "KB-FAQ-001", itemId: "KI-FAQ-002", versionId: "KV-FAQ-002-V2", reviewStatus: "approved", license: "企业自有", altText: "文章审核冻结后分别创建官网和内容平台发布任务", caption: "审核冻结与多平台发布", accent: "teal", createdAt: minutesAgo(620) }
     ],
     knowledge: {
-      profile: { count: 1, reviewed: 1, updated: "今天 09:42" },
-      products: { count: 3, reviewed: 3, updated: "昨天 16:20" },
-      cases: { count: 8, reviewed: 7, updated: "昨天 11:08" },
-      faq: { count: 24, reviewed: 22, updated: "7月20日" },
-      documents: { count: 36, reviewed: 34, updated: "今天 10:14" },
-      images: { count: 128, reviewed: 128, updated: "昨天 18:45" },
-      adLaw: { count: 126, reviewed: 126, updated: "7月19日" },
-      sensitive: { count: 34, reviewed: 34, updated: "7月20日" },
-      banned: { count: 8, reviewed: 8, updated: "昨天 16:40" }
+      profile: { count: 0, reviewed: 0, updated: "尚未录入" },
+      products: { count: 0, reviewed: 0, updated: "尚未录入" },
+      cases: { count: 0, reviewed: 0, updated: "尚未录入" },
+      faq: { count: 0, reviewed: 0, updated: "尚未录入" },
+      documents: { count: 0, reviewed: 0, updated: "尚未录入" },
+      images: { count: 0, reviewed: 0, updated: "尚未录入" },
+      adLaw: { count: 0, reviewed: 0, updated: "尚未录入" },
+      sensitive: { count: 0, reviewed: 0, updated: "尚未录入" },
+      banned: { count: 0, reviewed: 0, updated: "尚未录入" }
     },
     monitoring: {
       demo: false,
@@ -1305,16 +1298,8 @@ function defaultState() {
       manualReview: true,
       tenant: "桐灼科技",
       deployment: "独立服务器",
-      members: [
-        { id: "MEMBER-001", name: "王宁", email: "wangning@tongzhuo.com", role: "管理员", status: "active", lastLoginAt: minutesAgo(22), createdAt: minutesAgo(43200) },
-        { id: "MEMBER-002", name: "李晨", email: "lichen@tongzhuo.com", role: "内容运营", status: "active", lastLoginAt: minutesAgo(960), createdAt: minutesAgo(20160) }
-      ],
-      operationLogs: [
-        { id: "LOG-001", occurredAt: minutesAgo(18), category: "文章审核", actor: "王宁", detail: "通过文章 ART-202607-031 的 v2 版本" },
-        { id: "LOG-002", occurredAt: minutesAgo(46), category: "知识同步", actor: "系统", detail: "知识资料完成分块与索引更新" },
-        { id: "LOG-003", occurredAt: minutesAgo(59), category: "设备心跳", actor: "GEO-OPS-01", detail: "同步 2 个账号组、6 个平台账号" },
-        { id: "LOG-004", occurredAt: minutesAgo(1500), category: "发布异常", actor: "本地发布助手", detail: "头条号目标进入结果待核验，未自动重试" }
-      ]
+      members: [],
+      operationLogs: [],
     }
   };
 }
@@ -1411,6 +1396,11 @@ function cloneBlankState() {
     "knowledgeVersions", "knowledgeGaps", "knowledgeCitations", "writingWorkspaces",
     "aiConversations", "contentAssets"
   ]) blank[key] = [];
+  if (blank.site) blank.site.leads = [];
+  if (blank.settings) {
+    blank.settings.members = [];
+    blank.settings.operationLogs = [];
+  }
   blank.site = {
     domain: "",
     baseUrl: "",
@@ -4619,6 +4609,16 @@ function hydratePublisherConnectivity(root = document) {
 function currentUserName() {
   const user = window.__TZ_AUTH__?.user;
   return user?.displayName || user?.name || user?.username || "";
+}
+
+function contentPlanOwnerOptions() {
+  const current = currentUserName() || "系统管理员";
+  const members = (state.settings?.members || [])
+    .filter((member) => member?.status !== "disabled" && member?.name)
+    .map((member) => member.name);
+  const names = [current, ...members.filter((name) => name !== current)];
+  if (!names.length) names.push("系统管理员");
+  return names.map((name) => `<option>${escapeHtml(name)}</option>`).join("");
 }
 
 function dashboardActivityItems() {
@@ -12962,64 +12962,57 @@ function renderKnowledgeLegacyCards(tab) {
     ? [{
       id: "images", title: "品牌与内容素材", subtitle: "图片资料库", description: "品牌、产品、案例和文章配图，供内容任务按授权范围使用。", icon: "image", tone: "teal", unit: "张",
       metrics: [
-        { label: "素材总数", value: 86, suffix: "张" },
-        { label: "已授权", value: 72, suffix: "张", glow: "teal" }
+        { label: "素材总数", value: null, suffix: "张" }
       ],
-      coverage: 84
+      coverage: 0
     }]
     : tab === "facts"
       ? [
         { id: "products", title: "产品服务", subtitle: "事实条目", description: "产品、服务内容、交付方式与对外承诺边界。", icon: "briefcase", tone: "teal", unit: "项",
           metrics: [
-            { label: "已审核", value: 24, suffix: "项" },
-            { label: "覆盖业务线", value: 5, suffix: "条", glow: "teal" }
+            { label: "已审核", value: null, suffix: "项" }
           ],
-          coverage: 92 },
+          coverage: 0 },
         { id: "cases", title: "案例资质", subtitle: "脱敏案例", description: "已脱敏、已授权且允许用于内容生产的案例与资质。", icon: "clipboard", tone: "purple", unit: "项",
           metrics: [
-            { label: "可引用", value: 18, suffix: "项" },
-            { label: "覆盖行业", value: 7, suffix: "个", glow: "purple" }
+            { label: "可引用", value: null, suffix: "项" }
           ],
-          coverage: 76 },
+          coverage: 0 },
         { id: "faq", title: "常见问题", subtitle: "标准问答", description: "客户常问问题与企业认可的标准回答。", icon: "help", tone: "blue", unit: "条",
           metrics: [
-            { label: "已确认", value: 56, suffix: "条" },
-            { label: "覆盖意图", value: 12, suffix: "类", glow: "blue" }
+            { label: "已确认", value: null, suffix: "条" }
           ],
-          coverage: 88 },
+          coverage: 0 },
         { id: "documents", title: "知识资料", subtitle: "档案清单", description: "企业档案、产品资料、交付规范和其他来源清单。", icon: "book", tone: "amber", unit: "份",
           metrics: [
-            { label: "已索引", value: 42, suffix: "份" },
-            { label: "来源完整", value: 38, suffix: "份", glow: "amber" }
+            { label: "已索引", value: null, suffix: "份" }
           ],
-          coverage: 90 }
+          coverage: 0 }
       ]
     : [
       { id: "adLaw", title: "广告法规则", subtitle: "内容风控", description: "广告合规规则属于内容风控，不参与企业事实检索。", icon: "shield", tone: "amber", unit: "条",
         metrics: [
-          { label: "规则条目", value: 128, suffix: "条" },
-          { label: "本周触发", value: 47, suffix: "次", glow: "amber" }
+          { label: "规则条目", value: null, suffix: "条" }
         ],
-        coverage: 85 },
+        coverage: 0 },
       { id: "sensitive", title: "企业敏感规则", subtitle: "行业敏感词", description: "行业敏感词、内部信息和不允许对外披露的表达。", icon: "alert", tone: "purple", unit: "条",
         metrics: [
-          { label: "规则条目", value: 89, suffix: "条" },
-          { label: "本周触发", value: 12, suffix: "次", glow: "purple" }
+          { label: "规则条目", value: null, suffix: "条" }
         ],
-        coverage: 72 },
+        coverage: 0 },
       { id: "banned", title: "企业禁用表述", subtitle: "禁用说法", description: "与服务边界或企业事实冲突的禁止说法。", icon: "lock", tone: "teal", unit: "条",
         metrics: [
-          { label: "规则条目", value: 56, suffix: "条" },
-          { label: "本周触发", value: 8, suffix: "次", glow: "teal" }
+          { label: "规则条目", value: null, suffix: "条" }
         ],
-        coverage: 68 }
+        coverage: 0 }
     ];
   return '<section class="knowledge-grid">' + cards.map((item) => {
     const data = state.knowledge[item.id] || {};
     const ruleCount = Number(data.count) || 0;
     const updated = escapeHtml(data.updated || "尚未维护");
     const primary = (item.metrics || [])[0] || { label: "条目", value: ruleCount, suffix: item.unit || "" };
-    const stat = `${Number.isFinite(primary.value) ? primary.value.toLocaleString("zh-CN") : "—"}${primary.suffix ? `<small>${escapeHtml(primary.suffix)}</small>` : ""}`;
+    const statValue = Number.isFinite(primary.value) ? primary.value : ruleCount;
+    const stat = `${Number.isFinite(statValue) ? statValue.toLocaleString("zh-CN") : "—"}${primary.suffix ? `<small>${escapeHtml(primary.suffix)}</small>` : ""}`;
     return `<article class="card knowledge-card kb-linear">
       <div class="kb-linear-head">
         <span class="knowledge-icon" data-icon="${item.icon}"></span>
@@ -15389,7 +15382,7 @@ function renderContentPlanModal() {
     <div class="modal-head"><div><h2 id="modal-title">创建内容计划</h2><p>${escapeHtml(line?.name || "业务线")} · 已选择 ${selectedTopics.length} 个选题</p></div><button class="icon-button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div>
     <div class="modal-body">
       <div class="field"><label for="content-plan-name">计划名称 *</label><input class="input ${ui.planError ? "input-error" : ""}" id="content-plan-name" value="${escapeHtml(line?.name || "业务线")} · ${defaultDueDate.getMonth() + 1} 月内容计划" />${ui.planError ? '<small class="error-text">' + escapeHtml(ui.planError) + "</small>" : ""}</div>
-      <div class="field-row mt-md"><div class="field"><label for="content-plan-date">计划完成日期 *</label><input class="input" id="content-plan-date" type="date" min="${todayValue}" value="${defaultDueDateValue}" /></div><div class="field"><label for="content-plan-owner">负责人</label><select class="select" id="content-plan-owner"><option>${escapeHtml(currentUserName() || "系统管理员")}</option><option>李晨</option><option>AI 内容助手</option></select></div></div>
+      <div class="field-row mt-md"><div class="field"><label for="content-plan-date">计划完成日期 *</label><input class="input" id="content-plan-date" type="date" min="${todayValue}" value="${defaultDueDateValue}" /></div><div class="field"><label for="content-plan-owner">负责人</label><select class="select" id="content-plan-owner">${contentPlanOwnerOptions()}</select></div></div>
       <div class="field mt-md"><label for="content-plan-type">内容形式</label><select class="select" id="content-plan-type"><option>深度文章</option><option>系列文章</option><option>问答文章</option><option>案例解读</option></select></div>
       <div class="plan-agent-panel"><div class="section-title"><div><h3>写作智能体 *</h3><p>决定文章角色、结构、语气与知识使用规则；保存计划时冻结当前版本</p></div><span class="small-tag blue">写法快照</span></div><select class="select" id="content-plan-agent" ${agentOptions ? "" : "disabled"}>${agentOptions || '<option value="">当前业务线没有可用智能体</option>'}</select>${defaultAgent ? `<div class="plan-agent-summary" id="plan-agent-summary"><span class="writing-agent-avatar ${escapeHtml(defaultAgent.color || "blue")}">${escapeHtml(defaultAgent.avatar || defaultAgent.name.slice(0, 1))}</span><span><b>${escapeHtml(defaultAgent.name)} · v${escapeHtml(defaultAgent.version)}</b><small>${escapeHtml(defaultAgent.style)} · ${defaultAgent.strictKnowledge ? "严格知识模式" : "普通知识模式"}</small></span></div>` : '<div class="knowledge-missing-inline"><span data-icon="alert"></span><span>请先到内容生产创建或恢复一个可用写作智能体。</span></div>'}</div>
       <details class="plan-platform-hints"><summary><span><b>预计适配平台（可选）</b><small>仅向 AI 提示写作风格，不锁定发布</small></span><span class="small-tag">不锁定发布</span></summary><div class="plan-platform-hint-body"><p>可多选，也可以不选。平台和账号仍然只在文章审核通过后到「发布运营」中确定。</p><div class="plan-platform-hint-grid" role="group" aria-label="预计适配平台（可选）">${platformHintChoices}</div></div></details>

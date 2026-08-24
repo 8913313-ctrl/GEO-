@@ -271,7 +271,7 @@ body {
 
 .field small { font-size: 11px; }
 
-.input { height: 42px; padding: 0 12px; border-radius: 9px; color: var(--ink-strong); background-color: #fff; font-size: 13px; }
+.input { height: 40px; padding: 0 12px; border-radius: 9px; color: var(--ink-strong); background-color: #fff; font-size: 13px; }
 
 .textarea { min-height: 112px; padding: 11px 12px; border-radius: 9px; font-size: 13px; line-height: 1.65; }
 

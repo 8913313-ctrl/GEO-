@@ -249,7 +249,7 @@ body {
 
 /* Todo, shortcuts and right rail */
 .route-dashboard .dashboard-grid { grid-template-columns: minmax(0, 1.52fr) minmax(310px, .78fr); gap: 18px; }
-.route-dashboard .card { border-color: var(--line); border-radius: 16px; background: rgba(255, 255, 255, .98); box-shadow: var(--shadow-sm); }
+.route-dashboard .card { border-color: var(--line); border-radius: 11px; background: rgba(255, 255, 255, .98); box-shadow: var(--shadow-sm); }
 .route-dashboard .card-header { min-height: 65px; border-bottom-color: var(--line); }
 .route-dashboard .card-header h3 { color: var(--ink-strong); }
 .route-dashboard .card-header p { color: var(--muted); }
@@ -680,7 +680,7 @@ body {
 .route-dashboard .dashboard-grid { grid-template-columns: minmax(0, 1.48fr) minmax(330px, .92fr); gap: 16px; }
 .route-dashboard .dashboard-grid > div.stack > .card:nth-child(2),
 .route-dashboard aside.stack > .card:nth-child(3) { display: none; }
-.route-dashboard .card { border-color: #ece8f7; border-radius: 15px; box-shadow: 0 9px 20px rgba(85, 58, 138, .06); }
+.route-dashboard .card { border-color: #ece8f7; border-radius: 11px; box-shadow: 0 9px 20px rgba(85, 58, 138, .06); }
 .route-dashboard .card-header { min-height: 64px; padding: 0 25px; }
 .route-dashboard .card-header h3 { color: #2d2850; }
 .todo-list { padding: 5px 25px 12px; }
@@ -808,7 +808,7 @@ body {
 .dashboard-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 20px 13px; }
 .dashboard-section-head h3 { margin: 0; color: var(--ink-strong); font-size: 15px; line-height: 1.4; }
 .dashboard-section-head p { margin: 4px 0 0; color: var(--muted-2); font-size: 11.5px; line-height: 1.55; }
-.dashboard-section-head .link-button { flex: 0 0 auto; padding: 0; color: var(--blue); font-size: 11px; }
+.dashboard-section-head .link-button { flex: 0 0 auto; padding: 0; color: var(--blue); font-size: 12px; }
 .dashboard-section-count,
 .dashboard-live-status,
 .dashboard-trend-total { flex: 0 0 auto; color: var(--muted-2); font-size: 10.5px; white-space: nowrap; }

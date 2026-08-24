@@ -4557,7 +4557,7 @@ body {
 .diagnostic-hero p { max-width: 720px; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.8; }
 .diagnostic-hero-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
 .diagnostic-range-control { display: flex; width: fit-content; align-items: center; gap: 9px; margin-top: 18px; color: var(--muted); font-size: 9px; font-weight: 700; }
-.diagnostic-range-control .select { width: 138px; min-height: 34px; background: rgba(255, 255, 255, .86); }
+.diagnostic-range-control .select { width: 138px; min-height: 40px; font-weight: 400; background: rgba(255, 255, 255, .86); }
 .diagnostic-package-badge { display: grid; min-height: 138px; align-content: center; justify-items: center; padding: 18px; border: 1px solid rgba(128, 159, 218, .35); border-radius: 16px; background: rgba(255, 255, 255, .8); box-shadow: 0 15px 35px rgba(42, 83, 160, .09); backdrop-filter: blur(10px); text-align: center; }
 .diagnostic-package-badge > svg { width: 25px; height: 25px; margin-bottom: 10px; color: var(--blue); }
 .diagnostic-package-badge small { color: var(--muted); font-size: 8px; }

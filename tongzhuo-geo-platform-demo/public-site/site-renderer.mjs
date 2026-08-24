@@ -1185,7 +1185,7 @@ function renderSourceHomePage({ site, page, articles, origin, preview = false, a
   const template = sourceTemplateFor(site);
   const profile = sourceTemplateProfile(template);
   const body = renderSourceHomeBody({ site, page, articles, template, preview });
-  return documentShell({ site, origin, pathname: "/", title: "", description: site.description || profile.heroDescription, active: "/", schemaExtra: [{ "@type": "WebPage", name: site.siteName, description: site.description || profile.heroDescription }], body, preview, assetBase });
+  return documentShell({ site, origin, pathname: "/", title: page.title || site.siteName || "", description: page.seoDescription || site.description || profile.heroDescription, active: "/", schemaExtra: [{ "@type": "WebPage", name: page.title || site.siteName, description: page.seoDescription || site.description || profile.heroDescription }], body, preview, assetBase });
 }
 
 function renderSourceServicesPage({ site, page, origin, preview = false, assetBase = "/site-assets-r6" }) {

@@ -147,7 +147,7 @@
 
 #view.route-content .content-plan-summary .summary-card:last-child { border-right: 0; }
 
-#view.route-content .content-page-container > .table-card { border-radius: 15px; box-shadow: 0 16px 34px rgba(28, 49, 83, .065); }
+#view.route-content .content-page-container > .table-card { border-radius: 11px; box-shadow: 0 16px 34px rgba(28, 49, 83, .065); }
 
 #view.route-content .content-page-container > .table-card .card-header { background: #fff; }
 
@@ -496,7 +496,7 @@
 
 #view.route-content .content-queue-card {
   border-color: #d8e1ec;
-  border-radius: 15px;
+  border-radius: 11px;
   box-shadow: 0 12px 28px rgba(28, 49, 83, .055);
 }
 
