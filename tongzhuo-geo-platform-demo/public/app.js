@@ -707,11 +707,7 @@ function minutesAgo(minutes) {
 function defaultState() {
   return {
     schemaVersion: 13,
-    businessLines: [
-      { id: "BL-GEO", name: "GEO 优化服务", product: "企业 GEO 优化与运营", audience: "工业品、制造业及中小企业", scenario: "AI 搜索品牌发现与内容信源建设", knowledgeBaseIds: ["KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], defaultWritingAgentId: "WA-GEO-DEEP", status: "active", createdAt: minutesAgo(4320) },
-      { id: "BL-VIDEO", name: "短视频获客运营", product: "企业短视频获客运营", audience: "需要持续获取销售线索的企业", scenario: "账号定位、内容策划与线索承接", knowledgeBaseIds: [], defaultWritingAgentId: "WA-BRAND-STORY", status: "active", createdAt: minutesAgo(4300) },
-      { id: "BL-AI", name: "企业 AI 落地", product: "企业知识与 AI 应用", audience: "希望将 AI 接入业务流程的企业", scenario: "知识库、业务助手与流程提效", knowledgeBaseIds: [], defaultWritingAgentId: "WA-FAQ", status: "active", createdAt: minutesAgo(4280) }
-    ],
+    businessLines: [],
     writingAgents: [
       {
         id: "WA-GEO-DEEP", name: "GEO 深度文章专家", description: "把企业知识组织成结论清晰、证据充分的 GEO 深度文章。", avatar: "深", color: "blue", builtIn: true, status: "active",
@@ -739,257 +735,41 @@ function defaultState() {
         systemPrompt: GEO_AGENT_PROMPT_FOUNDATION + "\n\n专属任务：可以从真实业务场景切入，但叙事必须回到企业主体、服务范围和公开证据；不得虚构人物、故事、客户反馈或结果。", geoPromptVersion: 2, strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", preferredKnowledgeBaseIds: [], modelMode: "inherit", creativity: 0.5, minWords: 1000, maxWords: 1800, version: 2, usageCount: 3, createdBy: "运营团队", createdAt: minutesAgo(5760), updatedAt: minutesAgo(720)
       }
     ],
-    keywords: [
-      { id: "KW-001", businessLineId: "BL-GEO", term: "工业品 GEO 优化", type: "种子词", source: "企业资料", status: "active", createdAt: minutesAgo(3000) },
-      { id: "KW-002", businessLineId: "BL-GEO", term: "制造业 AI 搜索", type: "种子词", source: "手动添加", status: "active", createdAt: minutesAgo(2920) },
-      { id: "KW-003", businessLineId: "BL-GEO", term: "GEO 服务商选择", type: "拓展词", source: "GEORank", status: "active", createdAt: minutesAgo(1430) },
-      { id: "KW-004", businessLineId: "BL-GEO", term: "AI 搜索效果评估", type: "拓展词", source: "监测回流", status: "active", createdAt: minutesAgo(800) },
-      { id: "KW-005", businessLineId: "BL-VIDEO", term: "短视频获客", type: "种子词", source: "企业资料", status: "active", createdAt: minutesAgo(2920) },
-      { id: "KW-006", businessLineId: "BL-VIDEO", term: "工业品短视频运营", type: "拓展词", source: "手动添加", status: "active", createdAt: minutesAgo(1800) },
-      { id: "KW-007", businessLineId: "BL-AI", term: "企业 AI 落地", type: "种子词", source: "企业资料", status: "active", createdAt: minutesAgo(1430) },
-      { id: "KW-008", businessLineId: "BL-AI", term: "企业知识库建设", type: "拓展词", source: "GEORank", status: "active", createdAt: minutesAgo(920) }
-    ],
-    keywordPacks: [
-      { id: "KP-202607-04", businessLineId: "BL-GEO", title: "工业品 GEO 优化", seeds: ["工业品GEO优化", "制造业AI搜索"], source: "手动拓展", total: 8, createdAt: minutesAgo(36) },
-      { id: "KP-202607-03", businessLineId: "BL-AI", title: "企业 AI 落地", seeds: ["企业AI落地"], source: "企业资料", total: 6, createdAt: minutesAgo(1430) },
-      { id: "KP-202607-02", businessLineId: "BL-VIDEO", title: "短视频获客", seeds: ["短视频获客"], source: "手动拓展", total: 8, createdAt: minutesAgo(2920) }
-    ],
-    questionLibrary: [
-      { id: "Q-041", packId: "KP-202607-04", businessLineId: "BL-GEO", sourceKeyword: "工业品 GEO 优化", question: "工业品企业如何做 GEO 优化？", dimension: "question", intent: "方案了解", stage: "方案评估", coverage: "未覆盖", source: "GEORank 拓展", status: "active", topicId: "TOP-041", selected: false, createdAt: minutesAgo(36) },
-      { id: "Q-042", packId: "KP-202607-04", businessLineId: "BL-GEO", sourceKeyword: "制造业 AI 搜索", question: "制造业 AI 搜索优化应该从官网还是内容平台开始？", dimension: "technical", intent: "方案对比", stage: "方案评估", coverage: "部分覆盖", source: "GEORank 拓展", status: "active", topicId: "TOP-042", selected: false, createdAt: minutesAgo(36) },
-      { id: "Q-043", packId: "KP-202607-04", businessLineId: "BL-GEO", sourceKeyword: "GEO 服务商选择", question: "选择 GEO 服务商时需要重点判断哪些能力？", dimension: "commercial", intent: "服务采购", stage: "供应商筛选", coverage: "未覆盖", source: "GEORank 拓展", status: "active", topicId: "TOP-043", selected: false, createdAt: minutesAgo(36) },
-      { id: "Q-044", packId: "KP-202607-04", businessLineId: "BL-GEO", sourceKeyword: "山东 GEO 公司推荐", question: "山东企业选择本地 GEO 服务团队有哪些优势？", dimension: "ranking", intent: "品牌发现", stage: "供应商筛选", coverage: "未覆盖", source: "GEORank 拓展", status: "active", topicId: "TOP-044", selected: false, createdAt: minutesAgo(36) },
-      { id: "Q-045", packId: "KP-202607-04", businessLineId: "BL-GEO", sourceKeyword: "GEO 和 SEO 区别", question: "GEO 与 SEO 的目标、内容和衡量方式有什么不同？", dimension: "semantic", intent: "概念认知", stage: "需求认知", coverage: "已覆盖", source: "GEORank 拓展", status: "active", topicId: "TOP-045", selected: false, createdAt: minutesAgo(36) },
-      { id: "Q-046", packId: "KP-202607-04", businessLineId: "BL-GEO", sourceKeyword: "AI 搜索效果评估", question: "企业应如何判断 GEO 项目是否正在产生真实价值？", dimension: "review", intent: "效果评估", stage: "效果复盘", coverage: "部分覆盖", source: "监测回流", status: "active", topicId: "TOP-046", selected: false, createdAt: minutesAgo(36) },
-      { id: "Q-047", packId: "KP-202607-04", businessLineId: "BL-GEO", sourceKeyword: "桐灼科技 GEO", question: "桐灼科技如何为制造企业落地 GEO 运营？", dimension: "brand", intent: "品牌了解", stage: "品牌核验", coverage: "未覆盖", source: "手动添加", status: "active", topicId: "TOP-047", selected: false, createdAt: minutesAgo(36) },
-      { id: "Q-048", packId: "KP-202607-04", businessLineId: "BL-GEO", sourceKeyword: "工业品采购决策内容", question: "工业品采购决策链中，哪些内容最值得企业长期沉淀？", dimension: "scenario", intent: "场景分析", stage: "需求认知", coverage: "未覆盖", source: "GEORank 拓展", status: "active", topicId: "TOP-048", selected: false, createdAt: minutesAgo(36) }
-    ],
-    topics: [
-      { id: "TOP-041", packId: "KP-202607-04", keyword: "工业品企业如何做 GEO 优化", title: "工业品企业如何搭建可持续的 GEO 内容体系？", dimension: "question", intent: "方案了解", recommendation: 94, business: 88, coverage: "未覆盖", reason: "客户在评估方案前常见的完整路径问题", selected: false },
-      { id: "TOP-042", packId: "KP-202607-04", keyword: "制造业 AI 搜索优化方案", title: "制造业 AI 搜索优化应该从官网还是内容平台开始？", dimension: "technical", intent: "方案对比", recommendation: 91, business: 93, coverage: "部分覆盖", reason: "具有明确的实施顺序和采购判断意图", selected: false },
-      { id: "TOP-043", packId: "KP-202607-04", keyword: "GEO 服务商怎么选", title: "选择 GEO 服务商时需要重点判断哪些能力？", dimension: "commercial", intent: "服务采购", recommendation: 89, business: 96, coverage: "未覆盖", reason: "处于服务商筛选阶段，商业意图较强", selected: false },
-      { id: "TOP-044", packId: "KP-202607-04", keyword: "山东 GEO 公司推荐", title: "山东企业选择本地 GEO 服务团队有哪些优势？", dimension: "ranking", intent: "品牌发现", recommendation: 86, business: 91, coverage: "未覆盖", reason: "适合建立区域服务与企业实体关联", selected: false },
-      { id: "TOP-045", packId: "KP-202607-04", keyword: "GEO 和 SEO 区别", title: "GEO 与 SEO 的目标、内容和衡量方式有什么不同？", dimension: "semantic", intent: "概念认知", recommendation: 83, business: 64, coverage: "已覆盖", reason: "基础认知问题，可支撑主题权威度", selected: false },
-      { id: "TOP-046", packId: "KP-202607-04", keyword: "GEO 优化效果评测", title: "企业应如何判断 GEO 项目是否正在产生真实价值？", dimension: "review", intent: "效果评估", recommendation: 88, business: 84, coverage: "部分覆盖", reason: "回应客户对交付可信度与衡量边界的关注", selected: false },
-      { id: "TOP-047", packId: "KP-202607-04", keyword: "桐灼科技 GEO", title: "桐灼科技如何为制造企业落地 GEO 运营？", dimension: "brand", intent: "品牌了解", recommendation: 82, business: 79, coverage: "未覆盖", reason: "建立品牌、服务能力与目标客户之间的关联", selected: false },
-      { id: "TOP-048", packId: "KP-202607-04", keyword: "工业品采购决策内容", title: "工业品采购决策链中，哪些内容最值得企业长期沉淀？", dimension: "scenario", intent: "场景分析", recommendation: 87, business: 77, coverage: "未覆盖", reason: "覆盖销售、技术与采购共同参与的决策场景", selected: false }
-    ],
-    contentPlans: [
-      { id: "PLAN-202607-01", name: "7 月 GEO 方法论内容计划", businessLineId: "BL-GEO", topicIds: ["TOP-041"], scheduledFor: "2026-07-24", owner: "运营团队", contentType: "深度文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-22T10:20:00+08:00" }, status: "produced", articleIds: ["ART-202607-031"], createdAt: minutesAgo(2880) },
-      { id: "PLAN-202607-02", name: "制造业 AI 搜索专题", businessLineId: "BL-GEO", topicIds: ["TOP-042", "TOP-046"], scheduledFor: "2026-07-29", owner: "运营团队", contentType: "系列文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-22T22:00:00+08:00" }, status: "planned", articleIds: [], createdAt: minutesAgo(720) },
-      { id: "PLAN-202607-03", name: "区域品牌发现内容", businessLineId: "BL-GEO", topicIds: ["TOP-044"], scheduledFor: "2026-08-03", owner: "运营团队", contentType: "问答文章", knowledgeScope: { inheritedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], addedBaseIds: [], excludedBaseIds: [], resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"], snapshottedAt: "2026-07-23T07:00:00+08:00" }, status: "draft", articleIds: [], createdAt: minutesAgo(180) }
-    ],
-    articles: [
-      {
-        id: "ART-202607-031",
-        title: "工业品企业如何搭建可持续的 GEO 内容体系？",
-        topicId: "TOP-041",
-        planId: "PLAN-202607-01",
-        businessLineId: "BL-GEO",
-        status: "draft",
-        reviewStatus: "approved",
-        version: "v2",
-        author: "运营团队",
-        category: "GEO 方法论",
-        riskStatus: "clean",
-        sources: 6,
-        citations: ["CIT-ART031-K1", "CIT-ART031-K2", "CIT-ART031-K3", "CIT-ART031-K4", "CIT-ART031-K5", "CIT-ART031-K6"],
-        knowledgeSnapshot: {
-          id: "KS-ART031-V2",
-          capturedAt: "2026-07-22T10:30:00+08:00",
-          enterpriseBaseIds: ["KB-CORP-001"],
-          businessLineBaseIds: ["KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"],
-          addedBaseIds: [],
-          excludedBaseIds: [],
-          resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"],
-          lockedVersionIds: ["KV-CORP-002-V3", "KV-GEO-001-V4", "KV-CASE-001-V2", "KV-CASE-002-V1", "KV-FAQ-001-V3", "KV-FAQ-002-V2"],
-          citationIds: ["CIT-ART031-K1", "CIT-ART031-K2", "CIT-ART031-K3", "CIT-ART031-K4", "CIT-ART031-K5", "CIT-ART031-K6"],
-          gapIds: ["KG-ART031-PRICE", "KG-ART031-LEADTIME"]
-        },
-        generationSnapshot: {
-          id: "GS-ART031-V2",
-          generatedAt: "2026-07-22T10:30:00+08:00",
-          generatedBy: "AI 内容助手",
-          topicId: "TOP-041",
-          planId: "PLAN-202607-01",
-          businessLineId: "BL-GEO",
-          model: { name: "DeepSeek V3（演示）", promptVersion: "GEO 深度文章专家 v1" },
-          retrieval: {
-            strategy: "rag",
-            query: "工业品企业如何搭建可持续的 GEO 内容体系",
-            topK: 12,
-            minScore: 0.62,
-            approvedItems: 8,
-            retrievedChunks: 8,
-            usedCitations: 6
-          },
-          knowledgeBaseIds: ["KB-CORP-001", "KB-GEO-001", "KB-CASE-001", "KB-FAQ-001"],
-          citationIds: ["CIT-ART031-K1", "CIT-ART031-K2", "CIT-ART031-K3", "CIT-ART031-K4", "CIT-ART031-K5", "CIT-ART031-K6"],
-          omittedFields: ["price", "delivery_cycle"],
-          instruction: "价格与交付周期缺少已审核证据，不生成具体数字或保证性承诺。",
-          fingerprint: "demo-kb-20260722-art031-v2"
-        },
-        knowledgeStatus: {
-          state: "ready_with_omissions",
-          availableItems: 8,
-          evidenceCount: 6,
-          supportedClaims: 6,
-          conflictCount: 0,
-          gapCount: 2,
-          message: "6 条事实已有证据；价格与交付周期因缺少知识而省略。"
-        },
-        updatedAt: minutesAgo(22),
-        keywords: ["工业品GEO", "企业内容体系", "AI搜索"],
-        excerpt: "围绕真实产品、采购问题和企业证据，建立可以持续积累的内容生产与发布闭环。",
-        content: "<p>工业品企业做 GEO，难点通常不在于偶尔写出一篇文章，而在于能否把真实业务知识持续转化为可信、清晰、可复用的内容资产。</p><h2>一、先建立唯一可信的企业知识</h2><p>产品参数、应用场景、典型案例、服务边界和常见问题应由企业资料统一维护。写作与官网展示引用同一份事实，才能避免不同渠道出现相互矛盾的表述。</p><h2>二、围绕客户决策问题策划内容</h2><p>选题不应只追逐宽泛热词。需要从采购、技术、使用和服务场景中找到客户真正会提问的问题，并明确每篇内容要回答什么。</p><h2>三、审核后再进入多平台发布</h2><p>文章通过事实与风险审核后冻结版本，再交给官网和本地发布助手。每个平台独立执行并回写结果，避免一个平台失败影响其他渠道。</p>"
-      },
-      {
-        id: "ART-202607-030",
-        title: "选择 GEO 服务商时需要重点判断哪些能力？",
-        topicId: "TOP-043",
-        planId: null,
-        businessLineId: "BL-GEO",
-        status: "draft",
-        reviewStatus: "pending",
-        version: "v1",
-        author: "AI 内容助手",
-        category: "采购指南",
-        riskStatus: "clean",
-        sources: 2,
-        citations: ["CIT-ART030-K1", "CIT-ART030-K2"],
-        knowledgeSnapshot: {
-          id: "KS-ART030-V1",
-          capturedAt: "2026-07-22T15:40:00+08:00",
-          frozenAt: null,
-          enterpriseBaseIds: ["KB-CORP-001"],
-          businessLineBaseIds: ["KB-GEO-001"],
-          resolvedBaseIds: ["KB-CORP-001", "KB-GEO-001"],
-          lockedVersionIds: ["KV-CORP-002-V3", "KV-GEO-001-V4"],
-          citationIds: ["CIT-ART030-K1", "CIT-ART030-K2"],
-          gapIds: []
-        },
-        generationSnapshot: null,
-        knowledgeStatus: { state: "ready", availableItems: 2, evidenceCount: 2, supportedClaims: 2, conflictCount: 0, gapCount: 0, message: "2 条企业事实已经映射，等待人工审核冻结。" },
-        updatedAt: minutesAgo(48),
-        keywords: ["GEO服务商", "服务商选择", "GEO能力"],
-        excerpt: "从企业知识、内容生产、官网信源和长期运营四个方面判断 GEO 服务能力。",
-        content: "<p>企业选择 GEO 服务团队时，首先要确认对方是否真正理解业务，而不是只提供一组抽象指标。</p><h2>判断一：能否整理真实企业知识</h2><p>可靠的内容必须来自产品、案例、交付流程与服务边界。服务商应能建立清晰的资料校验机制。</p><h2>判断二：能否形成日常运营闭环</h2><p>从选题、写作、审核到官网及内容平台发布，每一步都需要可追踪、可复核。</p>"
-      },
-      {
-        id: "ART-202607-029",
-        title: "GEO 与 SEO 的目标、内容和衡量方式有什么不同？",
-        topicId: "TOP-045",
-        planId: null,
-        businessLineId: "BL-GEO",
-        status: "draft",
-        reviewStatus: "pending",
-        version: "v3",
-        author: "运营团队",
-        category: "基础知识",
-        riskStatus: "warning",
-        sources: 4,
-        citations: [],
-        knowledgeSnapshot: null,
-        generationSnapshot: null,
-        knowledgeStatus: { state: "legacy_unmapped", availableItems: 0, evidenceCount: 0, supportedClaims: 0, conflictCount: 0, gapCount: 0, message: "历史演示文章尚未建立可追溯知识快照。" },
-        updatedAt: minutesAgo(116),
-        keywords: ["GEO", "SEO", "AI搜索"],
-        excerpt: "从用户决策路径、内容组织和结果验证三个角度理解 GEO 与 SEO 的关系。",
-        content: "<p>SEO 与 GEO 并不是互相替代的两件事。两者都依赖清晰、可信并可被检索的企业信息，但面向的结果形态不同。</p><h2>共同基础</h2><p>稳定的官网、可理解的页面结构和真实的企业证据，是两种优化都不能绕开的基础。</p>"
-      },
-      {
-        id: "ART-202607-027",
-        title: "企业官网为什么是 GEO 运营的长期信源？",
-        topicId: null,
-        planId: null,
-        businessLineId: "BL-GEO",
-        status: "published",
-        reviewStatus: "approved",
-        version: "v2",
-        author: "运营团队",
-        category: "官网建设",
-        riskStatus: "clean",
-        sources: 7,
-        citations: [],
-        knowledgeSnapshot: null,
-        generationSnapshot: null,
-        knowledgeStatus: { state: "legacy_unmapped", availableItems: 0, evidenceCount: 0, supportedClaims: 0, conflictCount: 0, gapCount: 0, message: "历史演示文章尚未建立可追溯知识快照。" },
-        updatedAt: minutesAgo(1580),
-        keywords: ["企业官网", "GEO信源", "企业知识"],
-        excerpt: "企业官网是企业可持续控制、持续更新并建立实体一致性的核心公开信源。",
-        content: "<p>企业官网不仅是展示页面，也是企业能够长期控制、持续校正的公开知识载体。</p>"
-      }
-    ],
-    publishTasks: [
-      {
-        id: "PUB-202607-012",
-        articleId: "ART-202607-027",
-        articleTitle: "企业官网为什么是 GEO 运营的长期信源？",
-        version: "v2",
-        groupId: "group-main",
-        groupName: "品牌主账号组",
-        status: "partial",
-        createdAt: minutesAgo(1510),
-        targets: {
-          web: { status: "success", account: "www.example.com", remoteUrl: "https://example.com/insights/geo-source", updatedAt: minutesAgo(1508) },
-          wechat: { status: "success", account: "桐灼科技", remoteUrl: "https://example.com/wechat/geo-source", updatedAt: minutesAgo(1504) },
-          zhihu: { status: "success", account: "桐灼科技", remoteUrl: "https://example.com/zhihu/geo-source", updatedAt: minutesAgo(1501) },
-          toutiao: { status: "result_unknown", account: "桐灼科技", remoteUrl: "", updatedAt: minutesAgo(1499) }
-        },
-        logs: [
-          { time: "昨天 09:12", platform: "企业官网", message: "发布成功，已返回页面地址" },
-          { time: "昨天 09:15", platform: "微信公众号", message: "发布成功，已写入远端文章 ID" },
-          { time: "昨天 09:18", platform: "知乎", message: "发布成功，已返回文章地址" },
-          { time: "昨天 09:20", platform: "头条号", message: "提交后连接中断，需要在本地确认结果" }
-        ]
-      }
-    ],
+    keywords: [],
+    keywordPacks: [],
+
+    questionLibrary: [],
+
+    topics: [],
+
+    contentPlans: [],
+
+    articles: [],
+
+    publishTasks: [],
+
     publishSchedules: [],
-    accountGroups: [
-      {
-        id: "group-main",
-        name: "品牌主账号组",
-        deviceId: "DEV-01",
-        deviceName: "运营部电脑 · GEO-OPS-01",
-        updatedAt: minutesAgo(1),
-        accounts: {
-          wechat: { name: "桐灼科技", status: "online" },
-          zhihu: { name: "桐灼科技", status: "online" },
-          toutiao: { name: "桐灼科技", status: "online" }
-        }
-      },
-      {
-        id: "group-industry",
-        name: "工业服务账号组",
-        deviceId: "DEV-01",
-        deviceName: "运营部电脑 · GEO-OPS-01",
-        updatedAt: minutesAgo(6),
-        accounts: {
-          wechat: { name: "桐灼工业增长", status: "online" },
-          zhihu: { name: "桐灼工业增长", status: "needs_login" },
-          toutiao: { name: "工业增长观察", status: "online" }
-        }
-      }
-    ],
+    accountGroups: [],
+
     site: {
-      domain: "www.tongzhuo.com",
+      domain: "",
       baseUrl: "",
-      status: "online",
-      theme: "桐灼企业官网 · 标准版",
-      pages: 7,
-      articles: 28,
-      leads: 6,
-      lastDiagnostic: "2026-07-18 14:30",
-      diagnosticStatus: "正常",
+      status: "not_configured",
+      theme: "企业官网 · 标准版",
+      pages: 0,
+      articles: 0,
+      leads: 0,
+      lastDiagnostic: null,
+      diagnosticStatus: "尚未检测",
       cms: {
         settings: {
-          siteName: "桐灼科技",
-          companyName: "桐灼（淄博）网络科技有限公司",
-          description: "桐灼科技专注 GEO 优化、短视频获客运营与企业 AI 落地，持续建设企业公开信源。",
+          siteName: "企业官网",
+          companyName: "企业",
+          description: "企业公开信息、产品服务与行业内容。",
           logoUrl: "",
           sameAs: [],
           allowAiCrawl: true,
-          updatedAt: "2026-07-24T09:20:00.000Z"
+          updatedAt: null
         },
         assets: {
           logoUrl: "",
@@ -998,13 +778,13 @@ function defaultState() {
           defaultImageAlt: "企业默认图片"
         },
         pages: [
-          { id: "home", type: "首页", title: "首页", path: "/", status: "published", description: "企业定位、核心服务、案例与咨询入口", seoDescription: "桐灼科技为企业提供 GEO 优化、内容运营与 AI 落地服务。", schemaEnabled: true, sitemapEnabled: true, version: 3, savedAt: "2026-07-24T09:20:00.000Z", publishedAt: "2026-07-24T09:20:00.000Z", versions: [{ version: 2, title: "首页", path: "/", description: "企业定位、核心服务、案例与咨询入口", seoDescription: "桐灼科技为企业提供 GEO 优化、内容运营与 AI 落地服务。", savedAt: "2026-07-16T09:20:00.000Z", note: "首页信源结构更新" }] },
-          { id: "about", type: "关于页", title: "关于我们", path: "/about/", status: "published", description: "企业主体、团队与发展信息", seoDescription: "了解桐灼科技的企业主体、团队与服务理念。", schemaEnabled: true, sitemapEnabled: true, version: 2, savedAt: "2026-07-21T09:20:00.000Z", publishedAt: "2026-07-21T09:20:00.000Z", versions: [] },
-          { id: "services", type: "服务页", title: "产品与服务", path: "/services/", status: "published", description: "服务能力、适用对象与交付边界", seoDescription: "查看桐灼科技的 GEO 优化、内容运营与 AI 落地服务。", schemaEnabled: true, sitemapEnabled: true, version: 2, savedAt: "2026-07-21T09:20:00.000Z", publishedAt: "2026-07-21T09:20:00.000Z", versions: [] },
+          { id: "home", type: "首页", title: "首页", path: "/", status: "published", description: "企业定位、核心服务、案例与咨询入口", seoDescription: "企业为企业提供 GEO 优化、内容运营与 AI 落地服务。", schemaEnabled: true, sitemapEnabled: true, version: 3, savedAt: "2026-07-24T09:20:00.000Z", publishedAt: "2026-07-24T09:20:00.000Z", versions: [{ version: 2, title: "首页", path: "/", description: "企业定位、核心服务、案例与咨询入口", seoDescription: "企业为企业提供 GEO 优化、内容运营与 AI 落地服务。", savedAt: "2026-07-16T09:20:00.000Z", note: "首页信源结构更新" }] },
+          { id: "about", type: "关于页", title: "关于我们", path: "/about/", status: "published", description: "企业主体、团队与发展信息", seoDescription: "了解企业的企业主体、团队与服务理念。", schemaEnabled: true, sitemapEnabled: true, version: 2, savedAt: "2026-07-21T09:20:00.000Z", publishedAt: "2026-07-21T09:20:00.000Z", versions: [] },
+          { id: "services", type: "服务页", title: "产品与服务", path: "/services/", status: "published", description: "服务能力、适用对象与交付边界", seoDescription: "查看企业的 GEO 优化、内容运营与 AI 落地服务。", schemaEnabled: true, sitemapEnabled: true, version: 2, savedAt: "2026-07-21T09:20:00.000Z", publishedAt: "2026-07-21T09:20:00.000Z", versions: [] },
           { id: "cases", type: "案例页", title: "服务案例", path: "/cases/", status: "published", description: "经过审核的客户案例与实施结果", seoDescription: "查看企业 GEO 与内容运营服务案例。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-19T09:20:00.000Z", publishedAt: "2026-07-19T09:20:00.000Z", versions: [] },
-          { id: "insights", type: "资讯列表", title: "行业资讯", path: "/insights/", status: "published", description: "客户自定义栏目下的公开文章", seoDescription: "桐灼科技行业资讯、方法和案例文章。", schemaEnabled: true, sitemapEnabled: true, version: 3, savedAt: "2026-07-23T09:20:00.000Z", publishedAt: "2026-07-23T09:20:00.000Z", versions: [] },
+          { id: "insights", type: "资讯列表", title: "行业资讯", path: "/insights/", status: "published", description: "客户自定义栏目下的公开文章", seoDescription: "企业行业资讯、方法和案例文章。", schemaEnabled: true, sitemapEnabled: true, version: 3, savedAt: "2026-07-23T09:20:00.000Z", publishedAt: "2026-07-23T09:20:00.000Z", versions: [] },
           { id: "problem-map", type: "问题地图", title: "问题地图", path: "/problem-map/", status: "published", description: "按服务方向和行业整理客户真实问题", seoDescription: "按服务方向与行业查看企业客户常见问题及直接回答。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-24T09:20:00.000Z", publishedAt: "2026-07-24T09:20:00.000Z" },
-          { id: "contact", type: "联系页", title: "联系我们", path: "/contact/", status: "published", description: "咨询表单、服务区域与联系方式", seoDescription: "联系桐灼科技，预约业务诊断。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-19T09:20:00.000Z", publishedAt: "2026-07-19T09:20:00.000Z", versions: [] },
+          { id: "contact", type: "联系页", title: "联系我们", path: "/contact/", status: "published", description: "咨询表单、服务区域与联系方式", seoDescription: "联系企业，预约业务诊断。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-19T09:20:00.000Z", publishedAt: "2026-07-19T09:20:00.000Z", versions: [] },
           { id: "landing", type: "专题页", title: "制造业 GEO 专题", path: "/topics/manufacturing-geo/", status: "draft", description: "可按业务线创建的专题落地页", seoDescription: "制造业企业 GEO 优化专题。", schemaEnabled: true, sitemapEnabled: true, version: 1, savedAt: "2026-07-24T09:20:00.000Z", publishedAt: null, versions: [] }
         ],
         modules: {
@@ -1076,20 +856,20 @@ function defaultState() {
       }
     },
     enterpriseProfile: {
-      completion: 86,
-      companyName: "桐灼（淄博）网络科技有限公司",
-      brandName: "桐灼科技",
-      officialDomain: "www.tongzhuo.com",
-      industryRegion: "企业服务 · 山东淄博",
-      introduction: "面向工业品、制造业和中小企业，提供 GEO 优化、短视频获客运营与企业 AI 落地服务。",
-      primaryService: "企业 GEO 优化服务",
-      serviceDescription: "围绕企业知识、官网信源、内容生产、多平台发布和效果复盘建立持续运营闭环。",
-      audience: "工业品、制造业及需要建立长期公开信源的中小企业",
-      serviceArea: "全国",
+      completion: 0,
+      companyName: "",
+      brandName: "",
+      officialDomain: "",
+      industryRegion: "",
+      introduction: "",
+      primaryService: "",
+      serviceDescription: "",
+      audience: "",
+      serviceArea: "",
       steps: [
-        { id: "basic", label: "企业基本资料", status: "complete" },
-        { id: "products", label: "产品与服务", status: "complete" },
-        { id: "audience", label: "目标客户与区域", status: "complete" },
+        { id: "basic", label: "企业基本资料", status: "pending" },
+        { id: "products", label: "产品与服务", status: "pending" },
+        { id: "audience", label: "目标客户与区域", status: "pending" },
         { id: "evidence", label: "案例、FAQ 与证据", status: "pending" }
       ]
     },
@@ -1147,122 +927,18 @@ function defaultState() {
         updatedAt: "2026-07-22T10:02:00+08:00"
       }
     ],
-    knowledgeItems: [
-      { id: "KI-CORP-001", knowledgeBaseId: "KB-CORP-001", kind: "document", title: "桐灼科技企业介绍", category: "企业档案", status: "approved", visibility: "public", latestVersionId: "KV-CORP-001-V2", tags: ["企业介绍", "服务区域"] },
-      { id: "KI-CORP-002", knowledgeBaseId: "KB-CORP-001", kind: "document", title: "GEO 服务定位与承诺边界", category: "产品服务", status: "approved", visibility: "public", latestVersionId: "KV-CORP-002-V3", tags: ["GEO服务", "服务边界"] },
-      { id: "KI-GEO-001", knowledgeBaseId: "KB-GEO-001", kind: "document", title: "GEO 运营标准流程", category: "产品服务", status: "approved", visibility: "public", latestVersionId: "KV-GEO-001-V4", tags: ["交付流程", "企业知识"] },
-      { id: "KI-GEO-002", knowledgeBaseId: "KB-GEO-001", kind: "document", title: "文章审核与多平台发布规范", category: "交付规范", status: "approved", visibility: "internal", latestVersionId: "KV-GEO-002-V2", tags: ["审核", "发布"] },
-      { id: "KI-CASE-001", knowledgeBaseId: "KB-CASE-001", kind: "document", title: "山东工业设备企业知识统一案例", category: "案例", status: "approved", visibility: "public", latestVersionId: "KV-CASE-001-V2", tags: ["工业设备", "知识库"] },
-      { id: "KI-CASE-002", knowledgeBaseId: "KB-CASE-001", kind: "document", title: "制造业客户决策问题拆分案例", category: "案例", status: "approved", visibility: "public", latestVersionId: "KV-CASE-002-V1", tags: ["制造业", "内容计划"] },
-      { id: "KI-FAQ-001", knowledgeBaseId: "KB-FAQ-001", kind: "qa", title: "工业品企业做 GEO 应从哪里开始？", question: "工业品企业做 GEO 应从哪里开始？", category: "FAQ", status: "approved", visibility: "public", latestVersionId: "KV-FAQ-001-V3", tags: ["启动", "企业知识"] },
-      { id: "KI-FAQ-002", knowledgeBaseId: "KB-FAQ-001", kind: "qa", title: "同一篇文章怎样安全发布到多个平台？", question: "同一篇文章怎样安全发布到多个平台？", category: "FAQ", status: "approved", visibility: "public", latestVersionId: "KV-FAQ-002-V2", tags: ["审核", "多平台发布"] }
-    ],
-    knowledgeVersions: [
-      {
-        id: "KV-CORP-001-V2",
-        itemId: "KI-CORP-001",
-        version: 2,
-        reviewStatus: "approved",
-        reviewedBy: "运营团队",
-        reviewedAt: "2026-07-22T09:42:00+08:00",
-        content: "桐灼科技面向工业品、制造业及中小企业，提供企业 GEO 优化、短视频获客运营与企业 AI 落地服务，服务区域为全国。",
-        chunks: [{ id: "KC-CORP-001-01", section: "企业简介", text: "桐灼科技面向工业品、制造业及中小企业，提供企业 GEO 优化、短视频获客运营与企业 AI 落地服务，服务区域为全国。" }]
-      },
-      {
-        id: "KV-CORP-002-V3",
-        itemId: "KI-CORP-002",
-        version: 3,
-        reviewStatus: "approved",
-        reviewedBy: "运营团队",
-        reviewedAt: "2026-07-22T10:05:00+08:00",
-        content: "GEO 服务围绕企业知识整理、官网信源建设、内容生产、多平台发布和效果复盘形成持续运营闭环；不承诺固定排名或确定性收录结果。",
-        chunks: [
-          { id: "KC-CORP-002-01", section: "服务定位", text: "GEO 服务围绕企业知识整理、官网信源建设、内容生产、多平台发布和效果复盘形成持续运营闭环。" },
-          { id: "KC-CORP-002-02", section: "承诺边界", text: "不承诺固定排名或确定性收录结果。" }
-        ]
-      },
-      {
-        id: "KV-GEO-001-V4",
-        itemId: "KI-GEO-001",
-        version: 4,
-        reviewStatus: "approved",
-        reviewedBy: "运营团队",
-        reviewedAt: "2026-07-22T10:14:00+08:00",
-        content: "项目首先核对企业档案、产品服务、案例、FAQ 与公开边界，再基于客户真实问题建立问题词库、选题库和内容计划。",
-        chunks: [{ id: "KC-GEO-001-01", section: "启动流程", text: "项目首先核对企业档案、产品服务、案例、FAQ 与公开边界，再基于客户真实问题建立问题词库、选题库和内容计划。" }]
-      },
-      {
-        id: "KV-GEO-002-V2",
-        itemId: "KI-GEO-002",
-        version: 2,
-        reviewStatus: "approved",
-        reviewedBy: "运营团队",
-        reviewedAt: "2026-07-22T10:18:00+08:00",
-        content: "文章只调用已审核知识；通过事实审核与内容风控后冻结版本，再由官网或本地发布助手创建各平台独立任务。",
-        chunks: [{ id: "KC-GEO-002-01", section: "审核发布", text: "文章只调用已审核知识；通过事实审核与内容风控后冻结版本，再由官网或本地发布助手创建各平台独立任务。" }]
-      },
-      {
-        id: "KV-CASE-001-V2",
-        itemId: "KI-CASE-001",
-        version: 2,
-        reviewStatus: "approved",
-        reviewedBy: "运营团队",
-        reviewedAt: "2026-07-21T16:20:00+08:00",
-        content: "为一家山东工业设备企业梳理产品参数、应用场景和售后问答，建立业务线知识包后，官网与内容平台统一引用同一版本资料。",
-        chunks: [{ id: "KC-CASE-001-01", section: "实施结果", text: "为一家山东工业设备企业梳理产品参数、应用场景和售后问答，建立业务线知识包后，官网与内容平台统一引用同一版本资料。" }]
-      },
-      {
-        id: "KV-CASE-002-V1",
-        itemId: "KI-CASE-002",
-        version: 1,
-        reviewStatus: "approved",
-        reviewedBy: "运营团队",
-        reviewedAt: "2026-07-21T17:10:00+08:00",
-        content: "在制造业项目中，采购、技术和使用人员关注的问题不同，内容计划按决策阶段拆分，并将监测未覆盖问题回流选题中心。",
-        chunks: [{ id: "KC-CASE-002-01", section: "选题方法", text: "采购、技术和使用人员关注的问题不同，内容计划按决策阶段拆分，并将监测未覆盖问题回流选题中心。" }]
-      },
-      {
-        id: "KV-FAQ-001-V3",
-        itemId: "KI-FAQ-001",
-        version: 3,
-        reviewStatus: "approved",
-        reviewedBy: "运营团队",
-        reviewedAt: "2026-07-22T09:58:00+08:00",
-        content: "先统一企业介绍、产品参数、应用场景、案例、服务边界和常见问答，再围绕采购与技术人员会提出的问题策划内容。",
-        chunks: [{ id: "KC-FAQ-001-01", section: "标准答案", text: "先统一企业介绍、产品参数、应用场景、案例、服务边界和常见问答，再围绕采购与技术人员会提出的问题策划内容。" }]
-      },
-      {
-        id: "KV-FAQ-002-V2",
-        itemId: "KI-FAQ-002",
-        version: 2,
-        reviewStatus: "approved",
-        reviewedBy: "运营团队",
-        reviewedAt: "2026-07-22T10:02:00+08:00",
-        content: "文章审核通过并冻结版本后，按平台分别创建发布任务；一个平台失败不会改变其他平台任务或已冻结正文。",
-        chunks: [{ id: "KC-FAQ-002-01", section: "标准答案", text: "文章审核通过并冻结版本后，按平台分别创建发布任务；一个平台失败不会改变其他平台任务或已冻结正文。" }]
-      }
-    ],
-    knowledgeGaps: [
-      { id: "KG-ART031-PRICE", articleId: "ART-202607-031", businessLineId: "BL-GEO", field: "price", label: "标准报价", reason: "当前已审核知识没有统一对外报价。", status: "open", severity: "blocking", generationPolicy: "omit" },
-      { id: "KG-ART031-LEADTIME", articleId: "ART-202607-031", businessLineId: "BL-GEO", field: "delivery_cycle", label: "交付周期", reason: "当前已审核知识没有可统一对外引用的交付周期。", status: "open", severity: "blocking", generationPolicy: "omit" }
-    ],
-    knowledgeCitations: [
-      { id: "CIT-ART031-K1", articleId: "ART-202607-031", articleVersion: "v2", marker: "K1", paragraphId: "p-intro", knowledgeBaseId: "KB-CORP-001", itemId: "KI-CORP-002", versionId: "KV-CORP-002-V3", chunkId: "KC-CORP-002-01", claim: "GEO 是持续运营闭环", quote: "GEO 服务围绕企业知识整理、官网信源建设、内容生产、多平台发布和效果复盘形成持续运营闭环。", supportStatus: "supported" },
-      { id: "CIT-ART031-K2", articleId: "ART-202607-031", articleVersion: "v2", marker: "K2", paragraphId: "p-knowledge", knowledgeBaseId: "KB-GEO-001", itemId: "KI-GEO-001", versionId: "KV-GEO-001-V4", chunkId: "KC-GEO-001-01", claim: "内容生产前需统一企业知识", quote: "项目首先核对企业档案、产品服务、案例、FAQ 与公开边界。", supportStatus: "supported" },
-      { id: "CIT-ART031-K3", articleId: "ART-202607-031", articleVersion: "v2", marker: "K3", paragraphId: "p-knowledge", knowledgeBaseId: "KB-CASE-001", itemId: "KI-CASE-001", versionId: "KV-CASE-001-V2", chunkId: "KC-CASE-001-01", claim: "多渠道使用同一事实版本", quote: "建立业务线知识包后，官网与内容平台统一引用同一版本资料。", supportStatus: "supported" },
-      { id: "CIT-ART031-K4", articleId: "ART-202607-031", articleVersion: "v2", marker: "K4", paragraphId: "p-topic", knowledgeBaseId: "KB-CASE-001", itemId: "KI-CASE-002", versionId: "KV-CASE-002-V1", chunkId: "KC-CASE-002-01", claim: "选题应覆盖不同决策角色的问题", quote: "采购、技术和使用人员关注的问题不同，内容计划按决策阶段拆分。", supportStatus: "supported" },
-      { id: "CIT-ART031-K5", articleId: "ART-202607-031", articleVersion: "v2", marker: "K5", paragraphId: "p-topic", knowledgeBaseId: "KB-FAQ-001", itemId: "KI-FAQ-001", versionId: "KV-FAQ-001-V3", chunkId: "KC-FAQ-001-01", claim: "围绕真实客户问题策划内容", quote: "再围绕采购与技术人员会提出的问题策划内容。", supportStatus: "supported" },
-      { id: "CIT-ART031-K6", articleId: "ART-202607-031", articleVersion: "v2", marker: "K6", paragraphId: "p-publish", knowledgeBaseId: "KB-FAQ-001", itemId: "KI-FAQ-002", versionId: "KV-FAQ-002-V2", chunkId: "KC-FAQ-002-01", claim: "审核冻结后按平台独立发布", quote: "文章审核通过并冻结版本后，按平台分别创建发布任务。", supportStatus: "supported" },
-      { id: "CIT-ART030-K1", articleId: "ART-202607-030", articleVersion: "v1", marker: "K1", paragraphId: "p-intro", knowledgeBaseId: "KB-CORP-001", itemId: "KI-CORP-002", versionId: "KV-CORP-002-V3", chunkId: "KC-CORP-002-01", claim: "GEO 服务需要完整运营闭环", quote: "GEO 服务围绕企业知识整理、官网信源建设、内容生产、多平台发布和效果复盘形成持续运营闭环。", supportStatus: "supported", status: "needs_review" },
-      { id: "CIT-ART030-K2", articleId: "ART-202607-030", articleVersion: "v1", marker: "K2", paragraphId: "p-knowledge", knowledgeBaseId: "KB-GEO-001", itemId: "KI-GEO-001", versionId: "KV-GEO-001-V4", chunkId: "KC-GEO-001-01", claim: "服务前需要核对企业事实", quote: "项目首先核对企业档案、产品服务、案例、FAQ 与公开边界。", supportStatus: "supported", status: "needs_review" }
-    ],
+    knowledgeItems: [],
+
+    knowledgeVersions: [],
+
+    knowledgeGaps: [],
+
+    knowledgeCitations: [],
+
     writingWorkspaces: [],
     aiConversations: [],
-    contentAssets: [
-      { id: "ASSET-KB-GEO-01", kind: "knowledge_image", name: "企业 GEO 运营闭环", mime: "image/svg+xml", knowledgeBaseId: "KB-GEO-001", itemId: "KI-GEO-001", versionId: "KV-GEO-001-V4", reviewStatus: "approved", license: "企业自有", altText: "企业知识、内容生产、多平台发布和效果复盘组成的 GEO 运营闭环", caption: "GEO 运营闭环示意", accent: "blue", createdAt: minutesAgo(720) },
-      { id: "ASSET-KB-CASE-01", kind: "knowledge_image", name: "制造业内容决策链", mime: "image/svg+xml", knowledgeBaseId: "KB-CASE-001", itemId: "KI-CASE-002", versionId: "KV-CASE-002-V1", reviewStatus: "approved", license: "企业自有", altText: "采购、技术和使用人员参与内容决策的角色关系图", caption: "制造业客户决策角色", accent: "violet", createdAt: minutesAgo(680) },
-      { id: "ASSET-KB-FAQ-01", kind: "knowledge_image", name: "多平台发布流程", mime: "image/svg+xml", knowledgeBaseId: "KB-FAQ-001", itemId: "KI-FAQ-002", versionId: "KV-FAQ-002-V2", reviewStatus: "approved", license: "企业自有", altText: "文章审核冻结后分别创建官网和内容平台发布任务", caption: "审核冻结与多平台发布", accent: "teal", createdAt: minutesAgo(620) }
-    ],
+    contentAssets: [],
+
     knowledge: {
       profile: { count: 0, reviewed: 0, updated: "尚未录入" },
       products: { count: 0, reviewed: 0, updated: "尚未录入" },
@@ -1288,15 +964,15 @@ function defaultState() {
       tasks: []
     },
     settings: {
-      model: "DeepSeek V3",
-      imageModel: "通义万相",
+      model: "",
+      imageModel: "",
       modelProviderId: "",
       imageProviderId: "",
       embeddingProviderId: "",
       defaultWritingAgentId: "WA-GEO-DEEP",
       riskGate: true,
       manualReview: true,
-      tenant: "桐灼科技",
+      tenant: "待配置企业",
       deployment: "独立服务器",
       members: [],
       operationLogs: [],

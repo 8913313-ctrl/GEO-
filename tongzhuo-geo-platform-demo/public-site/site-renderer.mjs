@@ -4,50 +4,18 @@ import { LEGACY_SOURCE_PROFILES } from "./legacy-template-profiles.mjs";
 
 const DEFAULT_DESCRIPTION = "企业公开信息、行业洞察与可验证的专业内容。";
 
-// Front-end prototype content. These records are presentation fallbacks only:
-// the public website can later receive the same shape exclusively from CMS.
-const FRONTEND_SERVICES = Object.freeze([
-  { id: "geo", title: "GEO 服务", eyebrow: "AI SEARCH VISIBILITY", description: "围绕企业知识、官网信源、客户问题和持续内容运营，让企业信息更容易被客户与 AI 正确理解。", audience: "工业品、制造业及需要建设公开信源的中小企业", href: "/services/#geo" },
-  { id: "enterprise-ai", title: "企业 AI 落地", eyebrow: "ENTERPRISE AI", description: "把企业资料、业务规则和工作流程整理为可调用的知识与智能应用，帮助团队真正使用 AI。", audience: "希望建设知识库、智能体和业务工作流的企业", href: "/services/#enterprise-ai" },
-  { id: "short-video", title: "短视频运营", eyebrow: "CONTENT GROWTH", description: "围绕真实业务场景建立选题、脚本、账号和发布节奏，持续沉淀可复用的内容资产。", audience: "需要长期获客和内容运营能力的企业", href: "/services/#short-video" }
-]);
+// Front-end presentation fallbacks were removed (2026-08-24): the public
+// website now shows CMS content exclusively. Empty arrays keep the render
+// paths exercised without fabricating demo records.
+const FRONTEND_SERVICES = Object.freeze([]);
 
-const FRONTEND_CASES = Object.freeze([
-  { id: "case-industry-source", title: "工业设备企业公开信源建设", service: "GEO 服务", industry: "工业品", summary: "统一产品参数、应用场景和售后问答，让官网与公开内容使用同一套企业事实。", result: "企业知识、官网页面与内容生产形成统一来源" },
-  { id: "case-manufacturing-questions", title: "制造业客户问题体系梳理", service: "企业 AI 落地", industry: "制造业", summary: "按照采购、技术和使用人员的决策阶段拆分问题，形成知识库、问题地图和内容计划。", result: "客户问题能够被持续管理、回答和复用" },
-  { id: "case-content-operations", title: "中小企业内容运营流程建设", service: "短视频运营", industry: "中小企业", summary: "统一内容方向、审核标准和发布节奏，让短视频与图文内容不再依赖临时发挥。", result: "形成可执行、可复盘的长期内容机制" }
-]);
+const FRONTEND_CASES = Object.freeze([]);
 
-const FRONTEND_PROBLEM_GROUPS = Object.freeze([
-  { id: "geo", title: "GEO 服务问题", service: "GEO 服务", description: "从 AI 搜索认知、信源建设到效果判断。", questions: [
-    { slug: "industrial-geo-start", title: "工业品企业做 GEO 应该从哪里开始？", answer: "先统一企业主体、产品服务、应用场景、案例和常见问答，再围绕采购与技术人员真实会问的问题建设公开内容。", industries: ["工业品", "制造业"] },
-    { slug: "geo-vs-seo", title: "GEO 与传统 SEO 的目标和做法有什么不同？", answer: "SEO 更关注搜索结果中的网页可见性，GEO 更关注企业事实能否被 AI 理解、选择并组织进回答。两者可以协同，但内容结构和衡量方式不同。", industries: ["工业品", "制造业", "中小企业"] },
-    { slug: "geo-service-selection", title: "选择 GEO 服务商时需要重点判断哪些能力？", answer: "重点判断企业知识整理、真实问题研究、内容审核、官网信源、多平台发布和可复核监测是否能形成闭环。", industries: ["制造业", "中小企业"] },
-    { slug: "geo-value", title: "企业如何判断 GEO 项目是否正在产生真实价值？", answer: "应持续观察公开内容是否被抓取、品牌与服务是否被正确提及、引用来源能否复核，以及高价值问题的覆盖是否提升。", industries: ["工业品", "制造业", "中小企业"] }
-  ] },
-  { id: "enterprise-ai", title: "企业 AI 落地问题", service: "企业 AI 落地", description: "从资料治理、知识库到业务智能体。", questions: [
-    { slug: "ai-knowledge-base", title: "企业做 AI 应用前为什么要先建立知识库？", answer: "企业知识库为 AI 提供统一、经过审核且可追溯的事实来源，避免不同员工、文档和模型给出互相冲突的答案。", industries: ["工业品", "制造业", "中小企业"] },
-    { slug: "ai-first-scenario", title: "没有 AI 基础的企业应该先落地哪个场景？", answer: "优先选择资料相对完整、结果容易人工核对、能够节省重复劳动的场景，例如企业问答、内容辅助或内部资料检索。", industries: ["制造业", "中小企业"] },
-    { slug: "ai-data-security", title: "企业资料交给 AI 使用时怎样控制安全边界？", answer: "需要明确资料权限、公开级别、审核状态和调用范围，并对模型密钥、访问日志和知识版本进行独立管理。", industries: ["工业品", "制造业"] }
-  ] },
-  { id: "short-video", title: "短视频运营问题", service: "短视频运营", description: "从选题、内容生产到账号持续运营。", questions: [
-    { slug: "video-b2b-content", title: "工业品和制造业短视频应该拍什么内容？", answer: "优先展示客户真实关心的选型问题、使用场景、技术边界、实施流程和售后问题，而不是只做企业宣传片。", industries: ["工业品", "制造业"] },
-    { slug: "video-sustainable", title: "企业怎样建立可持续的短视频选题机制？", answer: "把销售、客服、技术和采购沟通中反复出现的问题沉淀为问题库，再按业务阶段持续转化为脚本和内容计划。", industries: ["工业品", "制造业", "中小企业"] },
-    { slug: "video-results", title: "短视频运营效果应该怎样复盘？", answer: "除播放量外，还应观察有效咨询、客户问题、内容复用、账号稳定性和销售协同情况。", industries: ["中小企业", "制造业"] }
-  ] }
-]);
+const FRONTEND_PROBLEM_GROUPS = Object.freeze([]);
 
-// These records keep the first public-site walkthrough useful before a client
-// has published its own CMS content. They are deliberately presentation-only;
-// once the CMS contains approved records, the runtime data takes precedence.
-const FRONTEND_ARTICLES = Object.freeze([
-  { id: "frontend-article-geo", slug: "industrial-geo-first-step", title: "工业品企业做 GEO，第一步不是批量写文章", categoryName: "GEO优化", categorySlug: "geo", author: "桐灼内容团队", publishedAt: "2026-07-18T09:00:00+08:00", excerpt: "GEO 的起点是统一企业事实、客户问题和公开信源，而不是先堆叠一批看似专业的文章。", tags: ["GEO", "企业信源"], contentHtml: "<h2>直接回答</h2><p>工业品企业做 GEO，第一步应当先整理企业主体、产品服务、应用场景、案例和常见问答，再把这些事实组织成客户与 AI 都能理解的公开内容。</p><h2>为什么不能先批量写作</h2><p>如果产品参数、服务边界和客户问题没有统一来源，文章越多，企业对外表达越容易互相冲突。GEO 需要的是一套可持续维护的事实系统。</p><h2>建议的起步顺序</h2><ol><li>确认企业主体和核心业务线。</li><li>整理客户在采购、技术和使用阶段的真实问题。</li><li>建立官网页面、问题地图和行业资讯的关联结构。</li></ol>" },
-  { id: "frontend-article-ai", slug: "enterprise-ai-knowledge-base", title: "企业 AI 落地为什么要先建设可审核知识库", categoryName: "企业AI落地", categorySlug: "enterprise-ai", author: "桐灼内容团队", publishedAt: "2026-07-12T09:00:00+08:00", excerpt: "知识库不是文件堆，而是经过版本、权限和审核管理，可以被业务持续调用的企业事实底座。", tags: ["企业AI", "知识库"], contentHtml: "<h2>直接回答</h2><p>企业 AI 落地前先建设知识库，是为了让模型获得统一、经过审核且可以追溯的事实来源。</p><h2>企业知识库要管理什么</h2><p>除了文件本身，还要管理资料所属业务线、有效版本、来源、审核状态、访问权限和可引用片段。</p><h2>从一个场景开始</h2><p>建议优先从企业问答、销售资料检索或售后支持这类边界清晰的场景开始，再逐步扩展到内容生产和智能体。</p>" },
-  { id: "frontend-article-video", slug: "manufacturing-short-video-questions", title: "制造业短视频选题，应该从销售现场的问题开始", categoryName: "短视频运营", categorySlug: "short-video", author: "桐灼内容团队", publishedAt: "2026-07-05T09:00:00+08:00", excerpt: "真正能持续生产的制造业内容，来自客户反复提出的选型、使用、交付与售后问题。", tags: ["制造业", "短视频"], contentHtml: "<h2>先找问题，再定脚本</h2><p>把销售、技术和售后团队反复回答的问题记录下来，再按客户决策阶段拆解为短视频主题。</p><h2>一条问题可以拆成多种内容</h2><p>同一问题可以分别做成现场演示、参数解释、误区澄清和案例复盘，形成连续而不重复的内容节奏。</p><h2>内容要回到业务</h2><p>每条内容都应该说明适用场景、边界和下一步行动，避免只追求播放量而无法产生有效咨询。</p>" },
-  { id: "frontend-article-source", slug: "official-site-trusted-source", title: "官网如何成为企业可控制的第一方信源", categoryName: "GEO优化", categorySlug: "geo", author: "桐灼内容团队", publishedAt: "2026-06-28T09:00:00+08:00", excerpt: "官网不是信息堆放区，而是企业身份、产品事实、问题回答和联系入口的第一方公开来源。", tags: ["官网", "第一方信源"], contentHtml: "<h2>官网要回答四件事</h2><p>企业是谁、提供什么、适合解决什么问题，以及客户如何验证和联系企业。</p><h2>页面之间要彼此关联</h2><p>产品与服务连接问题地图，问题地图连接行业资讯，文章详情再连接服务案例和咨询入口，访客与 AI 才能沿着同一条事实链理解企业。</p>" },
-  { id: "frontend-article-question", slug: "customer-question-to-content", title: "怎样把产品资料整理成客户真正会问的问题", categoryName: "企业AI落地", categorySlug: "enterprise-ai", author: "桐灼内容团队", publishedAt: "2026-06-20T09:00:00+08:00", excerpt: "从资料出发不等于照抄资料，要把参数、场景和边界翻译成客户在决策过程中会提出的具体问题。", tags: ["问题地图", "内容生产"], contentHtml: "<h2>问题来自决策阶段</h2><p>采购关心适配和成本，技术关心参数与边界，使用人员关心部署和维护。不同阶段需要不同的回答。</p><h2>问题要能被直接回答</h2><p>好的问题包含对象、场景和判断条件，回答时可以引用明确事实，而不是只给概念解释。</p>" },
-  { id: "frontend-article-ai-read", slug: "ai-readable-content-structure", title: "AI 读取企业内容时，最先识别哪些结构", categoryName: "GEO优化", categorySlug: "geo", author: "桐灼内容团队", publishedAt: "2026-06-12T09:00:00+08:00", excerpt: "清晰的标题层级、直接回答、实体信息、证据与更新时间，决定内容能否被稳定理解和引用。", tags: ["AI读取", "内容结构"], contentHtml: "<h2>先给直接答案</h2><p>文章开头先回答问题，再补充依据、适用条件和操作步骤，能降低读者和机器的理解成本。</p><h2>把事实写成可识别的实体</h2><p>企业名称、产品名称、服务范围、行业和联系方式应该在页面中保持一致，并通过内部链接形成关联。</p>" }
-]);
+// Demo article fallbacks were removed (2026-08-24): the public website shows
+// CMS-published articles only; an empty archive renders its empty state.
+const FRONTEND_ARTICLES = Object.freeze([]);
 
 const FRONTEND_NAV = Object.freeze([
   { label: "首页", path: "/" }, { label: "产品与服务", path: "/services/" }, { label: "关于我们", path: "/about/" },
