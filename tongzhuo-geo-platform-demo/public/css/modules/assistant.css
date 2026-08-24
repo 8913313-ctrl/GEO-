@@ -1,18 +1,22 @@
 /* ============================================================
  * 桐灼 GEO · assistant 模块层
- * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
+ * 由 product-ui.css 按 route 作用域重建（2026-08-24 v2，@media 块整体保留，规则级 diff 零丢失）
  * ============================================================ */
 .route-assistant .assistant-hero { margin-bottom: 12px; padding: 18px 20px; }
+
 .route-assistant .assistant-download-card { padding: 20px 22px; }
+
 #view.route-assistant .assistant-platform-catalog .card-header {
   align-items: flex-start;
   padding-top: 18px;
   padding-bottom: 16px;
 }
+
 #view.route-assistant .assistant-platform-catalog .card-header p {
   max-width: 690px;
   line-height: 1.5;
 }
+
 #view.route-assistant .assistant-catalog-summary {
   display: flex;
   flex-wrap: wrap;
@@ -23,33 +27,41 @@
   border-radius: 10px;
   background: #f7f9fc;
 }
+
 #view.route-assistant .assistant-catalog-summary span {
   padding: 0 16px;
   border-right: 1px solid #dbe3ee;
   color: var(--muted);
   font-size: 11px;
 }
+
 #view.route-assistant .assistant-catalog-summary span:first-child { padding-left: 0; }
+
 #view.route-assistant .assistant-catalog-summary span:last-child { border-right: 0; }
+
 #view.route-assistant .assistant-catalog-summary b {
   margin-right: 4px;
   color: var(--ink-strong);
   font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
+
 #view.route-assistant .assistant-catalog-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
   margin: 0 24px 14px;
 }
+
 #view.route-assistant .assistant-catalog-toolbar .compact-search {
   flex: 1 1 280px;
 }
+
 #view.route-assistant .assistant-catalog-toolbar .compact-search .input {
   width: 100%;
   height: 36px;
 }
+
 #view.route-assistant .assistant-catalog-toolbar label {
   display: inline-flex;
   align-items: center;
@@ -58,16 +70,19 @@
   font-size: 11px;
   white-space: nowrap;
 }
+
 #view.route-assistant .assistant-catalog-toolbar .select {
   min-width: 120px;
   height: 36px;
   font-size: 11px;
 }
+
 #view.route-assistant .assistant-platform-list {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   padding: 0 24px 24px;
 }
+
 #view.route-assistant .assistant-platform-row {
   display: grid;
   min-height: 128px;
@@ -79,22 +94,29 @@
   background: #fff;
   transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
+
 #view.route-assistant .assistant-platform-row:hover {
   border-color: #b9cbe3;
   box-shadow: 0 6px 16px rgba(28, 49, 83, .07);
   transform: translateY(-1px);
 }
+
+#view.route-assistant .assistant-platform-identity,
+#view.route-assistant .assistant-platform-state,
 #view.route-assistant .assistant-platform-footer {
   display: flex;
   min-width: 0;
   align-items: center;
 }
+
 #view.route-assistant .assistant-platform-identity { gap: 9px; }
+
 #view.route-assistant .assistant-platform-copy {
   display: grid;
   min-width: 0;
   gap: 3px;
 }
+
 #view.route-assistant .assistant-platform-copy b {
   overflow: hidden;
   color: var(--ink-strong);
@@ -103,6 +125,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 #view.route-assistant .assistant-platform-copy small {
   overflow: hidden;
   color: var(--muted-2);
@@ -110,11 +133,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 #view.route-assistant .assistant-platform-state {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
+
 #view.route-assistant .assistant-platform-state small {
   display: -webkit-box;
   min-width: 0;
@@ -126,12 +151,14 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
+
 #view.route-assistant .assistant-platform-footer {
   justify-content: space-between;
   gap: 8px;
   padding-top: 9px;
   border-top: 1px solid #edf1f6;
 }
+
 #view.route-assistant .assistant-platform-footer > span {
   overflow: hidden;
   color: var(--muted);
@@ -139,10 +166,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 #view.route-assistant .assistant-platform-footer .link-button {
   flex: 0 0 auto;
   font-size: 11px;
 }
+
 #view.route-assistant .assistant-platform-row .platform-logo {
   width: 32px;
   height: 32px;
@@ -150,14 +179,11 @@
   border-radius: 9px;
   background: #fff;
 }
+
 #view.route-assistant .assistant-platform-row .platform-logo img { width: 22px; height: 22px; }
+
 #view.route-assistant .assistant-platform-row[hidden] { display: none; }
-  #view.route-assistant .assistant-platform-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #view.route-assistant .assistant-catalog-toolbar { align-items: stretch; flex-direction: column; }
-  #view.route-assistant .assistant-catalog-toolbar label { justify-content: space-between; }
-  #view.route-assistant .assistant-catalog-toolbar .select { flex: 1; }
-  #view.route-assistant .assistant-catalog-summary { margin-inline: 16px; }
-  #view.route-assistant .assistant-platform-list { grid-template-columns: 1fr; padding-inline: 16px; }
+
 #view.route-assistant .assistant-hero {
   min-height: 0;
   padding: 14px 18px;
@@ -166,4 +192,5 @@
   background: #f7f9fc;
   box-shadow: none;
 }
+
 #view.route-assistant .assistant-platform-catalog { border-radius: 15px; box-shadow: 0 14px 30px rgba(28, 49, 83, .055); }

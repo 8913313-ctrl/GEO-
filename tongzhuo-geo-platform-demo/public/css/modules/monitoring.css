@@ -1,14 +1,23 @@
 /* ============================================================
  * 桐灼 GEO · monitoring 模块层
- * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
+ * 由 product-ui.css 按 route 作用域重建（2026-08-24 v2，@media 块整体保留，规则级 diff 零丢失）
  * ============================================================ */
 .route-monitoring .diagnostic-content { gap: 12px; }
+
 .route-monitoring .diagnostic-hero { min-height: 188px; padding: 22px 25px; border-radius: 13px; }
+
 .route-monitoring .diagnostic-stat-grid { gap: 9px; }
+
 .route-monitoring .diagnostic-stat-grid article { min-height: 88px; padding: 12px 14px; border-radius: 10px; }
+
 .route-monitoring .diagnostic-stat-grid b { font-size: 22px; }
+
 .route-monitoring .diagnostic-workspace-grid { gap: 11px; }
+
+.route-monitoring .diagnostic-evidence-card,
+.route-monitoring .diagnostic-project-card,
 .route-monitoring .diagnostic-report-card { border-radius: 10px; box-shadow: none; }
+
 #view.route-monitoring .diagnostic-content {
   gap: 14px;
   padding: 16px;
@@ -17,5 +26,8 @@
   background: linear-gradient(180deg, #f7fafd, #f1f5fa);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), 0 16px 36px rgba(28, 49, 83, .045);
 }
+
 #view.route-monitoring .diagnostic-hero { border-color: #cbd8e8; box-shadow: 0 10px 24px rgba(28, 49, 83, .06); }
+
+#view.route-monitoring .diagnostic-stat-grid article,
 #view.route-monitoring .monitoring-realtime-card { box-shadow: none; }

@@ -2,10 +2,32 @@
  * 桐灼 GEO · site 模块层
  * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
  * ============================================================ */
+
+/* Keep the CMS overview tracks shrinkable beside the workspace navigation. */
+@media (max-width: 1180px) {
+  .route-site .site-workspace-main,
+  .route-site .site-cms-overview,
+  .route-site .site-cms-overview > *,
+  .route-site .site-cms-grid,
   .route-site .site-cms-grid > * {
     min-width: 0;
     max-width: 100%;
   }
+
   .route-site .site-workspace-main { overflow: hidden; }
   .route-site .site-cms-overview { grid-template-columns: minmax(0, 1fr); }
   .route-site .site-cms-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ==== 回填：product-ui 拆分时选择器组被拆散的规则（2026-08-24 规则级 diff 校验，1 条）==== */
+@media (max-width: 1180px) {
+.route-site .site-workspace-main,
+  .route-site .site-cms-overview,
+  .route-site .site-cms-overview > *,
+  .route-site .site-cms-grid,
+  .route-site .site-cms-grid > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+

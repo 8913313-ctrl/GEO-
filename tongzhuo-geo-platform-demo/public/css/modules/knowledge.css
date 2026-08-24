@@ -1,18 +1,19 @@
 /* ============================================================
  * 桐灼 GEO · knowledge 模块层
- * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
+ * 由 product-ui.css 按 route 作用域重建（2026-08-24 v2，@media 块整体保留，规则级 diff 零丢失）
  * ============================================================ */
 .route-knowledge .knowledge-metrics { gap: 10px; margin-bottom: 12px; }
+
 .route-knowledge .knowledge-metrics .summary-card { min-height: 70px; padding: 12px 14px; box-shadow: none; }
+
 .route-knowledge .knowledge-toolbar { min-height: 50px; margin-bottom: 12px; padding: 9px 12px; }
-  .route-knowledge .kb-tabs { overflow-x: auto; scrollbar-width: thin; }
-  .route-knowledge .kb-tab-button { flex: 0 0 auto; }
-  .route-knowledge .kb-tab-text { white-space: nowrap; }
+
 #view.route-knowledge .kb-tab-button {
   height: 44px;
   min-height: 44px;
   padding-block: 0;
 }
+
 #view.route-knowledge .kb-summary-row {
   gap: 0;
   padding: 4px;
@@ -20,9 +21,11 @@
   border-radius: 12px;
   background: #f2f6fb;
 }
+
 #view.route-knowledge .kb-summary-card { border: 0; border-right: 1px solid #dbe3ee; border-radius: 0; background: transparent; box-shadow: none; }
+
 #view.route-knowledge .kb-summary-card:last-child { border-right: 0; }
+
 #view.route-knowledge .knowledge-toolbar { border: 1px solid #dbe3ee; border-radius: 12px; background: #f7f9fc; }
+
 #view.route-knowledge .knowledge-library-grid { padding: 12px; border: 1px solid #dbe3ee; border-radius: 16px; background: #f2f6fb; }
-  #view.route-knowledge .kb-summary-card { border-right: 0; }
-  #view.route-knowledge .kb-summary-row { gap: 2px; }

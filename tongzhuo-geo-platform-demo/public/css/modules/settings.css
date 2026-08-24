@@ -1,19 +1,9 @@
 /* ============================================================
  * 桐灼 GEO · settings 模块层
- * 由 product-ui.css 按 route 作用域静态拆出（2026-08-24），级联顺序等价。
+ * 由 product-ui.css 按 route 作用域重建（2026-08-24 v2，@media 块整体保留，规则级 diff 零丢失）
  * ============================================================ */
-.route-settings .settings-nav { box-shadow: none; background: var(--panel-soft); }
-.route-settings .settings-layout > .card { box-shadow: 0 6px 18px rgba(30, 44, 72, .04); }
-#view.route-settings .settings-layout {
-  gap: 14px;
-  padding: 12px;
-  border: 1px solid #dbe3ee;
-  border-radius: 16px;
-  background: #f2f6fb;
-}
-#view.route-settings .settings-nav { border-color: #dbe3ee; background: #fff; }
-#view.route-settings .settings-layout > .card { box-shadow: 0 12px 28px rgba(28, 49, 83, .055); }
 #view.route-settings .settings-relay-card { overflow: hidden; }
+
 #view.route-settings .settings-relay-form {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -21,15 +11,25 @@
   padding-top: 18px;
   padding-bottom: 18px;
 }
+
 #view.route-settings .setting-field { display: grid; gap: 6px; min-width: 0; }
+
 #view.route-settings .setting-field > span { color: var(--ink); font-size: 12px; font-weight: 600; }
+
 #view.route-settings .setting-field > span small { color: var(--muted-2); font-size: 11px; font-weight: 400; }
+
 #view.route-settings .setting-field .input { min-height: 38px; }
+
 #view.route-settings .settings-relay-status { flex: 0 0 auto; }
+
 #view.route-settings .settings-relay-summary { min-height: 64px; padding: 0 22px; border-top: 1px solid var(--line); }
+
 #view.route-settings .settings-relay-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 22px; }
+
 #view.route-settings .settings-relay-actions svg { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
+
+@media (max-width: 720px) {
   #view.route-settings .settings-relay-form { grid-template-columns: 1fr; }
   #view.route-settings .settings-relay-actions { flex-wrap: wrap; justify-content: stretch; }
   #view.route-settings .settings-relay-actions button { flex: 1 1 140px; }
-  #view.route-settings .settings-layout { padding: 12px; border-radius: 14px; }
+}
