@@ -51,12 +51,12 @@ function nested(object, ...paths) {
 
 function defaultSite() {
   return {
-    siteName: "桐灼科技",
+    siteName: "企业官网",
     templateKey: "01-industry",
-    companyName: "桐灼（淄博）网络科技有限公司",
-    description: "专注 GEO 优化、内容运营与企业 AI 落地，持续建设企业公开可信信源。",
+    companyName: "企业",
+    description: "企业公开信息、产品服务与行业内容。",
     allowAiCrawl: true,
-    cta: "预约业务诊断",
+    cta: "联系我们",
     updatedAt: null,
     pages: [
       { id: "home", title: "首页", path: "/", status: "published", sitemapEnabled: true },
