@@ -2111,3 +2111,18 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 #view .compact-search .input {
   padding-left: 31px;
 }
+
+/* 2026-08-22 · 可读性与状态语义补丁
+   仅覆盖内容表格中的历史小字号，并让“已发布”与“已通过”保持可辨识。 */
+#view .article-agent-cell b,
+#view .article-source-cell b {
+  font-size: 12.5px !important;
+}
+#view .article-agent-cell small,
+#view .article-source-cell small {
+  font-size: 12px !important;
+}
+#view .status-badge.status-published {
+  color: #0f4d2e;
+  background: rgba(15, 77, 46, .12);
+}

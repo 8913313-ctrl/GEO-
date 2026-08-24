@@ -2,7 +2,7 @@
 
 const STORAGE_KEY = "tongzhuo-geo-platform-demo-v11";
 const LEGACY_STORAGE_KEYS = ["tongzhuo-geo-platform-demo-v10", "tongzhuo-geo-platform-demo-v9", "tongzhuo-geo-platform-demo-v8", "tongzhuo-geo-platform-demo-v7", "tongzhuo-geo-platform-demo-v6"];
-const LOCAL_PUBLISHER_DOWNLOAD_URL = "/downloads/tongzhuo-geo-publisher-setup.exe";
+const LOCAL_PUBLISHER_DOWNLOAD_URL = "https://tongzhuo.ink/downloads/%E6%A1%90%E7%81%BC%E5%8F%91%E5%B8%83%E5%8A%A9%E6%89%8B%20Setup%201.0.0.exe";
 
 function publisherDownloadHref() {
   const meta = document.querySelector('meta[name="publisher-download-url"]');
@@ -63,20 +63,21 @@ const ICONS = {
   link: '<path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.1 1.1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.1-1.1"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14M10 11v6M14 11v6"/>',
   download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
+  inbox: '<path d="M22 12h-5l-2 3h-6l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.1Z"/>',
   menu: '<path d="M4 7h16M4 12h16M4 17h16"/>'
 };
 
 const PAGE_META = {
-  dashboard: { title: "工作台", description: "今天需要处理的事项和系统运行状态" },
-  planning: { title: "选题中心", description: "维护业务线关键词，把客户问题转为选题和内容计划" },
+  dashboard: { title: "总览", description: "今天需要处理的事项和系统运行状态" },
+  planning: { title: "问题研究", description: "从客户问题与搜索需求中发现值得生产的内容机会" },
   content: { title: "内容生产", description: "生成、编辑、审核并冻结可发布文章版本" },
-  publish: { title: "发布运营", description: "选择账号组，统一管理官网和内容平台发布" },
-  assets: { title: "内容资产", description: "统一管理文章版本、官网主信源、多平台分发和后续引用分析" },
-  monitoring: { title: "运营诊断", description: "用研究基线与企业实测生成可执行的 GEO 运营建议" },
+  publish: { title: "发布任务", description: "管理文章排期、发布批次、平台执行状态和失败处理" },
+  assets: { title: "内容资产", description: "查看已发布内容、公开地址、平台结果和长期引用健康" },
+  monitoring: { title: "抓取 / SEO 诊断", description: "查看官网访问、抓取、Schema、Meta 与页面链接运行情况" },
   "effect-search": { title: "实时搜索", description: "提交实时检测并查看多平台 AI 回答与可追溯证据。" },
   "effect-diagnostic": { title: "品牌诊断", description: "按冻结问题集批量检测品牌在 AI 平台中的表现，并生成真实诊断报告。" },
   "effect-monitor": { title: "品牌监测", description: "按监测计划持续采样，并基于真实 live evidence 查看品牌趋势。" },
-  site: { title: "官网运营", description: "管理企业官网展示、内容引用与咨询线索" },
+  site: { title: "官网运营", description: "管理官网公开内容、页面结构、信源与正式发布" },
   knowledge: { title: "企业知识", description: "维护全系统唯一可信的企业事实来源" },
   assistant: { title: "发布助手", description: "查看本地设备、账号组与平台登录状态" },
   settings: { title: "系统设置", description: "管理模型、权限、日志与私有化部署配置" }
@@ -600,15 +601,18 @@ Object.assign(PLATFORM_META, {
   woshipm: { name: "人人都是产品经理", short: "人", logoClass: "generic" },
   dayu: { name: "大鱼号", short: "鱼", logoClass: "generic" },
   yidian: { name: "一点号", short: "一", logoClass: "generic" },
-  "51cto": { name: "51CTO", short: "51", logoClass: "generic" },
   imooc: { name: "慕课网", short: "慕", logoClass: "generic" },
-  oschina: { name: "开源中国", short: "开", logoClass: "generic" },
   segmentfault: { name: "SegmentFault", short: "S", logoClass: "generic" },
-  sohufocus: { name: "搜狐焦点", short: "焦", logoClass: "sohu" },
-  x: { name: "X（Twitter）", short: "X", logoClass: "generic" },
-  eastmoney: { name: "东方财富", short: "东", logoClass: "generic" },
-  smzdm: { name: "什么值得买", short: "值", logoClass: "generic" }
+  eastmoney: { name: "东方财富", short: "东", logoClass: "generic" }
 });
+
+// Historical publish jobs can contain platforms that are no longer offered in
+// the current catalog. Keep those records readable instead of allowing one
+// retired platform to crash the whole publish page.
+function publishPlatformName(platformId) {
+  const id = canonicalPublishPlatformId(platformId);
+  return PLATFORM_META[id]?.name || PLATFORM_META[platformId]?.name || String(platformId || "未知平台");
+}
 
 const PUBLISH_PLATFORM_REGISTRY = [
   { id: "web", category: "official", role: "企业官网主信源", enabled: true, accountMode: "server", capabilities: "长文 · 结构化数据", description: "由官网服务器直接发布，作为企业长期可控的主信源", requiresManualConfirmation: false },
@@ -630,15 +634,10 @@ const PUBLISH_PLATFORM_REGISTRY = [
   { id: "woshipm", category: "self_media", role: "人人都是产品经理", enabled: true, support: "manual", accountMode: "local", capabilities: "产品运营长文", description: "已接入本地账号和任务队列，需人工确认投稿", requiresManualConfirmation: true },
   { id: "dayu", category: "self_media", role: "大鱼号", enabled: true, support: "manual", accountMode: "local", capabilities: "图文", description: "已接入本地账号和任务队列，需人工确认发布", requiresManualConfirmation: true },
   { id: "yidian", category: "self_media", role: "一点号", enabled: true, support: "manual", accountMode: "local", capabilities: "图文", description: "已接入本地账号和任务队列，需人工确认发布", requiresManualConfirmation: true },
-  { id: "51cto", category: "self_media", role: "51CTO", enabled: true, support: "manual", accountMode: "local", capabilities: "技术长文", description: "已接入本地账号和任务队列，需人工确认发布", requiresManualConfirmation: true },
   { id: "imooc", category: "self_media", role: "慕课网", enabled: true, support: "manual", accountMode: "local", capabilities: "技术长文", description: "已接入本地账号和任务队列，需人工确认发布", requiresManualConfirmation: true },
-  { id: "oschina", category: "self_media", role: "开源中国", enabled: true, support: "manual", accountMode: "local", capabilities: "技术长文", description: "已接入本地账号和任务队列，需人工确认发布", requiresManualConfirmation: true },
   { id: "segmentfault", category: "self_media", role: "SegmentFault", enabled: true, support: "manual", accountMode: "local", capabilities: "技术长文", description: "已接入本地账号和任务队列，需人工确认发布", requiresManualConfirmation: true },
   { id: "cnblogs", category: "self_media", role: "博客园", enabled: true, support: "manual", accountMode: "local", capabilities: "长文", description: "已接入本地账号和任务队列，需在编辑器人工确认", requiresManualConfirmation: true },
-  { id: "sohufocus", category: "self_media", role: "搜狐焦点", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
-  { id: "x", category: "self_media", role: "X（Twitter）", enabled: true, support: "ready", accountMode: "local", capabilities: "短内容", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
   { id: "eastmoney", category: "self_media", role: "东方财富", enabled: true, support: "ready", accountMode: "local", capabilities: "财经内容", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
-  { id: "smzdm", category: "self_media", role: "什么值得买", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false },
   { id: "netease", category: "self_media", role: "网易号", enabled: true, support: "ready", accountMode: "local", capabilities: "图文", description: "本地发布节点自动填充草稿，平台验证码和风控由本机处理", requiresManualConfirmation: false }
 ].map((entry) => entry.enabled && entry.accountMode === "local"
   ? {
@@ -657,13 +656,18 @@ const PLATFORM_STYLE_HINTS = {
 };
 
 /* 首期正式支持的发布平台（与 README 产品定位一致）：官网由服务器发布，公众号/知乎/头条走本地发布助手 */
-const FORMAL_PUBLISH_PLATFORM_IDS = new Set(["web", "wechat_mp", "zhihu", "toutiao"]);
+const FORMAL_PUBLISH_PLATFORM_IDS = new Set([
+  "web", "wechat_mp", "zhihu", "toutiao", "baijiahao", "xiaohongshu", "weibo", "juejin", "csdn",
+  "jianshu", "douyin", "bilibili", "yuque", "douban", "sohu", "xueqiu", "woshipm", "dayu",
+  "yidian", "imooc", "segmentfault", "cnblogs",
+  "eastmoney", "netease",
+]);
 
 const STATUS_META = {
   draft: ["草稿", "status-draft"],
   pending_review: ["待审核", "status-review"],
   approved: ["已通过", "status-approved"],
-  published: ["已发布", "status-success"],
+  published: ["已发布", "status-published"],
   publishing: ["发布中", "status-publishing"],
   queued: ["排队中", "status-queued"],
   scheduled: ["已排期", "status-queued"],
@@ -678,6 +682,9 @@ const STATUS_META = {
   manual_ready: ["已登录", "status-online"],
   manual_required: ["需验证", "status-login"],
   awaiting_confirmation: ["需验证", "status-login"],
+  awaiting_login: ["等待登录", "status-login"],
+  partial_failed: ["部分失败", "status-error"],
+  processing: ["处理中", "status-publishing"],
   draft_saved: ["草稿待确认", "status-pending"],
   planned: ["规划中", "status-draft"],
   not_connected: ["未绑定账号", "status-draft"],
@@ -966,6 +973,7 @@ function defaultState() {
     ],
     site: {
       domain: "www.tongzhuo.com",
+      baseUrl: "",
       status: "online",
       theme: "桐灼企业官网 · 标准版",
       pages: 7,
@@ -1405,6 +1413,7 @@ function cloneBlankState() {
   ]) blank[key] = [];
   blank.site = {
     domain: "",
+    baseUrl: "",
     status: "not_configured",
     theme: "企业官网 · 标准版",
     pages: 0,
@@ -2024,6 +2033,7 @@ function siteCmsApiPayload(payload = {}) {
   return {
     draft,
     publication,
+    siteBaseUrl: String(data.siteBaseUrl || "").trim(),
     releases: Array.isArray(releaseRows) ? releaseRows : [],
     leads: Array.isArray(leads) ? leads : []
   };
@@ -2031,6 +2041,7 @@ function siteCmsApiPayload(payload = {}) {
 
 function applySiteCmsApiPayload(payload, { replaceDraft = true } = {}) {
   const parsed = siteCmsApiPayload(payload);
+  if (parsed.siteBaseUrl && state.site) state.site.baseUrl = parsed.siteBaseUrl;
   if (parsed.draft) {
     siteCmsRuntime.draft = parsed.draft;
     if (replaceDraft && parsed.draft.snapshot) {
@@ -2286,6 +2297,199 @@ async function syncContentPlan(plan) {
 
 let formalContentMigrationPromise = null;
 
+// Content migration runs in the background after the first render.  Review
+// actions can therefore overlap with a GET that started before the action and
+// return an older review snapshot afterwards.  Serialize all formal-content
+// reads and workflow mutations per article so an older response cannot roll a
+// just-confirmed state back in the editor.
+const contentWorkflowLocks = new Map();
+const contentEditSyncPromises = new Map();
+const contentArticleEditGuards = new Map();
+
+function contentWorkflowKey(article) {
+  return article?.id || article?.contentArticleId || article?.contentTaskId || "";
+}
+
+function contentArticleGuardFor(articleOrId) {
+  const key = typeof articleOrId === "string" ? articleOrId : contentWorkflowKey(articleOrId);
+  return key ? contentArticleEditGuards.get(key) || null : null;
+}
+
+function markContentArticleEditPending(article) {
+  const key = contentWorkflowKey(article);
+  if (!key || !article) return null;
+  const existing = contentArticleEditGuards.get(key) || {};
+  const guard = {
+    ...existing,
+    articleId: article.id || key,
+    snapshot: cloneData(article),
+    pending: true,
+    startedAt: existing.startedAt || Date.now()
+  };
+  contentArticleEditGuards.set(key, guard);
+  return guard;
+}
+
+function updateContentArticleEditGuard(article, { pending } = {}) {
+  const key = contentWorkflowKey(article);
+  if (!key) return null;
+  const guard = contentArticleEditGuards.get(key);
+  if (!guard) return null;
+  const current = (state.articles || []).find((item) => item.id === article.id) || article;
+  guard.snapshot = cloneData(current);
+  if (pending !== undefined) guard.pending = Boolean(pending);
+  guard.updatedAt = Date.now();
+  return guard;
+}
+
+// Review transitions also need a short-lived workspace guard.  The content
+// API and the compatibility workspace are persisted independently; a queued
+// draft PUT must not replace a just-confirmed review projection after a 409
+// conflict reload.
+function markContentArticleWorkspacePending(article) {
+  const key = contentWorkflowKey(article);
+  if (!key || !article) return null;
+  const existing = contentArticleGuardFor(key) || {};
+  const current = (state.articles || []).find((item) => item.id === article.id) || article;
+  const guard = {
+    ...existing,
+    articleId: article.id || key,
+    snapshot: cloneData(current),
+    workspacePending: true,
+    startedAt: existing.startedAt || Date.now(),
+    updatedAt: Date.now()
+  };
+  contentArticleEditGuards.set(key, guard);
+  return guard;
+}
+
+function mergeProtectedContentArticles(targetState = state) {
+  if (!targetState || !Array.isArray(targetState.articles)) return false;
+  let changed = false;
+  contentArticleEditGuards.forEach((guard) => {
+    if (!guard?.snapshot || (!guard.pending && !guard.workspacePending && !guard.snapshot.contentSyncPending)) return;
+    const id = guard.snapshot.id || guard.articleId;
+    if (!id) return;
+    const current = targetState.articles.find((item) => item.id === id);
+    if (current) {
+      Object.assign(current, cloneData(guard.snapshot));
+      changed = true;
+    } else {
+      targetState.articles.push(cloneData(guard.snapshot));
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+function contentArticleWorkspaceMatches(left, right) {
+  if (!left || !right) return false;
+  return left.id === right.id
+    && left.title === right.title
+    && left.content === right.content
+    && left.excerpt === right.excerpt
+    && left.version === right.version
+    && left.contentVersionId === right.contentVersionId
+    && left.reviewStatus === right.reviewStatus
+    && left.reviewStage === right.reviewStage
+    && left.status === right.status
+    && left.contentStatus === right.contentStatus
+    && left.contentTaskStatus === right.contentTaskStatus
+    && left.contentRevision === right.contentRevision
+    && left.contentTaskRevision === right.contentTaskRevision
+    && left.contentVersionNumber === right.contentVersionNumber
+    && left.reviewNote === right.reviewNote;
+}
+
+function acknowledgeContentArticleWorkspaceSnapshot(snapshotState) {
+  const articles = Array.isArray(snapshotState?.articles) ? snapshotState.articles : [];
+  contentArticleEditGuards.forEach((guard, key) => {
+    if (!guard || guard.pending) return;
+    const sent = articles.find((item) => item.id === (guard.snapshot?.id || guard.articleId));
+    if (!contentArticleWorkspaceMatches(guard.snapshot, sent)) return;
+    if (guard.workspacePending) guard.workspacePending = false;
+    if (!guard.workspacePending && !guard.snapshot.contentSyncPending) contentArticleEditGuards.delete(key);
+  });
+}
+
+async function withContentWorkflowLock(article, operation) {
+  const key = contentWorkflowKey(article);
+  const previous = key ? contentWorkflowLocks.get(key) : null;
+  const run = (previous ? previous.catch(() => null) : Promise.resolve()).then(operation);
+  if (!key) return run;
+  contentWorkflowLocks.set(key, run);
+  try {
+    return await run;
+  } finally {
+    if (contentWorkflowLocks.get(key) === run) contentWorkflowLocks.delete(key);
+  }
+}
+
+// User edits must share the same per-article queue as migration and review
+// actions.  Otherwise a background migration GET can finish after a save and
+// re-project the old compatibility snapshot over the freshly edited article.
+function queueContentArticleSync(article, options = {}) {
+  const key = contentWorkflowKey(article);
+  const promise = withContentWorkflowLock(article, () => {
+    const current = (state.articles || []).find((item) => item.id === article?.id) || article;
+    return syncContentTaskAndVersion(current, options);
+  });
+  if (key) {
+    contentEditSyncPromises.set(key, promise);
+    promise.then(
+      () => {
+        updateContentArticleEditGuard(article, { pending: false });
+        if (contentEditSyncPromises.get(key) === promise) contentEditSyncPromises.delete(key);
+      },
+      () => { if (contentEditSyncPromises.get(key) === promise) contentEditSyncPromises.delete(key); }
+    );
+  }
+  return promise;
+}
+
+async function waitForFormalContentMigration() {
+  if (formalContentMigrationPromise) await formalContentMigrationPromise.catch(() => null);
+}
+
+function contentServerVersionNumber(version) {
+  const value = Number(version?.versionNumber ?? version?.version ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function contentServerSnapshotIsOlder(article, task, remoteArticle, version) {
+  if (!article) return false;
+  const localArticleRevision = Number(article.contentRevision || 0);
+  const remoteArticleRevision = Number(remoteArticle?.revision || 0);
+  if (localArticleRevision && remoteArticleRevision && remoteArticleRevision < localArticleRevision) return true;
+  const localTaskRevision = Number(article.contentTaskRevision || 0);
+  const remoteTaskRevision = Number(task?.revision || 0);
+  if (localTaskRevision && remoteTaskRevision && remoteTaskRevision < localTaskRevision) return true;
+  const localVersionNumber = Number(article.contentVersionNumber || 0);
+  const remoteVersionNumber = contentServerVersionNumber(version);
+  if (localVersionNumber && remoteVersionNumber && remoteVersionNumber < localVersionNumber) return true;
+  const guard = contentArticleGuardFor(article);
+  const guardedVersionNumber = contentServerVersionNumber(guard?.snapshot || {});
+  if (guardedVersionNumber && remoteVersionNumber && remoteVersionNumber < guardedVersionNumber) return true;
+  return false;
+}
+
+function shouldProjectContentVersion(article, version, snapshotIsOlder) {
+  if (!version?.id || snapshotIsOlder) return false;
+  const guard = contentArticleGuardFor(article);
+  if (!guard) return true;
+  const incomingId = String(version.id || "");
+  const guardedId = String(guard.snapshot?.contentVersionId || "");
+  const incomingNumber = contentServerVersionNumber(version);
+  const guardedNumber = contentServerVersionNumber(guard.snapshot || {});
+  // A GET started before the edit commonly returns the exact version that was
+  // open when the user began typing. It must never replace the editor draft.
+  if (guard.pending && (!incomingId || incomingId === guardedId)) return false;
+  // A newer immutable version is the acknowledgement of the edit and is safe
+  // to project into the compatibility article.
+  if (guard.pending && incomingNumber && guardedNumber && incomingNumber <= guardedNumber) return false;
+  return !guard.pending || Boolean(incomingNumber > guardedNumber || incomingId !== guardedId);
+}
+
 async function migrateFormalContentRecords() {
   if (formalContentMigrationPromise) return formalContentMigrationPromise;
   if (!currentUserCan("content.generate")) return null;
@@ -2298,32 +2502,34 @@ async function migrateFormalContentRecords() {
       }
     }
     for (const article of (state.articles || [])) {
-      const plan = (state.contentPlans || []).find((item) => item.id === article.planId);
-      if (plan?.contentPlanId) article.contentPlanId = plan.contentPlanId;
-      try {
-        if (article.contentArticleId) {
-          try {
-            const payload = await productionApi(`/api/v1/content/articles/${encodeURIComponent(article.contentArticleId)}`);
-            applyContentServerSnapshot(article, payload);
-            if (plan?.contentPlanId && article.contentTaskPlanId !== plan.contentPlanId) {
-              article.contentPlanId = plan.contentPlanId;
-              await syncContentTaskAndVersion(article, { createVersion: false });
+      await withContentWorkflowLock(article, async () => {
+        const plan = (state.contentPlans || []).find((item) => item.id === article.planId);
+        if (plan?.contentPlanId) article.contentPlanId = plan.contentPlanId;
+        try {
+          if (article.contentArticleId) {
+            try {
+              const payload = await productionApi(`/api/v1/content/articles/${encodeURIComponent(article.contentArticleId)}`);
+              applyContentServerSnapshot(article, payload);
+              if (plan?.contentPlanId && article.contentTaskPlanId !== plan.contentPlanId) {
+                article.contentPlanId = plan.contentPlanId;
+                await syncContentTaskAndVersion(article, { createVersion: false });
+              }
+              return;
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              article.contentTaskId = null;
+              article.contentArticleId = null;
+              article.contentVersionId = null;
+              article.contentRevision = null;
             }
-            continue;
-          } catch (error) {
-            if (error.status !== 404) throw error;
-            article.contentTaskId = null;
-            article.contentArticleId = null;
-            article.contentVersionId = null;
-            article.contentRevision = null;
           }
+          await syncContentTaskAndVersion(article, { createVersion: Boolean(contentPlainText(article)) });
+        } catch (error) {
+          article.contentSyncPending = false;
+          article.contentSyncError = error.message || "正式文章迁移失败";
+          failures.push({ kind: "article", id: article.id, message: article.contentSyncError });
         }
-        await syncContentTaskAndVersion(article, { createVersion: Boolean(contentPlainText(article)) });
-      } catch (error) {
-        article.contentSyncPending = false;
-        article.contentSyncError = error.message || "正式文章迁移失败";
-        failures.push({ kind: "article", id: article.id, message: article.contentSyncError });
-      }
+      });
     }
     saveState();
     if (failures.length) console.warn("Formal content migration completed with failures", failures);
@@ -2337,41 +2543,86 @@ function applyContentServerSnapshot(article, payload = {}) {
   const task = contentApiTask(payload);
   const remoteArticle = contentApiArticle(payload);
   const version = contentApiVersion(payload);
+  const snapshotIsOlder = contentServerSnapshotIsOlder(article, task, remoteArticle, version);
+  const acceptRemoteState = !snapshotIsOlder;
   if (task?.id) article.contentTaskId = task.id;
-  if (task?.revision !== undefined) article.contentTaskRevision = Number(task.revision) || 0;
-  if (task?.planId) article.contentPlanId = task.planId;
-  if (task && Object.prototype.hasOwnProperty.call(task, "planId")) article.contentTaskPlanId = task.planId || null;
+  if (task?.revision !== undefined && (!article.contentTaskRevision || Number(task.revision) >= Number(article.contentTaskRevision))) article.contentTaskRevision = Number(task.revision) || 0;
+  if (task?.planId && acceptRemoteState) article.contentPlanId = task.planId;
+  if (task && Object.prototype.hasOwnProperty.call(task, "planId") && acceptRemoteState) article.contentTaskPlanId = task.planId || null;
   if (remoteArticle?.id) article.contentArticleId = remoteArticle.id;
   if (remoteArticle?.taskId) article.contentTaskId = remoteArticle.taskId;
-  if (remoteArticle?.revision !== undefined) article.contentRevision = Number(remoteArticle.revision) || 0;
-  if (remoteArticle?.planId) article.contentPlanId = remoteArticle.planId;
-  if (remoteArticle?.status) article.contentStatus = remoteArticle.status;
-  if (remoteArticle?.approvedVersionId !== undefined) article.contentApprovedVersionId = remoteArticle.approvedVersionId || null;
-  if (task?.status) article.contentTaskStatus = task.status;
+  if (remoteArticle?.revision !== undefined && (!article.contentRevision || Number(remoteArticle.revision) >= Number(article.contentRevision))) article.contentRevision = Number(remoteArticle.revision) || 0;
+  if (remoteArticle?.planId && acceptRemoteState) article.contentPlanId = remoteArticle.planId;
+  if (remoteArticle?.status && acceptRemoteState) article.contentStatus = remoteArticle.status;
+  if (remoteArticle?.approvedVersionId !== undefined && acceptRemoteState) article.contentApprovedVersionId = remoteArticle.approvedVersionId || null;
+  if (task?.status && acceptRemoteState) article.contentTaskStatus = task.status;
   const publicationMetadata = remoteArticle?.metadata && typeof remoteArticle.metadata === "object" ? remoteArticle.metadata : null;
   if (publicationMetadata) {
     const siteMetadata = publicationMetadata.site && typeof publicationMetadata.site === "object" ? publicationMetadata.site : {};
-    if (publicationMetadata.siteStatus || siteMetadata.status) article.siteStatus = publicationMetadata.siteStatus || siteMetadata.status;
-    if (publicationMetadata.siteSlug || siteMetadata.slug) article.siteSlug = publicationMetadata.siteSlug || siteMetadata.slug;
-    if (publicationMetadata.siteCategory || siteMetadata.category) article.siteCategory = publicationMetadata.siteCategory || siteMetadata.category;
-    if (publicationMetadata.siteCategoryId || siteMetadata.categoryId) article.siteCategoryId = publicationMetadata.siteCategoryId || siteMetadata.categoryId;
-    if (publicationMetadata.siteCategorySlug || siteMetadata.categorySlug) article.siteCategorySlug = publicationMetadata.siteCategorySlug || siteMetadata.categorySlug;
-    if (publicationMetadata.siteAuthor || siteMetadata.author) article.siteAuthor = publicationMetadata.siteAuthor || siteMetadata.author;
-    if (publicationMetadata.siteExcerpt || siteMetadata.excerpt) article.siteExcerpt = publicationMetadata.siteExcerpt || siteMetadata.excerpt;
-    if (publicationMetadata.sitePublishedAt || siteMetadata.publishedAt) article.sitePublishedAt = publicationMetadata.sitePublishedAt || siteMetadata.publishedAt;
-    if (publicationMetadata.siteUnpublishedAt || siteMetadata.unpublishedAt) article.siteUnpublishedAt = publicationMetadata.siteUnpublishedAt || siteMetadata.unpublishedAt;
-    if (Object.prototype.hasOwnProperty.call(publicationMetadata, "showPublicCitationMarkers")) article.showPublicCitationMarkers = publicationMetadata.showPublicCitationMarkers === true;
+    if (acceptRemoteState && (publicationMetadata.siteStatus || siteMetadata.status)) article.siteStatus = publicationMetadata.siteStatus || siteMetadata.status;
+    if (acceptRemoteState && (publicationMetadata.siteSlug || siteMetadata.slug)) article.siteSlug = publicationMetadata.siteSlug || siteMetadata.slug;
+    if (acceptRemoteState && (publicationMetadata.siteCategory || siteMetadata.category)) article.siteCategory = publicationMetadata.siteCategory || siteMetadata.category;
+    if (acceptRemoteState && (publicationMetadata.siteCategoryId || siteMetadata.categoryId)) article.siteCategoryId = publicationMetadata.siteCategoryId || siteMetadata.categoryId;
+    if (acceptRemoteState && (publicationMetadata.siteCategorySlug || siteMetadata.categorySlug)) article.siteCategorySlug = publicationMetadata.siteCategorySlug || siteMetadata.categorySlug;
+    if (acceptRemoteState && (publicationMetadata.siteAuthor || siteMetadata.author)) article.siteAuthor = publicationMetadata.siteAuthor || siteMetadata.author;
+    if (acceptRemoteState && (publicationMetadata.siteExcerpt || siteMetadata.excerpt)) article.siteExcerpt = publicationMetadata.siteExcerpt || siteMetadata.excerpt;
+    if (acceptRemoteState && (publicationMetadata.sitePublishedAt || siteMetadata.publishedAt)) article.sitePublishedAt = publicationMetadata.sitePublishedAt || siteMetadata.publishedAt;
+    if (acceptRemoteState && (publicationMetadata.siteUnpublishedAt || siteMetadata.unpublishedAt)) article.siteUnpublishedAt = publicationMetadata.siteUnpublishedAt || siteMetadata.unpublishedAt;
+    if (acceptRemoteState && Object.prototype.hasOwnProperty.call(publicationMetadata, "showPublicCitationMarkers")) article.showPublicCitationMarkers = publicationMetadata.showPublicCitationMarkers === true;
   }
   const currentVersion = version || remoteArticle?.currentVersion || task?.currentVersion;
-  if (currentVersion?.id) article.contentVersionId = currentVersion.id;
-  if (currentVersion?.metadata && Object.prototype.hasOwnProperty.call(currentVersion.metadata, "showPublicCitationMarkers")) article.showPublicCitationMarkers = currentVersion.metadata.showPublicCitationMarkers === true;
-  if (currentVersion?.versionNumber !== undefined || currentVersion?.version !== undefined) {
+  const projectVersionBody = shouldProjectContentVersion(article, currentVersion, snapshotIsOlder);
+  if (projectVersionBody) {
+    if (currentVersion.title) article.title = String(currentVersion.title);
+    if (typeof currentVersion.contentHtml === "string") article.content = sanitizeStudioHtml(stripArticleRiskHighlights(currentVersion.contentHtml));
+    if (typeof currentVersion.excerpt === "string") article.excerpt = currentVersion.excerpt;
+  }
+  if (currentVersion?.id && (acceptRemoteState || projectVersionBody)) article.contentVersionId = currentVersion.id;
+  if (currentVersion?.metadata && Object.prototype.hasOwnProperty.call(currentVersion.metadata, "showPublicCitationMarkers") && (acceptRemoteState || projectVersionBody)) article.showPublicCitationMarkers = currentVersion.metadata.showPublicCitationMarkers === true;
+  if ((currentVersion?.versionNumber !== undefined || currentVersion?.version !== undefined) && (acceptRemoteState || projectVersionBody)) {
     article.contentVersionNumber = Number(currentVersion.versionNumber ?? currentVersion.version) || 0;
   }
-  if (currentVersion?.reviewStatus) {
+  if (currentVersion?.reviewStatus && (acceptRemoteState || projectVersionBody)) {
     const reviewStatus = currentVersion.reviewStatus;
     article.reviewStatus = reviewStatus === "approved" ? "approved" : "pending";
     article.reviewStage = reviewStatus === "pending" ? "manual_review" : reviewStatus === "changes_requested" ? "revision_requested" : reviewStatus === "approved" ? "ready_to_publish" : "draft";
+    const reviews = Array.isArray(currentVersion.reviews) ? currentVersion.reviews : [];
+    const actorLabel = (review) => {
+      const actorId = review?.actorUserId || "";
+      const member = (state.settings?.members || []).find((item) => item.id === actorId);
+      return review?.details?.actorName || member?.name || (window.__TZ_AUTH__?.user?.id === actorId ? currentUserName() : "") || "审核人员";
+    };
+    const submittedReview = [...reviews].reverse().find((review) => review.action === "submitted");
+    const completedReview = [...reviews].reverse().find((review) => review.action === "changes_requested" || review.action === "approved");
+    if (reviewStatus === "draft") {
+      article.reviewSubmittedAt = null;
+      article.reviewSubmittedBy = null;
+      article.reviewNote = "";
+      article.reviewedAt = null;
+      article.reviewedBy = null;
+    } else {
+      if (submittedReview) {
+        article.reviewSubmittedAt = submittedReview.createdAt || article.reviewSubmittedAt || null;
+        article.reviewSubmittedBy = actorLabel(submittedReview);
+      }
+      if (reviewStatus === "pending") {
+        article.reviewNote = "";
+        article.reviewedAt = null;
+        article.reviewedBy = null;
+      } else if (completedReview) {
+        article.reviewNote = reviewStatus === "changes_requested" ? completedReview.note || "" : "";
+        article.reviewedAt = completedReview.createdAt || null;
+        article.reviewedBy = actorLabel(completedReview);
+      }
+    }
+    if (reviewStatus === "changes_requested") {
+      article.contentStatus = "changes_requested";
+      article.contentTaskStatus = "changes_requested";
+    }
+    const workspace = (state.writingWorkspaces || []).find((item) => item.articleId === article.id);
+    if (workspace) {
+      workspace.status = reviewStatus === "changes_requested" ? "revision" : reviewStatus === "pending" ? "review" : reviewStatus === "approved" ? "approved" : "draft";
+    }
   }
   if (currentVersion?.riskStatus) {
     article.riskStatus = currentVersion.riskStatus === "passed" ? "clean" : currentVersion.riskStatus === "not_scanned" ? "unscanned" : currentVersion.riskStatus;
@@ -2498,9 +2749,39 @@ async function syncContentTaskAndVersion(article, options = {}) {
 
 async function waitForContentSync(article) {
   const key = article?.id || article?.contentArticleId || article?.contentTaskId;
+  const editPending = key ? contentEditSyncPromises.get(key) : null;
+  if (editPending) await editPending;
   const pending = key ? contentSyncLocks.get(key) : null;
   if (pending) await pending;
   return article;
+}
+
+// Workspace persistence is a compatibility layer beside the authoritative
+// content API.  A conflict reload can replace the in-memory article while the
+// content API save is still succeeding, so verify the saved projection and
+// restore it before the explicit workspace flush completes.
+async function flushContentArticleWorkspace(article, source = "content-article-save") {
+  if (!article) return null;
+  const key = contentWorkflowKey(article);
+  const guard = contentArticleGuardFor(key);
+  const expected = cloneData(guard?.snapshot || (state.articles || []).find((item) => item.id === article.id) || article);
+  await flushWorkspaceSyncNow(source);
+  let current = (state.articles || []).find((item) => item.id === expected.id);
+  const matches = contentArticleWorkspaceMatches(expected, current);
+  if (!matches) {
+    if (!current) {
+      state.articles = [...(state.articles || []), expected];
+      current = expected;
+    } else {
+      Object.assign(current, expected);
+    }
+    saveState();
+    await flushWorkspaceSyncNow(`${source}-retry`);
+    current = (state.articles || []).find((item) => item.id === expected.id) || current;
+  }
+  const latestGuard = contentArticleGuardFor(key);
+  if (latestGuard && !latestGuard.pending && contentArticleWorkspaceMatches(latestGuard.snapshot, current)) contentArticleEditGuards.delete(key);
+  return current;
 }
 
 async function ensureCurrentContentVersion(article) {
@@ -2519,7 +2800,7 @@ async function ensureCurrentContentVersion(article) {
   return article;
 }
 
-async function contentServerAction(article, action, body = {}) {
+async function performContentServerAction(article, action, body = {}) {
   if (!article) throw new Error("文章不存在");
   await waitForContentSync(article);
   if (!article.contentTaskId || !article.contentVersionId) await syncContentTaskAndVersion(article, { createVersion: true });
@@ -2537,6 +2818,36 @@ async function contentServerAction(article, action, body = {}) {
   article.contentSyncError = "";
   saveState();
   return payload;
+}
+
+async function contentServerAction(article, action, body = {}) {
+  return withContentWorkflowLock(article, () => performContentServerAction(article, action, body));
+}
+
+async function performRefreshContentServerSnapshot(article) {
+  if (!article) throw new Error("文章不存在");
+  await waitForContentSync(article);
+  const remoteArticleId = article.contentArticleId || article.id;
+  if (!remoteArticleId) throw new Error("正式文章 ID 不存在");
+  const articlePayload = await productionApi(`/api/v1/content/articles/${encodeURIComponent(remoteArticleId)}`);
+  const articleSnapshot = applyContentServerSnapshot(article, articlePayload) || {};
+  let task = articleSnapshot.task || null;
+  let taskVersion = articleSnapshot.version || null;
+  if (article.contentTaskId) {
+    const taskPayload = await productionApi(`/api/v1/content/tasks/${encodeURIComponent(article.contentTaskId)}`);
+    task = contentApiTask(taskPayload) || task;
+    taskVersion = contentApiVersion(taskPayload) || taskVersion;
+    applyContentServerSnapshot(article, taskPayload);
+  }
+  return {
+    article: contentApiArticle(articlePayload) || articleSnapshot.article || null,
+    task,
+    version: contentApiVersion(articlePayload) || taskVersion || articleSnapshot.version || null
+  };
+}
+
+async function refreshContentServerSnapshot(article) {
+  return withContentWorkflowLock(article, () => performRefreshContentServerSnapshot(article));
 }
 
 async function contentServerRiskScan(article, scan) {
@@ -2688,13 +2999,23 @@ async function hydrateWorkspaceFromServer() {
 async function reloadWorkspaceAfterConflict() {
   const latest = serverWorkspacePayload(await productionApi("/api/v1/workspace"));
   if (!latest.state) return;
+  const incomingRevision = Number(latest.revision || 0);
+  // Multiple queued writes can observe the same conflict.  Never let a late
+  // GET move the client back to an older workspace revision.
+  if (incomingRevision < Number(workspaceRevision || 0)) return;
   workspaceSyncReady = false;
-  state = migrateState(latest.state);
-  workspaceRevision = latest.revision;
+  const nextState = migrateState(latest.state);
+  const protectedArticles = mergeProtectedContentArticles(nextState);
+  state = nextState;
+  workspaceRevision = incomingRevision;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   workspaceSyncReady = true;
+  if (protectedArticles) {
+    workspaceChangeCounter += 1;
+    queueWorkspaceSync();
+  }
   render();
-  showToast("数据已由其他成员更新", "已加载服务器上的最新版本，请重新执行刚才的操作。", "warning");
+  showToast("数据已由其他成员更新", protectedArticles ? "已保留当前文章编辑，并继续同步到服务器。" : "已加载服务器上的最新版本，请重新执行刚才的操作。", "warning");
 }
 
 function queueWorkspaceSync() {
@@ -2704,11 +3025,13 @@ function queueWorkspaceSync() {
   workspaceSyncTimer = window.setTimeout(() => {
     workspaceSyncChain = workspaceSyncChain.then(async () => {
       const changeVersion = workspaceChangeCounter;
+      mergeProtectedContentArticles(state);
       const snapshot = cloneData(state);
       try {
         const saved = serverWorkspacePayload(await productionApi("/api/v1/workspace", { method: "PUT", body: { state: snapshot, expectedRevision: workspaceRevision, source: "browser-operation" } }));
         workspaceRevision = saved.revision;
         if (saved.knowledgeSync?.error) throw new Error(saved.knowledgeSync.error);
+        acknowledgeContentArticleWorkspaceSnapshot(saved.state || snapshot);
         if (workspaceChangeCounter === changeVersion) workspaceChangeCounter = 0;
       } catch (error) {
         if (error.status === 409) return reloadWorkspaceAfterConflict();
@@ -2723,13 +3046,31 @@ async function flushWorkspaceSyncNow(source = "browser-explicit-save") {
   if (!workspaceSyncReady) return null;
   window.clearTimeout(workspaceSyncTimer);
   const operation = async () => {
-    const changeVersion = workspaceChangeCounter;
-    const snapshot = cloneData(state);
-    const saved = serverWorkspacePayload(await productionApi("/api/v1/workspace", { method: "PUT", body: { state: snapshot, expectedRevision: workspaceRevision, source } }));
-    workspaceRevision = saved.revision;
-    if (saved.knowledgeSync?.error) throw new Error(saved.knowledgeSync.error);
-    if (workspaceChangeCounter === changeVersion) workspaceChangeCounter = 0;
-    return saved;
+    let conflictAttempts = 0;
+    while (true) {
+      const changeVersion = workspaceChangeCounter;
+      mergeProtectedContentArticles(state);
+      const snapshot = cloneData(state);
+      try {
+        const saved = serverWorkspacePayload(await productionApi("/api/v1/workspace", { method: "PUT", body: { state: snapshot, expectedRevision: workspaceRevision, source } }));
+        workspaceRevision = Math.max(Number(workspaceRevision || 0), Number(saved.revision || 0));
+        if (saved.knowledgeSync?.error) throw new Error(saved.knowledgeSync.error);
+        acknowledgeContentArticleWorkspaceSnapshot(saved.state || snapshot);
+        if (workspaceChangeCounter === changeVersion) workspaceChangeCounter = 0;
+        return saved;
+      } catch (error) {
+        if (error.status !== 409 || conflictAttempts >= 2) throw error;
+        const latest = serverWorkspacePayload(await productionApi("/api/v1/workspace"));
+        if (!latest.state) throw error;
+        const nextState = migrateState(latest.state);
+        mergeProtectedContentArticles(nextState);
+        state = nextState;
+        workspaceRevision = Math.max(Number(workspaceRevision || 0), Number(latest.revision || 0));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        workspaceSyncReady = true;
+        conflictAttempts += 1;
+      }
+    }
   };
   workspaceSyncChain = workspaceSyncChain.then(operation, operation);
   return workspaceSyncChain;
@@ -2737,8 +3078,10 @@ async function flushWorkspaceSyncNow(source = "browser-explicit-save") {
 
 const PUBLISH_PLATFORM_ALIASES = { wechat: "wechat_mp", baijia: "baijiahao", blog: "cnblogs", tiktok: "douyin" };
 const PUBLISH_PLATFORM_REVERSE_ALIASES = Object.fromEntries(Object.entries(PUBLISH_PLATFORM_ALIASES).map(([from, to]) => [to, from]));
+const RETIRED_PUBLISH_PLATFORMS = new Set(["sohufocus", "smzdm", "oschina", "51cto"]);
 let publisherSnapshot = { loaded: false, devices: [], accountGroups: [], sessions: [], jobs: [], platforms: [], readyPlatformIds: [], selectablePlatformIds: [], manualConfirmationPlatformIds: [], error: "" };
 let aiProviderSnapshot = { loaded: false, loading: false, providers: [], error: "" };
+let effectRelayConfigSnapshot = { loaded: false, loading: false, saving: false, testing: false, config: null, relay: null, test: null, error: "" };
 let memberSnapshot = { loaded: false, loading: false, users: [], error: "" };
 let auditSnapshot = { loaded: false, loading: false, items: [], error: "" };
 let monitoringSnapshot = { loaded: false, loading: false, overview: null, traffic: null, liveToday: null, liveYesterday: null, diagnostics: [], error: "", loadedAt: null };
@@ -3058,10 +3401,13 @@ function mapPublisherJob(job) {
   };
   const targetStatus = (platformId) => {
     const result = resultFor(platformId);
-    const stateValue = result?.state || "";
-    if (stateValue === "published") return "success";
+    const stateValue = String(result?.state || "").trim().toLowerCase();
+    if (platformId === "web" && ["published", "success", "completed"].includes(stateValue)) return "success";
+    if (platformId !== "web" && ["published", "success", "completed"].includes(stateValue)) return result?.verified === true ? "success" : "result_unknown";
     if (["manual_required", "awaiting_confirmation"].includes(stateValue) || result?.requires_manual_confirmation) return "needs_verification";
     if (stateValue === "draft_saved") return "draft_saved";
+    if (stateValue === "partial_failed") return "partial_failed";
+    if (stateValue === "result_unknown") return "result_unknown";
     if (stateValue === "failed") return "failed";
     if (stateValue === "cancelled") return "cancelled";
     if (stateValue === "awaiting_login") return "needs_login";
@@ -3085,7 +3431,14 @@ function mapPublisherJob(job) {
     }];
   }));
   const statuses = Object.values(targets).map((item) => item.status);
-  const status = statuses.length && statuses.every((item) => item === "success") ? "success" : job.status === "running" ? "running" : statuses.some((item) => item === "failed") ? "failed" : statuses.some((item) => ["draft_saved", "needs_verification"].includes(item)) ? "needs_verification" : job.status || "queued";
+  const jobStatus = String(job.status || "").trim().toLowerCase();
+  const status = statuses.length && statuses.every((item) => item === "success") ? "success"
+    : statuses.some((item) => item === "partial_failed") ? "partial_failed"
+      : statuses.some((item) => item === "result_unknown") ? "result_unknown"
+        : jobStatus === "running" ? "running"
+          : statuses.some((item) => item === "failed") ? "failed"
+            : statuses.some((item) => ["draft_saved", "needs_verification"].includes(item)) ? "needs_verification"
+              : ["published", "success", "completed"].includes(jobStatus) ? "result_unknown" : job.status || "queued";
   return {
     id: `REMOTE-${job.id}`,
     remoteJobId: job.id,
@@ -3164,6 +3517,70 @@ async function refreshAiProviders({ renderAfter = false } = {}) {
     aiProviderSnapshot = { ...aiProviderSnapshot, loaded: false, loading: false, error: error.message || "模型服务未连接" };
     if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "models") render();
     return null;
+  }
+}
+
+async function refreshEffectRelayConfig({ renderAfter = false } = {}) {
+  effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, loading: true, error: "" };
+  if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "effect-relay") render();
+  try {
+    const payload = await productionApi("/api/v1/diagnostics/relay/config");
+    const data = payload.data || {};
+    effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, loaded: true, loading: false, config: data.config || null, relay: data.relay || null, test: data.test || null, error: "" };
+  } catch (error) {
+    effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, loaded: false, loading: false, error: error.message || "AI 效果检测服务配置读取失败" };
+  }
+  if (renderAfter && currentRoute() === "settings" && ui.settingsTab === "effect-relay") render();
+  return effectRelayConfigSnapshot;
+}
+
+function effectRelayStatusMarkup(config = {}, relay = {}) {
+  if (config.source === "environment") return '<span class="status-badge status-online">环境变量接管</span>';
+  if (config.lastTestStatus === "passed" || relay.configured) return '<span class="status-badge status-online">已连接</span>';
+  if (config.lastTestStatus === "failed") return '<span class="status-badge status-error">连接失败</span>';
+  if (config.configured) return '<span class="status-badge status-pending">待测试</span>';
+  return '<span class="status-badge status-draft">未配置</span>';
+}
+
+async function saveEffectRelayConfig() {
+  if (!currentUserCan("system.manage")) return showToast("没有配置权限", "只有管理员可以修改 AI 效果检测服务配置。", "error");
+  const payload = {
+    baseUrl: document.getElementById("effect-relay-base-url")?.value || "",
+    instanceId: document.getElementById("effect-relay-instance-id")?.value || "",
+    clientId: document.getElementById("effect-relay-client-id")?.value || "",
+    clientSecret: document.getElementById("effect-relay-client-secret")?.value || "",
+    deliveryConsumer: document.getElementById("effect-relay-delivery-consumer")?.value || ""
+  };
+  effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, saving: true, error: "" };
+  render();
+  try {
+    const result = await productionApi("/api/v1/diagnostics/relay/config", { method: "PUT", body: payload });
+    const data = result.data || {};
+    effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, loaded: true, saving: false, config: data.config || null, relay: data.relay || null, test: null, error: "" };
+    render();
+    return showToast("配置已保存", "AI 效果检测服务已在当前后台运行时生效。", "success");
+  } catch (error) {
+    effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, saving: false, error: error.message || "配置保存失败" };
+    render();
+    return showToast("配置保存失败", effectRelayConfigSnapshot.error, "error");
+  }
+}
+
+async function testEffectRelayConfig() {
+  if (!currentUserCan("system.manage")) return showToast("没有测试权限", "只有管理员可以测试 AI 效果检测服务。", "error");
+  effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, testing: true, error: "" };
+  render();
+  try {
+    const result = await productionApi("/api/v1/diagnostics/relay/config/test", { method: "POST", body: {} });
+    const data = result.data || {};
+    effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, loaded: true, testing: false, config: data.config || effectRelayConfigSnapshot.config, relay: data.relay || effectRelayConfigSnapshot.relay, test: data.test || null, error: "" };
+    render();
+    const test = data.test || {};
+    return showToast(test.status === "passed" ? "连接测试成功" : "连接测试失败", test.message || "中转服务未返回测试结果。", test.status === "passed" ? "success" : "error");
+  } catch (error) {
+    effectRelayConfigSnapshot = { ...effectRelayConfigSnapshot, testing: false, error: error.message || "连接测试失败" };
+    render();
+    return showToast("连接测试失败", effectRelayConfigSnapshot.error, "error");
   }
 }
 
@@ -3501,12 +3918,12 @@ function planExpectedPlatformIds(plan) {
 
 function planExpectedPlatformNames(plan) {
   const nameSnapshots = plan?.writingHints?.expectedPlatformNames || {};
-  return planExpectedPlatformIds(plan).map((id) => nameSnapshots[id] || PLATFORM_META[id].name);
+  return planExpectedPlatformIds(plan).map((id) => nameSnapshots[id] || publishPlatformName(id));
 }
 
 function planExpectedPlatformGuidance(plan) {
   const guidanceSnapshots = plan?.writingHints?.expectedPlatformGuidance || {};
-  return planExpectedPlatformIds(plan).map((id) => ({ id, name: PLATFORM_META[id].name, guidance: guidanceSnapshots[id] || PLATFORM_STYLE_HINTS[id] }));
+  return planExpectedPlatformIds(plan).map((id) => ({ id, name: publishPlatformName(id), guidance: guidanceSnapshots[id] || PLATFORM_STYLE_HINTS[id] }));
 }
 
 function writingAgentUsageCount(agentId) {
@@ -3535,6 +3952,9 @@ const ui = {
   expanding: false,
   topicGenerating: false,
   topicGenerationProgress: null,
+  topicLibrarySort: null,
+  keywordResultSort: null,
+  archiveTopicSort: null,
   contentView: "articles",
   studioWorkspaceId: null,
   studioArticleId: null,
@@ -3562,6 +3982,9 @@ const ui = {
   publishBatchArticleSearch: "",
   publishBatchSelection: null,
   assistantCatalogGroupId: null,
+  assistantCatalogSearch: "",
+  assistantCatalogStatus: "all",
+  assistantCatalogCategory: "all",
   pairingCode: null,
   pairingExpiresAt: null,
   assetTab: "all",
@@ -3671,8 +4094,6 @@ const ui = {
   effectMonitorCreating: false,
   effectMonitorPlatform: "all",
   effectMonitorRange: "30",
-  effectNavExpanded: false,
-  effectNavRoute: null,
   // 官网实测是运营诊断的日常入口；行业分析仍保留为独立工作台，避免
   // 将抓取/访问证据与 AI 分析报告混在同一首屏。
   diagnosticSection: "evidence",
@@ -3905,7 +4326,8 @@ function statusBadge(status) {
 
 function platformLogo(platform) {
   const meta = PLATFORM_META[platform] || { short: "平", logoClass: "generic" };
-  return '<span class="platform-logo ' + meta.logoClass + '">' + meta.short + "</span>";
+  const iconUrl = "/platform-icons/" + encodeURIComponent(platform) + ".png";
+  return '<span class="platform-logo ' + meta.logoClass + '"><img src="' + iconUrl + '" alt="" loading="lazy" onerror="this.outerHTML=\'<span class=&quot;platform-logo-fallback&quot;>' + meta.short + '</span>\'"></span>';
 }
 
 function articleDisplayStatus(article) {
@@ -3947,7 +4369,7 @@ function navigate(route) {
 }
 
 function pageHead(title, description, actions = "") {
-  return '<div class="page-head"><div><h2>' + escapeHtml(title) + "</h2><p>" + escapeHtml(description) + '</p></div><div class="page-actions">' + actions + "</div></div>";
+  return '<div class="page-head"><div><h2>' + escapeHtml(title) + "</h2><p>" + escapeHtml(description) + '</p></div>' + (actions ? '<div class="page-actions">' + actions + "</div>" : "") + "</div>";
 }
 
 function customerFacingEffectText(value) {
@@ -3958,7 +4380,9 @@ function customerFacingEffectText(value) {
     .replace(/\bRelay\b/gi, "检测任务")
     .replace(/live evidence/gi, "实时检测证据")
     .replace(/diagnostic_evidence\(live\)/gi, "实时检测证据库")
-    .replace(/reqId/gi, "任务追溯号");
+    .replace(/reqId/gi, "任务追溯号")
+    .replace(/([^。！？；]+[。！？])(?:\s*[；;、]\s*\1)+/g, "$1")
+    .replace(/(服务器处理请求失败，请查看服务日志。)(?:\s*[；;、]\s*\1)+/g, "$1");
 }
 
 function hydrateCustomerFacingEffectCopy(root = document) {
@@ -3992,23 +4416,18 @@ function showToast(title, message, type = "success") {
 
 function updateShell() {
   const meta = PAGE_META[ui.route];
-  const inEffectRoute = ["effect-search", "effect-diagnostic", "effect-monitor"].includes(ui.route);
   document.body.dataset.route = ui.route;
-  document.getElementById("page-title").textContent = inEffectRoute ? "AI效果检测" : meta.title;
+  document.getElementById("page-title").textContent = meta.title;
   document.getElementById("breadcrumb-current").textContent = meta.title;
   document.title = meta.title + " · 桐灼 GEO";
   document.querySelectorAll("[data-route]").forEach((link) => {
-    link.classList.toggle("active", link.dataset.route === ui.route);
+    const active = link.dataset.route === ui.route;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   });
-  const effectGroup = document.querySelector("[data-effect-nav-group]");
-  // The current route is the single source of truth for this compound nav state:
-  // effect routes open the group; every other route closes it and clears child state.
-  ui.effectNavExpanded = inEffectRoute;
-  ui.effectNavRoute = inEffectRoute ? ui.route : null;
-  effectGroup?.classList.toggle("active", inEffectRoute);
-  if (effectGroup) effectGroup.open = ui.effectNavExpanded;
   const needsAction = state.publishTasks.some((task) =>
-    Object.values(task.targets).some((target) => ["failed", "needs_login", "needs_verification", "result_unknown"].includes(target.status))
+    Object.values(task?.targets || {}).some((target) => ["failed", "needs_login", "needs_verification", "result_unknown"].includes(target?.status))
   );
   const publishNavDot = document.getElementById("publish-nav-dot");
   publishNavDot?.classList.toggle("warning", needsAction);
@@ -4214,7 +4633,7 @@ function dashboardActivityItems() {
   recentKnowledge.forEach((item) => {
     items.push(`<div class="activity-item"><span class="activity-dot" data-icon="database"></span><div class="activity-copy"><b>企业知识完成更新</b><p>${escapeHtml(item.title || item.question)} · ${formatRelative(item.updatedAt)}</p></div></div>`);
   });
-  if (!items.length) return '<div class="empty-state compact"><p>还没有业务动态，先在选题中心开始第一个计划。</p></div>';
+  if (!items.length) return '<div class="dashboard-empty-state compact"><span data-icon="clock"></span><div><b>还没有业务动态</b><p>完成问题研究或创建内容计划后，最近活动会显示在这里。</p></div><button class="secondary-button button-small" type="button" data-nav="planning">进入问题研究</button></div>';
   return items.join("");
 }
 
@@ -4250,179 +4669,172 @@ function enterpriseFactCompletion(profile = state.enterpriseProfile) {
   return facts.length ? Math.round((completed / facts.length) * 100) : 0;
 }
 
+function dashboardKnowledgeSummary() {
+  const items = Array.isArray(state.knowledgeItems) ? state.knowledgeItems : [];
+  const approved = items.filter((item) => item.status === "approved" || item.reviewStatus === "approved").length;
+  const pending = items.filter((item) => ["pending", "pending_review", "pending_ocr", "processing", "draft"].includes(item.status) || ["pending_ocr", "processing"].includes(item.importStatus)).length;
+  const rejected = items.filter((item) => ["rejected", "changes_requested", "failed"].includes(item.status)).length;
+  const gaps = enterpriseFactEntries().filter(([, value]) => !String(value || "").trim()).length;
+  return { total: items.length, approved, pending, rejected, gaps };
+}
+
+function dashboardEffectSummary() {
+  const data = effectMonitoringAnalyticsSnapshot?.data;
+  const overview = data?.overview || {};
+  const verified = Number(overview.verified || 0);
+  const hasEvidence = verified > 0;
+  const hasPlan = Boolean(effectMonitoringSnapshot?.activePlan?.id || (effectMonitoringSnapshot?.plans || []).length);
+  return {
+    hasEvidence,
+    hasPlan,
+    verified,
+    mentionRate: overview.mentionRate === null || overview.mentionRate === undefined ? null : Number(overview.mentionRate),
+    citations: overview.citations === null || overview.citations === undefined ? null : Number(overview.citations),
+    lastObservedAt: overview.lastObservedAt || null,
+    status: hasEvidence ? "已有真实证据" : hasPlan ? "已配置，等待运行" : "尚未配置监测"
+  };
+}
+
+function dashboardTrendSeries() {
+  const sources = [
+    ...(state.articles || []).map((item) => ({ type: "article", time: item.createdAt || item.updatedAt })),
+    ...(state.contentPlans || []).map((item) => ({ type: "plan", time: item.createdAt || item.updatedAt })),
+    ...(state.knowledgeItems || []).map((item) => ({ type: "knowledge", time: item.createdAt || item.updatedAt }))
+  ].map((item) => ({ ...item, time: new Date(item.time || 0).getTime() })).filter((item) => Number.isFinite(item.time) && item.time > 0);
+  return Array.from({ length: 7 }, (_, index) => {
+    const day = new Date();
+    day.setHours(0, 0, 0, 0);
+    day.setDate(day.getDate() - (6 - index));
+    const start = day.getTime();
+    const end = start + 24 * 60 * 60 * 1000;
+    const rows = sources.filter((item) => item.time >= start && item.time < end);
+    return {
+      label: `${day.getMonth() + 1}/${day.getDate()}`,
+      article: rows.filter((item) => item.type === "article").length,
+      plan: rows.filter((item) => item.type === "plan").length,
+      knowledge: rows.filter((item) => item.type === "knowledge").length,
+      total: rows.length
+    };
+  });
+}
+
 function renderDashboard() {
   const pendingReview = state.articles.filter((article) => article.reviewStatus === "pending" && article.reviewStage === "manual_review").length;
   const readyToPublish = state.articles.filter((article) => article.reviewStatus === "approved" && article.status === "draft").length;
   const activeTargets = state.publishTasks.reduce(
-    (total, task) => total + Object.values(task.targets).filter((target) => ["queued", "running"].includes(target.status)).length,
+    (total, task) => total + Object.values(task?.targets || {}).filter((target) => ["queued", "running"].includes(target?.status)).length,
     0
   );
   const actionTargets = state.publishTasks.reduce(
-    (total, task) => total + Object.values(task.targets).filter((target) => ["failed", "needs_login", "needs_verification", "draft_saved", "result_unknown"].includes(target.status)).length,
+    (total, task) => total + Object.values(task?.targets || {}).filter((target) => ["failed", "needs_login", "needs_verification", "draft_saved", "result_unknown"].includes(target?.status)).length,
     0
   );
-  const dashboardInsights = [
-    { label: "内容资产", value: state.articles.length.toLocaleString("zh-CN"), delta: "已收录", context: "当前工作区", tone: "blue", path: "M2 29 C14 28 17 15 28 21 S42 39 54 26 S68 17 78 22 S91 9 105 15 S118 25 130 11 S147 9 158 18" },
-    { label: "选题问题", value: (state.questionLibrary || []).length.toLocaleString("zh-CN"), delta: "待持续覆盖", context: "当前工作区", tone: "teal", path: "M2 30 C15 22 19 25 30 16 S46 17 56 26 S72 36 82 19 S99 10 109 18 S124 24 133 14 S149 12 158 6" },
-    { label: "企业知识", value: (state.knowledgeItems || []).length.toLocaleString("zh-CN"), delta: "条证据资料", context: "当前工作区", tone: "purple", path: "M2 25 C16 9 24 15 34 24 S51 29 60 17 S74 8 84 16 S96 32 108 22 S124 11 134 13 S149 16 158 4" },
-    { label: "发布任务", value: state.publishTasks.length.toLocaleString("zh-CN"), delta: "累计创建", context: "当前工作区", tone: "indigo", path: "M2 26 C13 14 22 23 31 18 S48 6 59 12 S70 29 81 21 S95 15 106 22 S120 29 132 15 S148 6 158 12" }
-  ];
-  const trendSources = [...(state.articles || []), ...(state.contentPlans || []), ...(state.knowledgeItems || [])]
-    .map((item) => new Date(item.updatedAt || item.createdAt || item.publishedAt || 0).getTime())
-    .filter((timestamp) => Number.isFinite(timestamp) && timestamp > 0);
-  const trendDays = Array.from({ length: 7 }, (_, index) => {
-    const day = new Date();
-    day.setHours(0, 0, 0, 0);
-    day.setDate(day.getDate() - (6 - index));
-    return day;
-  });
-  const dashboardTrendValues = trendDays.map((day) => {
-    const cutoff = day.getTime() + 24 * 60 * 60 * 1000 - 1;
-    return trendSources.filter((timestamp) => timestamp <= cutoff).length;
-  });
-  const trendMin = Math.min(...dashboardTrendValues, 0);
-  const trendMax = Math.max(...dashboardTrendValues, 1);
-  const trendSpan = Math.max(1, trendMax - trendMin);
-
   const line = activeBusinessLine();
+  const knowledge = dashboardKnowledgeSummary();
+  const effect = dashboardEffectSummary();
+  const activeQuestions = (state.questionLibrary || []).filter((item) => item.status !== "archived").length;
+  const selectedQuestions = (state.questionLibrary || []).filter((item) => item.status !== "archived" && item.selected).length;
   const enterpriseCompletion = enterpriseFactCompletion();
   const incompleteEnterpriseFacts = enterpriseFactEntries().filter(([, value]) => !String(value || "").trim()).length;
   const recentArticles = [...state.articles].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 3);
-  const tp = dashboardTrendValues.map((value, index) => {
-    const x = 6 + (index * 628) / Math.max(1, dashboardTrendValues.length - 1);
-    const y = 52 - ((value - trendMin) / trendSpan) * 38;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-  const terminalLine = `M${tp.join(" L")}`;
-  const terminalArea = `${terminalLine} L634,56 L6,56 Z`;
+  const failedTargets = state.publishTasks.reduce((total, task) => total + Object.values(task.targets || {}).filter((target) => ["failed", "partial_failed"].includes(target.status)).length, 0);
+  const verificationTargets = state.publishTasks.reduce((total, task) => total + Object.values(task.targets || {}).filter((target) => ["needs_login", "needs_verification", "draft_saved", "result_unknown"].includes(target.status)).length, 0);
+  const trendSeries = dashboardTrendSeries();
+  const trendMax = Math.max(...trendSeries.map((item) => item.total), 0);
+  const trendPlotHeight = 96;
+  const urgentCount = failedTargets + verificationTargets + pendingReview + (knowledge.rejected || 0);
+  const actionCount = urgentCount + readyToPublish + knowledge.gaps + (!effect.hasEvidence ? 1 : 0);
+  const effectValue = effect.hasEvidence && Number.isFinite(effect.mentionRate) ? `${effect.mentionRate}%` : "—";
+  const effectMeta = effect.hasEvidence ? `${effect.verified} 条已验收证据${effect.lastObservedAt ? ` · ${formatRelative(effect.lastObservedAt)}` : ""}` : effect.status;
+  const taskRows = [];
+  if (failedTargets) taskRows.push(`<button class="dashboard-task-row is-blocking" type="button" data-nav="publish"><span class="dashboard-task-icon" data-icon="alert"></span><span class="dashboard-task-copy"><b>${failedTargets} 个发布目标失败</b><small>平台执行未完成，需要重试或人工处理</small></span><span class="dashboard-task-action">去发布任务 <span aria-hidden="true">→</span></span></button>`);
+  if (verificationTargets) taskRows.push(`<button class="dashboard-task-row is-warning" type="button" data-nav="publish"><span class="dashboard-task-icon" data-icon="shield"></span><span class="dashboard-task-copy"><b>${verificationTargets} 个发布目标需要验证</b><small>登录、结果回执或草稿状态仍待确认</small></span><span class="dashboard-task-action">查看执行 <span aria-hidden="true">→</span></span></button>`);
+  if (pendingReview) taskRows.push(`<button class="dashboard-task-row is-pending" type="button" data-action="show-pending-articles"><span class="dashboard-task-icon" data-icon="file"></span><span class="dashboard-task-copy"><b>${pendingReview} 篇文章等待审核</b><small>审核通过后才能进入发布批次</small></span><span class="dashboard-task-action">进入文章管理 <span aria-hidden="true">→</span></span></button>`);
+  if (readyToPublish) taskRows.push(`<button class="dashboard-task-row is-pending" type="button" data-nav="publish"><span class="dashboard-task-icon" data-icon="send"></span><span class="dashboard-task-copy"><b>${readyToPublish} 篇文章已审核可发布</b><small>内容版本已就绪，等待创建发布任务</small></span><span class="dashboard-task-action">创建发布任务 <span aria-hidden="true">→</span></span></button>`);
+  if (knowledge.gaps) taskRows.push(`<button class="dashboard-task-row is-warning" type="button" data-nav="knowledge"><span class="dashboard-task-icon" data-icon="book"></span><span class="dashboard-task-copy"><b>${knowledge.gaps} 项企业事实存在缺口</b><small>补齐后才能安全支撑内容生产与证据回溯</small></span><span class="dashboard-task-action">补充企业知识 <span aria-hidden="true">→</span></span></button>`);
+  if (!effect.hasEvidence) taskRows.push(`<button class="dashboard-task-row is-neutral" type="button" data-nav="effect-monitor"><span class="dashboard-task-icon" data-icon="chart"></span><span class="dashboard-task-copy"><b>${effect.status === "尚未配置监测" ? "尚未配置品牌监测" : "品牌监测等待首次运行"}</b><small>没有真实 live evidence，不显示估算分数</small></span><span class="dashboard-task-action">查看 AI 效果 <span aria-hidden="true">→</span></span></button>`);
+  if (!taskRows.length) taskRows.push(`<div class="dashboard-empty-state"><span class="dashboard-empty-icon" data-icon="check"></span><div><b>当前没有阻塞任务</b><p>内容、发布与知识状态都没有需要立即处理的异常。</p></div><button class="secondary-button button-small" type="button" data-nav="content">继续内容生产</button></div>`);
+
+  const loopSteps = [
+    { label: "知识", icon: "book", nav: "knowledge", value: knowledge.total ? `${knowledge.approved} 条已审核` : "尚未建立", detail: knowledge.gaps ? `${knowledge.gaps} 项事实缺口` : knowledge.pending ? `${knowledge.pending} 条待审核` : "可进入内容生产", tone: knowledge.gaps || knowledge.pending ? "warning" : "ok" },
+    { label: "问题", icon: "search", nav: "planning", value: activeQuestions ? `${activeQuestions} 个问题` : "尚未研究", detail: selectedQuestions ? `${selectedQuestions} 个已进入选题` : "进入问题研究", tone: activeQuestions ? "ok" : "neutral" },
+    { label: "内容", icon: "file", nav: "content", value: state.articles.length ? `${state.articles.length} 篇文章` : "尚未生产", detail: pendingReview ? `${pendingReview} 篇待审核` : readyToPublish ? `${readyToPublish} 篇可发布` : "进入创作工作区", tone: pendingReview ? "warning" : "ok" },
+    { label: "发布", icon: "send", nav: "publish", value: state.publishTasks.length ? `${state.publishTasks.length} 个任务` : "尚未发布", detail: failedTargets ? `${failedTargets} 个失败` : actionTargets ? `${actionTargets} 个目标待处理` : activeTargets ? `${activeTargets} 个目标执行中` : "进入发布任务", tone: failedTargets || actionTargets ? "warning" : activeTargets ? "running" : "neutral" },
+    { label: "AI 效果", icon: "chart", nav: "effect-monitor", value: effect.hasEvidence ? (effect.mentionRate === null ? `${effect.verified} 条证据` : `${effect.mentionRate}% 提及率`) : "尚未运行", detail: effect.hasEvidence ? `${effect.citations ?? "—"} 条引用来源` : "进入品牌监测", tone: effect.hasEvidence ? "ok" : "neutral" },
+    { label: "回流", icon: "refresh", nav: effect.hasEvidence ? "effect-monitor" : "knowledge", value: effect.hasEvidence ? (effect.citations === null ? "已有证据" : `${effect.citations} 条引用`) : knowledge.gaps ? `${knowledge.gaps} 项缺口` : "等待首轮检测", detail: effect.hasEvidence ? "查看来源与对话" : knowledge.gaps ? "回到企业知识" : "建立可追溯回流", tone: effect.hasEvidence ? "ok" : knowledge.gaps ? "warning" : "neutral" }
+  ];
+  const recentArticleRows = recentArticles.map((article) => `<tr>
+    <td><b>${escapeHtml(article.title)}</b><br><span class="table-sub">${escapeHtml(article.id)} · ${escapeHtml(article.version)} · 更新于 ${formatRelative(article.updatedAt)}</span></td>
+    <td><span class="tag-line">${escapeHtml(article.category || "未分类")}</span></td>
+    <td>${articleReviewBadge(article)}</td>
+    <td>${escapeHtml(article.author || "未署名")}</td>
+    <td class="text-right text-nowrap"><button class="link-button" type="button" data-action="open-article" data-article-id="${escapeHtml(article.id)}">打开</button><button class="link-button" type="button" data-action="open-article-studio" data-article-id="${escapeHtml(article.id)}">AI 协作</button></td>
+  </tr>`).join("");
 
   return `
-    <div class="page-container">
-      <div class="page-head page-head-terminal">
+    <div class="page-container dashboard-workbench">
+      <header class="page-head page-head-terminal dashboard-workbench-head">
         <div>
-          <div class="page-eyebrow">OVERVIEW</div>
-          <h2>${dashboardGreeting()}</h2>
-          <p>让每一次内容发布，都变成可被 AI 准确引用的证据。${actionTargets ? `今天有 ${actionTargets} 项发布结果需要处理。` : `已为业务线 ${escapeHtml(line?.name || "当前")} 准备 ${(state.questionLibrary || []).length} 个选题问题。`}</p>
+          <div class="page-eyebrow">WORKSPACE / ${escapeHtml(line?.name || "当前业务线")}</div>
+          <h2>${dashboardGreeting()}，今天先处理最影响闭环的事情</h2>
+          <p>${actionCount ? `当前有 ${actionCount} 项工作需要关注；优先处理阻塞和异常，再继续推进内容与发布。` : "当前没有阻塞任务，可以继续推进问题、内容和效果回流。"}</p>
         </div>
-      </div>
+        <div class="dashboard-head-actions"><button class="secondary-button button-small" type="button" data-nav="content"><span data-icon="file"></span>内容生产</button><button class="primary-button button-small" type="button" data-nav="publish"><span data-icon="send"></span>发布任务</button></div>
+      </header>
 
-      <section class="kpi-row" aria-label="行动数据">
-        <button class="kpi" type="button" data-nav="content">
-          <div class="kpi-head">
-            <div class="kpi-label">待审核文章</div>
-            <div class="kpi-icon">⚠</div>
-          </div>
-          <div class="kpi-val">${pendingReview}</div>
-          <div class="kpi-desc">来自真实文章审核状态</div>
-          <div class="kpi-foot"><span>等待 ${pendingReview} 篇</span><span class="up">→ 审核</span></div>
+      <section class="dashboard-status-grid" aria-label="当前状态">
+        <button class="dashboard-status-card ${pendingReview ? "is-warning" : "is-ok"}" type="button" data-action="show-pending-articles">
+          <span class="dashboard-status-icon" data-icon="file"></span><span class="dashboard-status-label">内容状态</span><b class="dashboard-status-value">${pendingReview}</b><span class="dashboard-status-detail">${pendingReview ? `${pendingReview} 篇文章等待审核` : readyToPublish ? `${readyToPublish} 篇已审核可发布` : "当前没有待审核文章"}</span><span class="dashboard-status-cta">${pendingReview ? "进入文章管理" : "查看内容生产"} <span aria-hidden="true">→</span></span>
         </button>
-        <button class="kpi accent-violet" type="button" data-nav="publish">
-          <div class="kpi-head">
-            <div class="kpi-label">可以发布</div>
-            <div class="kpi-icon">↗</div>
-          </div>
-          <div class="kpi-val">${readyToPublish}</div>
-          <div class="kpi-desc">已审核且尚未发布</div>
-          <div class="kpi-foot"><span>已就绪</span><span class="up">→ 发布</span></div>
+        <button class="dashboard-status-card ${failedTargets ? "is-blocking" : actionTargets ? "is-warning" : "is-ok"}" type="button" data-nav="publish">
+          <span class="dashboard-status-icon" data-icon="send"></span><span class="dashboard-status-label">发布状态</span><b class="dashboard-status-value">${failedTargets || actionTargets}</b><span class="dashboard-status-detail">${failedTargets ? `${failedTargets} 个目标失败` : actionTargets ? `${actionTargets} 个目标需要处理` : activeTargets ? `${activeTargets} 个目标执行中` : "暂无异常目标"}</span><span class="dashboard-status-cta">查看发布任务 <span aria-hidden="true">→</span></span>
         </button>
-        <button class="kpi accent-blue" type="button" data-nav="publish">
-          <div class="kpi-head">
-            <div class="kpi-label">执行中目标</div>
-            <div class="kpi-icon">◉</div>
-          </div>
-          <div class="kpi-val">${activeTargets}</div>
-          <div class="kpi-desc">各平台独立计算</div>
-          <div class="kpi-foot"><span>${activeTargets} 目标执行中</span><span class="up">→ 查看</span></div>
+        <button class="dashboard-status-card ${knowledge.gaps || knowledge.pending ? "is-warning" : "is-ok"}" type="button" data-nav="knowledge">
+          <span class="dashboard-status-icon" data-icon="book"></span><span class="dashboard-status-label">知识可用状态</span><b class="dashboard-status-value">${knowledge.approved}</b><span class="dashboard-status-detail">${knowledge.total ? `${knowledge.approved} / ${knowledge.total} 条已审核` : "尚未建立企业知识"}${knowledge.gaps ? ` · ${knowledge.gaps} 项事实缺口` : ""}</span><span class="dashboard-status-cta">进入企业知识 <span aria-hidden="true">→</span></span>
         </button>
-        <button class="kpi accent-amber" type="button" data-nav="publish">
-          <div class="kpi-head">
-            <div class="kpi-label">需要处理</div>
-            <div class="kpi-icon">⚡</div>
-          </div>
-          <div class="kpi-val">${actionTargets}</div>
-          <div class="kpi-desc">登录、验证或结果核验</div>
-          <div class="kpi-foot"><span>${actionTargets} 条待核验</span><span class="up">→ 详情</span></div>
+        <button class="dashboard-status-card ${effect.hasEvidence ? "is-ok" : "is-neutral"}" type="button" data-nav="effect-monitor">
+          <span class="dashboard-status-icon" data-icon="chart"></span><span class="dashboard-status-label">AI 效果摘要</span><b class="dashboard-status-value">${effectValue}</b><span class="dashboard-status-detail">${effectMeta}</span><span class="dashboard-status-cta">查看品牌监测 <span aria-hidden="true">→</span></span>
         </button>
       </section>
 
-      <div class="grid-2">
-        <section class="card">
-          <h3>内容资产趋势</h3>
-          <p class="sub">近 7 天 · 发布量与 AI 引用次数</p>
-          <div class="mini-kpis">
-            ${dashboardInsights.map((item) => `<div class="mini"><span>${item.label}</span><b>${item.value}</b></div>`).join("")}
-          </div>
-          <svg class="trend-chart" viewBox="0 0 640 64" preserveAspectRatio="none" aria-hidden="true">
-            <line class="grid" x1="6" y1="18" x2="634" y2="18"/>
-            <line class="grid" x1="6" y1="36" x2="634" y2="36"/>
-            <line class="grid" x1="6" y1="52" x2="634" y2="52"/>
-            <path class="area" d="${terminalArea}"/>
-            <path class="line" pathLength="1" d="${terminalLine}"/>
-          </svg>
+      <section class="dashboard-main-grid">
+        <section class="card dashboard-action-card">
+          <div class="dashboard-section-head"><div><h3>需要处理</h3><p>按阻塞 → 异常 → 待处理排序，点击直接进入对应工作区。</p></div><span class="dashboard-section-count ${urgentCount ? "has-alert" : ""}">${urgentCount || "0"} 项异常</span></div>
+          <div class="dashboard-task-list">${taskRows.join("")}</div>
         </section>
-
-        <section class="card">
-          <h3>运营闭环</h3>
-          <p class="sub">从选题到引用追踪</p>
-          <div class="steps">
-            <button class="step" type="button" data-nav="planning">
-              <div class="no">01</div><b>选题</b><small>${state.keywords.length} 关键词 · ${(state.questionLibrary || []).length} 问题</small>
-            </button>
-            <button class="step" type="button" data-nav="content">
-              <div class="no">02</div><b>内容</b><small>${pendingReview} 篇待审核</small>
-            </button>
-            <button class="step" type="button" data-nav="publish">
-              <div class="no">03</div><b>发布</b><small>${readyToPublish} 篇即可发布</small>
-            </button>
+        <section class="card dashboard-state-card">
+          <div class="dashboard-section-head"><div><h3>工作区状态</h3><p>当前业务线与关键对象的真实数量。</p></div><span class="dashboard-live-status"><i></i>实时</span></div>
+          <div class="dashboard-state-list">
+            <div><span>当前业务线</span><b>${escapeHtml(line?.name || "未选择")}</b></div>
+            <div><span>问题研究</span><b>${activeQuestions.toLocaleString("zh-CN")} 个问题</b></div>
+            <div><span>内容生产</span><b>${state.articles.length.toLocaleString("zh-CN")} 篇文章</b></div>
+            <div><span>发布目标</span><b>${activeTargets.toLocaleString("zh-CN")} 个执行中</b></div>
+            <div><span>AI 证据</span><b>${effect.hasEvidence ? `${effect.verified} 条已验收` : "尚未运行"}</b></div>
           </div>
         </section>
-      </div>
+      </section>
 
-      <div class="grid-2">
-        <section class="card">
-          <h3>今天要处理</h3>
-          <p class="sub">需要你关注的待办事项</p>
-          <div class="tasks">
-            <button class="task" type="button" data-action="show-pending-articles"><b>审核待处理文章</b><span>${pendingReview} 篇 →</span></button>
-            <button class="task" type="button" data-nav="publish"><b>确认发布结果</b><span>${actionTargets} 条 →</span></button>
-            <button class="task" type="button" data-action="open-onboarding"><b>补充企业事实资料</b><span>${incompleteEnterpriseFacts} 项 →</span></button>
-          </div>
+      <section class="card dashboard-loop-card">
+        <div class="dashboard-section-head"><div><h3>GEO 闭环</h3><p>每个阶段都是可进入的工作入口；当前状态来自真实对象和已验收证据。</p></div><span class="dashboard-loop-caption">知识 → 问题 → 内容 → 发布 → AI 效果 → 回流</span></div>
+        <div class="dashboard-loop-grid">${loopSteps.map((step, index) => `<button class="dashboard-loop-step is-${step.tone}" type="button" data-nav="${step.nav}"><span class="dashboard-loop-index">${String(index + 1).padStart(2, "0")}</span><span class="dashboard-loop-icon" data-icon="${step.icon}"></span><b>${step.label}</b><strong>${escapeHtml(step.value)}</strong><small>${escapeHtml(step.detail)}</small><em>进入 <span aria-hidden="true">→</span></em></button>`).join("")}</div>
+      </section>
+
+      <section class="dashboard-secondary-grid">
+        <section class="card dashboard-trend-card">
+          <div class="dashboard-section-head"><div><h3>近 7 天新增</h3><p>按真实创建时间统计文章、内容计划和企业知识。</p></div><span class="dashboard-trend-total">${trendSeries.reduce((sum, item) => sum + item.total, 0)} 项</span></div>
+          ${trendMax ? `<div class="dashboard-trend-bars" aria-label="近 7 天新增业务对象趋势">${trendSeries.map((item) => { const totalHeight = Math.round((item.total / trendMax) * trendPlotHeight); return `<div class="dashboard-trend-bar-col"><div class="dashboard-trend-bar-track" style="--bar-height:${totalHeight}px" aria-label="${item.label}，新增 ${item.total} 项"><span class="dashboard-trend-bar-value">${item.total}</span><i class="article" style="height:${Math.round((item.article / trendMax) * 100)}%"></i><i class="plan" style="height:${Math.round((item.plan / trendMax) * 100)}%"></i><i class="knowledge" style="height:${Math.round((item.knowledge / trendMax) * 100)}%"></i></div><small>${item.label}</small></div>`; }).join("")}</div><div class="dashboard-trend-legend"><span><i class="article"></i>文章 ${trendSeries.reduce((sum, item) => sum + item.article, 0)}</span><span><i class="plan"></i>计划 ${trendSeries.reduce((sum, item) => sum + item.plan, 0)}</span><span><i class="knowledge"></i>知识 ${trendSeries.reduce((sum, item) => sum + item.knowledge, 0)}</span></div>` : `<div class="dashboard-empty-state compact"><span data-icon="chart"></span><div><b>近 7 天没有新增业务对象</b><p>创建问题、内容计划或企业知识后，这里会显示真实趋势。</p></div><button class="secondary-button button-small" type="button" data-nav="planning">开始问题研究</button></div>`}
         </section>
-
-        <section class="card">
-          <h3>企业资料健康度</h3>
-          <p class="sub">知识库覆盖与引用状态</p>
-          <div class="ring-wrap">
-            <div class="health-ring">
-              <svg width="84" height="84" viewBox="0 0 84 84">
-                <circle class="bg" cx="42" cy="42" r="36" fill="none" stroke-width="5"/>
-                <circle class="fg" cx="42" cy="42" r="36" fill="none" stroke-width="5" stroke-linecap="round" stroke-dasharray="226.2" stroke-dashoffset="${Math.round(226.2 * (1 - enterpriseCompletion / 100))}"/>
-              </svg>
-              <div class="label">${enterpriseCompletion}</div>
-            </div>
-            <div class="ring-legend">${incompleteEnterpriseFacts ? `还有 ${incompleteEnterpriseFacts} 项企业事实待补充` : "企业身份、产品与服务资料已完整"}<br>${state.enterpriseProfile.steps.find((step) => step.id === "evidence")?.status === "complete" ? "案例、FAQ 与证据已就绪" : "案例、FAQ 与证据待补充"}<br>最近更新 · ${formatRelative(latestKnowledgeUpdatedAt())}</div>
-          </div>
+        <section class="card dashboard-knowledge-card">
+          <div class="dashboard-section-head"><div><h3>知识健康</h3><p>关注知识是否能安全进入内容生产，而不是只看库存。</p></div><button class="link-button" type="button" data-nav="knowledge">查看详情 →</button></div>
+          <div class="dashboard-knowledge-score"><div class="dashboard-knowledge-ring" style="--dashboard-knowledge-completion:${enterpriseCompletion}%"><span>${enterpriseCompletion}%</span></div><div><b>${knowledge.approved} 条已审核可用</b><p>${knowledge.pending ? `${knowledge.pending} 条待审核` : "没有待审核知识"} · ${knowledge.gaps ? `${knowledge.gaps} 项企业事实缺口` : "企业事实完整"}</p></div></div>
+          <div class="dashboard-knowledge-metrics"><span><b>${knowledge.total}</b>总资料</span><span><b>${knowledge.pending}</b>待审核</span><span><b>${knowledge.rejected}</b>需处理</span></div>
         </section>
-      </div>
+      </section>
 
-      <div class="card table-card">
-        <h3>最新文章</h3>
-        <p class="sub">通过审核的内容进入发布流程</p>
-        <table class="data-table">
-          <thead>
-            <tr><th>文章 / 任务</th><th>分类</th><th>状态</th><th>作者</th><th class="text-right">操作</th></tr>
-          </thead>
-          <tbody>
-            ${recentArticles.map((article) => `<tr>
-              <td><b>${escapeHtml(article.title)}</b><br><span class="table-sub">${escapeHtml(article.id)} · ${escapeHtml(article.version)} · 更新于 ${formatRelative(article.updatedAt)}</span></td>
-              <td><span class="tag-line">${escapeHtml(article.category || "未分类")}</span></td>
-              <td>${articleReviewBadge(article)}</td>
-              <td>${escapeHtml(article.author || "未署名")}</td>
-              <td class="text-right text-nowrap"><button class="link-button" type="button" data-action="open-article" data-article-id="${escapeHtml(article.id)}">打开</button><button class="link-button" type="button" data-action="open-article-studio" data-article-id="${escapeHtml(article.id)}">AI 协作</button></td>
-            </tr>            `).join("")}
-          </tbody>
-        </table>
-      </div>
+      <section class="dashboard-detail-grid">
+        <section class="card table-card dashboard-recent-card"><div class="dashboard-section-head"><div><h3>最近文章</h3><p>快速打开最近更新的文章，不承担主要工作入口。</p></div><button class="link-button" type="button" data-nav="content">查看全部 →</button></div>${recentArticleRows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>文章 / 任务</th><th>分类</th><th>状态</th><th>作者</th><th class="text-right">操作</th></tr></thead><tbody>${recentArticleRows}</tbody></table></div>` : `<div class="dashboard-empty-state compact"><span data-icon="file"></span><div><b>还没有文章</b><p>从问题研究或创作工作区开始第一篇内容。</p></div><button class="secondary-button button-small" type="button" data-nav="content">进入内容生产</button></div>`}</section>
+        <section class="card dashboard-activity-card"><div class="dashboard-section-head"><div><h3>最近活动</h3><p>文章、知识和发布动作的最近变更。</p></div><span class="dashboard-section-count">次级信息</span></div><div class="dashboard-activity-list">${dashboardActivityItems()}</div></section>
+      </section>
     </div>
   `;
 }
@@ -4568,8 +4980,26 @@ function planningTabs() {
     plans: state.contentPlans.filter((item) => item.businessLineId === line?.id).length,
     archive: planningArchiveCount(line?.id)
   };
-  const tabs = [["keywords", "关键词拓展"], ["questions", "问题词库"], ["topics", "选题库"], ["plans", "内容计划"], ["archive", "归档管理"]];
-  return '<div class="tabs topic-center-tabs" role="tablist">' + tabs.map(([id, label]) => '<button class="tab-button ' + (ui.planningTab === id ? "active" : "") + '" type="button" data-action="planning-tab" data-tab="' + id + '">' + label + " · " + counts[id] + "</button>").join("") + "</div>";
+  const tabs = [["keywords", "问题发现"], ["questions", "正式问题"], ["topics", "选题"], ["plans", "内容计划"], ["archive", "历史归档"]];
+  return '<div class="tabs topic-center-tabs" role="tablist" aria-label="问题研究生命周期">' + tabs.map(([id, label]) => '<button class="tab-button ' + (ui.planningTab === id ? "active" : "") + '" type="button" role="tab" aria-selected="' + (ui.planningTab === id ? "true" : "false") + '" data-action="planning-tab" data-tab="' + id + '">' + label + " · " + counts[id] + "</button>").join("") + "</div>";
+}
+
+function planningLifecycle() {
+  const line = activeBusinessLine();
+  const counts = {
+    keywords: state.keywords.filter((item) => item.businessLineId === line?.id && item.status === "active" && !isSeedKeyword(item)).length,
+    questions: state.questionLibrary.filter((item) => item.businessLineId === line?.id && item.status === "active" && !planningQuestionTopics(item).some((topic) => topic.status !== "archived")).length,
+    topics: state.topics.filter((item) => topicBusinessLineId(item) === line?.id && item.status !== "archived" && !planningTopicPlans(item).length).length,
+    plans: state.contentPlans.filter((item) => item.businessLineId === line?.id).length,
+    archive: planningArchiveCount(line?.id)
+  };
+  const stages = [
+    ["keywords", "问题发现", "关键词 → 候选问题"],
+    ["questions", "正式问题", "确认可生产的问题"],
+    ["topics", "选题", "决定要解决什么"],
+    ["plans", "内容计划", "安排生产与负责人"]
+  ];
+  return '<div class="planning-lifecycle" role="tablist" aria-label="问题研究生命周期">' + stages.map(([id, label, hint], index) => '<button class="planning-lifecycle-step ' + (ui.planningTab === id ? "active" : "") + '" type="button" role="tab" aria-selected="' + (ui.planningTab === id ? "true" : "false") + '" data-action="planning-tab" data-tab="' + id + '"><span class="planning-lifecycle-index">' + (index + 1) + '</span><span class="planning-lifecycle-copy"><b>' + label + '</b><small>' + hint + '</small></span><em>' + counts[id] + '</em></button>').join("") + '<button class="planning-lifecycle-step planning-lifecycle-history ' + (ui.planningTab === "archive" ? "active" : "") + '" type="button" role="tab" aria-selected="' + (ui.planningTab === "archive" ? "true" : "false") + '" data-action="planning-tab" data-tab="archive"><span class="planning-lifecycle-index">↺</span><span class="planning-lifecycle-copy"><b>历史归档</b><small>回看已归档记录</small></span><em>' + counts.archive + '</em></button></div>';
 }
 
 function renderBusinessScope() {
@@ -4578,10 +5008,10 @@ function renderBusinessScope() {
   const keywordCount = state.keywords.filter((item) => item.businessLineId === line?.id && item.status === "active" && !isSeedKeyword(item)).length;
   const questionCount = state.questionLibrary.filter((item) => item.businessLineId === line?.id && item.status === "active" && !planningQuestionTopics(item).some((topic) => topic.status !== "archived")).length;
   return `
-    <section class="card business-scope-card">
-      <div class="field"><label for="business-line-select">当前产品 / 业务线</label><select class="select" id="business-line-select" data-planning-business>${options}</select></div>
+    <section class="business-scope-card planning-scope-card planning-context-bar" aria-label="当前研究范围">
+      <div class="planning-context-switcher"><span>当前研究范围</span><div class="field"><select class="select" id="business-line-select" data-planning-business aria-label="当前产品 / 业务线">${options}</select></div></div>
       <div class="business-scope-copy"><b>${escapeHtml(line?.product || "尚未配置产品")}</b><span>${escapeHtml(line?.audience || "请补充目标客户")} · ${escapeHtml(line?.scenario || "请补充核心场景")}</span></div>
-      <div class="business-scope-stats"><span><b>${keywordCount}</b>关键词</span><span><b>${questionCount}</b>问题</span></div>
+      <div class="business-scope-stats"><span><b>${keywordCount}</b>核心关键词</span><span><b>${questionCount}</b>正式问题</span></div>
       <div class="business-scope-actions"><button class="ghost-button button-small" type="button" data-action="manage-business-lines"><span data-icon="settings"></span>管理</button><button class="secondary-button button-small" type="button" data-action="open-business-line"><span data-icon="plus"></span>新增业务线</button></div>
     </section>
   `;
@@ -4589,6 +5019,37 @@ function renderBusinessScope() {
 
 function isSeedKeyword(item) {
   return item?.keywordRole === "seed" || (Array.isArray(item?.sourceCoreKeywordIds) && item.sourceCoreKeywordIds.length > 0);
+}
+
+function priorityScoreCell(rawValue) {
+  const value = Number(rawValue);
+  if (Number.isFinite(value)) {
+    const cls = value >= 90 ? "score-high" : value >= 75 ? "score-mid" : "score-low";
+    return '<span class="topic-score"><b class="' + cls + '">' + value + '</b><small>优先级</small></span>';
+  }
+  return '<span class="topic-score"><b class="score-pending">—</b><small>优先级</small></span>';
+}
+
+function sortableHeader(label, scope, field, currentSort) {
+  const active = currentSort && currentSort.field === field;
+  const dir = currentSort && currentSort.dir;
+  const icon = active ? (dir === "desc" ? "↓" : "↑") : "⇅";
+  const title = active ? (dir === "desc" ? "按优先级从高到低（再次点击切换）" : "按优先级从低到高（再次点击恢复默认）") : "点击按优先级排序";
+  return '<button type="button" class="topic-sort-trigger' + (active ? " is-active" : "") + '" data-action="sort-score" data-sort-scope="' + escapeHtml(scope) + '" data-sort-field="' + escapeHtml(field) + '" title="' + title + '" aria-label="' + title + '"><span>' + label + '</span><i class="topic-sort-icon">' + icon + '</i></button>';
+}
+
+function sortByPriority(list, getValue, currentSort) {
+  const dir = currentSort?.dir;
+  return [...list].sort((a, b) => {
+    const av = Number(getValue(a));
+    const bv = Number(getValue(b));
+    const aFinite = Number.isFinite(av);
+    const bFinite = Number.isFinite(bv);
+    if (aFinite && !bFinite) return -1;
+    if (!aFinite && bFinite) return 1;
+    if (!aFinite && !bFinite) return 0;
+    return dir === "asc" ? av - bv : bv - av;
+  });
 }
 
 function renderKeywordWorkspace() {
@@ -4620,36 +5081,38 @@ function renderKeywordWorkspace() {
   }).join("");
   let resultItems = "";
   if (ui.expanding) {
-    resultItems = Array.from({ length: 5 }).map((_, index) => '<div class="topic-item" aria-hidden="true"><span class="skeleton skeleton-sm"></span><div><div class="skeleton" style="height:15px;width:' + (78 - index * 5) + '%"></div><div class="skeleton" style="height:10px;width:92%;margin-top:10px"></div></div><div class="skeleton" style="height:16px;width:50px"></div></div>').join("");
+    resultItems = '<div class="topic-list">' + Array.from({ length: 5 }).map((_, index) => '<div class="topic-item" aria-hidden="true"><span class="skeleton skeleton-sm"></span><div><div class="skeleton" style="height:15px;width:' + (78 - index * 5) + '%"></div><div class="skeleton" style="height:10px;width:92%;margin-top:10px"></div></div><div class="skeleton" style="height:16px;width:50px"></div></div>').join("") + '</div>';
   } else if (!visibleQuestions.length) {
     resultItems = '<div class="empty-state"><div><span data-icon="compass"></span><h3>还没有问题词包</h3><p>先拓展并确认种子词，再根据种子词生成问题词包。</p></div></div>';
   } else {
-    resultItems = visibleQuestions.map((question) => {
+    const sortedQuestions = ui.keywordResultSort ? sortByPriority(visibleQuestions, (question) => calculateQuestionPriorityScore(question), ui.keywordResultSort) : visibleQuestions;
+    const rowsHtml = sortedQuestions.map((question) => {
       const deleteAction = question.status === "candidate"
-        ? `<div class="keyword-result-actions"><button class="link-button danger-text keyword-delete-button" type="button" data-action="delete-keyword-candidate" data-question-id="${escapeHtml(question.id)}" title="删除此候选问题" aria-label="删除候选问题：${escapeHtml(question.question)}">删除</button></div>`
+        ? `<button class="link-button danger-text" type="button" data-action="delete-keyword-candidate" data-question-id="${escapeHtml(question.id)}" title="删除此候选问题" aria-label="删除候选问题：${escapeHtml(question.question)}">删除</button>`
         : "";
-      const priorityScore = calculateQuestionPriorityScore(question);
-      const scoreBasisLabel = questionScoreBasisLabel(question);
-      const scoreBasisMarkup = scoreBasisLabel ? '<small>' + escapeHtml(scoreBasisLabel) + '</small>' : '';
-      const scoreMarkup = priorityScore == null
-        ? '<span class="topic-score score-pending-state"><b class="score-pending">待评分</b><small>缺少可计算文本</small></span>'
-        : '<span class="topic-score" tabindex="0" title="' + escapeHtml(questionScoreBasisSummary(question)) + '"><b>' + priorityScore + '</b>' + scoreBasisMarkup + '<span class="strength-bar"><i style="width:' + priorityScore + '%"></i></span></span>';
-      return `<div class="topic-item keyword-result-row"><input class="checkbox" type="checkbox" data-question-select="${question.id}" ${question.selected ? "checked" : ""} aria-label="选择问题：${escapeHtml(question.question)}" /><span class="topic-copy"><strong>${escapeHtml(question.question)}</strong><p>来源种子词：${escapeHtml(question.sourceKeyword)} · ${escapeHtml(question.source)}</p></span>${scoreMarkup}${deleteAction}</div>`;
+      return `<tr class="planning-question-row ${question.selected ? "is-selected" : ""}"><td><input class="checkbox" type="checkbox" data-question-select="${question.id}" ${question.selected ? "checked" : ""} aria-label="选择问题：${escapeHtml(question.question)}" /></td><td class="article-title-cell planning-question-copy"><b>${escapeHtml(question.question)}</b><small><span>种子词：${escapeHtml(question.sourceKeyword)}</span><span>${escapeHtml(question.source)}</span></small></td><td><span class="status-badge status-review">候选</span></td><td>${priorityScoreCell(calculateQuestionPriorityScore(question))}</td><td><div class="table-actions">${deleteAction}</div></td></tr>`;
     }).join("");
+    resultItems = '<div class="table-scroll"><table class="data-table topic-center-table topic-management-table keyword-result-table"><thead><tr><th></th><th>问题</th><th>状态</th><th>' + sortableHeader("优先级", "keyword-result", "priority", ui.keywordResultSort) + '</th><th>操作</th></tr></thead><tbody>' + rowsHtml + '</tbody></table></div>';
   }
-  const basket = selectedQuestions.length ? selectedQuestions.map((question) => `<div class="basket-item"><b>${escapeHtml(question.question)}</b><span>${escapeHtml(question.sourceKeyword)}</span><button class="basket-remove" type="button" data-action="remove-question" data-question-id="${question.id}" aria-label="移除">×</button></div>`).join("") : '<div class="basket-empty"><div><span data-icon="clipboard"></span><b>问题篮还是空的</b><p>勾选问题词包中的结果，确认后加入问题词库。</p></div></div>';
+  const basket = selectedQuestions.length ? selectedQuestions.map((question) => `<div class="basket-item"><b>${escapeHtml(question.question)}</b><span>${escapeHtml(question.sourceKeyword)}</span><button class="basket-remove" type="button" data-action="remove-question" data-question-id="${question.id}" aria-label="移除">×</button></div>`).join("") : '<div class="basket-empty"><div><span data-icon="clipboard"></span><b>问题篮还是空的</b><p>勾选候选问题后确认入库。</p></div></div>';
   return `
-    <div class="keyword-foundation-grid">
-    <section class="card keyword-manager-card">
-      <div class="card-header"><div><h3>核心关键词</h3><p>核心关键词自动归属于当前产品 / 业务线；勾选后可智能拓展种子词。</p></div><span class="small-tag blue">${coreKeywords.length} 个</span></div>
+    <section class="planning-research-tools planning-research-context" aria-label="问题发现工具">
+      <div class="planning-workbench-section-head"><div><span class="planning-section-kicker">研究上下文</span><h3>定义本轮问题研究范围</h3></div><span class="planning-workbench-context"><i></i>当前研究中</span></div>
+    <div class="keyword-foundation-grid planning-tool-grid">
+    <section class="keyword-manager-card planning-stage-card planning-tool-panel">
+      <div class="card-header"><div><h3>核心关键词</h3><p>选择核心关键词，拓展种子词。</p></div><span class="small-tag blue">${coreKeywords.length} 个</span></div>
       <div class="keyword-manager-body"><div class="keyword-input-row"><div class="field grow"><label for="business-keyword-input">核心关键词（可输入新词，也可勾选下方已有词）</label><input class="input ${ui.businessKeywordError ? "input-error" : ""}" id="business-keyword-input" value="${escapeHtml(ui.businessKeywordInput)}" placeholder="例如：激光清洗机，激光除锈" autocomplete="off" />${ui.businessKeywordError ? '<small class="error-text">' + escapeHtml(ui.businessKeywordError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="expand-seeds" ${ui.seedExpanding ? "disabled" : ""}>${ui.seedExpanding ? '<span class="loading-spinner"></span>正在拓展种子词' : '<span data-icon="sparkle"></span>智能拓展种子词'}</button></div><div class="keyword-chip-list">${keywordChips || '<span class="empty-inline">输入一个核心关键词后，即可智能拓展种子词。</span>'}</div><div class="keyword-selection-hint">${selectedCoreIds.size ? `已选择 ${selectedCoreIds.size} 个核心关键词` : "未勾选时使用当前业务线的全部核心关键词"}</div></div>
     </section>
-    <section class="card seed-manager-card"><div class="card-header"><div><h3>种子词</h3><p>智能拓展结果直接显示在下方词框，可直接增删或修改后生成问题词包。</p></div><span class="small-tag teal">${selectedSeedTerms.length} 个</span></div><div class="seed-input-row"><div class="field grow"><label for="seed-input">拓展种子词（1–8 个，可直接编辑）</label><input class="input ${ui.seedError ? "input-error" : ""}" id="seed-input" value="${escapeHtml(ui.seedInput)}" placeholder="智能拓展后直接显示在这里，也可手动输入并用逗号分隔" autocomplete="off" />${ui.seedError ? '<small class="error-text">' + escapeHtml(ui.seedError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="generate-question-pack" ${ui.expanding || ui.seedExpanding ? "disabled" : ""}>${ui.expanding ? '<span class="loading-spinner"></span>正在生成问题词包' : '<span data-icon="sparkle"></span>生成问题词包'}</button></div></section>
+    <section class="seed-manager-card planning-stage-card planning-tool-panel"><div class="card-header"><div><h3>种子词与问题生成</h3><p>编辑种子词，生成候选问题。</p></div><span class="small-tag teal">${selectedSeedTerms.length} 个种子词</span></div><div class="seed-input-row"><div class="field grow"><label for="seed-input">拓展种子词（1–8 个，可直接编辑）</label><input class="input ${ui.seedError ? "input-error" : ""}" id="seed-input" value="${escapeHtml(ui.seedInput)}" placeholder="智能拓展后直接显示在这里，也可手动输入并用逗号分隔" autocomplete="off" />${ui.seedError ? '<small class="error-text">' + escapeHtml(ui.seedError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="generate-question-pack" ${ui.expanding || ui.seedExpanding ? "disabled" : ""}>${ui.expanding ? '<span class="loading-spinner"></span>正在生成问题词包' : '<span data-icon="sparkle"></span>生成问题词包'}</button></div></section>
     </div>
+    </section>
+    <div class="planning-section-heading planning-section-heading-results"><div><span class="planning-section-kicker">候选问题研究</span><h3>筛选值得进入正式问题库的问题</h3></div><p>问题内容是判断核心；状态、来源和优先级用于辅助决策。</p></div>
     <div class="planning-layout">
-      <aside class="card"><div class="card-header"><div><h3>历史词包</h3><p>仅显示当前业务线 · 可切换或删除历史结果</p></div></div><div class="package-list">${packageItems || '<div class="empty-package">暂无词包</div>'}</div></aside>
-      <section class="card"><div class="card-header"><div><h3>${escapeHtml(activePack?.title || "问题词包结果")}</h3><p>种子词：${escapeHtml(activePack?.seeds?.join(" / ") || "—")}</p></div><span class="small-tag blue">共 ${packQuestions.length} 条</span></div><div class="category-tabs">${categoryTabs}</div><div class="model-note"><span data-icon="info"></span><span>每个栏目默认生成 5 个客户问题；勾选后加入问题词库。</span></div>${visibleQuestions.length ? '<div class="bulk-select-row keyword-bulk-row">' + renderSelectAllControl("keyword-questions", visibleQuestions.length, visibleSelectedQuestions.length, "全选当前栏目", 'data-select-pack-id="' + escapeHtml(activePack?.id || "") + '" data-select-dimension="' + escapeHtml(ui.planningCategory) + '"') + (visibleCandidateQuestions.length ? '<button class="danger-button button-small keyword-bulk-delete" type="button" data-action="delete-keyword-candidates" data-pack-id="' + escapeHtml(activePack?.id || "") + '" data-dimension="' + escapeHtml(ui.planningCategory) + '" title="删除已选择的候选问题" aria-label="删除已选择的候选问题" ' + (selectedCandidateQuestions.length ? "" : "disabled") + '>删除已选候选</button>' : "") + '</div>' : ""}<div class="topic-list">${resultItems}</div></section>
-      <aside class="card"><div class="card-header"><div><h3>问题篮</h3><p>本次确认入库</p></div><span class="small-tag blue">${selectedQuestions.length} 个</span></div><div class="basket-list">${basket}</div><div class="basket-actions"><button class="primary-button" type="button" data-action="save-selected-questions" ${selectedQuestions.length ? "" : "disabled"}><span data-icon="book"></span>加入问题词库</button><button class="ghost-button" type="button" data-action="clear-questions" ${selectedQuestions.length ? "" : "disabled"}>清空选择</button></div></aside>
+      <section class="card planning-candidate-panel planning-research-surface"><div class="planning-candidate-head"><div><span class="planning-section-kicker">当前问题词包</span><h3>${escapeHtml(activePack?.title || "问题词包结果")}</h3><p>种子词：${escapeHtml(activePack?.seeds?.join(" / ") || "—")}</p></div><div class="planning-candidate-summary"><b>${packQuestions.length}</b><span>条候选问题</span></div></div><div class="planning-candidate-toolbar"><div class="category-tabs">${categoryTabs}</div><div class="model-note"><span data-icon="info"></span><span>勾选后进入问题篮，确认后加入正式问题库。</span></div></div>${visibleQuestions.length ? '<div class="bulk-select-row keyword-bulk-row">' + renderSelectAllControl("keyword-questions", visibleQuestions.length, visibleSelectedQuestions.length, "全选当前栏目", 'data-select-pack-id="' + escapeHtml(activePack?.id || "") + '" data-select-dimension="' + escapeHtml(ui.planningCategory) + '"') + (visibleCandidateQuestions.length ? '<button class="danger-button button-small keyword-bulk-delete" type="button" data-action="delete-keyword-candidates" data-pack-id="' + escapeHtml(activePack?.id || "") + '" data-dimension="' + escapeHtml(ui.planningCategory) + '" title="删除已选择的候选问题" aria-label="删除已选择的候选问题" ' + (selectedCandidateQuestions.length ? "" : "disabled") + '>删除已选候选</button>' : "") + '</div>' : ""}${resultItems}</section>
+      <div class="planning-support-rail">
+        <aside class="planning-support-panel planning-history-panel"><div class="card-header"><div><h3>历史词包</h3><p>切换或清理历史研究结果</p></div><span class="small-tag gray">${linePacks.length}</span></div><div class="package-list">${packageItems || '<div class="empty-package">暂无词包</div>'}</div></aside>
+        <aside class="planning-support-panel planning-basket-panel ${selectedQuestions.length ? "has-selection" : "is-empty"}"><div class="card-header"><div><h3>问题篮</h3><p>当前研究决策</p></div><span class="small-tag blue">${selectedQuestions.length} 个</span></div><div class="basket-list">${basket}</div><div class="basket-actions"><button class="primary-button" type="button" data-action="save-selected-questions" ${selectedQuestions.length ? "" : "disabled"}><span data-icon="book"></span>加入正式问题</button><button class="ghost-button" type="button" data-action="clear-questions" ${selectedQuestions.length ? "" : "disabled"}>清空选择</button></div></aside>
+      </div>
     </div>
   `;
 }
@@ -4677,7 +5140,7 @@ function renderQuestionLibrary() {
   }).join("");
   return `
     <section class="card toolbar-card question-add-bar"><div class="field grow"><label for="question-input">手动添加客户问题</label><input class="input ${ui.questionError ? "input-error" : ""}" id="question-input" value="${escapeHtml(ui.questionInput)}" placeholder="例如：制造企业如何开始做 AI 搜索优化？" autocomplete="off" />${ui.questionError ? '<small class="error-text">' + escapeHtml(ui.questionError) + "</small>" : ""}</div><button class="primary-button" type="button" data-action="add-question"><span data-icon="plus"></span>添加问题</button></section>
-    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 问题词库</h3><p>关键词拓展、人工录入和监测缺口统一沉淀在这里；已归档问题可在归档管理中恢复。</p></div><div class="card-header-tools"><input class="input" placeholder="搜索问题或来源词" value="${escapeHtml(ui.questionLibrarySearch || "")}" data-question-library-search /><span class="small-tag blue">${questions.length} 个问题</span></div></div>${generationProgressMarkup}${questions.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("question-library", questions.length, selected.length, "全选问题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>标准问题</th><th>来源种子词 / 核心词</th><th>覆盖</th><th>选题状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="help"></span><h3>还没有问题</h3><p>先到关键词拓展生成问题，或在上方手动添加。</p></div></div>'}</section>
+    <section class="card table-card planning-library-panel"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 正式问题库</h3><p>这里只保留已确认、可以进入选题的问题；候选问题请先在“问题发现”中筛选。</p></div><div class="card-header-tools"><input class="input" placeholder="搜索问题或来源词" value="${escapeHtml(ui.questionLibrarySearch || "")}" data-question-library-search /><span class="small-tag blue">${questions.length} 个正式问题</span></div></div>${generationProgressMarkup}${questions.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("question-library", questions.length, selected.length, "全选问题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>标准问题</th><th>来源种子词 / 核心词</th><th>覆盖</th><th>选题状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="help"></span><h3>还没有正式问题</h3><p>先到问题发现生成候选问题，确认后再进入正式问题库。</p><button class="secondary-button button-small" type="button" data-action="planning-tab" data-tab="keywords">去问题发现</button></div></div>'}</section>
     ${selected.length ? '<div class="selection-bar"><span>已选择 <b>' + selected.length + '</b> 个问题</span><button class="primary-button button-small" type="button" data-action="questions-to-topics" ' + (ui.topicGenerating ? "disabled" : "") + '><span data-icon="arrow"></span>' + (ui.topicGenerating ? "正在生成…" : "生成选题") + '</button></div>' : ""}
   `;
 }
@@ -4687,9 +5150,11 @@ function renderTopicLibrary() {
   const topicKeyword = String(ui.topicLibrarySearch || "").trim().toLowerCase();
   const topics = state.topics.filter((topic) => topicBusinessLineId(topic) === line?.id && topic.status !== "archived" && !planningTopicPlans(topic).length);
   const filteredTopics = topicKeyword ? topics.filter((topic) => [topic.title, topic.intent, topic.recommendation, topic.sourceQuestion].filter(Boolean).join(" ").toLowerCase().includes(topicKeyword)) : topics;
+  const sortField = ui.topicLibrarySort?.field;
+  const sortedTopics = sortField === "priority" ? sortByPriority(filteredTopics, (topic) => topic.recommendation, ui.topicLibrarySort) : filteredTopics;
   const selectableTopics = topics;
   const selected = selectableTopics.filter((topic) => topic.selected);
-  const rows = filteredTopics.map((topic) => {
+  const rows = sortedTopics.map((topic) => {
     const refs = planningTopicReferences(topic);
     const brief = topic.geoBrief || buildGeoTopicBrief(topic, refs.question);
     const question = refs.question;
@@ -4701,10 +5166,10 @@ function renderTopicLibrary() {
     const referenceText = `${plans.length} 计划 · ${articles.length} 文章`;
     const directAction = `<button class="link-button topic-direct-button" type="button" data-action="direct-generate-topic" data-topic-id="${escapeHtml(topic.id)}">${article ? "查看文章" : "直接生成文章"}</button>`;
     const planAction = article ? "" : `<button class="link-button" type="button" data-action="topic-to-plan" data-topic-id="${escapeHtml(topic.id)}">加入计划</button>`;
-    return `<tr><td><input class="checkbox" type="checkbox" data-topic-select="${topic.id}" aria-label="选择选题 ${escapeHtml(topic.title)}" ${topic.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)}</small></td><td class="article-title-cell"><b>${escapeHtml(coreQuestion)}</b></td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension)}</span></td><td><b>${topic.recommendation}</b><small class="block-subtext">模型建议强度</small></td><td>${lifecycle}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${directAction}${planAction}<button class="link-button" type="button" data-action="edit-topic" data-topic-id="${escapeHtml(topic.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-topic" data-topic-id="${escapeHtml(topic.id)}">归档</button></div></td></tr>`;
+    return `<tr><td><input class="checkbox" type="checkbox" data-topic-select="${topic.id}" aria-label="选择选题 ${escapeHtml(topic.title)}" ${topic.selected ? "checked" : ""} /></td><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)}</small></td><td class="article-title-cell"><b>${escapeHtml(coreQuestion)}</b></td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension)}</span></td><td>${priorityScoreCell(topic.recommendation)}</td><td>${lifecycle}</td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions">${planAction}${directAction}<button class="link-button" type="button" data-action="edit-topic" data-topic-id="${escapeHtml(topic.id)}">编辑</button><button class="link-button danger-text" type="button" data-action="archive-topic" data-topic-id="${escapeHtml(topic.id)}">归档</button></div></td></tr>`;
   }).join("");
   return `
-    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 选题库</h3><p>AI 生成的选题直接进入选题库，可编辑后生成文章或加入内容计划。</p></div><div class="card-header-tools"><input class="input" placeholder="搜索选题或意图" value="${escapeHtml(ui.topicLibrarySearch || "")}" data-topic-library-search /><span class="small-tag blue">${topics.length} 个选题</span></div></div>${selectableTopics.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("topic-library", selectableTopics.length, selected.length, "全选选题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>选题标题</th><th>核心回答问题</th><th>内容方向</th><th>优先级</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="clipboard"></span><h3>还没有选题</h3><p>到问题词库选择客户问题并生成选题。</p><button class="primary-button button-small" type="button" data-action="planning-tab" data-tab="questions">去问题词库</button></div></div>'}</section>
+    <section class="card table-card planning-library-panel"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 选题库</h3><p>从正式问题形成可生产的内容方向；优先加入内容计划，再进入内容生产。</p></div><div class="card-header-tools"><input class="input" placeholder="搜索选题或意图" value="${escapeHtml(ui.topicLibrarySearch || "")}" data-topic-library-search /><span class="small-tag blue">${topics.length} 个选题</span></div></div>${selectableTopics.length ? '<div class="bulk-select-row table-select-row">' + renderSelectAllControl("topic-library", selectableTopics.length, selected.length, "全选选题") + '</div>' : ""}<div class="table-scroll"><table class="data-table topic-center-table topic-management-table"><thead><tr><th></th><th>选题标题</th><th>核心回答问题</th><th>内容方向</th><th>${sortableHeader("优先级", "topic-library", "priority", ui.topicLibrarySort)}</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="clipboard"></span><h3>还没有选题</h3><p>先在正式问题库选择问题并生成选题。</p><button class="primary-button button-small" type="button" data-action="planning-tab" data-tab="questions">去正式问题库</button></div></div>'}</section>
     ${selected.length ? '<div class="selection-bar"><span>已选择 <b>' + selected.length + '</b> 个选题</span><div><button class="ghost-button button-small" type="button" data-action="clear-topics">清空</button><button class="primary-button button-small" type="button" data-action="open-plan"><span data-icon="clock"></span>创建内容计划</button></div></div>' : ""}
   `;
 }
@@ -4721,18 +5186,18 @@ function renderPlanningArchive() {
       const canDelete = !question.packId && !refs.topics.length && !refs.plans.length && !refs.articles.length;
       return `<tr class="topic-row-archived"><td class="article-title-cell"><b>${escapeHtml(question.question)}</b><small>${escapeHtml(question.id)} · v${escapeHtml(question.version || 1)} · 归档于 ${formatRelative(question.archivedAt || question.updatedAt || question.createdAt)}</small></td><td>${escapeHtml(question.sourceKeyword || "—")}</td><td><span class="status-badge status-archived">已归档</span></td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions"><button class="secondary-button button-small" type="button" data-action="restore-planning-record" data-kind="question" data-record-id="${escapeHtml(question.id)}"><span data-icon="refresh"></span>恢复</button>${refs.topics.length || refs.plans.length || refs.articles.length ? `<button class="link-button" type="button" data-action="view-planning-relations" data-kind="question" data-record-id="${escapeHtml(question.id)}">引用详情</button>` : ""}<button class="danger-button button-small" type="button" data-action="request-delete-archive" data-kind="question" data-record-id="${escapeHtml(question.id)}" ${canDelete ? "" : "disabled"}>永久删除</button></div></td></tr>`;
     }).join("")
-    : archivedTopics.map((topic) => {
+    : (ui.archiveTopicSort ? sortByPriority(archivedTopics, (topic) => topic.recommendation, ui.archiveTopicSort) : archivedTopics).map((topic) => {
       const refs = planningTopicReferences(topic);
       const referenceText = `${refs.plans.length} 计划 · ${refs.articles.length} 文章`;
       const canDelete = !refs.plans.length && !refs.articles.length;
       const brief = topic.geoBrief || buildGeoTopicBrief(topic, refs.question);
       const coreQuestion = topic.coreQuestion || brief.coreQuestion || refs.question?.question || topic.title || "—";
-      return `<tr class="topic-row-archived"><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)} · 归档于 ${formatRelative(topic.archivedAt || topic.updatedAt || topic.createdAt)}</small></td><td>${escapeHtml(coreQuestion)}</td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension || "未分类")}</span></td><td><b>${escapeHtml(topic.recommendation || "—")}</b><small class="block-subtext">模型建议强度</small></td><td><span class="status-badge status-archived">已归档</span></td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions"><button class="secondary-button button-small" type="button" data-action="restore-planning-record" data-kind="topic" data-record-id="${escapeHtml(topic.id)}"><span data-icon="refresh"></span>恢复</button>${refs.plans.length || refs.articles.length ? `<button class="link-button" type="button" data-action="view-planning-relations" data-kind="topic" data-record-id="${escapeHtml(topic.id)}">引用详情</button>` : ""}<button class="danger-button button-small" type="button" data-action="request-delete-archive" data-kind="topic" data-record-id="${escapeHtml(topic.id)}" ${canDelete ? "" : "disabled"}>永久删除</button></div></td></tr>`;
+      return `<tr class="topic-row-archived"><td class="article-title-cell"><b>${escapeHtml(topic.title)}</b><small>${escapeHtml(topic.id)} · v${escapeHtml(topic.version || 1)} · 归档于 ${formatRelative(topic.archivedAt || topic.updatedAt || topic.createdAt)}</small></td><td>${escapeHtml(coreQuestion)}</td><td><span class="source-tag">${escapeHtml(DIMENSIONS.find((item) => item.id === topic.dimension)?.label || topic.dimension || "未分类")}</span></td><td>${priorityScoreCell(topic.recommendation)}</td><td><span class="status-badge status-archived">已归档</span></td><td><span class="topic-reference-count">${escapeHtml(referenceText)}</span></td><td><div class="table-actions topic-row-actions"><button class="secondary-button button-small" type="button" data-action="restore-planning-record" data-kind="topic" data-record-id="${escapeHtml(topic.id)}"><span data-icon="refresh"></span>恢复</button>${refs.plans.length || refs.articles.length ? `<button class="link-button" type="button" data-action="view-planning-relations" data-kind="topic" data-record-id="${escapeHtml(topic.id)}">引用详情</button>` : ""}<button class="danger-button button-small" type="button" data-action="request-delete-archive" data-kind="topic" data-record-id="${escapeHtml(topic.id)}" ${canDelete ? "" : "disabled"}>永久删除</button></div></td></tr>`;
     }).join("");
   const total = archivedQuestions.length + archivedTopics.length;
   const table = kind === "questions"
     ? `<table class="data-table topic-center-table topic-management-table"><thead><tr><th>问题</th><th>来源关键词</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`
-    : `<table class="data-table topic-center-table topic-management-table"><thead><tr><th>选题</th><th>核心回答问题</th><th>内容方向</th><th>优先级</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
+    : `<table class="data-table topic-center-table topic-management-table"><thead><tr><th>选题</th><th>核心回答问题</th><th>内容方向</th><th>${sortableHeader("优先级", "archive-topic", "priority", ui.archiveTopicSort)}</th><th>状态</th><th>引用关系</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>`;
   return `<section class="archive-summary"><article class="card summary-card"><span data-icon="archive"></span><div><b>${total}</b><small>当前业务线归档项</small></div></article><article class="card summary-card"><span class="amber" data-icon="help"></span><div><b>${archivedQuestions.length}</b><small>归档问题</small></div></article><article class="card summary-card"><span class="purple" data-icon="clipboard"></span><div><b>${archivedTopics.length}</b><small>归档选题</small></div></article></section><section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 归档管理</h3><p>归档项不参与新的选题计划和文章生成，历史计划、文章与来源关系继续保留。</p></div><span class="small-tag blue">${total} 项</span></div><div class="archive-type-tabs" role="tablist"><button class="tab-button ${kind === "questions" ? "active" : ""}" type="button" data-action="planning-archive-kind" data-kind="questions">已归档问题 · ${archivedQuestions.length}</button><button class="tab-button ${kind === "topics" ? "active" : ""}" type="button" data-action="planning-archive-kind" data-kind="topics">已归档选题 · ${archivedTopics.length}</button></div>${rows ? `<div class="table-scroll">${table}</div>` : '<div class="archive-empty empty-state"><div><span data-icon="archive"></span><h3>这里还没有归档项</h3><p>在问题词库或选题库中归档后，可以在这里恢复。</p></div></div>'}</section>`;
 }
 
@@ -4757,13 +5222,13 @@ function renderContentPlans() {
   const produced = plans.filter((plan) => plan.status === "produced").length;
   return `
     <section class="topic-plan-summary"><article class="card summary-card"><span data-icon="clock"></span><div><b>${plans.length}</b><small>全部计划</small></div></article><article class="card summary-card"><span class="amber" data-icon="clipboard"></span><div><b>${planned}</b><small>等待执行</small></div></article><article class="card summary-card"><span class="green" data-icon="file"></span><div><b>${produced}</b><small>已创建内容</small></div></article></section>
-    <section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 内容计划</h3><p>计划同时冻结选题来源、写作智能体版本和企业知识范围，再创建文章任务</p></div><button class="secondary-button button-small" type="button" data-action="planning-tab" data-tab="topics"><span data-icon="plus"></span>从选题创建</button></div><div class="table-scroll"><table class="data-table topic-center-table"><thead><tr><th>计划</th><th>选题</th><th>写作智能体</th><th>知识范围</th><th>计划日期</th><th>负责人</th><th>形式</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="clock"></span><h3>还没有内容计划</h3><p>先到选题库选择选题，再安排日期、负责人、写作智能体和知识范围。</p></div></div>'}</section>
+    <section class="card table-card planning-library-panel"><div class="card-header"><div><h3>${escapeHtml(line?.name || "业务线")} · 内容计划</h3><p>计划同时冻结选题来源、写作智能体版本和企业知识范围，再创建文章任务。</p></div><button class="secondary-button button-small" type="button" data-action="planning-tab" data-tab="topics"><span data-icon="plus"></span>从选题创建</button></div><div class="table-scroll"><table class="data-table topic-center-table"><thead><tr><th>计划</th><th>选题</th><th>写作智能体</th><th>知识范围</th><th>计划日期</th><th>负责人</th><th>形式</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table></div>${rows ? "" : '<div class="empty-state"><div><span data-icon="clock"></span><h3>还没有内容计划</h3><p>先到选题库选择选题，再安排日期、负责人、写作智能体和知识范围。</p><button class="primary-button button-small" type="button" data-action="planning-tab" data-tab="topics">去选题库</button></div></div>'}</section>
   `;
 }
 
 function renderPlanning() {
   const actions = ui.planningTab === "keywords"
-    ? '<button class="secondary-button" type="button" data-action="export-pack"><span data-icon="download"></span>导出词包</button><button class="primary-button" type="button" data-action="focus-business-keyword"><span data-icon="plus"></span>添加关键词</button>'
+    ? '<button class="secondary-button" type="button" data-action="export-pack"><span data-icon="download"></span>导出词包</button><button class="primary-button" type="button" data-action="focus-business-keyword"><span data-icon="plus"></span>扩展关键词</button>'
     : ui.planningTab === "questions"
       ? '<button class="primary-button" type="button" data-action="focus-question"><span data-icon="plus"></span>手动添加问题</button>'
       : ui.planningTab === "topics"
@@ -4772,21 +5237,21 @@ function renderPlanning() {
           ? '<button class="primary-button" type="button" data-action="planning-tab" data-tab="topics"><span data-icon="plus"></span>从选题创建计划</button>'
           : '<button class="secondary-button" type="button" data-action="planning-archive-kind" data-kind="questions"><span data-icon="help"></span>查看归档问题</button>';
   const panel = ui.planningTab === "keywords" ? renderKeywordWorkspace() : ui.planningTab === "questions" ? renderQuestionLibrary() : ui.planningTab === "topics" ? renderTopicLibrary() : ui.planningTab === "plans" ? renderContentPlans() : renderPlanningArchive();
-  return `<div class="page-container">${pageHead("选题中心", "按业务线维护关键词、客户问题、内容选题和执行计划。", actions)}<div class="tabs-row topic-center-tab-row">${planningTabs()}<span class="health"><i></i>来源链完整</span></div>${renderBusinessScope()}${panel}</div>`;
+  return `<div class="page-container planning-page-shell planning-workbench-page"><header class="page-head page-head-terminal planning-workbench-head"><div><h2>问题研究</h2><p>从客户问题与搜索需求中发现内容机会，并将确认结果推进到选题与生产计划。</p></div><div class="planning-head-actions">${actions}</div></header><section class="planning-workflow-nav"><div class="planning-workflow-meta"><span>研究流程</span><span class="health"><i></i>来源链完整</span></div>${planningLifecycle()}</section>${renderBusinessScope()}<main class="planning-workbench-body">${panel}</main></div>`;
 }
 
 function contentSectionTabs() {
   const items = [
-    ["studio", "AI 创作台", "edit", "直接生成"],
-    ["articles", "文章任务", "file", state.articles.length],
-    ["agents", "写作智能体", "sparkle", (state.writingAgents || []).filter((agent) => agent.status === "active").length]
+    ["studio", "创作工作区", "edit", "直接生成"],
+    ["articles", "文章管理", "file", state.articles.length],
+    ["agents", "生产配置", "sparkle", (state.writingAgents || []).filter((agent) => agent.status === "active").length]
   ];
   return '<div class="content-section-tabs" role="tablist">' + items.map(([id, label, iconName, count]) => `<button class="${ui.contentView === id ? "active" : ""}" type="button" data-action="content-view" data-view="${id}"><span data-icon="${iconName}"></span><span><b>${label}</b><small>${id === "studio" ? count : count + (id === "articles" ? " 篇" : " 个启用")}</small></span></button>`).join("") + "</div>";
 }
 
 function contentPageShell(body, actions = "") {
   const line = activeBusinessLine();
-  return `<div class="page-container content-page-container">${pageHead("内容生产", `${line?.name || "当前业务线"} · 按内容计划管理文章任务，也可以进入 AI 创作台直接起稿。`, actions)}<div class="tabs-row topic-center-tab-row content-section-tabs-row">${contentSectionTabs()}<span class="health"><i></i>${ui.contentView === "studio" ? "自动保存会话" : "内容任务工作区"}</span></div>${body}</div>`;
+  return `<div class="page-container content-page-container">${pageHead("内容生产", `${line?.name || "当前业务线"} · 管理创作工作区、生成任务、文章版本与审核冻结。`, actions)}<div class="tabs-row topic-center-tab-row content-section-tabs-row">${contentSectionTabs()}<span class="health"><i></i>${ui.contentView === "studio" ? "自动保存会话" : "内容任务工作区"}</span></div>${body}</div>`;
 }
 
 function writingAgentCard(agent) {
@@ -5068,12 +5533,42 @@ function renderStudioQuickEditor(workspace) {
 function renderStudioArticleTextEditor(article) {
   const citations = articleCitations(article);
   const status = article.reviewStatus === "approved" ? '<span class="status-badge status-approved">已审核</span>' : '<span class="status-badge status-review">待审核</span>';
-  return `<main class="studio-editor-panel"><div class="studio-editor-head"><div><h3>文章正文</h3><p>${escapeHtml(article.id)} · ${escapeHtml(article.version)} · ${citations.length} 条企业知识引用</p></div>${status}</div>${renderStudioRichToolbar()}<textarea class="studio-title-input" id="studio-title-editor" rows="2" placeholder="请输入标题">${escapeHtml(article.title)}</textarea><article class="studio-editor-body" id="studio-content-editor" contenteditable="true" spellcheck="true" data-placeholder="请输入文章内容…">${articleContentForEditor(article, citations)}</article><section class="studio-publication-setting"><strong>发布展示</strong>${renderPublicCitationSetting(articlePublicCitationMarkersVisible(article), "studio-show-public-citations", article.reviewStage === "manual_review")}</section></main>`;
+  const editorRiskScan = scanArticleRisk(article);
+  const editorSourceContent = articleContentForEditor(article, citations);
+  const editorContent = highlightArticleRiskHtml(editorSourceContent, editorRiskScan.hits);
+  const titleRiskPreview = renderArticleRiskTitlePreview(article, editorRiskScan, "studio");
+  return `<main class="studio-editor-panel"><div class="studio-editor-head"><div><h3>文章正文</h3><p>${escapeHtml(article.id)} · ${escapeHtml(article.version)} · ${citations.length} 条企业知识引用</p></div>${status}</div>${renderStudioRichToolbar()}<textarea class="studio-title-input" id="studio-title-editor" rows="2" placeholder="请输入标题">${escapeHtml(article.title)}</textarea>${titleRiskPreview}<article class="studio-editor-body" id="studio-content-editor" contenteditable="true" spellcheck="true" data-placeholder="请输入文章内容…">${editorContent}</article><section class="studio-publication-setting"><strong>发布展示</strong>${renderPublicCitationSetting(articlePublicCitationMarkersVisible(article), "studio-show-public-citations", article.reviewStage === "manual_review")}</section></main>`;
+}
+
+function renderStudioArticleEditorWithWorkflow(article) {
+  const manualReview = article.reviewStage === "manual_review";
+  const template = document.createElement("template");
+  template.innerHTML = renderStudioArticleTextEditor(article);
+  const root = template.content.firstElementChild;
+  if (!root) return template.innerHTML;
+  const status = root.querySelector(".studio-editor-head .status-badge");
+  if (status) {
+    status.className = "status-badge " + (article.reviewStatus === "approved" ? "status-approved" : "status-review");
+    status.textContent = article.reviewStatus === "approved" ? "已审核" : manualReview ? "人工审核中" : article.reviewStage === "revision_requested" ? "退回修改" : "待审核";
+  }
+  const titleInput = root.querySelector("#studio-title-editor");
+  const contentInput = root.querySelector("#studio-content-editor");
+  if (manualReview) {
+    if (titleInput) titleInput.readOnly = true;
+    if (contentInput) contentInput.contentEditable = "false";
+    root.querySelectorAll(".studio-editor-toolbar button").forEach((button) => {
+      button.disabled = true;
+      button.setAttribute("aria-disabled", "true");
+    });
+    root.querySelector(".studio-editor-head")?.insertAdjacentHTML("afterend", '<div class="studio-read-only-banner"><span data-icon="lock"></span><div><b>当前版本正在人工审核</b><p>正文已锁定，不能直接修改。请由审核人员先点击“退回并修改”，服务端确认退回后再编辑。</p></div></div>');
+  }
+  if (contentInput) contentInput.insertAdjacentHTML("beforebegin", renderArticleRiskInlineNotice(article, "studio"));
+  return root.outerHTML;
 }
 
 function renderStudioEditor(workspace, article) {
   if (!article) return renderStudioTextEditor(workspace);
-  return renderStudioArticleTextEditor(article);
+  return renderStudioArticleEditorWithWorkflow(article);
   const line = state.businessLines.find((item) => item.id === workspace.businessLineId) || activeBusinessLine();
   if (!article) {
     const lines = state.businessLines.filter((item) => item.status === "active").map((item) => `<option value="${item.id}" ${item.id === line?.id ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("");
@@ -5095,7 +5590,10 @@ function renderContentStudio() {
   const agent = writingAgentById(conversation?.selectedAgentId) || writingAgentById(workspace.writingAgentId);
   const knowledgeCount = studioApprovedKnowledgeEntries(workspace).length;
   const studio = `<section class="content-studio-page"><div class="studio-topbar"><button class="studio-back-button" type="button" data-action="back-to-articles"><span data-icon="arrow"></span>文章任务</button><div class="studio-doc-meta"><span>${article ? escapeHtml(article.id) + " · " + escapeHtml(article.version) : "直接创作 · 尚未生成文章"}</span><strong class="studio-doc-title">${escapeHtml(article?.title || workspace.topic?.title || "新文章")}</strong><small class="studio-save-state">${article ? "已保存到客户空间" : "创作上下文已保存"}</small><div class="studio-context-chips"><span class="studio-context-chip"><span data-icon="briefcase"></span><b>${escapeHtml(line?.name || "未设置业务线")}</b></span><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(agent?.name || workspace.writingAgentSnapshot?.nameSnapshot || "未选择智能体")}</b></span><span class="studio-context-chip teal"><span data-icon="database"></span><b>${studioKnowledgeBases(workspace).length} 库 / ${knowledgeCount} 条可用资料</b></span><span class="studio-context-chip"><span data-icon="file"></span><b>${workspace.mode === "quick" ? "直接创作" : "文章任务"}</b></span></div></div><div class="studio-top-actions"><button class="secondary-button" type="button" data-action="save-studio-draft"><span data-icon="check"></span><span>保存草稿</span></button>${article?.reviewStatus === "approved" ? `<button class="primary-button" type="button" data-action="open-publish" data-article-id="${escapeHtml(article.id)}"><span data-icon="send"></span><span>发布文章</span></button>` : `<button class="primary-button" type="button" data-action="submit-studio-review" ${article ? "" : "disabled"}><span data-icon="shield"></span><span>提交审核</span></button>`}</div></div><div class="studio-mobile-tabs"><button class="${ui.studioPane === "editor" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="editor">正文</button><button class="${ui.studioPane === "chat" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="chat">AI 协作</button><button class="${ui.studioPane === "info" ? "active" : ""}" type="button" data-action="studio-pane" data-pane="info">文章信息</button></div><div class="studio-shell" data-active-pane="${escapeHtml(ui.studioPane)}">${renderStudioEditor(workspace, article)}${renderStudioChat(workspace, conversation, article)}${renderStudioInfo(workspace, article)}</div></section>`;
-  return contentPageShell(studio, '<button class="secondary-button" type="button" data-nav="planning"><span data-icon="clock"></span>进入选题中心</button><button class="primary-button" type="button" data-action="open-content-studio"><span data-icon="sparkle"></span>直接创作</button>');
+  const studioMarkup = article?.reviewStage === "manual_review"
+    ? studio.replace('data-action="save-studio-draft"', 'data-action="save-studio-draft" disabled aria-disabled="true"').replace("<span>保存草稿</span>", "<span>审核中不可保存</span>").replace('data-action="submit-studio-review"', 'data-action="submit-studio-review" disabled aria-disabled="true"')
+    : studio;
+  return contentPageShell(studioMarkup, '<button class="secondary-button" type="button" data-nav="planning"><span data-icon="clock"></span>进入选题中心</button><button class="primary-button" type="button" data-action="open-content-studio"><span data-icon="sparkle"></span>直接创作</button>');
 }
 
 function contentPlanForArticle(article) {
@@ -5323,7 +5821,10 @@ function enhanceArticleTaskSelection(root = document) {
 }
 
 function contentTaskViewSwitcher() {
-  return `<div class="content-task-switcher" role="tablist"><button class="${ui.articleTaskView === "plans" ? "active" : ""}" type="button" data-action="content-task-view" data-view="plans"><span data-icon="clock"></span><span><b>计划任务</b><small>按计划管理文章</small></span></button><button class="${ui.articleTaskView === "articles" ? "active" : ""}" type="button" data-action="content-task-view" data-view="articles"><span data-icon="file"></span><span><b>全部文章</b><small>按状态统一处理</small></span></button></div>`;
+  const line = activeBusinessLine();
+  const planCount = state.contentPlans.filter((plan) => plan.businessLineId === line?.id).length;
+  const articleCount = state.articles.filter((article) => contentArticleInCurrentBusinessLine(article)).length;
+  return `<div class="content-task-switcher" role="tablist"><button class="${ui.articleTaskView === "plans" ? "active" : ""}" type="button" data-action="content-task-view" data-view="plans"><span data-icon="clock"></span><span><b>生成任务</b><small>${planCount ? `${planCount} 个计划 · 跟踪进度` : "暂无计划 · 建议先做选题"}</small></span></button><button class="${ui.articleTaskView === "articles" ? "active" : ""}" type="button" data-action="content-task-view" data-view="articles"><span data-icon="file"></span><span><b>文章列表</b><small>${articleCount} 篇文章 · 管理版本与审核</small></span></button></div>`;
 }
 
 function renderContentPlanTasks() {
@@ -5341,14 +5842,19 @@ function renderContentPlanTasks() {
       progress.draft ? `<span class="status-badge status-draft">草稿 ${progress.draft}</span>` : "",
       progress.pending ? `<span class="status-badge status-review">待审核 ${progress.pending}</span>` : "",
       progress.approved ? `<span class="status-badge status-approved">已通过 ${progress.approved}</span>` : "",
-      progress.published ? `<span class="status-badge status-success">已发布 ${progress.published}</span>` : ""
+      progress.published ? `<span class="status-badge status-published">已发布 ${progress.published}</span>` : ""
     ].filter(Boolean).join(" ") || '<span class="small-tag">尚未生成</span>';
     const missingNote = !progress.total ? '<small>计划无选题</small>' : progress.missing ? `<small class="plan-progress-missing">还差 ${progress.missing} 篇</small>` : '<small class="plan-progress-complete">文章任务已齐</small>';
     return `<tr><td class="article-title-cell"><button class="plan-name-button" type="button" data-action="view-plan-content" data-plan-id="${escapeHtml(plan.id)}">${escapeHtml(plan.name)}</button><small>${escapeHtml(plan.id)} · ${escapeHtml(line?.name || "未关联业务线")} · 创建于 ${formatRelative(plan.createdAt)}</small></td><td><b>${progress.plannedCount}</b> 个选题<br><small>${progress.created}/${progress.total || 0} 篇文章</small></td><td><div class="plan-progress"><div class="plan-progress-track"><i style="width:${percent}%"></i></div><div class="plan-progress-meta"><b>${percent}%</b>${missingNote}</div></div><div class="plan-status-list">${statusSummary}</div></td><td>${escapeHtml(plan.scheduledFor || "未安排")}</td><td>${escapeHtml(plan.owner || "未分配")}</td><td>${planStatusBadge(plan.status)}</td><td><div class="table-actions"><button class="link-button" type="button" data-action="view-plan-content" data-plan-id="${escapeHtml(plan.id)}">查看文章任务</button>${progress.articles.some((article) => articlePublishEligibility(article).ok) ? `<button class="link-button" type="button" data-action="schedule-plan" data-plan-id="${escapeHtml(plan.id)}">安排发布</button>` : ""}${progress.missing ? `<button class="link-button" type="button" data-action="execute-plan" data-plan-id="${escapeHtml(plan.id)}">继续生成</button>` : ""}</div></td></tr>`;
   }).join("");
-  const directRow = directArticles.length ? `<tr><td class="article-title-cell"><button class="plan-name-button" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="__direct__">直接创作</button><small>未关联内容计划 · 独立文章工作区</small></td><td>—<br><small>${directArticles.length} 篇文章</small></td><td><div class="plan-progress"><div class="plan-progress-track"><i style="width:100%"></i></div><div class="plan-progress-meta"><b>—</b><small>直接创作不纳入计划进度</small></div></div></td><td>—</td><td>—</td><td><span class="small-tag blue">独立创作</span></td><td><button class="link-button" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="__direct__">查看文章</button></td></tr>` : "";
-  const summary = `<section class="content-plan-summary"><article class="card summary-card"><span data-icon="clock"></span><div><b>${plans.length}</b><small>内容计划</small></div></article><article class="card summary-card"><span class="amber" data-icon="clipboard"></span><div><b>${allPlannedArticles.length}</b><small>计划文章</small></div></article><article class="card summary-card"><span class="green" data-icon="file"></span><div><b>${pending}</b><small>待审核</small></div></article><article class="card summary-card"><span class="purple" data-icon="send"></span><div><b>${published}</b><small>已发布</small></div></article></section>`;
-  return `${contentTaskViewSwitcher()}${summary}<section class="card table-card"><div class="card-header"><div><h3>内容计划任务</h3><p>先按计划查看进度，再进入计划查看每个选题对应的文章状态。</p></div><button class="secondary-button button-small" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="all">查看全部文章</button></div>${rows || directRow ? `<div class="table-scroll"><table class="data-table content-plan-table"><thead><tr><th>计划</th><th>选题 / 文章</th><th>文章进度与状态</th><th>截止日期</th><th>负责人</th><th>计划状态</th><th class="text-right">操作</th></tr></thead><tbody>${rows}${directRow}</tbody></table></div>` : '<div class="empty-state"><div><span data-icon="clock"></span><h3>还没有内容计划</h3><p>先从选题中心创建计划，或直接进入 AI 创作台。</p><button class="primary-button button-small" type="button" data-nav="planning">进入选题中心</button></div></div>'}</section>`;
+  const directRow = directArticles.length ? `<tr class="content-direct-row"><td class="article-title-cell"><button class="plan-name-button" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="__direct__">直接创作</button><small>未关联内容计划 · 独立文章工作区</small></td><td>—<br><small>${directArticles.length} 篇文章</small></td><td><div class="plan-progress plan-progress-direct"><div class="plan-progress-meta"><b>独立创作</b><small>不计入计划进度</small></div></div></td><td>—</td><td>—</td><td><span class="small-tag blue">独立创作</span></td><td><button class="link-button" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="__direct__">查看文章</button></td></tr>` : "";
+  const directPublished = directArticles.filter((article) => article.status === "published").length;
+  const totalArticles = allPlannedArticles.length + directArticles.length;
+  const summary = `<section class="content-plan-summary content-queue-summary"><article class="card summary-card ${plans.length ? "" : "is-zero"}"><span data-icon="clock"></span><div><b>${plans.length}</b><small>内容计划</small><em>${plans.length ? "正在推进" : "尚未建立"}</em></div></article><article class="card summary-card ${totalArticles ? "" : "is-zero"}"><span class="amber" data-icon="file"></span><div><b>${totalArticles}</b><small>${plans.length ? "计划文章" : "已有文章"}</small><em>${directArticles.length ? `${directArticles.length} 篇直接创作` : "等待内容生成"}</em></div></article><article class="card summary-card ${pending ? "" : "is-zero"}"><span class="green" data-icon="check"></span><div><b>${pending}</b><small>待审核</small><em>${pending ? "需要处理" : "当前无待办"}</em></div></article><article class="card summary-card ${published || directPublished ? "" : "is-zero"}"><span class="purple" data-icon="send"></span><div><b>${published + directPublished}</b><small>已发布</small><em>${published + directPublished ? "已有发布成果" : "尚未发布"}</em></div></article></section>`;
+  const queueTitle = plans.length ? "内容计划任务" : "当前内容队列";
+  const queueDescription = plans.length ? "按计划查看生产进度，再进入计划处理每个选题对应的文章。" : (directArticles.length ? `当前业务线暂无内容计划，已为你保留 ${directArticles.length} 篇直接创作文章。` : "当前业务线还没有内容计划或文章，可以从选题中心开始。");
+  const queueAction = `<div class="content-queue-actions"><button class="secondary-button button-small" type="button" data-action="content-task-view" data-view="articles" data-plan-filter="all">查看文章列表</button>${!plans.length ? '<button class="primary-button button-small" type="button" data-nav="planning"><span data-icon="clock"></span>创建内容计划</button>' : ""}</div>`;
+  return `${contentTaskViewSwitcher()}${summary}<section class="card table-card content-queue-card"><div class="card-header"><div><span class="section-kicker">生产工作队列</span><h3>${queueTitle}</h3><p>${queueDescription}</p></div>${queueAction}</div>${rows || directRow ? `<div class="table-scroll"><table class="data-table content-plan-table"><thead><tr><th>计划 / 来源</th><th>选题 / 文章</th><th>文章进度与状态</th><th>截止日期</th><th>负责人</th><th>计划状态</th><th class="text-right">操作</th></tr></thead><tbody>${rows}${directRow}</tbody></table></div>` : '<div class="empty-state content-queue-empty"><div><span data-icon="clock"></span><h3>还没有内容任务</h3><p>从选题中心创建内容计划，或点击右上角直接创作。</p></div></div>'}</section>`;
 }
 
 function renderContentArticleList() {
@@ -5426,7 +5932,12 @@ function renderContentArticleList() {
   const advancedFilters = ui.articleFilterExpanded
     ? `<div class="content-advanced-filters"><label><span>风控状态</span><select class="select" data-content-risk-filter><option value="all" ${ui.articleRiskFilter === "all" ? "selected" : ""}>全部风控状态</option><option value="clean" ${ui.articleRiskFilter === "clean" ? "selected" : ""}>风控通过</option><option value="unscanned" ${ui.articleRiskFilter === "unscanned" ? "selected" : ""}>尚未检测</option><option value="stale" ${ui.articleRiskFilter === "stale" ? "selected" : ""}>结果已过期</option><option value="warning" ${ui.articleRiskFilter === "warning" ? "selected" : ""}>需注意</option><option value="blocked" ${ui.articleRiskFilter === "blocked" ? "selected" : ""}>已阻断</option></select></label><label><span>知识证据</span><select class="select" data-content-knowledge-filter><option value="all" ${ui.articleKnowledgeFilter === "all" ? "selected" : ""}>全部证据状态</option><option value="mapped" ${ui.articleKnowledgeFilter === "mapped" ? "selected" : ""}>已映射企业知识</option><option value="unmapped" ${ui.articleKnowledgeFilter === "unmapped" ? "selected" : ""}>未映射企业知识</option><option value="outdated" ${ui.articleKnowledgeFilter === "outdated" ? "selected" : ""}>引用知识已更新</option></select></label><button class="ghost-button button-small" type="button" data-action="clear-content-filters" ${activeAdvancedFilters || ui.articleSearch ? "" : "disabled"}>清除筛选</button></div>`
     : "";
-  return `${contentTaskViewSwitcher()}<div class="content-article-toolbar"><div class="tabs" role="tablist">${tabHtml}</div><div class="filter-tools"><label class="content-plan-filter"><span>来源计划</span><select class="select" id="content-plan-filter">${planOptions}</select></label><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.articleSearch)}" placeholder="搜索文章、计划、选题或编号" aria-label="搜索文章" data-content-article-search /></div><button class="secondary-button button-small ${activeAdvancedFilters ? "active" : ""}" type="button" data-action="content-filter"><span data-icon="filter"></span>筛选${activeAdvancedFilters ? ` · ${activeAdvancedFilters}` : ""}</button></div></div>${advancedFilters}<section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(filterLabel)} · 文章任务</h3><p>${description}</p></div>${headerActions}</div>${taskTable}</section>`;
+  const activeFilterSummary = [
+    ui.articleTab !== "all" ? tabs.find(([id]) => id === ui.articleTab)?.[1] : "全部状态",
+    filterLabel !== "全部计划" ? filterLabel : "",
+    ui.articleSearch ? `搜索“${ui.articleSearch}”` : ""
+  ].filter(Boolean).join(" · ");
+  return `${contentTaskViewSwitcher()}<div class="content-article-toolbar"><div class="tabs" role="tablist">${tabHtml}</div><div class="filter-tools"><label class="content-plan-filter"><span>来源计划</span><select class="select" id="content-plan-filter">${planOptions}</select></label><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.articleSearch)}" placeholder="搜索文章、计划、选题或编号" aria-label="搜索文章" data-content-article-search /></div><button class="secondary-button button-small ${activeAdvancedFilters ? "active" : ""}" type="button" data-action="content-filter"><span data-icon="filter"></span>更多筛选${activeAdvancedFilters ? ` · ${activeAdvancedFilters}` : ""}</button></div></div><div class="content-filter-summary"><span class="content-filter-summary-label">当前视图</span><b>${escapeHtml(activeFilterSummary)}</b><span>${filtered.length + (selectedPlanProgress?.missing || 0)} 项</span>${activeAdvancedFilters || ui.articleSearch ? '<button class="text-button" type="button" data-action="clear-content-filters">清除条件</button>' : ""}</div>${advancedFilters}<section class="card table-card"><div class="card-header"><div><h3>${escapeHtml(filterLabel)} · 文章任务</h3><p>${description}</p></div>${headerActions}</div>${taskTable}</section>`;
 }
 
 function renderContent() {
@@ -5514,7 +6025,7 @@ function assetLifecycleBadge(record) {
     draft: ["草稿资产", "status-draft"],
     pending_review: ["待人工审核", "status-review"],
     ready: ["待发布", "status-approved"],
-    published: ["已发布", "status-success"],
+    published: ["已发布", "status-published"],
     monitoring: ["监测中", "status-running"],
     needs_action: ["需要处理", "status-error"]
   }[record.lifecycle] || ["待整理", "status-draft"];
@@ -5625,6 +6136,17 @@ function publishBatchPlatformState(entry, group, selectedArticles) {
   if (entry.id === "web") return { available: true, status: "online", reason: `${state.site.domain} · 服务器发布`, ...existingState };
   const catalog = publisherPlatform(entry.id);
   if (publisherSnapshot.loaded && (!catalog || !catalog.enabled)) return { available: false, status: "not_connected", reason: "本地发布器未声明该平台", ...existingState };
+  const device = (publisherSnapshot.devices || []).find((item) => (
+    (group?.deviceId && item.id === group.deviceId)
+      || (!group?.deviceId && (item.accountGroups || []).some((itemGroup) => itemGroup.id === group?.id))
+  ));
+  if (!device || device.status !== "online") {
+    return { available: false, status: "device_offline", reason: "本地发布器尚未在线同步", ...existingState };
+  }
+  const capabilities = new Set((device.capabilities || []).map(canonicalPublishPlatformId));
+  if (!capabilities.has(canonicalPublishPlatformId(entry.id))) {
+    return { available: false, status: "not_capable", reason: "本地发布器尚未同步该平台能力", ...existingState };
+  }
   const connection = publisherAccountConnection(group, entry.id);
   const account = connection.account;
   if (!account) return { available: false, status: "not_connected", reason: "当前账号组尚未绑定账号", ...existingState };
@@ -5659,7 +6181,7 @@ function publishBatchPlatformCards() {
     const status = stateMeta.status;
     const platform = PLATFORM_META[entry.id] || { name: entry.id, short: "平", logoClass: "generic" };
     const skipNote = Number(stateMeta.existingCount || 0) > 0 ? `<em class="publish-platform-skip-note">${stateMeta.existingCount} 篇已有该平台任务，本次将跳过</em>` : "";
-    return `<label class="publish-platform-card ${selected ? "selected" : ""} ${stateMeta.available && formal ? "" : "disabled"}"><div class="publish-platform-card-top"><input class="checkbox" type="checkbox" data-publish-batch-platform="${entry.id}" ${selected ? "checked" : ""} ${stateMeta.available && formal ? "" : "disabled"} /><span class="platform-logo ${platform.logoClass}">${platform.short}</span><span class="publish-platform-card-name"><b>${escapeHtml(platform.name)}</b><small>${escapeHtml(entry.role)}</small></span>${formal ? statusBadge(status) : '<span class="small-tag">规划中</span>'}</div><div class="publish-platform-card-meta"><span>${escapeHtml(entry.capabilities)}</span><span>${formal ? escapeHtml(stateMeta.reason) : "首期未正式支持，暂不可发布"}</span></div>${skipNote}${entry.id === "web" ? '<em class="publish-platform-role">推荐主信源</em>' : ""}</label>`;
+    return `<label class="publish-platform-card ${selected ? "selected" : ""} ${stateMeta.available && formal ? "" : "disabled"}"><div class="publish-platform-card-top"><input class="checkbox" type="checkbox" data-publish-batch-platform="${entry.id}" ${selected ? "checked" : ""} ${stateMeta.available && formal ? "" : "disabled"} />${platformLogo(entry.id)}<span class="publish-platform-card-name"><b>${escapeHtml(platform.name)}</b><small>${escapeHtml(entry.role)}</small></span>${formal ? statusBadge(status) : '<span class="small-tag">规划中</span>'}</div><div class="publish-platform-card-meta"><span>${escapeHtml(entry.capabilities)}</span><span>${formal ? escapeHtml(stateMeta.reason) : "首期未正式支持，暂不可发布"}</span></div>${skipNote}${entry.id === "web" ? '<em class="publish-platform-role">推荐主信源</em>' : ""}</label>`;
   }).join("");
   return cards || '<div class="empty-state compact"><div><span data-icon="search"></span><h3>没有匹配的平台</h3><p>换一个平台名称或切换平台分类。</p></div></div>';
 }
@@ -5728,8 +6250,25 @@ async function submitPublishBatch() {
   if (!selection.platformOrder?.length) return showToast("请先选择平台", "请选择至少一个可用平台。", "error");
   if (selection.mode === "schedule") return openScheduleFromPublishBatch();
   if (!(await ensurePublisherIntegration())) return;
+  // The composer can stay open while the desktop assistant pairs or sends its
+  // first heartbeat. Always refresh immediately before creating jobs so the
+  // selection cannot use a stale "connected" snapshot.
+  if (!(await refreshPublisherSnapshot())) {
+    return showToast("发布器状态未同步", publisherSnapshot.error || "请等待桌面发布器完成一次心跳后重试。", "error");
+  }
   const group = publishBatchGroup();
   const articles = selection.articleIds.map((id) => state.articles.find((article) => article.id === id)).filter(Boolean);
+  const unavailable = selection.platformOrder
+    .map((platformId) => {
+      if (platformId === "web") return null;
+      const entry = publishBatchPlatformEntry(platformId);
+      const status = publishBatchPlatformState(entry, group, articles);
+      return status.available ? null : `${entry?.name || platformId}：${status.reason}`;
+    })
+    .filter(Boolean);
+  if (unavailable.length) {
+    return showToast("发布器尚未完成同步", unavailable.join("；"), "error");
+  }
   const created = [];
   let skippedPairs = 0;
   for (const article of articles) {
@@ -5773,7 +6312,7 @@ async function submitPublishBatch() {
 }
 
 function taskNeedsAction(task) {
-  return Object.values(task.targets).some((target) => ["failed", "needs_login", "needs_verification", "draft_saved", "result_unknown"].includes(target.status));
+  return Object.values(task?.targets || {}).some((target) => ["failed", "needs_login", "needs_verification", "draft_saved", "result_unknown"].includes(target?.status));
 }
 
 function renderPublish() {
@@ -5798,21 +6337,21 @@ function renderPublish() {
   }).join("");
 
   const tasks = filtered.map((task) => {
-    const targetHtml = Object.entries(task.targets).map(([platform, target]) => {
-      const meta = PLATFORM_META[platform];
-      const result = target.status === "success"
+    const targetHtml = Object.entries(task.targets || {}).map(([platform, target]) => {
+        const meta = PLATFORM_META[platform] || { name: publishPlatformName(platform) };
+        const result = target?.status === "success"
         ? target.remoteUrl
           ? '<a href="' + escapeHtml(target.remoteUrl) + '" target="_blank" rel="noreferrer">打开发布地址</a>'
           : '<button class="link-button" type="button" data-action="task-log" data-task-id="' + task.id + '">查看回写详情</button>'
-        : target.status === "result_unknown"
-          ? '<button class="link-button" type="button" data-action="task-log" data-task-id="' + task.id + '">立即核验</button>'
-          : ["queued", "running"].includes(target.status)
+          : ["draft_saved", "result_unknown", "needs_verification"].includes(target?.status)
+            ? '<span class="target-state-copy">' + escapeHtml(target?.message || (target?.status === "draft_saved" ? "草稿已保存，等待完成平台发布" : "尚未确认公开发布")) + '</span><button class="link-button verify-publish-button" type="button" data-action="verify-result" data-task-id="' + task.id + '" data-platform="' + escapeHtml(platform) + '">检查发布状态</button>'
+            : ["queued", "running"].includes(target?.status)
             ? "本地助手正在处理"
             : "等待处理";
       return `
         <div class="publish-target">
           <div class="platform-name"><span class="platform-label">${platformLogo(platform)}<span>${meta.name}</span></span>${statusBadge(target.status)}</div>
-          <div class="target-result">${escapeHtml(target.account)} · ${result}</div>
+          <div class="target-result">${escapeHtml(target?.account || "未绑定账号")} · ${result}</div>
         </div>
       `;
     }).join("");
@@ -5832,7 +6371,7 @@ function renderPublish() {
 
   return `
     <div class="page-container">
-      ${pageHead("发布运营", "文章审核通过后创建发布批次；本地助手按平台顺序和文章间隔执行。", '<button class="secondary-button" type="button" data-action="go-schedule-articles"><span data-icon="clock"></span>创建定时排期</button><button class="primary-button" type="button" data-action="open-publish-batch"><span data-icon="send"></span>新建发布批次</button>')}
+      ${pageHead("发布任务", "文章审核通过后创建发布批次；这里集中查看排期、平台执行状态、失败和结果。", '<button class="secondary-button" type="button" data-action="go-schedule-articles"><span data-icon="clock"></span>创建定时排期</button><button class="primary-button" type="button" data-action="open-publish-batch"><span data-icon="send"></span>新建发布批次</button>')}
       ${publisherSnapshot.loaded ? "" : `<div class="privacy-note warning publisher-offline-note"><span data-icon="alert"></span><span><b>发布服务未连接</b><br />${escapeHtml(publisherSnapshot.error || "正在连接本地发布器任务服务；断连期间不会创建模拟任务或伪造发布结果。")}</span><button class="secondary-button button-small" type="button" data-action="refresh-publisher"><span data-icon="refresh"></span>重新连接</button></div>`}
       <section class="publish-summary">
         <article class="card summary-card"><span data-icon="file"></span><div><b>${readyCount}</b><small>待发布文章</small></div></article>
@@ -7908,6 +8447,20 @@ function effectRelayRunLabel(status = effectRelayRunStatus()) {
   })[status] || status || "未连接";
 }
 
+function effectRelayStageState(status = "idle", stats = {}) {
+  const normalized = String(status || "idle").toLowerCase();
+  const delivered = Number(stats.delivered || 0);
+  const verified = Number(stats.verified || 0);
+  const hasReturnedEvidence = delivered > 0 || verified > 0;
+  if (normalized === "completed") return { current: 4, tone: "complete" };
+  if (normalized === "partial") return { current: 4, tone: "partial" };
+  if (["failed", "attention"].includes(normalized)) return { current: hasReturnedEvidence ? 3 : 2, tone: "error" };
+  if (normalized === "cancelled") return { current: hasReturnedEvidence ? 3 : 1, tone: "cancelled" };
+  if (normalized === "running") return { current: hasReturnedEvidence ? 3 : 2, tone: "active" };
+  if (["pending", "submitted", "queued"].includes(normalized)) return { current: 1, tone: "active" };
+  return { current: 0, tone: "idle" };
+}
+
 const EFFECT_RELAY_FEATURES = Object.freeze({
   realtime: ["aidso_realtime_search", "real_time_search", "effect_search"],
   diagnostic: ["aidso_brand_diagnostic", "brand_diagnostic", "effect_diagnostic"],
@@ -8518,13 +9071,28 @@ function effectRelayStatusPanel({ flow = currentRoute() === "effect-diagnostic" 
   const link = entry?.link || flowState.activeLink;
   const run = entry?.run || flowState.activeRun;
   const status = effectRelayRunStatus(link, run);
+  const stats = effectRelayEntryStats({ link, run });
   const quota = effectRelaySnapshot.quota || {};
   const capabilityCount = effectRelayCapabilityItems().length;
   const unsupported = effectRelaySupportedItems(scopes, modes, questions).length === 0 && (scopes || []).length && (modes || []).length;
   const runId = cancelRunId || link?.diagnosticRunId || "";
   const canCancel = ["pending", "submitted", "queued", "running"].includes(status) && runId;
   const statusText = customerFacingEffectText(flowState.error || effectRelaySnapshot.error || (capabilityCount ? `当前可用 ${capabilityCount} 个检测能力项` : "正在读取检测能力与额度"));
-  return `<div class="effect-relay-status ${effectRelaySnapshot.error || flowState.error ? "is-error" : ""}"><span data-icon="server"></span><div><b>灼见 AI 检测服务 · ${escapeHtml(effectRelaySnapshot.loaded ? "已连接" : "连接中")}</b><small>${escapeHtml(statusText)}</small></div><em>${escapeHtml(effectRelayRunLabel(status))}</em>${quota.availableCredits !== undefined ? `<span class="effect-relay-quota">可用 ${Number(quota.availableCredits).toLocaleString("zh-CN")} 积分</span>` : ""}${quote ? `<span class="effect-relay-quote">本次预计 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</span>` : ""}${unsupported ? '<span class="effect-relay-warning">当前选择没有可执行能力项</span>' : ""}${canCancel ? `<button class="link-button" type="button" data-action="${escapeHtml(cancelAction)}" data-effect-run-id="${escapeHtml(runId)}">取消任务</button>` : ""}<button class="link-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></div>`;
+  const stageState = effectRelayStageState(status, stats);
+  const stages = ["配置", "排队", "分析", "校验", "完成"];
+  const progressKey = runId || run?.id || `${flow}-draft`;
+  const stageFlow = `<ol class="effect-run-stages ${stageState.tone}" data-effect-stage-flow data-effect-stage-key="${escapeHtml(String(progressKey))}" data-effect-stage-current="${stageState.current}" data-effect-stage-status="${escapeHtml(status)}" aria-label="检测过程">${stages.map((label, index) => {
+    const complete = index < stageState.current || (stageState.tone === "complete" && index === stageState.current);
+    const current = index === stageState.current;
+    return `<li class="${complete ? "is-complete" : ""} ${current ? "is-current" : ""}" ${current ? 'aria-current="step"' : ""}><span>${complete ? icon("check") : index + 1}</span><b>${label}</b></li>`;
+  }).join("")}</ol>`;
+  const verifiedRatio = stats.requested ? Math.min(1, Math.max(0, stats.verified / stats.requested)) : 0;
+  const progress = stats.requested
+    ? `<div class="effect-run-progress" data-effect-progress data-effect-progress-key="${escapeHtml(String(progressKey))}" data-effect-progress-value="${verifiedRatio}" aria-label="检测结果校验进度"><div class="effect-run-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${stats.requested}" aria-valuenow="${stats.verified}" aria-valuetext="已校验 ${stats.verified} / ${stats.requested}"><i data-effect-progress-fill style="transform:scaleX(${verifiedRatio})"></i></div><small>已回传 ${stats.delivered} / ${stats.requested} · 已校验 ${stats.verified} / ${stats.requested}</small></div>`
+    : "";
+  const serviceIssue = Boolean(effectRelaySnapshot.error || flowState.error);
+  const serviceLabel = serviceIssue ? "服务异常" : effectRelaySnapshot.loaded ? "已连接" : "连接中";
+  return `<div class="effect-relay-status ${serviceIssue ? "is-error" : ""}"><span data-icon="server"></span><div><b>灼见 AI 检测服务 · ${escapeHtml(serviceLabel)}</b><small>${escapeHtml(statusText)}</small></div><em>${escapeHtml(effectRelayRunLabel(status))}</em>${stageFlow}${progress}${quota.availableCredits !== undefined ? `<span class="effect-relay-quota">可用 ${Number(quota.availableCredits).toLocaleString("zh-CN")} 积分</span>` : ""}${quote ? `<span class="effect-relay-quote">本次预计 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</span>` : ""}${unsupported ? '<span class="effect-relay-warning">当前选择没有可执行能力项</span>' : ""}${canCancel ? `<button class="link-button" type="button" data-action="${escapeHtml(cancelAction)}" data-effect-run-id="${escapeHtml(runId)}">取消任务</button>` : ""}<button class="link-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></div>`;
 }
 
 function effectPlatformCatalog() {
@@ -8764,7 +9332,7 @@ function effectSearchGeneratedReportBody(report) {
     : Array.isArray(source.recommendations) ? source.recommendations : [];
   const recommendationsHtml = recommendations.slice(0, 12).map((item) => `<li><span class="effect-search-recommendation-priority ${escapeHtml(item.priority || "medium")}">${escapeHtml(item.priority || "medium")}</span><div><b>${escapeHtml(item.title || "优化动作")}</b><p>${escapeHtml(item.action || item.rationale || "")}</p><small>${escapeHtml(item.expectedOutcome || "复测同一问题集后观察指标变化")}</small></div></li>`).join("");
   if (!analysisSections.length && !recommendationsHtml) return "";
-  return `<section class="effect-search-analysis-report effect-search-generated-report"><header><div><span class="effect-demo-kicker">AI-GENERATED ANALYSIS</span><h4>本次检测深度分析报告</h4><p>服务端模型仅基于本次已验证的实时检测证据生成。</p></div><span>${icon("file")}已生成</span></header><div class="effect-search-generated-summary"><b>管理层摘要</b><p>${escapeHtml(source.executiveSummary || "报告已生成，但服务端未返回管理层摘要。")}</p></div><div class="effect-search-generated-sections">${sectionHtml}</div>${recommendationsHtml ? `<section class="effect-search-generated-recommendations"><header><b>分级优化行动</b><small>每项动作都来自本次检测证据</small></header><ul>${recommendationsHtml}</ul></section>` : ""}${Array.isArray(source.limitations) && source.limitations.length ? `<footer>${icon("info")}数据边界：${escapeHtml(source.limitations.slice(0, 4).join("；"))}</footer>` : ""}</section>`;
+  return `<section class="effect-search-analysis-report effect-search-generated-report"><header><div><h4>本次检测深度分析报告</h4><p>服务端模型仅基于本次已验证的实时检测证据生成。</p></div><span>${icon("file")}已生成</span></header><div class="effect-search-generated-summary"><b>管理层摘要</b><p>${escapeHtml(source.executiveSummary || "报告已生成，但服务端未返回管理层摘要。")}</p></div><div class="effect-search-generated-sections">${sectionHtml}</div>${recommendationsHtml ? `<section class="effect-search-generated-recommendations"><header><b>分级优化行动</b><small>每项动作都来自本次检测证据</small></header><ul>${recommendationsHtml}</ul></section>` : ""}${Array.isArray(source.limitations) && source.limitations.length ? `<footer>${icon("info")}数据边界：${escapeHtml(source.limitations.slice(0, 4).join("；"))}</footer>` : ""}</section>`;
 }
 
 function effectSearchResultsPanel({ flow = currentRoute() === "effect-diagnostic" ? "diagnostic" : currentRoute() === "effect-monitor" ? "monitoring" : "realtime", records = effectSearchRecordsForView(), entry = effectRelayHistoryEntry(undefined, flow), title = "当前任务交付" } = {}) {
@@ -8809,14 +9377,14 @@ function effectSearchResultsPanel({ flow = currentRoute() === "effect-diagnostic
   const reportBody = generatedReportBody
     ? `<div class="effect-search-report-body">${generatedReportBody}${reportDetails}<footer>${icon("shield")}原始回答和追溯证据已安全归档，需要核验时由系统后台查询。</footer></div>`
     : records.length
-      ? `<div class="effect-search-report-body"><section class="effect-search-analysis-report"><header><div><span class="effect-demo-kicker">ANALYSIS REPORT</span><h4>本次检测分析报告</h4><p>基于已回传的检测结果、品牌字段、平台信息和引用来源自动生成。</p></div><span>${icon("file")}规则分析</span></header><div class="effect-search-analysis-sections">${analysisSections}</div><section class="effect-search-analysis-recommendations"><header><b>优化建议</b><small>建议均基于本次检测中已验证的数据</small></header><ul>${recommendationsHtml}</ul></section></section>${reportDetails}<footer>${icon("shield")}原始回答和追溯证据已安全归档，需要核验时由系统后台查询。</footer></div>`
+      ? `<div class="effect-search-report-body"><section class="effect-search-analysis-report"><header><div><h4>本次检测分析报告</h4><p>基于已回传的检测结果、品牌字段、平台信息和引用来源自动生成。</p></div><span>${icon("file")}规则分析</span></header><div class="effect-search-analysis-sections">${analysisSections}</div><section class="effect-search-analysis-recommendations"><header><b>优化建议</b><small>建议均基于本次检测中已验证的数据</small></header><ul>${recommendationsHtml}</ul></section></section>${reportDetails}<footer>${icon("shield")}原始回答和追溯证据已安全归档，需要核验时由系统后台查询。</footer></div>`
     : `<div class="effect-search-report-empty">${icon(running ? "clock" : "file")}<b>${running ? "正在生成检测报告" : "暂无检测报告"}</b><p>${escapeHtml(summary)}</p></div>`;
   const canGenerateDetailedReport = flow === "realtime" && verified.length && ["completed", "partial"].includes(status);
   const reportAction = canGenerateDetailedReport && !generatedReportBody
     ? `<button class="secondary-button button-small" type="button" data-action="effect-search-generate-report" ${ui.effectSearchReportLoading || !selectedTextProviderId() ? "disabled" : ""}>${ui.effectSearchReportLoading ? "正在生成分析…" : "生成详细分析报告"}</button>`
     : "";
   const reportError = flow === "realtime" && ui.effectSearchReportError ? `<small class="effect-search-report-error">${escapeHtml(ui.effectSearchReportError)}</small>` : "";
-  return `<section class="card effect-search-results effect-search-report"><header><div><span class="effect-demo-kicker">AI 效果检测报告</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(summary)}</p>${reportError}</div><div class="effect-search-report-header-actions">${reportAction}<span class="status-badge ${verified.length && ["completed", "partial"].includes(status) ? "status-approved" : running ? "status-pending" : "status-draft"}">${escapeHtml(effectRelayRunLabel(status))}</span></div></header><div class="effect-search-summary"><div><small>有效证据覆盖率</small><b>${coverageBase ? `${coverage}%` : "—"}</b><em>${verified.length} / ${coverageBase || 0} 条已验证</em></div><div><small>覆盖平台终端</small><b>${platformRows.length || "—"}</b><em>根据回传数据自动归并</em></div><div><small>品牌提及率</small><b>${verified.length && brandName ? `${mentionRate}%` : "—"}</b><em>${brandName ? `${mentioned.length} 条有效结果提及` : "本次未设置品牌"}</em></div><div><small>有效回答引用</small><b>${citations}</b><em>${citationRows.length} 个主要来源</em></div></div>${reportBody}</section>`;
+  return `<section class="card effect-search-results effect-search-report"><header><div><h3>${escapeHtml(title)}</h3><p>${escapeHtml(summary)}</p>${reportError}</div><div class="effect-search-report-header-actions">${reportAction}<span class="status-badge ${verified.length && ["completed", "partial"].includes(status) ? "status-approved" : running ? "status-pending" : "status-draft"}">${escapeHtml(effectRelayRunLabel(status))}</span></div></header><div class="effect-search-summary"><div><small>有效证据覆盖率</small><b>${coverageBase ? `${coverage}%` : "—"}</b><em>${verified.length} / ${coverageBase || 0} 条已验证</em></div><div><small>覆盖平台终端</small><b>${platformRows.length || "—"}</b><em>根据回传数据自动归并</em></div><div><small>品牌提及率</small><b>${verified.length && brandName ? `${mentionRate}%` : "—"}</b><em>${brandName ? `${mentioned.length} 条有效结果提及` : "本次未设置品牌"}</em></div><div><small>有效回答引用</small><b>${citations}</b><em>${citationRows.length} 个主要来源</em></div></div>${reportBody}</section>`;
 }
 
 function effectCenterTabs(active = ui.effectCenterView) {
@@ -8860,7 +9428,7 @@ function renderEffectTaskCenter() {
   const entries = effectRelayHistoryEntries();
   const running = entries.filter((entry) => ["pending", "submitted", "queued", "running"].includes(effectRelayRunStatus(entry.link, entry.run))).length;
   const delivered = entries.reduce((total, entry) => total + effectRelayEntryStats(entry).delivered, 0);
-  return `<section class="card effect-task-center"><header><div><span class="effect-demo-kicker">AI DETECTION TASKS</span><h3>任务中心</h3><p>集中查看灼见 AI 检测任务状态、结果进度和已验证证据。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新任务</button></header><div class="effect-task-summary"><div><small>历史任务</small><b>${entries.length}</b><em>当前客户实例内</em></div><div><small>进行中</small><b>${running}</b><em>由系统异步执行</em></div><div><small>已入库结果</small><b>${delivered}</b><em>仅统计已同步记录</em></div></div>${effectRelaySnapshot.historyError ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectRelaySnapshot.historyError))}</div>` : ""}<div class="effect-task-table">${entries.length ? entries.map(effectCenterTaskRow).join("") : `<div class="effect-search-empty">${effectRelaySnapshot.historyLoaded ? "暂无真实检测任务。请先在“新建检测”中提交冻结问题集。" : "正在读取该客户实例的任务历史…"}</div>`}</div></section>`;
+  return `<section class="card effect-task-center"><header><div><h3>任务中心</h3><p>集中查看灼见 AI 检测任务状态、结果进度和已验证证据。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新任务</button></header><div class="effect-task-summary"><div><small>历史任务</small><b>${entries.length}</b><em>当前客户实例内</em></div><div><small>进行中</small><b>${running}</b><em>由系统异步执行</em></div><div><small>已入库结果</small><b>${delivered}</b><em>仅统计已同步记录</em></div></div>${effectRelaySnapshot.historyError ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectRelaySnapshot.historyError))}</div>` : ""}<div class="effect-task-table">${entries.length ? entries.map(effectCenterTaskRow).join("") : `<div class="effect-search-empty">${effectRelaySnapshot.historyLoaded ? "暂无真实检测任务。请先在“新建检测”中提交冻结问题集。" : "正在读取该客户实例的任务历史…"}</div>`}</div></section>`;
 }
 
 function effectCenterRecordsForResultView() {
@@ -8900,7 +9468,7 @@ function renderEffectResultsCenter() {
   const trends = effectCenterTrendRows(records);
   const filters = `<div class="effect-center-filters"><label>任务<select data-effect-center-filter="run"><option value="all">全部任务</option>${entries.map((entry) => `<option value="${escapeHtml(entry.link.diagnosticRunId)}" ${ui.effectCenterResultRunId === entry.link.diagnosticRunId ? "selected" : ""}>${escapeHtml(effectRelayEntryTitle(entry).slice(0, 42))}</option>`).join("")}</select></label><label>平台<select data-effect-center-filter="platform"><option value="all">全部平台</option>${platforms.map((platform) => `<option value="${escapeHtml(platform)}" ${ui.effectCenterResultPlatform === platform ? "selected" : ""}>${escapeHtml(platform)}</option>`).join("")}</select></label><label>问题<select data-effect-center-filter="question"><option value="all">全部问题</option>${questions.map(([id, text]) => `<option value="${escapeHtml(id)}" ${ui.effectCenterResultQuestion === id ? "selected" : ""}>${escapeHtml(String(text).slice(0, 36))}</option>`).join("")}</select></label><label>时间<select data-effect-center-filter="range"><option value="7" ${ui.effectCenterResultRange === "7" ? "selected" : ""}>近 7 天</option><option value="30" ${ui.effectCenterResultRange === "30" ? "selected" : ""}>近 30 天</option><option value="90" ${ui.effectCenterResultRange === "90" ? "selected" : ""}>近 90 天</option></select></label></div>`;
   const trendHtml = trends.length ? `<div class="effect-trend-list">${trends.map(({ first, latest, samples }) => `<article><div><b>${escapeHtml(latest.platform)} · ${escapeHtml(latest.terminal)} · ${escapeHtml(latest.mode)}</b><small>${escapeHtml(latest.question)}</small></div><span><small>真实样本</small><b>${samples}</b></span><span><small>最早采样</small><b>${escapeHtml(String(first.observedAt || "").replace("T", " ").slice(0, 16))}</b></span><span><small>最近采样</small><b>${escapeHtml(String(latest.observedAt || "").replace("T", " ").slice(0, 16))}</b></span></article>`).join("")}</div>` : '<div class="effect-search-empty">暂无可计算的真实趋势。趋势需要同一问题、同一平台、同一终端与模式至少两条已验证的 live evidence；系统不会用模拟 KPI 补齐。</div>';
-  return `<section class="card effect-results-center"><header><div><span class="effect-demo-kicker">DETECTION EVIDENCE HISTORY</span><h3>结果与趋势</h3><p>仅展示已经校验并写入实时检测证据库的真实结果，当前趋势来自历史检测任务。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新证据</button></header>${filters}<div class="effect-center-trend-card"><div><b>真实历史样本趋势</b><small>不把单次回答内提及顺序称为“平台排名”；只展示可追溯采样时间。</small></div>${trendHtml}</div></section>${effectSearchResultsPanel({ records, title: "已落库的检测结果" })}`;
+  return `<section class="card effect-results-center"><header><div><h3>结果与趋势</h3><p>仅展示已经校验并写入实时检测证据库的真实结果，当前趋势来自历史检测任务。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新证据</button></header>${filters}<div class="effect-center-trend-card"><div><b>真实历史样本趋势</b><small>不把单次回答内提及顺序称为“平台排名”；只展示可追溯采样时间。</small></div>${trendHtml}</div></section>${effectSearchResultsPanel({ records, title: "已落库的检测结果" })}`;
 }
 
 function renderEffectCreateCenter() {
@@ -8917,7 +9485,186 @@ function renderEffectCreateCenter() {
     ? `<div class="effect-search-quote-summary"><span data-icon="quote"></span><div><b>本次检测预计：${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</b><small>将提交 ${supportedItems.length} 个独立检测项；提交时会再次校验价格与额度。</small></div><button class="link-button" type="button" data-action="effect-search-quote-reset">重新报价</button></div>`
     : "";
   const entry = effectRelayHistoryEntry();
-  return `<div class="effect-demo-layout"><main class="effect-demo-main"><section class="card effect-demo-query"><header><div><span class="effect-demo-kicker">FROZEN QUESTION SET</span><h3>新建一次 AI 效果检测</h3><p>每个“问题 × 平台 × 终端 × 模式”会成为独立检测项；报价后冻结问题集并由灼见检测服务执行。</p></div><span class="status-badge ${running ? "status-pending" : "status-approved"}">${escapeHtml(running ? effectRelayRunLabel(activeStatus) : "等待配置")}</span></header><div class="effect-demo-form"><label class="effect-demo-input full"><span>${icon("eye")}检测问题集（每行一个） <em>*</em></span><textarea id="effect-search-question" rows="5" placeholder="如：工业机器人品牌推荐？&#10;如：工业机器人集成商如何选择？">${escapeHtml(ui.effectSearchQuestion)}</textarea><small class="effect-input-hint">提交后问题集会冻结；本次最多 20 个去重问题。</small></label><label class="effect-demo-input"><span>${icon("users")}品牌与别名（逗号分隔） <em>*</em></span><input id="effect-search-brand" value="${escapeHtml(ui.effectSearchBrand)}" placeholder="如：桐灼科技、桐灼 GEO" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-search-industry" value="${escapeHtml(ui.effectSearchIndustry || "")}" placeholder="如：工业机器人" /></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>可用检测能力</b><small>平台、终端与模式由当前客户的服务配置决定。</small></div>${effectSearchPlatforms()}</div><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${supportedItems.length}</b> 个独立检测项<br /><small>${questions.length} 个问题 × 已选能力组合</small></span><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"} · 访问凭据由系统安全管理</span><label class="effect-search-consent"><input type="checkbox" data-effect-search-consent ${ui.effectSearchExternalConsent ? "checked" : ""} /><span>我确认将本次问题集、品牌别名和已选范围提交给灼见 AI 检测服务执行</span></label>${quoteSummary}${primaryAction}</div></div></section>${effectSearchResultsPanel({ entry, title: entry ? "当前选中任务的结果" : "当前任务结果" })}</main></div>`;
+  return `<div class="effect-demo-layout"><main class="effect-demo-main"><section class="card effect-demo-query"><header><div><h3>新建一次 AI 效果检测</h3><p>每个“问题 × 平台 × 终端 × 模式”会成为独立检测项；报价后冻结问题集并由灼见检测服务执行。</p></div><span class="status-badge ${running ? "status-pending" : "status-approved"}">${escapeHtml(running ? effectRelayRunLabel(activeStatus) : "等待配置")}</span></header><div class="effect-demo-form"><label class="effect-demo-input full"><span>${icon("eye")}检测问题集（每行一个） <em>*</em></span><textarea id="effect-search-question" rows="5" placeholder="如：工业机器人品牌推荐？&#10;如：工业机器人集成商如何选择？">${escapeHtml(ui.effectSearchQuestion)}</textarea><small class="effect-input-hint">提交后问题集会冻结；本次最多 20 个去重问题。</small></label><label class="effect-demo-input"><span>${icon("users")}品牌与别名（逗号分隔） <em>*</em></span><input id="effect-search-brand" value="${escapeHtml(ui.effectSearchBrand)}" placeholder="如：桐灼科技、桐灼 GEO" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-search-industry" value="${escapeHtml(ui.effectSearchIndustry || "")}" placeholder="如：工业机器人" /></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>可用检测能力</b><small>平台、终端与模式由当前客户的服务配置决定。</small></div>${effectSearchPlatforms()}</div><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${supportedItems.length}</b> 个独立检测项<br /><small>${questions.length} 个问题 × 已选能力组合</small></span><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"} · 访问凭据由系统安全管理</span><label class="effect-search-consent"><input type="checkbox" data-effect-search-consent ${ui.effectSearchExternalConsent ? "checked" : ""} /><span>我确认将本次问题集、品牌别名和已选范围提交给灼见 AI 检测服务执行</span></label>${quoteSummary}${primaryAction}</div></div></section>${effectSearchResultsPanel({ entry, title: entry ? "当前选中任务的结果" : "当前任务结果" })}</main></div>`;
+}
+
+function effectAlignedTenantName() {
+  return String(state.enterpriseProfile?.brandName || state.tenant || state.workspace?.name || "当前企业").trim() || "当前企业";
+}
+
+function effectAlignedDateTime(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).replaceAll("/", "-");
+}
+
+function effectAlignedPageHead({ eyebrow, title, accent, description }) {
+  const state = effectRelaySnapshot.error ? "error" : effectRelaySnapshot.loaded ? "ok" : "loading";
+  const serviceState = state === "error" ? "服务需检查" : state === "ok" ? "检测服务在线" : "正在连接";
+  return `<header class="effect-aligned-head"><div><span class="effect-aligned-eyebrow">${escapeHtml(eyebrow)}</span><h2>${escapeHtml(title)}${accent ? ` · <em>${escapeHtml(accent)}</em>` : ""}</h2><p>${escapeHtml(description)}</p></div><div class="effect-aligned-head-meta"><span class="effect-head-status" data-state="${state}"><i class="effect-head-status-dot"></i>${escapeHtml(serviceState)}</span><div><span><small>UTC+8</small><b>${escapeHtml(effectAlignedDateTime())}</b></span><span><small>租户</small><b>${escapeHtml(effectAlignedTenantName())}</b></span></div></div></header>`;
+}
+
+function effectAlignedEmpty(title, description = "未返回的字段不会使用演示数据补齐。", options = {}) {
+  const { iconName = "file", action = "", actionLabel = "" } = options;
+  const cta = action && actionLabel ? `<button class="secondary-button button-small" type="button" data-action="${escapeHtml(action)}">${escapeHtml(actionLabel)}</button>` : "";
+  return `<div class="effect-aligned-empty"><span class="effect-empty-mark">${icon(iconName)}</span><b>${escapeHtml(title)}</b><small>${escapeHtml(description)}</small>${cta}</div>`;
+}
+
+function effectAlignedKpi({ label, value = "—", delta = "", description, foot, action = "", iconName = "chart", tone = "" }) {
+  const empty = value === "—" || value === 0;
+  const numericDelta = Number(String(delta).replace(/[^\d.-]/g, ""));
+  const hasDelta = delta !== "" && Number.isFinite(numericDelta);
+  const deltaClass = hasDelta ? (numericDelta > 0 ? "is-up" : numericDelta < 0 ? "is-down" : "is-flat") : "";
+  const deltaIcon = hasDelta ? (numericDelta > 0 ? "↑" : numericDelta < 0 ? "↓" : "→") : "";
+  const deltaHtml = hasDelta ? `<em class="effect-kpi-delta ${deltaClass}">${deltaIcon} ${escapeHtml(String(delta))}</em>` : "";
+  return `<article class="effect-aligned-kpi ${escapeHtml(tone)}${empty ? " is-empty" : ""}" data-tone="${escapeHtml(tone.replace(/^tone-/, ""))}"><header><span>${escapeHtml(label)}</span><i>${icon(iconName)}</i></header><strong class="effect-aligned-kpi-value"><span class="effect-aligned-kpi-number">${escapeHtml(String(value))}</span>${deltaHtml}</strong><p>${escapeHtml(description)}</p><footer><span>${escapeHtml(foot)}</span>${action ? `<b>${escapeHtml(action)}</b>` : ""}</footer></article>`;
+}
+
+function effectAlignedCapabilityChips({
+  scopes = [],
+  modes = [],
+  scopeAttribute = "data-effect-platform-scope",
+  modeAttribute = "data-effect-platform-mode",
+  label = "检索平台："
+} = {}) {
+  const capabilities = effectRelayCapabilityItems();
+  if (!effectRelaySnapshot.capabilities) return `<div class="effect-aligned-platform-row"><span class="effect-aligned-platform-label">${escapeHtml(label)}</span><small>${effectRelaySnapshot.error ? "平台能力暂不可用，请先检查检测服务" : "正在读取可用平台…"}</small></div>`;
+  if (!capabilities.length) return `<div class="effect-aligned-platform-row"><span class="effect-aligned-platform-label">${escapeHtml(label)}</span><small>当前企业尚未配置 AI 检测平台。</small></div>`;
+  const selectedScopes = new Set((scopes || []).map(effectRelayNormalizeScope));
+  const selectedModes = new Set((modes || []).map(effectRelayModeCode));
+  const scopeRows = [];
+  const seenScopes = new Set();
+  const platformTerminals = new Map();
+  for (const item of capabilities) {
+    const platform = String(item.platform || "").trim();
+    const terminal = String(item.terminal || "").trim();
+    if (!platform || !terminal) continue;
+    const terminals = platformTerminals.get(platform) || new Set();
+    terminals.add(terminal);
+    platformTerminals.set(platform, terminals);
+  }
+  for (const item of capabilities) {
+    const platform = String(item.platform || "").trim();
+    const terminal = String(item.terminal || "").trim();
+    const scope = effectRelayScopeKey(platform, terminal);
+    if (!platform || !terminal || seenScopes.has(scope)) continue;
+    seenScopes.add(scope);
+    const platformName = EFFECT_RELAY_PLATFORM_NAMES[platform] || platform;
+    const terminalName = EFFECT_RELAY_TERMINAL_NAMES[terminal] || terminal;
+    const hasMultipleTerminals = (platformTerminals.get(platform)?.size || 0) > 1;
+    scopeRows.push({ scope, label: hasMultipleTerminals ? `${platformName} · ${terminalName}` : platformName });
+  }
+  const modeKeys = [...new Set(capabilities.map((item) => String(item.mode || "").trim()).filter(Boolean))];
+  const chipHtml = scopeRows.map((row) => `<label class="effect-aligned-platform-chip ${selectedScopes.has(row.scope) ? "active" : ""}"><input type="checkbox" value="${escapeHtml(row.scope)}" ${scopeAttribute} ${selectedScopes.has(row.scope) ? "checked" : ""} /><i></i><span>${escapeHtml(row.label)}</span></label>`).join("");
+  const modeHtml = modeKeys.length > 1 ? `<span class="effect-aligned-platform-divider"></span>${modeKeys.map((mode) => `<label class="effect-aligned-platform-chip effect-aligned-mode-chip ${selectedModes.has(mode) ? "active" : ""}"><input type="checkbox" value="${escapeHtml(mode)}" ${modeAttribute} ${selectedModes.has(mode) ? "checked" : ""} /><i></i><span>${escapeHtml(EFFECT_RELAY_MODE_NAMES[mode] || mode)}</span></label>`).join("")}` : "";
+  return `<div class="effect-aligned-platform-row"><span class="effect-aligned-platform-label">${escapeHtml(label)}</span><div class="effect-aligned-platform-chips">${chipHtml}${modeHtml}</div><small>已选 ${scopeRows.filter((row) => selectedScopes.has(row.scope)).length} / ${scopeRows.length}</small></div>`;
+}
+
+function effectAlignedSearchKpis(entries, records) {
+  const today = new Date();
+  const isToday = (value) => {
+    const date = new Date(value);
+    return !Number.isNaN(date.getTime()) && date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() && date.getDate() === today.getDate();
+  };
+  const todayEntries = entries.filter((entry) => isToday(entry.link?.createdAt));
+  const todayRecords = todayEntries.flatMap((entry) => effectRelayRecordsFromRun(entry.run, entry.link)).filter((record) => record.status === "verified");
+  const sourceRecords = todayRecords.length ? todayRecords : records.filter((record) => record.status === "verified");
+  const mentioned = sourceRecords.filter((record) => Number(record.brandMentionCount || 0) > 0);
+  const platforms = new Set(sourceRecords.map((record) => record.platform).filter(Boolean));
+  const mentionRate = sourceRecords.length ? Math.round(mentioned.length / sourceRecords.length * 100) : null;
+  return `<section class="effect-aligned-kpis">${effectAlignedKpi({ label: "今日检测", value: todayEntries.length, description: "实时检索任务数", foot: platforms.size ? `覆盖 ${platforms.size} 个 AI 平台` : "暂无已验证平台结果", action: "查看 →", iconName: "search" })}${effectAlignedKpi({ label: "品牌被引用", value: sourceRecords.length ? mentioned.length : "—", delta: mentionRate === null ? "" : `${mentionRate}%`, description: "已验证回答明确提及品牌", foot: sourceRecords.length ? `${mentioned.length} / ${sourceRecords.length} 条有效回答` : "等待真实结果", action: "明细 →", iconName: "check", tone: "tone-teal" })}${effectAlignedKpi({ label: "未提及", value: sourceRecords.length ? sourceRecords.length - mentioned.length : "—", delta: mentionRate === null ? "" : `${100 - mentionRate}%`, description: "需要补充信源或话术", foot: sourceRecords.length ? "仅统计已验证回答" : "等待真实结果", action: "优化 →", iconName: "alert", tone: "tone-amber" })}${effectAlignedKpi({ label: "竞品对比", value: "—", description: "当前检测未返回竞品比较口径", foot: "不使用推测数据生成排名", action: "报告 →", iconName: "users", tone: "tone-rose" })}</section>`;
+}
+
+function effectAlignedSearchAnswerCard(records, running) {
+  const record = records.filter((item) => item.status === "verified").sort((left, right) => String(right.observedAt || "").localeCompare(String(left.observedAt || "")))[0] || null;
+  if (!record) return `<article class="effect-aligned-card effect-aligned-answer"><header><div><h3>${running ? `<i class="effect-aligned-live-dot"></i>` : ""}AI 平台 · 实时回答</h3><p>${running ? "检测服务正在获取并校验真实回答" : "提交问题后将在此展示最新一条已验证回答"}</p></div></header>${effectAlignedEmpty(running ? "正在等待回答回传" : "暂无实时回答", "只有通过服务端校验的真实回答会显示在这里。")}</article>`;
+  const citations = Array.isArray(record.citationSources) ? record.citationSources : [];
+  const citationHtml = citations.length ? `<div class="effect-aligned-citations">${citations.slice(0, 8).map((source, index) => {
+    const url = /^https?:\/\//i.test(String(source.url || "")) ? String(source.url) : "";
+    return `<article><strong>${index + 1}</strong><div><b>${escapeHtml(source.title || source.domain || source.url || "引用来源")}</b><small>${escapeHtml(source.domain || source.url || "未返回来源地址")}</small>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">查看来源 →</a>` : ""}</div></article>`;
+  }).join("")}</div>` : `<div class="effect-aligned-inline-empty">本条回答未返回可验证引用来源。</div>`;
+  return `<article class="effect-aligned-card effect-aligned-answer"><header><div><h3><i class="effect-aligned-live-dot"></i>${escapeHtml(record.platform || "AI 平台")} · 实时回答</h3><p>${escapeHtml(record.terminal || "—")} · ${escapeHtml(record.mode || "—")} · 引用 ${citations.length} 个信源</p></div></header><div class="effect-aligned-answer-bubble"><div><b>${escapeHtml(record.platform || "AI 平台")}</b><span>${escapeHtml(record.observedAt ? effectAlignedDateTime(record.observedAt) : "时间未返回")}</span><span>证据 ${escapeHtml(record.evidenceId || "—")}</span></div><p>${escapeHtml(record.answer || "检测服务未返回可展示的回答。")}</p></div>${citationHtml}</article>`;
+}
+
+function effectAlignedDimension(label, value, note = "") {
+  const numeric = Number.isFinite(Number(value)) ? Math.max(0, Math.min(100, Number(value))) : null;
+  return `<div class="effect-aligned-dimension"><div><span>${escapeHtml(label)}</span><b>${numeric === null ? "—" : `${Math.round(numeric)}%`}</b></div><div class="effect-aligned-dimension-track"><i style="transform:scaleX(${numeric === null ? 0 : numeric / 100})"></i></div>${note ? `<small>${escapeHtml(note)}</small>` : ""}</div>`;
+}
+
+function effectAlignedSearchDiagnosisCard(records, entry) {
+  const verified = records.filter((record) => record.status === "verified");
+  const requested = Number(entry?.link?.request?.items?.length || records.length || 0);
+  const mentioned = verified.filter((record) => Number(record.brandMentionCount || 0) > 0);
+  const cited = verified.filter((record) => (record.citationSources || []).length > 0);
+  const ranked = verified.filter((record) => Number.isFinite(Number(record.firstMentionRank)) && Number(record.firstMentionRank) > 0);
+  const topOne = ranked.filter((record) => Number(record.firstMentionRank) === 1);
+  const coverage = requested ? Math.round(verified.length / requested * 100) : null;
+  const mentionRate = verified.length ? Math.round(mentioned.length / verified.length * 100) : null;
+  const citationRate = verified.length ? Math.round(cited.length / verified.length * 100) : null;
+  const topOneRate = ranked.length ? Math.round(topOne.length / ranked.length * 100) : null;
+  return `<article class="effect-aligned-card effect-aligned-score"><header><div><h3>本次检索诊断</h3><p>仅使用本次已验证的信源、提及与排名字段</p></div></header><div class="effect-aligned-score-main"><div class="effect-aligned-score-ring"><strong>—</strong></div><b>综合得分</b><small>检测服务未返回正式综合评分口径</small></div><div class="effect-aligned-dimensions">${effectAlignedDimension("证据覆盖率", coverage, `${verified.length} / ${requested || 0} 条已验证`)}${effectAlignedDimension("品牌提及率", mentionRate, `${mentioned.length} 条回答提及品牌`)}${effectAlignedDimension("回答引用率", citationRate, `${cited.length} 条回答带可验证引用`)}${effectAlignedDimension("首位提及率", topOneRate, ranked.length ? `${topOne.length} / ${ranked.length} 条返回排名` : "上游未返回排名字段")}</div></article>`;
+}
+
+function effectAlignedPlatformTable(records, running = false) {
+  const selectedScopes = new Set((ui.effectPlatformScopes || []).map(effectRelayNormalizeScope));
+  const groups = new Map();
+  for (const capability of effectRelayCapabilityItems()) {
+    const platformCode = String(capability.platform || "").trim();
+    const platform = EFFECT_RELAY_PLATFORM_NAMES[platformCode] || platformCode;
+    if (!platform) continue;
+    const group = groups.get(platform) || { platform, code: (EFFECT_RELAY_PLATFORM_UI[platformCode]?.code || platform.slice(0, 1)), selected: false, records: [] };
+    if (selectedScopes.has(effectRelayScopeKey(platformCode, capability.terminal))) group.selected = true;
+    groups.set(platform, group);
+  }
+  for (const record of records) {
+    const platform = String(record.platform || "未知平台");
+    const group = groups.get(platform) || { platform, code: platform.slice(0, 1), selected: true, records: [] };
+    group.records.push(record);
+    groups.set(platform, group);
+  }
+  const rows = [...groups.values()].map((group) => {
+    const verified = group.records.filter((record) => record.status === "verified");
+    const citations = verified.reduce((sum, record) => sum + Number(record.citationSources?.length || 0), 0);
+    const mentioned = verified.filter((record) => Number(record.brandMentionCount || 0) > 0).length;
+    const ranked = verified.filter((record) => Number.isFinite(Number(record.firstMentionRank)) && Number(record.firstMentionRank) > 0);
+    const topOne = ranked.filter((record) => Number(record.firstMentionRank) === 1).length;
+    const latest = verified.slice().sort((left, right) => String(right.observedAt || "").localeCompare(String(left.observedAt || "")))[0];
+    const status = verified.length ? ["ok", "运行正常"] : group.records.length || (group.selected && running) ? ["warn", "检测中"] : group.selected ? ["idle", "等待结果"] : ["idle", "未启用"];
+    return `<tr><td><div class="effect-aligned-platform-name">${effectMonitorPlatformBadge(group.platform, 26)}<span><b>${escapeHtml(group.platform)}</b><small>${verified.length ? `${verified.length} 条已验证回答` : "暂无已验证回答"}</small></span></div></td><td class="num">${verified.length ? citations : "—"}</td><td class="num">${verified.length ? verified.length - mentioned : "—"}</td><td class="num">${ranked.length ? `${Math.round(topOne / ranked.length * 100)}%` : "—"}</td><td><span class="effect-aligned-status ${status[0]}">${status[1]}</span></td><td>${latest?.observedAt ? escapeHtml(formatRelative(latest.observedAt)) : "—"}</td></tr>`;
+  }).join("");
+  return `<section class="effect-aligned-card effect-aligned-platform-table-card"><header><div><h3>各平台表现</h3><p>本次检索在当前已配置 AI 平台上的真实结果 · 未返回字段保持为空</p></div></header><div class="effect-aligned-table-scroll"><table class="effect-aligned-platform-table"><thead><tr><th>平台</th><th class="num">引用次数</th><th class="num">未提及</th><th class="num">首条命中率</th><th>状态</th><th>最近一次</th></tr></thead><tbody>${rows || `<tr><td colspan="6">${effectAlignedEmpty("暂无平台能力数据")}</td></tr>`}</tbody></table></div></section>`;
+}
+
+function effectAlignedSearchHistory(entries) {
+  const rows = entries.slice(0, 5).map((entry) => {
+    const stats = effectRelayEntryStats(entry);
+    const question = effectRelayEntryQuestions(entry)[0] || "实时检索问题";
+    const platforms = [...new Set((entry.link?.request?.items || []).map((item) => item.metadata?.displayPlatform || EFFECT_RELAY_PLATFORM_NAMES[item.platform] || item.platform).filter(Boolean))];
+    const status = effectRelayRunStatus(entry.link, entry.run);
+    return `<button type="button" class="effect-aligned-history-item ${["completed", "partial"].includes(status) ? "success" : ["pending", "submitted", "queued", "running"].includes(status) ? "running" : ""}" data-action="effect-center-open-run" data-effect-run-id="${escapeHtml(entry.link.diagnosticRunId)}"><span>${escapeHtml(effectAlignedDateTime(entry.link.createdAt))} · ${escapeHtml(platforms.slice(0, 2).join(" / ") || "AI 平台")}</span><b>${escapeHtml(question)}</b><small>回传 ${stats.delivered} / ${stats.requested || 0} · 已验证 ${stats.verified} · ${escapeHtml(effectRelayRunLabel(status))}</small></button>`;
+  }).join("");
+  return `<article class="effect-aligned-card effect-aligned-history"><header><div><h3>最近检索历史</h3><p>点击一条问题，查看同一次真实检测结果</p></div></header>${rows || effectAlignedEmpty("暂无实时检索历史", "提交首次实时搜索后，任务记录会出现在这里。")}</article>`;
+}
+
+function effectAlignedSystemStatus() {
+  const domain = String(state.enterpriseProfile?.officialDomain || state.site?.domain || "").trim();
+  const capabilityCount = effectRelayCapabilityItems().length;
+  const serviceError = effectRelaySnapshot.error || effectFlowStateFor("realtime").error;
+  const quota = effectRelaySnapshot.quota || {};
+  const cells = [
+    ["// 企业官网", domain ? "已配置" : "待配置", domain || "请在官网运营中配置域名", domain ? "ok" : "warn"],
+    ["// GEO 检测", serviceError ? "需检查" : capabilityCount ? "可用" : "连接中", serviceError ? customerFacingEffectText(serviceError) : capabilityCount ? `${capabilityCount} 个检测能力项` : "正在读取平台能力", serviceError ? "bad" : capabilityCount ? "ok" : "warn"],
+    ["// 检测额度", quota.availableCredits !== undefined ? `${Number(quota.availableCredits).toLocaleString("zh-CN")} 积分` : "读取中", quota.availableCredits !== undefined ? "以提交时实时校验为准" : "正在连接客户额度", quota.availableCredits !== undefined ? "ok" : "warn"]
+  ];
+  return `<article class="effect-aligned-card effect-aligned-system"><header><div><h3>系统状态</h3><p>当前企业独立部署环境</p></div></header><div class="effect-aligned-system-grid">${cells.map(([name, status, meta, tone]) => `<div><small>${escapeHtml(name)}</small><b><i class="${tone}"></i>${escapeHtml(status)}</b><span>${escapeHtml(meta)}</span></div>`).join("")}</div></article>`;
 }
 
 function renderEffectSearch() {
@@ -8927,7 +9674,12 @@ function renderEffectSearch() {
   const entry = effectRelayHistoryEntry(ui.effectSearchRunId, "realtime");
   const estimatedCredits = effectSearchEstimatedCredits(supportedItems);
   const composerDisabled = ui.effectSearchSubmitting || !question || !supportedItems.length;
-  return `<div class="page-container effect-demo-page effect-search-page">${pageHead("灼见搜索", "同一个问题并行提交到默认 AI 平台，集中查看回答、品牌提及与引用来源。", '<span class="small-tag blue">灼见 AI 检测</span>')}<section class="effect-live-search-shell"><header class="effect-live-search-hero"><h2>输入你想验证的问题，看看 AI 引用了谁</h2><p>同一个问题并行提交到默认 AI 平台，集中查看回答、品牌提及与引用来源。</p></header><section class="effect-live-search-panel"><div class="effect-live-composer"><span class="effect-live-composer-icon">${icon("sparkle")}</span><div class="effect-live-composer-fields"><label><b>AI问题：</b><input id="effect-search-question" value="${escapeHtml(question)}" placeholder="向 AI 咨询的问题，如：白酒品牌推荐？" /></label><label><b>品牌名：</b><input id="effect-search-brand" value="${escapeHtml(ui.effectSearchBrand)}" placeholder="AI 回答中出现的品牌名称，如：灼见" /></label></div><button class="effect-live-submit" type="button" data-action="effect-search-run" aria-label="发送并查询" ${composerDisabled ? "disabled" : ""}>${ui.effectSearchSubmitting ? '<span class="loading-spinner"></span>' : "↑"}</button></div><div class="effect-live-estimate" data-effect-search-estimate ${question ? "" : "hidden"}><span>${icon("credit-card")}</span><b>本次预计消耗 ${estimatedCredits.toLocaleString("zh-CN")} 积分</b><small>发送时会按最新价格自动校验</small></div><div class="effect-live-platforms">${effectSearchPlatforms()}</div></section></section>${effectSearchResultsPanel({ entry, title: entry ? "本次实时搜索报告" : "实时搜索报告" })}</div>`;
+  const entries = effectRelayHistoryEntries("realtime");
+  const records = entry ? effectRelayRecordsFromRun(entry.run, entry.link) : effectSearchRecordsForView();
+  const status = effectRelayRunStatus(entry?.link, entry?.run);
+  const running = ui.effectSearchSubmitting || ["pending", "submitted", "queued", "running"].includes(status);
+  const brand = String(ui.effectSearchBrand || state.enterpriseProfile?.brandName || "").trim();
+  return `<div class="page-container effect-demo-page effect-search-page effect-aligned-page">${effectAlignedPageHead({ eyebrow: "", title: "实时搜索", accent: "让品牌被 AI 准确看见", description: "在用户真正提问的 AI 平台上，实时检索企业的真实表现，看清每一次被引用或被忽略的瞬间。" })}${effectAlignedSearchKpis(entries, records)}<section class="effect-aligned-task"><header class="effect-aligned-task-head"><div><h3>发起一次实时搜索</h3><p>输入问题，选择平台，立即查看 AI 给出的真实答案与你的引用表现</p></div></header><div class="effect-aligned-search-row"><input id="effect-search-question" type="text" value="${escapeHtml(question)}" placeholder="例：国内做 GEO 优化的企业有哪些？哪家更值得选？" aria-label="实时搜索问题" /><input id="effect-search-brand" type="hidden" value="${escapeHtml(brand)}" /><input id="effect-search-industry" type="hidden" value="${escapeHtml(ui.effectSearchIndustry || "")}" /><button class="effect-aligned-primary" type="button" data-action="effect-search-run" ${composerDisabled ? "disabled" : ""}>${ui.effectSearchSubmitting ? '<span class="loading-spinner"></span>正在检索…' : "开始检索 →"}</button></div><div class="effect-live-estimate effect-aligned-estimate" data-effect-search-estimate ${question ? "" : "hidden"}><span>${icon("credit-card")}</span><b>本次预计消耗 ${estimatedCredits.toLocaleString("zh-CN")} 积分</b><small>发送时会按最新价格与额度自动校验</small></div>${effectAlignedCapabilityChips({ scopes: ui.effectPlatformScopes, modes: ui.effectPlatformModes, label: "检索平台：" })}<div class="effect-aligned-task-status">${effectRelayStatusPanel({ flow: "realtime", entry, scopes: ui.effectPlatformScopes, modes: ui.effectPlatformModes, questions: [{ id: "realtime-draft", text: question }], cancelAction: "effect-search-cancel", cancelRunId: ui.effectSearchRunId })}</div></section><section class="effect-aligned-results">${effectAlignedSearchAnswerCard(records, running)}${effectAlignedSearchDiagnosisCard(records, entry)}</section>${effectAlignedPlatformTable(records, running)}<section class="effect-aligned-bottom">${effectAlignedSearchHistory(entries)}${effectAlignedSystemStatus()}</section></div>`;
 }
 
 function effectPagesTabs(active) {
@@ -9321,7 +10073,7 @@ function renderVerifiedEffectDiagnosticReport(entry = effectDiagnosticActiveEntr
 
 function effectDiagnosticHistory(entry = effectDiagnosticActiveEntry()) {
   const entries = effectDiagnosticEntries();
-  return `<section class="card effect-diagnostic-history"><header><div><span class="effect-demo-kicker">BATCH RUN HISTORY</span><h3>品牌诊断任务</h3><p>每次复测都会创建新的独立运行；问题集与能力配置以该次任务快照为准。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></header><div>${entries.length ? entries.map((item) => { const stats = effectRelayEntryStats(item); const selected = item.link.diagnosticRunId === entry?.link?.diagnosticRunId; return `<article class="effect-diagnostic-history-row ${selected ? "active" : ""}"><div><b>${escapeHtml(effectRelayEntryQuestions(item)[0] || "冻结问题集")}</b><small>${effectRelayEntryQuestions(item).length} 个问题 · ${stats.requested} 个任务项 · ${escapeHtml(String(item.link.createdAt || "").replace("T", " ").slice(0, 16))}</small></div><span class="status-badge ${["completed", "partial"].includes(effectRelayRunStatus(item.link, item.run)) ? "status-approved" : ["failed", "attention", "cancelled"].includes(effectRelayRunStatus(item.link, item.run)) ? "status-error" : "status-pending"}">${escapeHtml(effectRelayRunLabel(effectRelayRunStatus(item.link, item.run)))}</span><button class="link-button" type="button" data-action="effect-diagnostic-open-run" data-effect-run-id="${escapeHtml(item.link.diagnosticRunId)}">查看证据</button></article>`; }).join("") : `<div class="effect-search-empty">${effectRelaySnapshot.historyLoaded ? "尚无真实品牌诊断任务。请先配置品牌、问题集和能力范围。" : "正在读取品牌诊断任务…"}</div>`}</div></section>`;
+  return `<section class="card effect-diagnostic-history"><header><div><h3>品牌诊断任务</h3><p>每次复测都会创建新的独立运行；问题集与能力配置以该次任务快照为准。</p></div><button class="secondary-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></header><div>${entries.length ? entries.map((item) => { const stats = effectRelayEntryStats(item); const selected = item.link.diagnosticRunId === entry?.link?.diagnosticRunId; return `<article class="effect-diagnostic-history-row ${selected ? "active" : ""}"><div><b>${escapeHtml(effectRelayEntryQuestions(item)[0] || "冻结问题集")}</b><small>${effectRelayEntryQuestions(item).length} 个问题 · ${stats.requested} 个任务项 · ${escapeHtml(String(item.link.createdAt || "").replace("T", " ").slice(0, 16))}</small></div><span class="status-badge ${["completed", "partial"].includes(effectRelayRunStatus(item.link, item.run)) ? "status-approved" : ["failed", "attention", "cancelled"].includes(effectRelayRunStatus(item.link, item.run)) ? "status-error" : "status-pending"}">${escapeHtml(effectRelayRunLabel(effectRelayRunStatus(item.link, item.run)))}</span><button class="link-button" type="button" data-action="effect-diagnostic-open-run" data-effect-run-id="${escapeHtml(item.link.diagnosticRunId)}">查看证据</button></article>`; }).join("") : `<div class="effect-search-empty">${effectRelaySnapshot.historyLoaded ? "尚无真实品牌诊断任务。请先配置品牌、问题集和能力范围。" : "正在读取品牌诊断任务…"}</div>`}</div></section>`;
 }
 
 function effectDiagnosticRoundRows() {
@@ -9361,7 +10113,7 @@ function renderRealEffectDiagnostic() {
   const quoteSummary = quote && ui.effectDiagnosticQuoteReady ? `<div class="effect-search-quote-summary"><span data-icon="quote"></span><div><b>本次批量诊断预估：${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</b><small>${questions.length} 个冻结问题 × ${supportedItems.length} 个独立采样任务；每个平台次数按独立采样计，不模拟连续会话。</small></div><button class="link-button" type="button" data-action="effect-diagnostic-quote-reset">重新报价</button></div>` : "";
   const aliases = effectDiagnosticAliases([ui.effectDiagnosticBrand, ...(ui.effectDiagnosticBrandTerms || [])]).filter((item) => item !== ui.effectDiagnosticBrand).join("、");
   const competitors = (ui.effectDiagnosticCompetitors || []).map((item) => `${item.name || ""}${item.terms ? `：${item.terms}` : ""}`).filter(Boolean).join("\n");
-  return `<div class="page-container effect-demo-page effect-diagnostic-page">${effectRelayStatusPanel({ entry, quote, scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, questions: draftQuestions, cancelAction: "effect-diagnostic-cancel", cancelRunId: ui.effectDiagnosticRunId })}<section class="card effect-demo-query"><header><div><span class="effect-demo-kicker">品牌诊断配置已冻结</span><h3>配置并冻结本次品牌诊断</h3><p>问题集、品牌别名、竞品、平台、终端和模式会随本次任务保存。报告只使用已验证的真实检测证据，不从本地生成回答。</p></div><span class="status-badge ${running ? "status-pending" : "status-approved"}">${escapeHtml(running ? effectRelayRunLabel(status) : "等待配置")}</span></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}目标品牌 <em>*</em></span><input id="effect-diagnostic-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="如：桐灼科技" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-diagnostic-industry" value="${escapeHtml(ui.effectDiagnosticIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌别名</span><input id="effect-diagnostic-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔，如：桐灼 GEO、Tongzhuo" /></label><label class="effect-demo-input full"><span>${icon("eye")}诊断问题集（每行一个） <em>*</em></span><textarea id="effect-diagnostic-questions" rows="6" placeholder="如：桐灼科技是什么品牌？&#10;如：桐灼科技与同类品牌相比有什么优势？">${escapeHtml(questions.join("\n"))}</textarea><small class="effect-input-hint">最多 20 个去重问题；点击报价后会冻结为本次不可变的问题集。</small></label><label class="effect-demo-input full"><span>${icon("users")}竞品（每行一个；可写“品牌：别名”）</span><textarea id="effect-diagnostic-competitors" rows="3" placeholder="竞品 A：别名 A、产品词 A&#10;竞品 B">${escapeHtml(competitors)}</textarea><small class="effect-input-hint">竞品资料会作为本次任务范围保存；没有可验证字段时，报告不会生成竞品排名或胜负结论。</small></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>诊断能力范围</b><small>平台、终端和模式来自当前客户可用的 AI 检测能力。</small></div>${effectRelayCapabilityPicker({ scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, scopeAttribute: "data-effect-diagnostic-platform-scope", selectAllAttribute: "data-effect-diagnostic-platform-select-all", modeAttribute: "data-effect-diagnostic-platform-mode" })}</div><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${supportedItems.length}</b> 个批量诊断项<br /><small>${questions.length} 个问题 × 已选能力组合</small></span><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"} · 访问凭据由系统安全管理</span><label class="effect-search-consent"><input type="checkbox" data-effect-diagnostic-consent ${ui.effectDiagnosticExternalConsent ? "checked" : ""} /><span>我确认将品牌资料、竞品和冻结问题集提交给灼见 AI 检测服务</span></label>${quoteSummary}${primaryAction}</div></div></section>${effectDiagnosticHistory(entry)}${renderVerifiedEffectDiagnosticReport(entry)}</div>`;
+  return `<div class="page-container effect-demo-page effect-diagnostic-page">${effectRelayStatusPanel({ entry, quote, scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, questions: draftQuestions, cancelAction: "effect-diagnostic-cancel", cancelRunId: ui.effectDiagnosticRunId })}<section class="card effect-demo-query"><header><div><h3>配置并冻结本次品牌诊断</h3><p>问题集、品牌别名、竞品、平台、终端和模式会随本次任务保存。报告只使用已验证的真实检测证据，不从本地生成回答。</p></div><span class="status-badge ${running ? "status-pending" : "status-approved"}">${escapeHtml(running ? effectRelayRunLabel(status) : "等待配置")}</span></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}目标品牌 <em>*</em></span><input id="effect-diagnostic-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="如：桐灼科技" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-diagnostic-industry" value="${escapeHtml(ui.effectDiagnosticIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌别名</span><input id="effect-diagnostic-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔，如：桐灼 GEO、Tongzhuo" /></label><label class="effect-demo-input full"><span>${icon("eye")}诊断问题集（每行一个） <em>*</em></span><textarea id="effect-diagnostic-questions" rows="6" placeholder="如：桐灼科技是什么品牌？&#10;如：桐灼科技与同类品牌相比有什么优势？">${escapeHtml(questions.join("\n"))}</textarea><small class="effect-input-hint">最多 20 个去重问题；点击报价后会冻结为本次不可变的问题集。</small></label><label class="effect-demo-input full"><span>${icon("users")}竞品（每行一个；可写“品牌：别名”）</span><textarea id="effect-diagnostic-competitors" rows="3" placeholder="竞品 A：别名 A、产品词 A&#10;竞品 B">${escapeHtml(competitors)}</textarea><small class="effect-input-hint">竞品资料会作为本次任务范围保存；没有可验证字段时，报告不会生成竞品排名或胜负结论。</small></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>诊断能力范围</b><small>平台、终端和模式来自当前客户可用的 AI 检测能力。</small></div>${effectRelayCapabilityPicker({ scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, scopeAttribute: "data-effect-diagnostic-platform-scope", selectAllAttribute: "data-effect-diagnostic-platform-select-all", modeAttribute: "data-effect-diagnostic-platform-mode" })}</div><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${supportedItems.length}</b> 个批量诊断项<br /><small>${questions.length} 个问题 × 已选能力组合</small></span><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"} · 访问凭据由系统安全管理</span><label class="effect-search-consent"><input type="checkbox" data-effect-diagnostic-consent ${ui.effectDiagnosticExternalConsent ? "checked" : ""} /><span>我确认将品牌资料、竞品和冻结问题集提交给灼见 AI 检测服务</span></label>${quoteSummary}${primaryAction}</div></div></section>${effectDiagnosticHistory(entry)}${renderVerifiedEffectDiagnosticReport(entry)}</div>`;
 }
 
 function effectMonitorAliases(value = ui.effectMonitorAliases) {
@@ -9450,6 +10202,7 @@ const EFFECT_MONITOR_VIEWS = Object.freeze([
   ["dashboard", "数据大盘"],
   ["mentions", "提及率 / 排名"],
   ["sentiment", "舆情 / 情感"],
+  ["product-cards", "商品卡分析"],
   ["sources", "AI 引用来源"],
   ["dialogs", "AI 对话记录"],
   ["works", "作品引用追踪"],
@@ -9460,12 +10213,51 @@ const EFFECT_MONITOR_VIEWS = Object.freeze([
 
 function effectMonitorViewTabs(active = ui.effectMonitorView) {
   const current = EFFECT_MONITOR_VIEWS.some(([key]) => key === active) ? active : "dashboard";
-  return `<nav class="effect-monitor-view-tabs" aria-label="品牌监测视图">${EFFECT_MONITOR_VIEWS.map(([key, label]) => `<button type="button" class="effect-monitor-view-tab ${current === key ? "active" : ""}" data-action="effect-monitor-view" data-view="${escapeHtml(key)}">${escapeHtml(label)}</button>`).join("")}</nav>`;
+  const labelOf = (key) => EFFECT_MONITOR_VIEWS.find(([k]) => k === key)?.[1] || key;
+  const groups = [
+    { key: "overview", label: "概览", iconName: "home", views: ["dashboard"] },
+    { key: "insights", label: "洞察分析", iconName: "chart", views: ["mentions", "sentiment", "product-cards", "sources", "dialogs", "works"] },
+    { key: "manage", label: "管理", iconName: "settings", views: ["export", "question-bank", "settings"] }
+  ];
+  const activeGroup = groups.find((group) => group.views.includes(current)) || groups[0];
+  const tabs = groups.map((group) => {
+    if (group.views.length === 1) {
+      const view = group.views[0];
+      return `<button type="button" class="effect-aligned-monitor-tab ${current === view ? "active" : ""}" data-action="effect-monitor-view" data-view="${escapeHtml(view)}"><span class="ic" data-icon="${group.iconName}"></span>${escapeHtml(group.label)}</button>`;
+    }
+    const open = group.views.includes(current);
+    const faceLabel = open ? labelOf(current) : group.label;
+    const options = group.views.map((view) => `<button type="button" role="option" aria-selected="${current === view}" class="effect-monitor-sub-option ${current === view ? "active" : ""}" data-action="effect-monitor-view" data-view="${escapeHtml(view)}">${escapeHtml(labelOf(view))}</button>`).join("");
+    return `<div class="effect-monitor-tab-group ${open ? "is-open" : ""}" data-tab-group><button type="button" class="effect-aligned-monitor-tab has-caret ${open ? "active" : ""}" data-action="effect-monitor-tab-group" aria-haspopup="true" aria-expanded="${open}"><span class="ic" data-icon="${group.iconName}"></span>${escapeHtml(faceLabel)}<span class="effect-caret"></span></button><div class="effect-monitor-subnav" role="listbox">${options}</div></div>`;
+  }).join("");
+  return `<nav class="effect-aligned-monitor-tabs" aria-label="品牌监测视图">${tabs}</nav>`;
 }
 
 function effectMonitorDisplay(value, fallback = "—") {
   if (value === null || value === undefined || value === "") return fallback;
   return String(value);
+}
+
+function effectMonitorPlatformBadge(platform, size = 22) {
+  const name = String(platform || "").trim() || "—";
+  const code = Object.keys(EFFECT_RELAY_PLATFORM_NAMES).find((key) => EFFECT_RELAY_PLATFORM_NAMES[key] === name) || "";
+  const meta = EFFECT_RELAY_PLATFORM_UI[code] || null;
+  const text = meta?.code || name.slice(0, 1);
+  const color = meta?.color || "var(--blue)";
+  return `<i class="effect-platform-badge" style="--pf-color:${escapeHtml(color)};width:${size}px;height:${size}px;font-size:${Math.max(9, Math.round(size * .44))}px">${escapeHtml(text)}</i>`;
+}
+
+function effectMonitorRateRing(rate, size = 40) {
+  if (rate === null || rate === undefined || !Number.isFinite(Number(rate))) return `<span class="effect-rate-empty">—</span>`;
+  const value = Math.max(0, Math.min(100, Number(rate)));
+  const tone = value >= 60 ? "var(--teal)" : value >= 30 ? "var(--amber)" : "var(--red)";
+  return `<span class="effect-rate-ring" role="img" aria-label="提及率 ${Math.round(value)}%" style="--rate:${value.toFixed(1)};--rate-color:${tone};width:${size}px;height:${size}px"><b>${Math.round(value)}<small>%</small></b></span>`;
+}
+
+function effectMonitorEmptyState(message = "暂无已验收的 live evidence。", options = {}) {
+  const { iconName = "inbox", action = "", actionLabel = "" } = options;
+  const cta = action && actionLabel ? `<button class="secondary-button button-small" type="button" data-action="${escapeHtml(action)}">${escapeHtml(actionLabel)}</button>` : "";
+  return `<div class="effect-monitor-empty"><span class="effect-empty-mark">${icon(iconName)}</span><b>${escapeHtml(message)}</b><small>未返回的字段不会被估算或填充演示数值。</small>${cta}</div>`;
 }
 
 function effectMonitorNumber(value, fallback = "—") {
@@ -9474,10 +10266,6 @@ function effectMonitorNumber(value, fallback = "—") {
 
 function effectMonitorPercent(value, fallback = "—") {
   return value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) ? fallback : `${Math.round(Number(value))}%`;
-}
-
-function effectMonitorEmptyState(message = "暂无已验收的 live evidence。") {
-  return `<div class="effect-monitor-empty"><span>—</span><b>${escapeHtml(message)}</b><small>未返回的字段不会被估算或填充演示数值。</small></div>`;
 }
 
 function effectMonitorLocalAnalytics(plan = effectMonitoringSnapshot.activePlan) {
@@ -9855,7 +10643,7 @@ function effectMonitorPlanDetail(plan = effectMonitoringSnapshot.activePlan) {
   const citations = verified.reduce((sum, record) => sum + Number(record.citationSources?.length || 0), 0);
   const trends = effectMonitorTrendRows(records);
   const liveEntries = monitoringPlanEntries(plan);
-  return `<section class="card effect-monitor-detail"><header><div><span class="effect-demo-kicker">MONITORING PLAN</span><h3>${escapeHtml(plan.name)}</h3><p>计划每次运行都会独立报价、创建检测任务，并将交付写入新的实时检测证据；历史样本不会被覆盖。</p></div><div class="effect-monitor-actions">${plan.status === "active" ? `<button class="secondary-button" type="button" data-action="effect-monitor-run" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>${icon("play")}立即运行</button><button class="secondary-button" type="button" data-action="effect-monitor-pause" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>暂停计划</button>` : plan.status === "paused" ? `<button class="primary-button" type="button" data-action="effect-monitor-resume" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>恢复计划</button>` : ""}</div></header><div class="effect-search-summary"><div><small>计划状态</small><b>${escapeHtml(plan.status === "active" ? "监测中" : plan.status)}</b><em>下次：${escapeHtml(String(plan.nextRunAt || "待安排").replace("T", " ").slice(0, 16))}</em></div><div><small>历史运行</small><b>${runs.length}</b><em>每次都是独立任务快照</em></div><div><small>已验证样本</small><b>${verified.length}</b><em>${mentionRate === null ? "暂无可计算样本" : `品牌提及率 ${mentionRate}%`}</em></div><div><small>回答引用</small><b>${citations}</b><em>仅统计已验证结果</em></div></div><div class="effect-monitor-boundary">趋势只在同一问题、同一平台、同一终端、同一模式至少积累两条已验证的实时检测证据后展示；没有真实样本时保持为空，不生成排名、情感或预测曲线。</div><div class="effect-monitor-trend-list">${trends.length ? trends.map((trend) => `<article><div><b>${escapeHtml(trend.latest.platform)} · ${escapeHtml(trend.latest.terminal)} · ${escapeHtml(trend.latest.mode)}</b><small>${escapeHtml(trend.latest.question)}</small></div><span><small>已验证样本</small><b>${trend.samples}</b></span><span><small>品牌提及率</small><b>${trend.mentionRate}%</b></span><span><small>回答引用</small><b>${trend.citations}</b></span></article>`).join("") : `<div class="effect-search-empty">暂无可计算的真实趋势。请等待同一采样条件至少完成两次已验证交付。</div>`}</div><div class="effect-monitor-run-list"><h4>计划运行记录</h4>${runs.length ? runs.map((run) => { const entry = liveEntries.find((item) => item.link?.diagnosticRunId === run.diagnosticRunId); const stats = entry ? effectRelayEntryStats(entry) : { delivered: 0, verified: 0 }; return `<article><div><b>${escapeHtml(run.triggerKind === "manual" ? "手动运行" : "计划运行")} · ${escapeHtml(String(run.scheduledFor || run.createdAt || "").replace("T", " ").slice(0, 16))}</b><small>${escapeHtml(effectRelayRunLabel(run.status))}${run.errorMessage ? ` · ${escapeHtml(run.errorMessage)}` : ""}</small></div><span>${stats.delivered} 条交付 / ${stats.verified} 条已验证</span><span>${run.estimatedCustomerCredits === null ? "未结算" : `${Number(run.estimatedCustomerCredits).toLocaleString("zh-CN")} 积分`}</span></article>`; }).join("") : `<div class="effect-search-empty">计划尚未产生真实运行记录。</div>`}</div></section>`;
+  return `<section class="card effect-monitor-detail"><header><div><h3>${escapeHtml(plan.name)}</h3><p>计划每次运行都会独立报价、创建检测任务，并将交付写入新的实时检测证据；历史样本不会被覆盖。</p></div><div class="effect-monitor-actions">${plan.status === "active" ? `<button class="secondary-button" type="button" data-action="effect-monitor-run" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>${icon("play")}立即运行</button><button class="secondary-button" type="button" data-action="effect-monitor-pause" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>暂停计划</button>` : plan.status === "paused" ? `<button class="primary-button" type="button" data-action="effect-monitor-resume" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>恢复计划</button>` : ""}</div></header><div class="effect-search-summary"><div><small>计划状态</small><b>${escapeHtml(plan.status === "active" ? "监测中" : plan.status)}</b><em>下次：${escapeHtml(String(plan.nextRunAt || "待安排").replace("T", " ").slice(0, 16))}</em></div><div><small>历史运行</small><b>${runs.length}</b><em>每次都是独立任务快照</em></div><div><small>已验证样本</small><b>${verified.length}</b><em>${mentionRate === null ? "暂无可计算样本" : `品牌提及率 ${mentionRate}%`}</em></div><div><small>回答引用</small><b>${citations}</b><em>仅统计已验证结果</em></div></div><div class="effect-monitor-boundary">趋势只在同一问题、同一平台、同一终端、同一模式至少积累两条已验证的实时检测证据后展示；没有真实样本时保持为空，不生成排名、情感或预测曲线。</div><div class="effect-monitor-trend-list">${trends.length ? trends.map((trend) => `<article><div><b>${escapeHtml(trend.latest.platform)} · ${escapeHtml(trend.latest.terminal)} · ${escapeHtml(trend.latest.mode)}</b><small>${escapeHtml(trend.latest.question)}</small></div><span><small>已验证样本</small><b>${trend.samples}</b></span><span><small>品牌提及率</small><b>${trend.mentionRate}%</b></span><span><small>回答引用</small><b>${trend.citations}</b></span></article>`).join("") : `<div class="effect-search-empty">暂无可计算的真实趋势。请等待同一采样条件至少完成两次已验证交付。</div>`}</div><div class="effect-monitor-run-list"><h4>计划运行记录</h4>${runs.length ? runs.map((run) => { const entry = liveEntries.find((item) => item.link?.diagnosticRunId === run.diagnosticRunId); const stats = entry ? effectRelayEntryStats(entry) : { delivered: 0, verified: 0 }; return `<article><div><b>${escapeHtml(run.triggerKind === "manual" ? "手动运行" : "计划运行")} · ${escapeHtml(String(run.scheduledFor || run.createdAt || "").replace("T", " ").slice(0, 16))}</b><small>${escapeHtml(effectRelayRunLabel(run.status))}${run.errorMessage ? ` · ${escapeHtml(run.errorMessage)}` : ""}</small></div><span>${stats.delivered} 条交付 / ${stats.verified} 条已验证</span><span>${run.estimatedCustomerCredits === null ? "未结算" : `${Number(run.estimatedCustomerCredits).toLocaleString("zh-CN")} 积分`}</span></article>`; }).join("") : `<div class="effect-search-empty">计划尚未产生真实运行记录。</div>`}</div></section>`;
 }
 
 function effectMonitorAnalyticsCards(data = {}, view = "dashboard") {
@@ -9907,20 +10695,156 @@ function effectMonitorAnalyticsCards(data = {}, view = "dashboard") {
   return `<div class="effect-monitor-analytics-cards">${cards.map(([label, value, note]) => `<article><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b><em>${escapeHtml(note)}</em></article>`).join("")}</div>`;
 }
 
-function effectMonitorDashboardView(plan, data) {
+function effectMonitorDashboardViewLegacy(plan, data) {
   const overview = data?.overview || {};
   const trendRows = (Array.isArray(data?.mentionRank) ? data.mentionRank : []).slice(0, 6);
-  return `<section class="effect-monitor-dashboard-view"><section class="effect-monitor-hero card"><div><span class="effect-demo-kicker">品牌监测大盘</span><h2>${escapeHtml(plan?.project?.targetBrand || ui.effectMonitorBrand || "品牌监测")}</h2><p>数据来自当前监测计划的已验证结果；空字段保持“—”，不生成模拟 KPI。</p></div><div class="effect-monitor-hero-meta"><span class="status-badge ${plan?.status === "active" ? "status-approved" : "status-pending"}">${escapeHtml(plan ? (plan.status === "active" ? "监测中" : plan.status || "待配置") : "未创建计划")}</span><small>最近采样：${escapeHtml(effectMonitorDisplay(overview.lastObservedAt ? formatDateTime(overview.lastObservedAt) : null))}</small></div></section>${data ? effectMonitorAnalyticsCards(data, "dashboard") : effectMonitorEmptyState("尚未选择监测计划。")}<section class="effect-monitor-dashboard-grid"><article class="card effect-monitor-dashboard-panel"><header><div><span class="effect-demo-kicker">提及与排名</span><h3>平台提及与排名</h3><p>仅展示检测结果明确返回的字段。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="mentions">查看明细</button></header>${trendRows.length ? `<div class="effect-monitor-mini-table">${trendRows.map((row) => `<div><b>${escapeHtml(row.platform || "—")}</b><small>${escapeHtml(row.terminal || "—")}</small><span>${effectMonitorPercent(row.mentionRate)}</span><em>${row.averageRank === null || row.averageRank === undefined ? "—" : `#${escapeHtml(row.averageRank)}`}</em></div>`).join("")}</div>` : effectMonitorEmptyState("暂无平台提及或排名数据。")}</article><article class="card effect-monitor-dashboard-panel"><header><div><span class="effect-demo-kicker">运行状态</span><h3>监测计划运行</h3><p>计划操作由灼见检测服务安全执行。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="settings">管理设置</button></header>${plan ? `<div class="effect-monitor-run-summary"><b>${escapeHtml(plan.name || "品牌监测计划")}</b><span>周期：${escapeHtml(effectMonitorDisplay(plan.schedule?.cadence || plan.schedule?.intervalHours ? (plan.schedule.cadence === "interval" ? `每 ${plan.schedule.intervalHours} 小时` : plan.schedule.cadence) : null))}</span><span>下次运行：${escapeHtml(effectMonitorDisplay(plan.nextRunAt ? formatDateTime(plan.nextRunAt) : null))}</span></div>` : effectMonitorEmptyState("暂无监测计划，请先在监测设置中创建。")}</article></section>${plan ? effectMonitorPlanDetail(plan) : ""}</section>`;
+  return `<section class="effect-monitor-dashboard-view"><section class="effect-monitor-hero card"><div><h2>${escapeHtml(plan?.project?.targetBrand || ui.effectMonitorBrand || "品牌监测")}</h2><p>数据来自当前监测计划的已验证结果；空字段保持“—”，不生成模拟 KPI。</p></div><div class="effect-monitor-hero-meta"><span class="status-badge ${plan?.status === "active" ? "status-approved" : "status-pending"}">${escapeHtml(plan ? (plan.status === "active" ? "监测中" : plan.status || "待配置") : "未创建计划")}</span><small>最近采样：${escapeHtml(effectMonitorDisplay(overview.lastObservedAt ? formatDateTime(overview.lastObservedAt) : null))}</small></div></section>${data ? effectMonitorAnalyticsCards(data, "dashboard") : effectMonitorEmptyState("尚未选择监测计划。")}<section class="effect-monitor-dashboard-grid"><article class="card effect-monitor-dashboard-panel"><header><div><h3>平台提及与排名</h3><p>仅展示检测结果明确返回的字段。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="mentions">查看明细</button></header>${trendRows.length ? `<div class="effect-monitor-mini-table">${trendRows.map((row) => `<div><b>${escapeHtml(row.platform || "—")}</b><small>${escapeHtml(row.terminal || "—")}</small><span>${effectMonitorPercent(row.mentionRate)}</span><em>${row.averageRank === null || row.averageRank === undefined ? "—" : `#${escapeHtml(row.averageRank)}`}</em></div>`).join("")}</div>` : effectMonitorEmptyState("暂无平台提及或排名数据。")}</article><article class="card effect-monitor-dashboard-panel"><header><div><h3>监测计划运行</h3><p>计划操作由灼见检测服务安全执行。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="settings">管理设置</button></header>${plan ? `<div class="effect-monitor-run-summary"><b>${escapeHtml(plan.name || "品牌监测计划")}</b><span>周期：${escapeHtml(effectMonitorDisplay(plan.schedule?.cadence || plan.schedule?.intervalHours ? (plan.schedule.cadence === "interval" ? `每 ${plan.schedule.intervalHours} 小时` : plan.schedule.cadence) : null))}</span><span>下次运行：${escapeHtml(effectMonitorDisplay(plan.nextRunAt ? formatDateTime(plan.nextRunAt) : null))}</span></div>` : effectMonitorEmptyState("暂无监测计划，请先在监测设置中创建。")}</article></section>${plan ? effectMonitorPlanDetail(plan) : ""}</section>`;
+}
+
+/*
+ * 品牌监测 Demo 对齐骨架。
+ * 趋势、告警、平台状态和归档只从当前计划的真实 evidence、聚合接口
+ * 和服务端运行记录读取；无法复核的字段保持为空，不补演示数值。
+ */
+function effectMonitorDashboardRecords(data, plan) {
+  const source = Array.isArray(data?.records) && data.records.length
+    ? data.records
+    : Array.isArray(data?.dialogs) && data.dialogs.length
+      ? data.dialogs
+      : monitoringPlanRecords(plan);
+  return source.filter((record) => record && typeof record === "object");
+}
+
+function effectMonitorDashboardRange(records, range = ui.effectMonitorRange) {
+  const days = Number(range);
+  const dated = records.filter((record) => record.observedAt && Number.isFinite(Date.parse(record.observedAt)));
+  if (!Number.isFinite(days) || days <= 0 || !dated.length) return dated;
+  const latest = Math.max(...dated.map((record) => Date.parse(record.observedAt)));
+  const cutoff = latest - days * 24 * 60 * 60 * 1000;
+  return dated.filter((record) => Date.parse(record.observedAt) >= cutoff);
+}
+
+function effectMonitorDashboardTrend(records) {
+  const bucket = new Map();
+  records.filter((record) => record.status === "verified" && record.observedAt).forEach((record) => {
+    const day = String(record.observedAt).slice(0, 10);
+    const row = bucket.get(day) || { day, samples: 0, mentioned: 0 };
+    row.samples += 1;
+    row.mentioned += Number(record.brandMentionCount || 0) > 0 ? 1 : 0;
+    bucket.set(day, row);
+  });
+  return [...bucket.values()]
+    .map((row) => ({ ...row, rate: row.samples ? Math.round(row.mentioned / row.samples * 100) : null }))
+    .sort((left, right) => left.day.localeCompare(right.day));
+}
+
+function effectMonitorCadenceLabel(plan) {
+  const schedule = plan?.schedule || {};
+  if (schedule.cadence === "interval") return schedule.intervalHours ? `每 ${schedule.intervalHours} 小时` : "自定义间隔";
+  return ({ daily: "每天", weekly: "每周", monthly: "每月" })[schedule.cadence] || "—";
+}
+
+function effectMonitorTaskCard(plan) {
+  const latestEntry = monitoringPlanEntries(plan)[0] || null;
+  const monitoringError = effectMonitoringSnapshot.error || effectMonitoringAnalyticsSnapshot.error || "";
+  if (!plan) {
+    return `<section class="card effect-monitor-task-card"><header><div><h2>品牌监测范围</h2><p>尚未创建服务端监测计划，因此不会显示模拟趋势或告警。</p></div><button class="primary-button" type="button" data-action="effect-monitor-view" data-view="settings">创建监测计划</button></header>${effectMonitorEmptyState("请先冻结问题集、能力范围、周期及授权。")}</section>`;
+  }
+  const active = plan.status === "active";
+  const action = active
+    ? `<button class="secondary-button" type="button" data-action="effect-monitor-run" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>${icon("play")}立即运行</button><button class="secondary-button" type="button" data-action="effect-monitor-pause" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>暂停计划</button>`
+    : plan.status === "paused"
+      ? `<button class="primary-button" type="button" data-action="effect-monitor-resume" data-effect-plan-id="${escapeHtml(plan.id)}" ${effectMonitoringSnapshot.operating ? "disabled" : ""}>恢复计划</button>`
+      : `<button class="secondary-button" type="button" data-action="effect-monitor-view" data-view="settings">查看设置</button>`;
+  return `<section class="card effect-monitor-task-card"><header><div><h2>${escapeHtml(plan.project?.targetBrand || plan.name || "品牌监测")}</h2><p>固定问题集、能力范围和授权均由当前服务端计划保存；每次运行产生独立的真实证据快照。</p></div><div class="effect-monitor-actions">${action}</div></header><div class="effect-monitor-task-meta"><span>状态：<b>${escapeHtml(active ? "监测中" : plan.status || "—")}</b></span><span>周期：<b>${escapeHtml(effectMonitorCadenceLabel(plan))}</b></span><span>冻结问题：<b>${escapeHtml(plan.questionSet?.questionCount ?? plan.questionSet?.questions?.length ?? "—")}</b></span><span>下次运行：<b>${escapeHtml(plan.nextRunAt ? formatDateTime(plan.nextRunAt) : "—")}</b></span></div><label class="effect-monitor-range-control">时间范围<select data-effect-monitor-range><option value="7" ${String(ui.effectMonitorRange) === "7" ? "selected" : ""}>近 7 天</option><option value="30" ${String(ui.effectMonitorRange) === "30" ? "selected" : ""}>近 30 天</option><option value="90" ${String(ui.effectMonitorRange) === "90" ? "selected" : ""}>近 90 天</option></select></label><div class="effect-monitor-task-status">${effectRelayStatusPanel({ flow: "monitoring", entry: latestEntry, scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, questions: effectMonitorDraftQuestions() })}</div>${monitoringError ? `<p class="effect-monitor-inline-notice" role="status">${icon("alert")}${escapeHtml(customerFacingEffectText(monitoringError))}</p>` : ""}</section>`;
+}
+
+function effectMonitorTrendPanel(trend) {
+  if (trend.length < 2) {
+    return `<section class="card effect-monitor-trend-panel"><header><div><h3>品牌提及率趋势</h3><p>按已验证 AI 对话逐日聚合，不把单次回答当作趋势。</p></div></header>${effectMonitorEmptyState("当前范围内至少需要两个有日期的已验证采样日，才能绘制真实趋势。")}</section>`;
+  }
+  const width = 820;
+  const point = (row, index) => ({ x: 48 + index * (732 / (trend.length - 1)), y: 24 + (100 - row.rate) * 1.18 });
+  const points = trend.map(point);
+  const path = points.map((item, index) => `${index ? "L" : "M"} ${item.x.toFixed(1)} ${item.y.toFixed(1)}`).join(" ");
+  const areaPath = `${path} L ${points[points.length - 1].x.toFixed(1)} 150 L ${points[0].x.toFixed(1)} 150 Z`;
+  const average = trend.reduce((sum, row) => sum + row.rate, 0) / trend.length;
+  const averageY = (24 + (100 - average) * 1.18).toFixed(1);
+  const previous = trend[trend.length - 2].rate;
+  const latest = trend[trend.length - 1].rate;
+  const delta = latest - previous;
+  const deltaText = `${delta > 0 ? "↑ +" : delta < 0 ? "↓ " : "— "}${delta === 0 ? "持平" : `${delta}pp`}`;
+  return `<section class="card effect-monitor-trend-panel"><header><div><h3>品牌提及率趋势</h3><p>${escapeHtml(`${trend.length} 个真实采样日 · 仅统计已验证 AI 对话`)}</p></div><strong class="${delta < 0 ? "is-down" : delta > 0 ? "is-up" : ""}">${escapeHtml(deltaText)}</strong></header><div class="effect-monitor-real-chart"><svg viewBox="0 0 ${width} 180" role="img" aria-label="品牌提及率真实趋势"><defs><linearGradient id="effect-trend-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--blue)" stop-opacity=".22"/><stop offset="1" stop-color="var(--blue)" stop-opacity="0"/></linearGradient></defs><line x1="40" y1="24" x2="780" y2="24" class="grid"/><line x1="40" y1="83" x2="780" y2="83" class="grid"/><line x1="40" y1="142" x2="780" y2="142" class="grid"/><text x="32" y="28">100%</text><text x="32" y="87">50%</text><text x="32" y="146">0%</text><line class="trend-average" x1="40" y1="${averageY}" x2="780" y2="${averageY}"/><text class="trend-average-label" x="784" y="${averageY}">${escapeHtml(`均值 ${Math.round(average)}%`)}</text><path class="trend-area" d="${areaPath}" fill="url(#effect-trend-fill)"/><path class="trend-line" d="${path}"/>${points.map((item, index) => `<g class="trend-point-group" data-effect-trend-point data-tip="${escapeHtml(`${trend[index].day} · 提及率 ${trend[index].rate}%（${trend[index].mentioned}/${trend[index].samples}）`)}" tabindex="0"><circle class="trend-hit" cx="${item.x}" cy="${item.y}" r="12"/><circle class="trend-point" cx="${item.x}" cy="${item.y}" r="3.5"/><text x="${item.x}" y="170" text-anchor="middle">${escapeHtml(trend[index].day.slice(5))}</text></g>`).join("")}</svg></div></section>`;
+}
+
+function effectMonitorAlertRows(data, trend, runs) {
+  const serverAlerts = Array.isArray(data?.alerts) ? data.alerts.filter((row) => row && (row.title || row.message || row.label)) : [];
+  if (serverAlerts.length) return serverAlerts.map((row) => ({ level: row.level || row.severity || "info", title: row.title || row.label || row.message, detail: row.detail || row.message || row.observedAt || "服务端告警", value: row.value ?? row.delta ?? null }));
+  const actualFailures = runs.filter((run) => run?.errorMessage).map((run) => ({ level: "warn", title: `${run.triggerKind === "manual" ? "手动运行" : "计划运行"}未完成`, detail: `${run.errorMessage} · ${run.scheduledFor || run.createdAt || "未记录时间"}`, value: null }));
+  if (trend.length >= 2) {
+    const previous = trend[trend.length - 2];
+    const latest = trend[trend.length - 1];
+    const delta = latest.rate - previous.rate;
+    if (Math.abs(delta) >= 5) actualFailures.unshift({ level: "warn", title: `提及率较上一采样日${delta > 0 ? "上升" : "下降"} ${Math.abs(delta)}pp`, detail: `${latest.day} · ${latest.mentioned}/${latest.samples} 条已验证对话提及品牌`, value: `${delta > 0 ? "+" : ""}${delta}pp` });
+  }
+  return actualFailures;
+}
+
+function effectMonitorPlatformRows(data, records) {
+  const recent = new Map();
+  records.filter((record) => record.platform).forEach((record) => {
+    const key = `${record.platform}|${record.terminal || "—"}`;
+    if (!recent.has(key) || String(record.observedAt || "") > String(recent.get(key).observedAt || "")) recent.set(key, record);
+  });
+  const fromApi = Array.isArray(data?.mentionRank) ? data.mentionRank.filter((row) => row && row.platform) : [];
+  const aggregate = new Map();
+  records.filter((record) => record.status === "verified" && record.platform).forEach((record) => {
+    const key = `${record.platform}|${record.terminal || "—"}`;
+    const row = aggregate.get(key) || { platform: record.platform, terminal: record.terminal || "—", samples: 0, mentioned: 0, citations: 0 };
+    row.samples += 1;
+    row.mentioned += Number(record.brandMentionCount || 0) > 0 ? 1 : 0;
+    row.citations += Number(record.citationSources?.length || 0);
+    aggregate.set(key, row);
+  });
+  const fallback = [...aggregate.values()].map((row) => ({ ...row, mentionRate: row.samples ? Math.round(row.mentioned / row.samples * 100) : null }));
+  return (fromApi.length ? fromApi : fallback).map((row) => {
+    const latest = recent.get(`${row.platform}|${row.terminal || "—"}`);
+    return { ...row, latestStatus: latest?.status || null, lastObservedAt: latest?.observedAt || null };
+  });
+}
+
+function effectMonitorAlertsPanel(rows) {
+  return `<section class="card effect-monitor-alert-panel"><header><div><h3>异常告警 · ${rows.length}</h3><p>仅显示服务端告警或可复核的真实运行、真实波动。</p></div></header>${rows.length ? `<div class="effect-monitor-alert-list">${rows.map((row) => `<article class="${escapeHtml(row.level)}"><div><b>${escapeHtml(row.title)}</b><small>${escapeHtml(row.detail)}</small></div>${row.value === null || row.value === undefined ? "" : `<strong>${escapeHtml(row.value)}</strong>`}</article>`).join("")}</div>` : effectMonitorEmptyState("当前范围没有服务端告警，也没有达到阈值的真实运行异常。")}</section>`;
+}
+
+function effectMonitorPlatformsPanel(rows) {
+  return `<section class="card effect-monitor-platform-panel"><header><div><h3>各平台当前状态</h3><p>提及率来自聚合数据；状态来自最近一条真实检测记录。</p></div></header>${rows.length ? `<div class="effect-monitor-platform-cards">${rows.map((row) => { const rate = row.mentionRate === null || row.mentionRate === undefined ? null : Number(row.mentionRate); const statusText = row.latestStatus || "—"; const statusTone = statusText === "verified" ? "ok" : statusText === "—" ? "idle" : "warn"; return `<article class="effect-monitor-platform-item"><header>${effectMonitorPlatformBadge(row.platform)}<div><b>${escapeHtml(row.platform || "—")}</b><small>${escapeHtml(row.terminal || "—")}</small></div><span class="effect-aligned-status ${statusTone}">${escapeHtml(statusText === "verified" ? "已验收" : statusText)}</span></header><div class="effect-monitor-platform-body">${effectMonitorRateRing(rate)}<div class="effect-monitor-platform-stats"><span>样本 <b>${effectMonitorNumber(row.samples)}</b></span><span>引用 <b>${effectMonitorNumber(row.citations)}</b></span></div></div></article>`; }).join("")}</div>` : effectMonitorEmptyState("暂无可展示的平台已验证记录。")}</section>`;
+}
+
+function effectMonitorArchivePanel(plan, runs) {
+  const entries = monitoringPlanEntries(plan);
+  const ordered = runs.slice().sort((left, right) => String(right.scheduledFor || right.createdAt || "").localeCompare(String(left.scheduledFor || left.createdAt || "")));
+  return `<section class="card effect-monitor-archive-panel"><header><div><h3>历史运行归档</h3><p>每一行对应服务端保存的一次独立运行与其真实交付快照。</p></div></header>${ordered.length ? `<div class="effect-monitor-data-table effect-monitor-archive-table"><div class="head"><span>运行</span><span>计划时间</span><span>交付 / 已验证</span><span>积分</span><span>状态</span></div>${ordered.map((run) => { const entry = entries.find((item) => String(item.link?.diagnosticRunId || "") === String(run.diagnosticRunId || "")); const stats = entry ? effectRelayEntryStats(entry) : null; const delivery = stats ? `${stats.delivered} / ${stats.verified}` : "—"; const credits = run.estimatedCustomerCredits === null || run.estimatedCustomerCredits === undefined ? "—" : `${Number(run.estimatedCustomerCredits).toLocaleString("zh-CN")} 积分`; return `<div class="row"><b>${escapeHtml(run.triggerKind === "manual" ? "手动运行" : "计划运行")}</b><span>${escapeHtml(run.scheduledFor || run.createdAt ? formatDateTime(run.scheduledFor || run.createdAt) : "—")}</span><span>${escapeHtml(delivery)}</span><span>${escapeHtml(credits)}</span><span>${escapeHtml(effectRelayRunLabel(run.status))}${run.errorMessage ? ` · ${escapeHtml(run.errorMessage)}` : ""}</span></div>`; }).join("")}</div>` : effectMonitorEmptyState("当前计划还没有服务端历史运行记录。")}</section>`;
+}
+
+function effectMonitorDashboardView(plan, data) {
+  const allRecords = effectMonitorDashboardRecords(data, plan);
+  const records = effectMonitorDashboardRange(allRecords);
+  const trend = effectMonitorDashboardTrend(records);
+  const runs = Array.isArray(plan?.runs) ? plan.runs : (effectMonitoringSnapshot.runs || []);
+  const alerts = effectMonitorAlertRows(data, trend, runs);
+  const platforms = effectMonitorPlatformRows(data, records);
+  return `<section class="effect-monitor-dashboard-stack">${effectMonitorTaskCard(plan)}${effectMonitorTrendPanel(trend)}<div class="effect-monitor-dashboard-grid">${effectMonitorAlertsPanel(alerts)}${effectMonitorPlatformsPanel(platforms)}</div>${effectMonitorArchivePanel(plan, runs)}</section>`;
 }
 
 function effectMonitorMentionView(data) {
   const rows = Array.isArray(data?.mentionRank) ? data.mentionRank : [];
-  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "mentions")}<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">MENTIONS / RANK</span><h2>品牌提及率 / 排名</h2><p>检测结果未提供排名字段时显示“—”，不会根据回答顺序推测排名。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table"><div class="head"><span>平台</span><span>终端</span><span>样本</span><span>提及率</span><span>平均首次排名</span><span>引用</span></div>${rows.map((row) => `<div class="row"><b>${escapeHtml(row.platform || "—")}</b><span>${escapeHtml(row.terminal || "—")}</span><span>${effectMonitorNumber(row.samples)}</span><strong>${effectMonitorPercent(row.mentionRate)}</strong><span>${row.averageRank === null || row.averageRank === undefined ? "—" : `#${escapeHtml(row.averageRank)}`}</span><span>${effectMonitorNumber(row.citations)}</span></div>`).join("")}</div>` : effectMonitorEmptyState("暂无已验证的提及率或排名数据。")}</section></section>`;
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "mentions")}<section class="card effect-monitor-view-panel"><header><div><h2>品牌提及率 / 排名</h2><p>检测结果未提供排名字段时显示“—”，不会根据回答顺序推测排名。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-mentions-table"><div class="head"><span>平台</span><span>终端</span><span>样本</span><span>提及率</span><span>平均首次排名</span><span>引用</span></div>${rows.map((row) => `<div class="row"><b class="effect-monitor-pf-cell">${effectMonitorPlatformBadge(row.platform, 20)}${escapeHtml(row.platform || "—")}</b><span>${escapeHtml(row.terminal || "—")}</span><span>${effectMonitorNumber(row.samples)}</span><strong>${effectMonitorPercent(row.mentionRate)}</strong><span>${row.averageRank === null || row.averageRank === undefined ? "—" : `#${escapeHtml(row.averageRank)}`}</span><span>${effectMonitorNumber(row.citations)}</span></div>`).join("")}</div>` : effectMonitorEmptyState("暂无已验证的提及率或排名数据。")}</section></section>`;
 }
 
 function effectMonitorSentimentView(data) {
   const rows = Array.isArray(data?.sentiment) ? data.sentiment : [];
-  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "sentiment")}<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">SENTIMENT</span><h2>舆情 / 情感</h2><p>只有检测结果返回标准化情感字段时才展示统计。</p></div></header>${rows.length ? `<div class="effect-monitor-sentiment-grid">${rows.map((row) => `<article><b>${escapeHtml(row.label || "—")}</b><strong>${effectMonitorNumber(row.count)}</strong><small>${effectMonitorPercent(row.rate)}</small></article>`).join("")}</div>` : effectMonitorEmptyState("当前检测结果尚未返回可验证的情感字段。")}</section></section>`;
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "sentiment")}<section class="card effect-monitor-view-panel"><header><div><h2>舆情 / 情感</h2><p>只有检测结果返回标准化情感字段时才展示统计。</p></div></header>${rows.length ? `<div class="effect-monitor-sentiment-grid">${rows.map((row) => `<article><b>${escapeHtml(row.label || "—")}</b><strong>${effectMonitorNumber(row.count)}</strong><small>${effectMonitorPercent(row.rate)}</small></article>`).join("")}</div>` : effectMonitorEmptyState("当前检测结果尚未返回可验证的情感字段。")}</section></section>`;
 }
 
 function effectMonitorMentionLabel(row) {
@@ -9935,38 +10859,39 @@ function effectMonitorSafeUrl(value) {
 
 function effectMonitorSourcesView(data) {
   const rows = Array.isArray(data?.sources) ? data.sources : [];
-  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "sources")}<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">AI SOURCES</span><h2>AI 引用来源</h2><p>来源名称、域名与 URL 均来自已验收回答引用。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-source-table"><div class="head"><span>来源</span><span>域名</span><span>引用次数</span><span>最近出现</span></div>${rows.map((row) => `<div class="row"><b>${escapeHtml(row.title || "—")}</b><span>${escapeHtml(row.domain || "—")}</span><strong>${effectMonitorNumber(row.citations)}</strong><span>${escapeHtml(row.lastObservedAt ? formatDateTime(row.lastObservedAt) : "—")}</span></div>`).join("")}</div>` : effectMonitorEmptyState("暂无 AI 引用来源。")}</section></section>`;
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "sources")}<section class="card effect-monitor-view-panel"><header><div><h2>AI 引用来源</h2><p>来源名称、域名与 URL 均来自已验收回答引用。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-source-table"><div class="head"><span>来源</span><span>域名</span><span>引用次数</span><span>最近出现</span></div>${rows.map((row) => `<div class="row"><b>${escapeHtml(row.title || "—")}</b><span>${escapeHtml(row.domain || "—")}</span><strong>${effectMonitorNumber(row.citations)}</strong><span>${escapeHtml(row.lastObservedAt ? formatDateTime(row.lastObservedAt) : "—")}</span></div>`).join("")}</div>` : effectMonitorEmptyState("暂无 AI 引用来源。")}</section></section>`;
 }
 
 function effectMonitorDialogsView(data) {
   const rows = Array.isArray(data?.dialogs) ? data.dialogs : [];
-  return `<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">AI DIALOGUES</span><h2>AI 对话记录</h2><p>按平台、终端、问题和采样时间查看原始回答；缺失字段保持“—”，明确为零时显示“未提及”。</p></div></header>${rows.length ? `<div class="effect-monitor-dialog-list">${rows.map((row) => `<article><header><div><b>${escapeHtml(row.platform || "—")} · ${escapeHtml(row.terminal || "—")}</b><small>${escapeHtml(row.mode || "—")} · ${escapeHtml(row.observedAt ? formatDateTime(row.observedAt) : "—")}</small></div><span class="status-badge ${row.status === "verified" ? "status-approved" : "status-pending"}">${escapeHtml(row.status || "—")}</span></header><p class="question">${escapeHtml(row.question || "—")}</p><p class="answer">${escapeHtml(row.answer || "—")}</p><footer><span>品牌提及：${escapeHtml(effectMonitorMentionLabel(row))}</span><span>引用：${row.citationSources?.length === undefined ? "—" : escapeHtml(row.citationSources.length)}</span><span>证据：${escapeHtml(row.evidenceId || "—")}</span></footer></article>`).join("")}</div>` : effectMonitorEmptyState("暂无可展示的 AI 对话记录。")}</section>`;
+  return `<section class="card effect-monitor-view-panel"><header><div><h2>AI 对话记录</h2><p>按平台、终端、问题和采样时间查看原始回答；缺失字段保持“—”，明确为零时显示“未提及”。</p></div></header>${rows.length ? `<div class="effect-monitor-dialog-list">${rows.map((row) => `<article><header><div class="effect-dialog-platform">${effectMonitorPlatformBadge(row.platform, 20)}<div><b>${escapeHtml(row.platform || "—")} · ${escapeHtml(row.terminal || "—")}</b><small>${escapeHtml(row.mode || "—")} · ${escapeHtml(row.observedAt ? formatDateTime(row.observedAt) : "—")}</small></div></div><span class="status-badge ${row.status === "verified" ? "status-approved" : "status-pending"}">${escapeHtml(row.status || "—")}</span></header><p class="question">${escapeHtml(row.question || "—")}</p><p class="answer">${escapeHtml(row.answer || "—")}</p><footer><span>品牌提及：${escapeHtml(effectMonitorMentionLabel(row))}</span><span>引用：${row.citationSources?.length === undefined ? "—" : escapeHtml(row.citationSources.length)}</span><span>证据：${escapeHtml(row.evidenceId || "—")}</span></footer></article>`).join("")}</div>` : effectMonitorEmptyState("暂无可展示的 AI 对话记录。")}</section>`;
 }
 
 function effectMonitorWorksView(data) {
   const rows = Array.isArray(data?.works) ? data.works : [];
-  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "works")}<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">WORKS</span><h2>作品引用追踪</h2><p>用于追踪被 AI 回答引用的网页作品；未返回 URL 时只显示来源名称。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-source-table"><div class="head"><span>作品 / 来源</span><span>URL</span><span>引用次数</span><span>最近出现</span></div>${rows.map((row) => { const url = effectMonitorSafeUrl(row.url); return `<div class="row"><b>${escapeHtml(row.title || "—")}</b><span>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>` : "—"}</span><strong>${effectMonitorNumber(row.citations)}</strong><span>${escapeHtml(row.lastObservedAt ? formatDateTime(row.lastObservedAt) : "—")}</span></div>`; }).join("")}</div>` : effectMonitorEmptyState("暂无作品引用记录。")}</section></section>`;
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "works")}<section class="card effect-monitor-view-panel"><header><div><h2>作品引用追踪</h2><p>用于追踪被 AI 回答引用的网页作品；未返回 URL 时只显示来源名称。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-source-table"><div class="head"><span>作品 / 来源</span><span>URL</span><span>引用次数</span><span>最近出现</span></div>${rows.map((row) => { const url = effectMonitorSafeUrl(row.url); return `<div class="row"><b>${escapeHtml(row.title || "—")}</b><span>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>` : "—"}</span><strong>${effectMonitorNumber(row.citations)}</strong><span>${escapeHtml(row.lastObservedAt ? formatDateTime(row.lastObservedAt) : "—")}</span></div>`; }).join("")}</div>` : effectMonitorEmptyState("暂无作品引用记录。")}</section></section>`;
 }
 
 function effectMonitorExportView(data, plan) {
   const overview = data?.overview || {};
-  return `<section class="card effect-monitor-view-panel effect-monitor-export-panel"><header><div><span class="effect-demo-kicker">EXPORT</span><h2>导出监测报告</h2><p>导出内容只包含当前计划的聚合 API 数据和客户服务端已验收 evidence。</p></div></header><div class="effect-monitor-export-summary"><div><small>计划</small><b>${escapeHtml(plan?.name || "—")}</b></div><div><small>已验证样本</small><b>${effectMonitorNumber(overview.verified)}</b></div><div><small>最近采样</small><b>${escapeHtml(overview.lastObservedAt ? formatDateTime(overview.lastObservedAt) : "—")}</b></div></div><div class="effect-monitor-export-actions"><button type="button" class="primary-button" data-action="effect-monitor-export" data-format="json">导出 JSON</button><button type="button" class="secondary-button" data-action="effect-monitor-export" data-format="csv">导出 CSV</button></div><small class="effect-input-hint">没有真实数据时仍可导出配置与空结果，但不会填入示例指标。</small></section>`;
+  return `<section class="card effect-monitor-view-panel effect-monitor-export-panel"><header><div><h2>导出监测报告</h2><p>导出内容只包含当前计划的聚合 API 数据和客户服务端已验收 evidence。</p></div></header><div class="effect-monitor-export-summary"><div><small>计划</small><b>${escapeHtml(plan?.name || "—")}</b></div><div><small>已验证样本</small><b>${effectMonitorNumber(overview.verified)}</b></div><div><small>最近采样</small><b>${escapeHtml(overview.lastObservedAt ? formatDateTime(overview.lastObservedAt) : "—")}</b></div></div><div class="effect-monitor-export-actions"><button type="button" class="primary-button" data-action="effect-monitor-export" data-format="json">导出 JSON</button><button type="button" class="secondary-button" data-action="effect-monitor-export" data-format="csv">导出 CSV</button></div><small class="effect-input-hint">没有真实数据时仍可导出配置与空结果，但不会填入示例指标。</small></section>`;
 }
 
 function effectMonitorSettingsView(plan, questions, aliases, competitors, supportedItems, canCreate) {
   const plans = effectMonitoringSnapshot.plans || [];
-  return `<section class="effect-monitor-settings-view"><section class="card effect-monitor-plans"><header><div><span class="effect-demo-kicker">SAVED MONITORING PLANS</span><h2>监测计划</h2><p>计划、授权和运行由客户服务端保存；暂停、恢复、手动运行仍使用现有接口。</p></div><button class="secondary-button" type="button" data-action="effect-monitor-refresh">${icon("refresh")}刷新计划</button></header><div>${plans.length ? plans.map((item) => effectMonitorPlanCard(item, plan)).join("") : `<div class="effect-monitor-settings-empty">${effectMonitoringSnapshot.loaded ? "暂无品牌监测计划，请先填写下方配置。" : "正在读取品牌监测计划…"}</div>`}</div></section><section class="card effect-demo-query effect-monitor-create"><header><div><span class="effect-demo-kicker">CREATE MONITORING PLAN</span><h2>创建 / 更新监测配置</h2><p>创建后将冻结问题集、能力范围、周期和授权。每次运行前重新报价。</p></div></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}目标品牌 <em>*</em></span><input id="effect-monitor-brand" value="${escapeHtml(ui.effectMonitorBrand)}" placeholder="如：桐灼科技" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-monitor-site" value="${escapeHtml(ui.effectMonitorSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-monitor-industry" value="${escapeHtml(ui.effectMonitorIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌别名</span><input id="effect-monitor-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔" /></label><label class="effect-demo-input full"><span>${icon("eye")}固定监测问题集（每行一个） <em>*</em></span><textarea id="effect-monitor-questions" rows="5" placeholder="如：桐灼科技是什么品牌？">${escapeHtml(questions.join("\n"))}</textarea></label><label class="effect-demo-input full"><span>${icon("users")}竞品（可选）</span><textarea id="effect-monitor-competitors" rows="3" placeholder="竞品 A：别名 A">${escapeHtml(competitors)}</textarea></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>固定监测能力范围</b><small>仅显示当前客户服务配置允许的平台、终端和模式。</small></div>${effectRelayCapabilityPicker({ scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, scopeAttribute: "data-effect-monitor-platform-scope", selectAllAttribute: "data-effect-monitor-platform-select-all", modeAttribute: "data-effect-monitor-platform-mode" })}</div><label class="effect-demo-input"><span>${icon("calendar")}监测周期 <em>*</em></span><select data-effect-monitor-cadence><option value="daily" ${ui.effectMonitorCadence === "daily" ? "selected" : ""}>每天</option><option value="weekly" ${ui.effectMonitorCadence === "weekly" ? "selected" : ""}>每周</option><option value="monthly" ${ui.effectMonitorCadence === "monthly" ? "selected" : ""}>每月</option><option value="interval" ${ui.effectMonitorCadence === "interval" ? "selected" : ""}>自定义小时</option></select></label><label class="effect-demo-input ${ui.effectMonitorCadence === "interval" ? "" : "is-disabled"}"><span>${icon("clock")}间隔小时</span><input id="effect-monitor-interval-hours" type="number" min="24" value="${escapeHtml(ui.effectMonitorIntervalHours)}" ${ui.effectMonitorCadence === "interval" ? "" : "disabled"} /></label><label class="effect-demo-input"><span>${icon("credit-card")}单次积分上限 <em>*</em></span><input id="effect-monitor-max-credits" type="number" min="1" value="${escapeHtml(ui.effectMonitorMaxCredits)}" /></label><label class="effect-demo-input"><span>${icon("credit-card")}月度积分上限</span><input id="effect-monitor-max-monthly-credits" type="number" min="0" value="${escapeHtml(ui.effectMonitorMaxMonthlyCredits)}" /></label><label class="effect-demo-input"><span>${icon("shield")}授权编号 / 工单号 <em>*</em></span><input id="effect-monitor-authorization-reference" value="${escapeHtml(ui.effectMonitorAuthorizationReference)}" placeholder="如：MON-2026-001" /></label><label class="effect-demo-input"><span>${icon("calendar")}授权到期时间</span><input id="effect-monitor-authorization-expires-at" type="datetime-local" value="${escapeHtml(ui.effectMonitorAuthorizationExpiresAt)}" /></label><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${effectMonitorNumber(supportedItems.length, "—")}</b> 个固定监测项<br /><small>${effectMonitorNumber(questions.length, "—")} 个问题 × 已选能力组合</small></span><label class="effect-search-consent"><input type="checkbox" data-effect-monitor-consent ${ui.effectMonitorExternalConsent ? "checked" : ""} /><span>我确认授权客户服务端按上述周期发送冻结范围并接受积分上限约束</span></label><button class="primary-button" type="button" data-action="effect-monitor-create" ${ui.effectMonitorCreating || !canCreate ? "disabled" : ""}>${ui.effectMonitorCreating ? '<span class="loading-spinner"></span>正在创建…' : `${icon("plus")}创建监测计划`}</button></div></div></section>${effectMonitorPlanDetail(plan)}</section>`;
+  return `<section class="effect-monitor-settings-view"><section class="card effect-monitor-plans"><header><div><h2>监测计划</h2><p>计划、授权和运行由客户服务端保存；暂停、恢复、手动运行仍使用现有接口。</p></div><button class="secondary-button" type="button" data-action="effect-monitor-refresh">${icon("refresh")}刷新计划</button></header><div>${plans.length ? plans.map((item) => effectMonitorPlanCard(item, plan)).join("") : `<div class="effect-monitor-settings-empty">${effectMonitoringSnapshot.loaded ? "暂无品牌监测计划，请先填写下方配置。" : "正在读取品牌监测计划…"}</div>`}</div></section><section class="card effect-demo-query effect-monitor-create"><header><div><h2>创建 / 更新监测配置</h2><p>创建后将冻结问题集、能力范围、周期和授权。每次运行前重新报价。</p></div></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}目标品牌 <em>*</em></span><input id="effect-monitor-brand" value="${escapeHtml(ui.effectMonitorBrand)}" placeholder="如：桐灼科技" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-monitor-site" value="${escapeHtml(ui.effectMonitorSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-monitor-industry" value="${escapeHtml(ui.effectMonitorIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌别名</span><input id="effect-monitor-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔" /></label><label class="effect-demo-input full"><span>${icon("eye")}固定监测问题集（每行一个） <em>*</em></span><textarea id="effect-monitor-questions" rows="5" placeholder="如：桐灼科技是什么品牌？">${escapeHtml(questions.join("\n"))}</textarea></label><label class="effect-demo-input full"><span>${icon("users")}竞品（可选）</span><textarea id="effect-monitor-competitors" rows="3" placeholder="竞品 A：别名 A">${escapeHtml(competitors)}</textarea></label><div class="effect-demo-field full"><div class="effect-platform-heading"><b>固定监测能力范围</b><small>仅显示当前客户服务配置允许的平台、终端和模式。</small></div>${effectRelayCapabilityPicker({ scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, scopeAttribute: "data-effect-monitor-platform-scope", selectAllAttribute: "data-effect-monitor-platform-select-all", modeAttribute: "data-effect-monitor-platform-mode" })}</div><label class="effect-demo-input"><span>${icon("calendar")}监测周期 <em>*</em></span><select data-effect-monitor-cadence><option value="daily" ${ui.effectMonitorCadence === "daily" ? "selected" : ""}>每天</option><option value="weekly" ${ui.effectMonitorCadence === "weekly" ? "selected" : ""}>每周</option><option value="monthly" ${ui.effectMonitorCadence === "monthly" ? "selected" : ""}>每月</option><option value="interval" ${ui.effectMonitorCadence === "interval" ? "selected" : ""}>自定义小时</option></select></label><label class="effect-demo-input ${ui.effectMonitorCadence === "interval" ? "" : "is-disabled"}"><span>${icon("clock")}间隔小时</span><input id="effect-monitor-interval-hours" type="number" min="24" value="${escapeHtml(ui.effectMonitorIntervalHours)}" ${ui.effectMonitorCadence === "interval" ? "" : "disabled"} /></label><label class="effect-demo-input"><span>${icon("credit-card")}单次积分上限 <em>*</em></span><input id="effect-monitor-max-credits" type="number" min="1" value="${escapeHtml(ui.effectMonitorMaxCredits)}" /></label><label class="effect-demo-input"><span>${icon("credit-card")}月度积分上限</span><input id="effect-monitor-max-monthly-credits" type="number" min="0" value="${escapeHtml(ui.effectMonitorMaxMonthlyCredits)}" /></label><label class="effect-demo-input"><span>${icon("shield")}授权编号 / 工单号 <em>*</em></span><input id="effect-monitor-authorization-reference" value="${escapeHtml(ui.effectMonitorAuthorizationReference)}" placeholder="如：MON-2026-001" /></label><label class="effect-demo-input"><span>${icon("calendar")}授权到期时间</span><input id="effect-monitor-authorization-expires-at" type="datetime-local" value="${escapeHtml(ui.effectMonitorAuthorizationExpiresAt)}" /></label><div class="effect-demo-controls"><span class="effect-search-scope-summary"><b>${effectMonitorNumber(supportedItems.length, "—")}</b> 个固定监测项<br /><small>${effectMonitorNumber(questions.length, "—")} 个问题 × 已选能力组合</small></span><label class="effect-search-consent"><input type="checkbox" data-effect-monitor-consent ${ui.effectMonitorExternalConsent ? "checked" : ""} /><span>我确认授权客户服务端按上述周期发送冻结范围并接受积分上限约束</span></label><button class="primary-button" type="button" data-action="effect-monitor-create" ${ui.effectMonitorCreating || !canCreate ? "disabled" : ""}>${ui.effectMonitorCreating ? '<span class="loading-spinner"></span>正在创建…' : `${icon("plus")}创建监测计划`}</button></div></div></section>${effectMonitorPlanDetail(plan)}</section>`;
 }
 
 function effectMonitorQuestionBankView(data, plan) {
   const questions = Array.isArray(data?.questionBank) ? data.questionBank : [];
-  return `<section class="card effect-monitor-view-panel"><header><div><span class="effect-demo-kicker">QUESTION BANK</span><h2>AI 问题库</h2><p>展示当前监测计划冻结的问题快照；修改需要在监测设置中创建新版本。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="settings">打开监测设置</button></header>${questions.length ? `<div class="effect-monitor-question-list">${questions.map((question, index) => `<article><span>${index + 1}</span><div><b>${escapeHtml(question.text || question.prompt || "—")}</b><small>ID：${escapeHtml(question.id || "—")} · ${escapeHtml(question.intent || question.type || "冻结问题")}</small></div></article>`).join("")}</div>` : effectMonitorEmptyState(plan ? "当前计划没有可读取的问题快照。" : "请先选择或创建监测计划。")}</section>`;
+  return `<section class="card effect-monitor-view-panel"><header><div><h2>AI 问题库</h2><p>展示当前监测计划冻结的问题快照；修改需要在监测设置中创建新版本。</p></div><button type="button" class="link-button" data-action="effect-monitor-view" data-view="settings">打开监测设置</button></header>${questions.length ? `<div class="effect-monitor-question-list">${questions.map((question, index) => `<article><span>${index + 1}</span><div><b>${escapeHtml(question.text || question.prompt || "—")}</b><small>ID：${escapeHtml(question.id || "—")} · ${escapeHtml(question.intent || question.type || "冻结问题")}</small></div></article>`).join("")}</div>` : effectMonitorEmptyState(plan ? "当前计划没有可读取的问题快照。" : "请先选择或创建监测计划。")}</section>`;
 }
 
 function effectMonitorViewContent(view, plan, data, questions, aliases, competitors, supportedItems, canCreate) {
   switch (view) {
     case "mentions": return effectMonitorMentionView(data);
     case "sentiment": return effectMonitorSentimentView(data);
+    case "product-cards": return effectMonitorProductCardsView(data, plan);
     case "sources": return effectMonitorSourcesView(data);
     case "dialogs": return effectMonitorDialogsView(data);
     case "works": return effectMonitorWorksView(data);
@@ -9975,6 +10900,11 @@ function effectMonitorViewContent(view, plan, data, questions, aliases, competit
     case "question-bank": return effectMonitorQuestionBankView(data, plan);
     default: return effectMonitorDashboardView(plan, data);
   }
+}
+
+function effectMonitorProductCardsView(data, plan) {
+  const overview = data?.overview || {};
+  return `<section class="effect-monitor-view-stack"><section class="card effect-monitor-view-panel"><header><div><h2>商品卡分析</h2><p>用于记录 AI 平台返回的商品卡、产品推荐和商品引用字段；服务端未返回时保持为空。</p></div></header><div class="effect-product-empty"><span>${icon("layers")}</span><b>${plan ? "当前计划尚未返回商品卡字段" : "请先创建品牌监测计划"}</b><small>${plan ? `已验证样本 ${effectMonitorNumber(overview.verified)} 条；商品卡能力将在检测服务返回结构化商品字段后展示。` : "商品卡分析依赖固定问题集与已验收的实时检测证据。"}</small></div></section></section>`;
 }
 
 function exportEffectMonitorAnalytics(format = "json") {
@@ -10004,7 +10934,12 @@ function renderRealEffectMonitor() {
   const view = EFFECT_MONITOR_VIEWS.some(([key]) => key === ui.effectMonitorView) ? ui.effectMonitorView : "dashboard";
   const canCreate = Boolean(ui.effectMonitorBrand.trim() && questions.length && (ui.effectMonitorScopes || []).length && (ui.effectMonitorModes || []).length && ui.effectMonitorExternalConsent && ui.effectMonitorAuthorizationReference.trim() && Number(ui.effectMonitorMaxCredits) >= 1 && Number(ui.effectMonitorMaxMonthlyCredits || 0) >= 0 && supportedItems.length);
   const latestEntry = monitoringPlanEntries(activePlan)[0] || null;
-  return `<div class="page-container effect-demo-page effect-monitor-page">${effectPagesTabs("effect-monitor")}${effectMonitorViewTabs(view)}${effectRelayStatusPanel({ entry: latestEntry, scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, questions: draftQuestions })}${effectMonitoringSnapshot.error ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectMonitoringSnapshot.error))}</div>` : ""}${effectMonitoringAnalyticsSnapshot.error ? `<div class="effect-center-notice warning">${icon("alert")} ${escapeHtml(customerFacingEffectText(effectMonitoringAnalyticsSnapshot.error))}</div>` : ""}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
+  const dashboard = view === "dashboard";
+  const pageHead = effectAlignedPageHead({ eyebrow: "", title: "品牌监测", accent: "把品牌在 AI 中的长期表现变成趋势", description: "按冻结问题和平台范围持续采样，只展示客户服务端已验收的真实检测证据。" });
+  if (dashboard) {
+    return `<div class="page-container effect-demo-page effect-monitor-page effect-aligned-page">${pageHead}${effectPagesTabs("effect-monitor")}${effectMonitorViewTabs(view)}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
+  }
+  return `<div class="page-container effect-demo-page effect-monitor-page effect-aligned-page">${pageHead}${effectPagesTabs("effect-monitor")}${effectMonitorViewTabs(view)}${effectRelayStatusPanel({ entry: latestEntry, scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, questions: draftQuestions })}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
 }
 
 function effectDiagnosticQuestionSeed(brand, options = {}) {
@@ -10258,11 +11193,129 @@ function renderEffectDiagnosticStart() {
   return `<div class="page-container aidso-diagnostic-start"><div class="aidso-diagnostic-start-hero"><span class="aidso-start-badge">AI 品牌诊断</span><h2>立即开启诊断你的品牌</h2><p>先输入品牌名称，系统将生成品牌词、竞品配置和 AI 问题建议；确认平台与对话次数后，再生成品牌诊断报告。</p><div class="aidso-start-form"><label><span>品牌名称</span><input id="effect-diagnostic-start-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="请输入需要诊断的品牌名称" /></label><label><span>官网地址（可选）</span><input id="effect-diagnostic-start-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com" /></label><button class="primary-button" type="button" data-action="effect-diagnostic-start">开始配置 ${icon("arrow")}</button></div><div class="aidso-start-notes"><span>${icon("check")}品牌与竞品配置</span><span>${icon("check")}AI 问题推荐与编辑</span><span>${icon("check")}多平台多轮对话诊断</span></div></div></div>`;
 }
 
-function renderEffectDiagnosticWorkspace() {
+/*
+ * 品牌诊断 Demo 对齐骨架。
+ * 这些 helper 只消费当前任务快照、已验收 evidence 和服务端报告；
+ * 没有真实字段时保持结构化空态，不把 Demo 的静态分数带入正式页面。
+ */
+function effectDiagnosticReportForEntry(entry) {
+  const runId = String(entry?.link?.diagnosticRunId || "");
+  if (!runId) return null;
+  if (String(ui.effectDiagnosticReportRunId || "") === runId && ui.effectDiagnosticReport) return ui.effectDiagnosticReport;
+  return (diagnosticSnapshot.reports || []).find((report) => String(
+    report.runId || report.diagnosticRunId || report.relayRunId || report.scope?.diagnosticRunId || ""
+  ) === runId) || null;
+}
+
+function effectDiagnosticStatusClass(status) {
+  if (["completed", "partial"].includes(status)) return "status-approved";
+  if (["failed", "attention", "cancelled"].includes(status)) return "status-error";
+  return "status-pending";
+}
+
+function effectDiagnosticPercent(numerator, denominator) {
+  if (!Number.isFinite(Number(denominator)) || Number(denominator) <= 0) return null;
+  return Math.round((Number(numerator) / Number(denominator)) * 100);
+}
+
+function effectDiagnosticSixDimensions(entry, records) {
+  const requestedItems = Array.isArray(entry?.link?.request?.items) ? entry.link.request.items : [];
+  const verified = records.filter((record) => record.status === "verified");
+  const mentioned = verified.filter((record) => Number(record.brandMentionCount || 0) > 0);
+  const cited = verified.filter((record) => (record.citationSources || []).length > 0);
+  const traceable = verified.filter((record) => record.evidenceId && (record.upstreamReqId || record.deliveryId));
+  const requestedScopes = new Set(requestedItems.map((item) => `${item.platform || ""}|${item.terminal || ""}`).filter((key) => key !== "|"));
+  const verifiedScopes = new Set(verified.map((record) => `${record.platform || ""}|${record.terminal || ""}`).filter((key) => key !== "|"));
+  const requestedQuestions = new Set(requestedItems.map((item) => String(item.questionId || "")).filter(Boolean));
+  const verifiedQuestions = new Set(verified.map((record) => String(record.questionId || "")).filter(Boolean));
+  return [
+    { label: "有效交付", value: effectDiagnosticPercent(verified.length, requestedItems.length), detail: `${verified.length} / ${requestedItems.length || 0} 已验证任务项` },
+    { label: "品牌提及", value: effectDiagnosticPercent(mentioned.length, verified.length), detail: `${mentioned.length} / ${verified.length} 已验证回答提及品牌` },
+    { label: "引用回答", value: effectDiagnosticPercent(cited.length, verified.length), detail: `${cited.length} / ${verified.length} 含返回引用` },
+    { label: "平台终端", value: effectDiagnosticPercent(verifiedScopes.size, requestedScopes.size), detail: `${verifiedScopes.size} / ${requestedScopes.size} 已返回平台终端` },
+    { label: "问题覆盖", value: effectDiagnosticPercent(verifiedQuestions.size, requestedQuestions.size), detail: `${verifiedQuestions.size} / ${requestedQuestions.size} 冻结问题有有效证据` },
+    { label: "证据可追溯", value: effectDiagnosticPercent(traceable.length, verified.length), detail: `${traceable.length} / ${verified.length} 含证据与上游追溯号` }
+  ];
+}
+
+function effectDiagnosticRadarMarkup(dimensions) {
+  if (dimensions.some((item) => item.value === null)) {
+    return `<div class="effect-diagnostic-data-empty"><span>${icon("clock")}</span><b>等待有效证据入库</b><p>六维图只在本次任务产生可验证实时检测证据后计算，不把“运行中”误显示为零分。</p></div>`;
+  }
+  const center = 120;
+  const radius = 72;
+  const point = (value, index, factor = 1) => {
+    const angle = -Math.PI / 2 + index * Math.PI / 3;
+    const current = radius * factor * (value / 100);
+    return `${(center + Math.cos(angle) * current).toFixed(1)},${(center + Math.sin(angle) * current).toFixed(1)}`;
+  };
+  const rings = [1, 2 / 3, 1 / 3].map((factor) => `<polygon points="${dimensions.map((_, index) => point(100, index, factor)).join(" ")}" fill="none" stroke="currentColor" stroke-opacity=".16"/>`).join("");
+  const axes = dimensions.map((_, index) => { const [x, y] = point(100, index).split(","); return `<line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="currentColor" stroke-opacity=".16"/>`; }).join("");
+  const polygon = dimensions.map((item, index) => point(item.value, index)).join(" ");
+  const dots = dimensions.map((item, index) => { const [x, y] = point(item.value, index).split(","); return `<circle cx="${x}" cy="${y}" r="3.5"/>`; }).join("");
+  return `<div class="effect-diagnostic-radar"><svg viewBox="0 0 240 240" role="img" aria-label="本次品牌诊断六维真实证据概览"><g>${rings}${axes}</g><polygon class="effect-diagnostic-radar-area" points="${polygon}"/><g class="effect-diagnostic-radar-points">${dots}</g>${dimensions.map((item, index) => { const angle = -Math.PI / 2 + index * Math.PI / 3; const x = center + Math.cos(angle) * 101; const y = center + Math.sin(angle) * 101; return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">${escapeHtml(item.label)}</text>`; }).join("")}</svg></div>`;
+}
+
+function effectDiagnosticTaskCard(entry, records, { draft = false } = {}) {
+  const link = entry?.link || {};
+  const run = entry?.run || {};
+  const request = link.request || {};
+  const status = effectRelayRunStatus(link, run);
+  const stats = entry ? effectRelayEntryStats(entry) : { requested: 0, delivered: 0, verified: 0 };
+  const questions = entry ? effectRelayEntryQuestions(entry) : effectDiagnosticQuestionList();
+  const brand = request.brand?.name || ui.effectDiagnosticBrand || "目标品牌";
+  const scopes = new Set((request.items || []).map((item) => `${EFFECT_RELAY_PLATFORM_NAMES[item.platform] || item.platform || "未知平台"} · ${EFFECT_RELAY_TERMINAL_NAMES[item.terminal] || item.terminal || "网页"}`));
+  const error = link.errorMessage || run.errorMessage || "";
+  const quote = effectRelayQuoteFor("diagnostic");
+  const draftItems = effectDiagnosticSupportedItems(ui.effectDiagnosticScopes, ui.effectDiagnosticModes, effectDiagnosticDraftQuestions(), { source: "effect_diagnostic", feature: "aidso_brand_diagnostic" });
+  const hasBrandDraft = Boolean(ui.effectDiagnosticBrand.trim());
+  const canQuote = Boolean(hasBrandDraft && questions.length && ui.effectDiagnosticScopes.length && ui.effectDiagnosticModes.length && ui.effectDiagnosticExternalConsent && draftItems.length);
+  const primaryAction = quote && ui.effectDiagnosticQuoteReady
+    ? `<button class="primary-button" type="button" data-action="effect-diagnostic-submit" ${ui.effectDiagnosticSubmitting ? "disabled" : ""}>${ui.effectDiagnosticSubmitting ? "正在提交…" : `${icon("send")}确认并提交`}</button>`
+    : hasBrandDraft
+      ? `<button class="primary-button" type="button" data-action="effect-diagnostic-quote" ${ui.effectDiagnosticSubmitting || !canQuote ? "disabled" : ""}>${ui.effectDiagnosticSubmitting ? "正在获取报价…" : `${icon("search")}生成诊断报告`}</button>`
+      : `<button class="primary-button" type="button" data-action="effect-diagnostic-start">开始配置 →</button>`;
+  const platformChips = effectAlignedCapabilityChips({ scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, scopeAttribute: "data-effect-diagnostic-platform-scope", modeAttribute: "data-effect-diagnostic-platform-mode", label: "诊断范围：" });
+  const running = ui.effectDiagnosticSubmitting || ["pending", "submitted", "queued", "running"].includes(status);
+  const brandInput = hasBrandDraft ? `<input id="effect-diagnostic-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="品牌名称，如：桐灼科技" aria-label="目标品牌"/>` : `<input id="effect-diagnostic-start-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="品牌名称，如：桐灼科技" aria-label="目标品牌"/>`;
+  const siteInput = hasBrandDraft ? `<input id="effect-diagnostic-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）"/>` : `<input id="effect-diagnostic-start-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）"/>`;
+  const config = hasBrandDraft && !entry ? `<div class="effect-diagnostic-config"><div class="effect-diagnostic-secondary-fields"><label>官网地址${siteInput}</label><label>品牌词 / 别名<input id="effect-diagnostic-aliases" value="${escapeHtml(effectDiagnosticAliases([brand, ...(ui.effectDiagnosticBrandTerms || [])]).filter((item) => item !== brand).join("、"))}" placeholder="用逗号分隔"/></label></div><label class="effect-demo-input full"><span>${icon("eye")}诊断问题集（每行一个） <em>*</em></span><textarea id="effect-diagnostic-questions" rows="4" placeholder="如：桐灼科技是什么品牌？">${escapeHtml(questions.join("\n"))}</textarea><small class="effect-input-hint">问题会在报价时冻结；最多 20 个去重问题。</small></label><label class="effect-demo-input full"><span>${icon("users")}竞品（可选）</span><textarea id="effect-diagnostic-competitors" rows="2" placeholder="竞品 A：别名 A">${escapeHtml((ui.effectDiagnosticCompetitors || []).map((item) => `${item.name || ""}${item.terms ? `：${item.terms}` : ""}`).filter(Boolean).join("\n"))}</textarea></label><div class="effect-diagnostic-config-actions"><label class="effect-diagnostic-consent"><input type="checkbox" data-effect-diagnostic-consent ${ui.effectDiagnosticExternalConsent ? "checked" : ""}/>我确认将品牌资料、冻结问题集和选定能力范围提交给灼见 AI 检测服务</label>${effectDiagnosticRoundRows()}</div></div>` : "";
+  return `<section class="effect-aligned-task effect-diagnostic-task-card"><header class="effect-aligned-task-head"><div><span class="effect-aligned-eyebrow">BRAND DIAGNOSTIC</span><h3>${escapeHtml(brand)} · ${draft ? "发起一次品牌诊断" : "本次诊断任务"}</h3><p>${draft ? "输入诊断主题，选择平台，生成一份基于真实 AI 检测证据的品牌诊断。" : "冻结问题、执行范围和交付状态均以本次任务快照为准。"}</p></div><span class="effect-aligned-tag">// DIAGNOSTIC</span></header><div class="effect-aligned-task-body"><div class="effect-aligned-query-row">${brandInput}<input id="effect-diagnostic-industry" value="${escapeHtml(ui.effectDiagnosticIndustry)}" placeholder="诊断主题 / 行业场景" aria-label="行业场景"/>${primaryAction}</div>${config || ""}${platformChips}<div class="effect-diagnostic-task-meta ${entry ? "" : "is-draft"}">${entry ? `<span>冻结问题 <b>${questions.length}</b></span><span>独立检测项 <b>${stats.requested}</b></span><span>已回传 / 已验证 <b>${stats.delivered} / ${stats.verified}</b></span><span>平台终端 <b>${scopes.size}</b></span><span>状态 <b>${escapeHtml(effectRelayRunLabel(status))}</b></span>` : `<span>问题 <b>${questions.length || "—"}</b></span><span>独立检测项 <b>${draftItems.length || "—"}</b></span><span>品牌 <b>${hasBrandDraft ? "已填写" : "待填写"}</b></span>`}</div><div class="effect-aligned-task-status">${effectRelayStatusPanel({ flow: "diagnostic", entry, quote, scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, questions: effectDiagnosticDraftQuestions(), cancelAction: "effect-diagnostic-cancel", cancelRunId: ui.effectDiagnosticRunId })}</div>${error ? `<p class="effect-diagnostic-task-error">${escapeHtml(customerFacingEffectText(error))}</p>` : ""}</div></section>`;
+}
+
+function effectDiagnosticActionsMarkup(report) {
+  if (!report) return `<div class="effect-diagnostic-data-empty"><span>${icon("file")}</span><b>报告尚未生成</b><p>本次任务完成且已有 verified 实时检测证据后，才能生成可追溯报告与行动建议。</p></div>`;
+  const rows = diagnosticActionRows([report]);
+  if (!rows.length) return `<div class="effect-diagnostic-data-empty"><span>${icon("clipboard")}</span><b>报告未返回行动建议</b><p>报告已保存，但服务端尚未提供可确认回流的建议项。</p></div>`;
+  return `<div class="effect-diagnostic-action-list">${rows.map((item) => { const status = String(item.status || "").toLowerCase(); const completed = ["confirmed", "completed", "applied", "converted"].includes(status); const available = item.actionAvailable !== false && Boolean(item.id); const target = diagnosticActionTarget(item.actionType || item.type); return `<article class="effect-diagnostic-action-row"><span class="effect-diagnostic-priority">${escapeHtml(item.priority || item.level || "建议")}</span><div><b>${escapeHtml(item.title || item.name || item.action || "未命名建议")}</b><p>${escapeHtml(item.rationale || item.reason || item.description || item.detail || "需由运营人员确认后才会回流。")}</p><small>回流至：${escapeHtml(diagnosticActionTargetLabel(target))}</small></div><button class="secondary-button button-small" type="button" data-action="diagnostic-confirm-action" data-report-id="${escapeHtml(String(report.id || report.reportId || ""))}" data-diagnostic-action-id="${escapeHtml(String(item.id || ""))}" ${!available || completed || String(ui.diagnosticActionId) === String(item.id) ? "disabled" : ""}>${completed ? "已回流" : !available ? "动作待生成" : String(ui.diagnosticActionId) === String(item.id) ? "处理中" : "确认回流"}</button></article>`; }).join("")}</div>`;
+}
+
+function effectDiagnosticEvidenceMarkup(records) {
+  const verified = records.filter((record) => record.status === "verified").slice().sort((left, right) => String(right.observedAt || "").localeCompare(String(left.observedAt || "")));
+  if (!verified.length) return `<div class="effect-diagnostic-data-empty"><span>${icon("shield")}</span><b>暂无已验证证据</b><p>只展示已通过校验并写入实时检测证据库的本次任务记录。</p></div>`;
+  return `<div class="effect-diagnostic-evidence-list">${verified.slice(0, 8).map((record) => { const citations = (record.citationSources || []).slice(0, 2); const excerpt = String(record.answer || "").replace(/\s+/g, " ").trim().slice(0, 150); return `<article class="effect-aligned-evidence-row"><span class="effect-aligned-evidence-strength is-strong">强</span><div class="effect-aligned-evidence-copy"><b>${escapeHtml(`${record.platform} · ${record.terminal} · ${record.mode}`)}</b><p>${escapeHtml(record.question || "冻结问题待返回")}</p>${excerpt ? `<small>${escapeHtml(excerpt)}${String(record.answer || "").length > 150 ? "…" : ""}</small>` : ""}<em>证据 ${escapeHtml(record.evidenceId || "—")} · ${escapeHtml(formatDateTime(record.observedAt))}</em>${citations.length ? `<div class="effect-diagnostic-evidence-sources">${citations.map((source) => `<span>${icon("link")}${escapeHtml(source.domain || source.title || "返回引用")}</span>`).join("")}</div>` : ""}</div><button class="link-button" type="button" data-action="effect-answer-detail" data-effect-search-record-id="${escapeHtml(record.id)}">追溯</button></article>`; }).join("")}</div>`;
+}
+
+function effectDiagnosticReportOperationMarkup(entry, report, verifiedCount) {
+  const status = effectRelayRunStatus(entry?.link, entry?.run);
+  const canGenerate = ["completed", "partial"].includes(status) && verifiedCount > 0;
+  if (!report) return `<div class="effect-diagnostic-report-operation"><span>${icon("file")}</span><div><b>${canGenerate ? "可以生成报告" : "报告暂不可生成"}</b><p>${canGenerate ? "将只使用本次已验证的实时检测证据生成报告。" : "需等待任务完成，并至少收到一条已验证的真实检测证据。"}</p></div>${canGenerate ? `<button class="primary-button button-small" type="button" data-action="effect-diagnostic-generate-report" ${ui.effectDiagnosticReportGenerating ? "disabled" : ""}>${ui.effectDiagnosticReportGenerating ? "正在生成…" : "生成诊断报告"}</button>` : ""}</div>`;
+  return `<div class="effect-diagnostic-report-operation"><span>${icon("file")}</span><div><b>${escapeHtml(report.title || report.name || "品牌诊断报告")}</b><p>报告 ${escapeHtml(String(report.id || report.reportId || "—"))} · v${escapeHtml(String(report.version || ui.effectDiagnosticReportVersion || 1))}</p>${report.executiveSummary || report.summary ? `<small>${escapeHtml(report.executiveSummary || report.summary)}</small>` : ""}</div><button class="secondary-button button-small" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新状态</button></div>`;
+}
+
+function renderEffectDiagnosticWorkbench(entry = effectDiagnosticActiveEntry()) {
+  const records = entry ? effectDiagnosticRecords(entry) : [];
+  const verified = records.filter((record) => record.status === "verified");
+  const dimensions = effectDiagnosticSixDimensions(entry, records);
+  const report = entry ? effectDiagnosticReportForEntry(entry) : null;
+  return `<div class="effect-diagnostic-workbench"><div class="effect-diagnostic-result-grid"><section class="card effect-diagnostic-dimensions-card"><header><div><h3>品牌认知六维图</h3><p>每一维均是本次任务已验证 evidence 的占比，不是模型主观评分。</p></div></header><div class="effect-diagnostic-dimensions-body">${effectDiagnosticRadarMarkup(dimensions)}<div class="effect-diagnostic-dimension-list">${dimensions.map((item) => `<div><span>${escapeHtml(item.label)}</span><b>${item.value === null ? "—" : `${item.value}%`}</b><small>${escapeHtml(item.detail)}</small></div>`).join("")}</div></div></section><section class="card effect-diagnostic-actions-card"><header><div><h3>行动清单 · 按优先级</h3><p>仅展示当前报告已返回、且可人工确认回流的建议。</p></div></header>${effectDiagnosticActionsMarkup(report)}</section></div><div class="effect-diagnostic-result-grid"><section class="card effect-diagnostic-evidence-card"><header><div><h3>诊断证据链</h3><p>每条记录均可按 evidence ID、采样时间和上游追溯号核验。</p></div></header>${effectDiagnosticEvidenceMarkup(records)}</section><section class="card effect-diagnostic-report-card"><header><div><h3>报告操作</h3><p>报告生成与建议回流都以本次运行的已验证 evidence 为边界。</p></div></header>${effectDiagnosticReportOperationMarkup(entry, report, verified.length)}</section></div></div>`;
+}
+
+function renderEffectDiagnosticWorkspaceLegacy() {
   if (!effectRelaySnapshot.attempted && !effectRelaySnapshot.loading) queueMicrotask(() => refreshEffectRelay({ renderAfter: true }));
   const brand = String(ui.effectDiagnosticBrand || "").trim();
   if (!brand) {
-    return `<div class="page-container effect-demo-page effect-diagnostic-page">${pageHead("品牌诊断", "先输入品牌名称，再配置竞品、AI 推荐问题、平台与每个平台的独立采样次数。", '<span class="small-tag blue">灼见 AI 检测</span>')}${effectPagesTabs("effect-diagnostic")}<section class="card effect-diagnostic-start-card"><div class="effect-diagnostic-start-copy"><span class="effect-diagnostic-start-mark" aria-hidden="true">${icon("target")}</span><div><span class="effect-demo-kicker">BRAND DIAGNOSTIC</span><h2>从品牌名称开始</h2><p>品牌名称确认后，才会出现品牌配置、竞品配置与 AI 问题推荐。执行结果只读取客户服务端验收并写入 <code>diagnostic_evidence(live)</code> 的真实交付。</p></div></div><div class="effect-diagnostic-start-fields"><label class="effect-demo-input"><span>${icon("users")}品牌名称 <em>*</em></span><input id="effect-diagnostic-start-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="请输入需要诊断的品牌名称" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-start-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><button class="primary-button" type="button" data-action="effect-diagnostic-start">开始品牌配置 ${icon("arrow")}</button></div></section>${effectDiagnosticHistory()}</div>`;
+    return `<div class="page-container effect-demo-page effect-diagnostic-page">${pageHead("品牌诊断", "先输入品牌名称，再配置竞品、AI 推荐问题、平台与每个平台的独立采样次数。", '')}}${effectPagesTabs("effect-diagnostic")}<section class="card effect-diagnostic-start-card"><div class="effect-diagnostic-start-copy"><span class="effect-diagnostic-start-mark" aria-hidden="true">${icon("target")}</span><div><h2>从品牌名称开始</h2><p>品牌名称确认后，才会出现品牌配置、竞品配置与 AI 问题推荐。执行结果只读取客户服务端验收并写入 <code>diagnostic_evidence(live)</code> 的真实交付。</p></div></div><div class="effect-diagnostic-start-fields"><label class="effect-demo-input"><span>${icon("users")}品牌名称 <em>*</em></span><input id="effect-diagnostic-start-brand" value="${escapeHtml(ui.effectDiagnosticBrand)}" placeholder="请输入需要诊断的品牌名称" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-start-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><button class="primary-button" type="button" data-action="effect-diagnostic-start">开始品牌配置 ${icon("arrow")}</button></div></section>${effectDiagnosticHistory()}</div>`;
   }
   const questions = effectDiagnosticQuestionList();
   const draftQuestions = effectDiagnosticDraftQuestions();
@@ -10281,7 +11334,22 @@ function renderEffectDiagnosticWorkspace() {
   const quoteSummary = quote && ui.effectDiagnosticQuoteReady
     ? `<div class="effect-search-quote-summary"><span data-icon="quote"></span><div><b>预估 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</b><small>${supportedItems.length} 个独立采样任务；提交时检测服务会再次校验报价与额度。</small></div><button class="link-button" type="button" data-action="effect-diagnostic-quote-reset">重新报价</button></div>`
     : "";
-  return `<div class="page-container effect-demo-page effect-diagnostic-page">${pageHead("品牌诊断", "将品牌与竞品配置、AI 问题推荐和跨平台独立采样串成一次可追溯的诊断。", '<span class="small-tag blue">灼见 AI 检测</span>')}${effectPagesTabs("effect-diagnostic")}${effectRelayStatusPanel({ entry, quote, scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, questions: draftQuestions, cancelAction: "effect-diagnostic-cancel", cancelRunId: ui.effectDiagnosticRunId })}<section class="card effect-diagnostic-wizard"><header><div><span class="effect-demo-kicker">品牌诊断配置</span><h3>${escapeHtml(brand)} 品牌诊断配置</h3><p>配置会在报价时冻结。每个“对话次数”是同一条件下的独立采样任务，不是虚构的连续聊天记录。</p></div><button class="secondary-button" type="button" data-action="effect-diagnostic-reset">更换品牌</button></header><div class="effect-diagnostic-wizard-body"><section class="effect-diagnostic-step"><header><span>1</span><div><h4>品牌配置</h4><p>确认品牌口径、官网、行业和别名。</p></div></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}品牌名称 <em>*</em></span><input id="effect-diagnostic-brand" value="${escapeHtml(brand)}" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-diagnostic-industry" value="${escapeHtml(ui.effectDiagnosticIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌词 / 别名</span><input id="effect-diagnostic-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔，如：品牌简称、产品词" /></label></div></section><section class="effect-diagnostic-step"><header><span>2</span><div><h4>竞品配置</h4><p>每行一个竞品，可写成“竞品品牌：竞品词、别名”。</p></div></header><label class="effect-demo-input full"><textarea id="effect-diagnostic-competitors" rows="3" placeholder="竞品 A：别名 A、产品词 A&#10;竞品 B">${escapeHtml(competitors)}</textarea><small class="effect-input-hint">竞品配置随本次任务保存；没有上游可验证字段时，不会生成竞争排名或胜负结论。</small></label></section><section class="effect-diagnostic-step"><header><span>3</span><div><h4>AI 问题推荐</h4><p>问题是诊断单元。可复制、编辑、删除，也可补充或重新生成推荐。</p></div><div class="effect-diagnostic-step-actions"><button class="link-button" type="button" data-action="effect-diagnostic-question-add">+ 添加问题</button><button class="link-button" type="button" data-action="effect-diagnostic-question-regenerate">重新生成</button></div></header>${effectDiagnosticQuestionRows()}</section><section class="effect-diagnostic-step"><header><span>4</span><div><h4>选择诊断平台</h4><p>平台、终端和模式只来自当前客户的服务配置。</p></div></header>${effectRelayCapabilityPicker({ scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, scopeAttribute: "data-effect-diagnostic-platform-scope", selectAllAttribute: "data-effect-diagnostic-platform-select-all", modeAttribute: "data-effect-diagnostic-platform-mode" })}</section><section class="effect-diagnostic-step"><header><span>5</span><div><h4>设置每个平台的对话次数</h4><p>设置同一问题在该平台终端的独立采样次数；采样次数越高，越能观察回答波动。</p></div></header>${effectDiagnosticRoundRows()}</section><footer class="effect-diagnostic-submit"><div><b>预计执行 ${supportedItems.length} 次 AI 独立采样</b><small>${questions.length} 个问题 · ${(ui.effectDiagnosticScopes || []).length} 个平台终端 · ${(ui.effectDiagnosticModes || []).length} 种模式</small></div><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"}</span><label class="effect-search-consent"><input type="checkbox" data-effect-diagnostic-consent ${ui.effectDiagnosticExternalConsent ? "checked" : ""} /><span>我确认将品牌资料、竞品和冻结问题集提交给灼见 AI 检测服务执行</span></label>${quoteSummary}${primaryAction}</footer></div></section>${effectDiagnosticHistory(entry)}${renderVerifiedEffectDiagnosticReport(entry)}</div>`;
+  return `<div class="page-container effect-demo-page effect-diagnostic-page">${pageHead("品牌诊断", "将品牌与竞品配置、AI 问题推荐和跨平台独立采样串成一次可追溯的诊断。", '')}}${effectPagesTabs("effect-diagnostic")}${effectRelayStatusPanel({ entry, quote, scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, questions: draftQuestions, cancelAction: "effect-diagnostic-cancel", cancelRunId: ui.effectDiagnosticRunId })}<section class="card effect-diagnostic-wizard"><header><div><h3>${escapeHtml(brand)} 品牌诊断配置</h3><p>配置会在报价时冻结。每个“对话次数”是同一条件下的独立采样任务，不是虚构的连续聊天记录。</p></div><button class="secondary-button" type="button" data-action="effect-diagnostic-reset">更换品牌</button></header><div class="effect-diagnostic-wizard-body"><section class="effect-diagnostic-step"><header><span>1</span><div><h4>品牌配置</h4><p>确认品牌口径、官网、行业和别名。</p></div></header><div class="effect-demo-form"><label class="effect-demo-input"><span>${icon("users")}品牌名称 <em>*</em></span><input id="effect-diagnostic-brand" value="${escapeHtml(brand)}" /></label><label class="effect-demo-input"><span>${icon("link")}官网地址</span><input id="effect-diagnostic-site" value="${escapeHtml(ui.effectDiagnosticSite)}" placeholder="https://example.com（可选）" /></label><label class="effect-demo-input"><span>${icon("layers")}行业 / 场景</span><input id="effect-diagnostic-industry" value="${escapeHtml(ui.effectDiagnosticIndustry)}" placeholder="如：工业机器人" /></label><label class="effect-demo-input"><span>${icon("tag")}品牌词 / 别名</span><input id="effect-diagnostic-aliases" value="${escapeHtml(aliases)}" placeholder="用逗号分隔，如：品牌简称、产品词" /></label></div></section><section class="effect-diagnostic-step"><header><span>2</span><div><h4>竞品配置</h4><p>每行一个竞品，可写成“竞品品牌：竞品词、别名”。</p></div></header><label class="effect-demo-input full"><textarea id="effect-diagnostic-competitors" rows="3" placeholder="竞品 A：别名 A、产品词 A&#10;竞品 B">${escapeHtml(competitors)}</textarea><small class="effect-input-hint">竞品配置随本次任务保存；没有上游可验证字段时，不会生成竞争排名或胜负结论。</small></label></section><section class="effect-diagnostic-step"><header><span>3</span><div><h4>AI 问题推荐</h4><p>问题是诊断单元。可复制、编辑、删除，也可补充或重新生成推荐。</p></div><div class="effect-diagnostic-step-actions"><button class="link-button" type="button" data-action="effect-diagnostic-question-add">+ 添加问题</button><button class="link-button" type="button" data-action="effect-diagnostic-question-regenerate">重新生成</button></div></header>${effectDiagnosticQuestionRows()}</section><section class="effect-diagnostic-step"><header><span>4</span><div><h4>选择诊断平台</h4><p>平台、终端和模式只来自当前客户的服务配置。</p></div></header>${effectRelayCapabilityPicker({ scopes: ui.effectDiagnosticScopes, modes: ui.effectDiagnosticModes, scopeAttribute: "data-effect-diagnostic-platform-scope", selectAllAttribute: "data-effect-diagnostic-platform-select-all", modeAttribute: "data-effect-diagnostic-platform-mode" })}</section><section class="effect-diagnostic-step"><header><span>5</span><div><h4>设置每个平台的对话次数</h4><p>设置同一问题在该平台终端的独立采样次数；采样次数越高，越能观察回答波动。</p></div></header>${effectDiagnosticRoundRows()}</section><footer class="effect-diagnostic-submit"><div><b>预计执行 ${supportedItems.length} 次 AI 独立采样</b><small>${questions.length} 个问题 · ${(ui.effectDiagnosticScopes || []).length} 个平台终端 · ${(ui.effectDiagnosticModes || []).length} 种模式</small></div><span class="effect-demo-credit">${effectRelaySnapshot.quota?.availableCredits !== undefined ? `可用 ${Number(effectRelaySnapshot.quota.availableCredits).toLocaleString("zh-CN")} 积分` : "等待读取客户额度"}</span><label class="effect-search-consent"><input type="checkbox" data-effect-diagnostic-consent ${ui.effectDiagnosticExternalConsent ? "checked" : ""} /><span>我确认将品牌资料、竞品和冻结问题集提交给灼见 AI 检测服务执行</span></label>${quoteSummary}${primaryAction}</footer></div></section>${effectDiagnosticHistory(entry)}${renderVerifiedEffectDiagnosticReport(entry)}</div>`;
+}
+
+function renderEffectDiagnosticWorkspace() {
+  if (!effectRelaySnapshot.attempted && !effectRelaySnapshot.loading) {
+    queueMicrotask(() => refreshEffectRelay({ renderAfter: true }));
+  }
+
+  const entry = effectDiagnosticActiveEntry();
+  const records = entry ? effectDiagnosticRecords(entry) : [];
+  const brand = String(entry?.link?.request?.brand?.name || ui.effectDiagnosticBrand || "").trim();
+  return `<div class="page-container effect-demo-page effect-diagnostic-page effect-aligned-page">
+    ${effectAlignedPageHead({ eyebrow: "", title: "品牌诊断", accent: "看清品牌在 AI 回答中的认知结构", description: "以固定问题、平台范围和可验证证据为边界，输出可追溯的品牌诊断结果。" })}
+    ${effectDiagnosticTaskCard(entry, records, { draft: !entry })}
+    ${renderEffectDiagnosticWorkbench(entry)}
+  </div>`;
 }
 
 function renderEffectDiagnostic() {
@@ -10296,7 +11364,7 @@ function renderRealMonitoring() {
   if (!monitoringSnapshot.loaded && !monitoringSnapshot.loading) queueMicrotask(() => refreshRealMonitoring({ silent: true }));
   if (!diagnosticSnapshot.loaded && !diagnosticSnapshot.loading && !diagnosticSnapshot.attempted) queueMicrotask(() => refreshOperationDiagnostics({ silent: true }));
   const actions = `<button class="secondary-button" type="button" data-action="refresh-monitoring" ${monitoringSnapshot.loading ? "disabled" : ""}><span data-icon="refresh"></span>刷新官网数据</button><button class="primary-button" type="button" data-action="run-monitoring-diagnostic" ${monitoringSnapshot.loading || monitoringDiagnosticRunInFlight || monitoringDiagnosticPollReportId ? "disabled" : ""}><span data-icon="shield"></span>运行网站诊断</button>`;
-  return `<div class="page-container monitor-real-page diagnostic-page">${pageHead("运营诊断", "官网访问与抓取实测：按 User-Agent 识别浏览器与自动化流量；访问和抓取不等同于 AI 引用、推荐或排名。", actions)}<main class="diagnostic-content">${renderDiagnosticEvidencePage()}</main></div>`;
+  return `<div class="page-container monitor-real-page diagnostic-page">${pageHead("抓取 / SEO 诊断", "查看官网访问、AI 与搜索爬虫、页面抓取、Schema、Meta 和链接状态；这些运行信号不等同于 AI 提及、推荐或排名。", actions)}<main class="diagnostic-content">${renderDiagnosticEvidencePage()}</main></div>`;
 }
 
 function renderMonitoring() {
@@ -10951,6 +12019,16 @@ function saveSitePage() {
   saveState();
   render();
   showToast("页面已保存", `已生成 v${page.version}，页面设置和模块可继续预览或回滚。`, "success");
+}
+
+function openLiveSite(path = "/") {
+  const baseUrl = String(state.site?.baseUrl || "").trim();
+  const domain = String(state.site?.domain || "").trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  if (!baseUrl && !domain) return showToast("尚未配置官网地址", "请先在站点设置中填写主域名，或在部署环境中配置官网地址。", "error");
+  const origin = baseUrl || `https://${domain}`;
+  const url = `${origin}${path.startsWith("/") ? path : `/${path}`}`;
+  window.open(url, "_blank", "noopener");
+  return true;
 }
 
 function renderSitePreviewModal() {
@@ -12024,7 +13102,7 @@ function renderAssistant() {
   const devices = publisherSnapshot.devices || [];
   const onlineDevices = devices.filter((device) => device.status === "online");
   const groups = state.accountGroups.filter((group) => group.id !== "unpaired").map((group) => {
-    const accounts = Object.keys(group.accounts || {}).map((platform) => {
+    const accounts = Object.keys(group.accounts || {}).filter((platform) => !RETIRED_PUBLISH_PLATFORMS.has(canonicalPublishPlatformId(platform))).map((platform) => {
       const connection = publisherAccountConnection(group, platform);
       const account = connection.account || group.accounts?.[platform] || {};
       return `
@@ -12046,28 +13124,63 @@ function renderAssistant() {
   const catalogGroup = catalogGroups.find((group) => group.id === ui.assistantCatalogGroupId) || catalogGroups[0] || null;
   const loggedInPlatformCount = (publisherSnapshot.platforms || []).filter((platform) => platform.id !== "web" && platform.enabled !== false && publisherAccountReadyForGroup(catalogGroup, platform.id)).length;
   const catalogGroupOptions = catalogGroups.map((group) => `<option value="${escapeHtml(group.id)}" ${group.id === catalogGroup?.id ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("");
-  const FORMAL_PLATFORM_IDS = new Set(["wechat_mp", "zhihu", "toutiao"]);
-  const catalogPlatforms = (publisherSnapshot.platforms || []).filter((platform) => platform.id !== "web" && platform.enabled !== false);
-  const formalCatalogRows = catalogPlatforms.filter((platform) => FORMAL_PLATFORM_IDS.has(platform.id)).map((platform) => {
+  const FORMAL_PLATFORM_IDS = new Set([
+    "web", "wechat_mp", "zhihu", "toutiao", "baijiahao", "xiaohongshu", "weibo", "juejin", "csdn",
+    "jianshu", "douyin", "bilibili", "yuque", "douban", "sohu", "xueqiu", "woshipm", "dayu",
+    "yidian", "imooc", "segmentfault", "cnblogs", "x",
+    "eastmoney", "netease",
+  ]);
+  const catalogPlatforms = (publisherSnapshot.platforms || []).filter((platform) => platform.id !== "web" && !RETIRED_PUBLISH_PLATFORMS.has(canonicalPublishPlatformId(platform.id)));
+  const catalogCategory = (platform) => {
+    const id = platform.id;
+    if (["douyin", "bilibili"].includes(id)) return "video";
+    if (["weibo", "xiaohongshu", "x", "douban"].includes(id)) return "social";
+    if (["juejin", "csdn", "jianshu", "yuque", "imooc", "segmentfault", "cnblogs"].includes(id)) return "tech";
+    return "content";
+  };
+  const catalogCategoryLabel = { content: "内容平台", social: "社交平台", video: "视频平台", tech: "行业 / 技术" };
+  const catalogStatus = (platform, connection) => {
+    if (platform.support === "planned" || platform.enabled === false) return "planned";
+    if (connection.ready) return "ready";
+    if (connection.status === "unknown") return "unknown";
+    return "login";
+  };
+  const catalogStatusLabel = { ready: "可直接发布", login: "待登录", unknown: "待确认", planned: "规划中" };
+  const catalogSearch = String(ui.assistantCatalogSearch || "").trim().toLowerCase();
+  const catalogStatusFilter = ui.assistantCatalogStatus || "all";
+  const catalogCategoryFilter = ui.assistantCatalogCategory || "all";
+  const formalCatalogPlatforms = catalogPlatforms.filter((platform) => FORMAL_PLATFORM_IDS.has(platform.id));
+  const formalCatalogRows = formalCatalogPlatforms.filter((platform) => {
     const connection = publisherAccountConnection(catalogGroup, platform.id);
-    const state = platform.enabled === false ? (platform.support === "planned" ? "planned" : "not_connected") : connection.ready ? "online" : connection.account ? connection.status : "not_connected";
+    const currentStatus = catalogStatus(platform, connection);
+    const searchText = [platform.id, platform.name, platform.capabilities, platform.description, publisherConnectionMessage(connection)].join(" ").toLowerCase();
+    return (!catalogSearch || searchText.includes(catalogSearch))
+      && (catalogStatusFilter === "all" || currentStatus === catalogStatusFilter)
+      && (catalogCategoryFilter === "all" || catalogCategory(platform) === catalogCategoryFilter);
+  }).map((platform) => {
+    const connection = publisherAccountConnection(catalogGroup, platform.id);
+    const currentStatus = catalogStatus(platform, connection);
+    const state = currentStatus === "ready" ? "online" : currentStatus === "planned" ? "planned" : connection.status || "not_connected";
     const copy = platform.enabled === false
       ? "规划目录保留，暂不进入发布选择"
       : publisherConnectionMessage(connection);
-    return `<div class="assistant-platform-row">${statusBadge(state)}<span class="assistant-platform-name">${escapeHtml(platform.name)}</span><small>${escapeHtml(copy)}</small></div>`;
+    const accountLabel = connection.account?.name || connection.account?.accountName || "尚未绑定账号";
+    const capabilityLabel = platform.capabilities || "文章内容";
+    return `<article class="assistant-platform-row" data-catalog-platform data-catalog-status="${currentStatus}" data-catalog-category="${catalogCategory(platform)}"><div class="assistant-platform-identity">${platformLogo(platform.id)}<div class="assistant-platform-copy"><b>${escapeHtml(platform.name)}</b><small>${escapeHtml(catalogCategoryLabel[catalogCategory(platform)] || "内容平台")} · ${escapeHtml(capabilityLabel)}</small></div></div><div class="assistant-platform-state">${statusBadge(state)}<small>${escapeHtml(copy)}</small></div><div class="assistant-platform-footer"><span>${escapeHtml(accountLabel)}</span><button class="link-button" type="button" data-action="edit-group">${connection.ready ? "管理账号" : "去登录"}</button></div></article>`;
   }).join("");
-  const comingPlatformCount = catalogPlatforms.length - catalogPlatforms.filter((platform) => FORMAL_PLATFORM_IDS.has(platform.id)).length;
-  const comingCatalogRows = catalogPlatforms.filter((platform) => !FORMAL_PLATFORM_IDS.has(platform.id)).map((platform) => {
-    return `<div class="assistant-platform-row coming"><span class="assistant-platform-name">${escapeHtml(platform.name)}</span><span class="small-tag">规划中</span><small>首期正式支持官网、微信公众号、知乎与头条号，其余平台暂不进入发布选择</small></div>`;
-  }).join("");
-  const catalogRows = `${formalCatalogRows || ""}${comingPlatformCount ? `<div class="assistant-platform-divider"><b>更多平台 · ${comingPlatformCount} 个规划中</b><small>待本地发布器能力稳定后按批次开放</small></div>${comingCatalogRows}` : ""}`;
+  const comingPlatformCount = catalogPlatforms.filter((platform) => !FORMAL_PLATFORM_IDS.has(platform.id)).length;
+  const catalogRows = `${formalCatalogRows || ""}${!formalCatalogRows && !comingPlatformCount ? '<div class="empty-state compact"><p>没有符合当前筛选条件的平台。</p></div>' : ""}`;
+  const formalCount = formalCatalogPlatforms.length;
+  const readyCount = formalCatalogPlatforms.filter((platform) => publisherAccountReadyForGroup(catalogGroup, platform.id)).length;
+  const pendingLoginCount = formalCount - readyCount;
+  const categoryOptions = [["all", "全部类型"], ["content", "内容平台"], ["social", "社交平台"], ["video", "视频平台"], ["tech", "行业 / 技术"]].map(([value, label]) => `<option value="${value}" ${catalogCategoryFilter === value ? "selected" : ""}>${label}</option>`).join("");
+  const statusOptions = [["all", "全部状态"], ["ready", "可直接发布"], ["login", "待登录"], ["unknown", "待确认"], ["planned", "规划中"]].map(([value, label]) => `<option value="${value}" ${catalogStatusFilter === value ? "selected" : ""}>${label}</option>`).join("");
   return `
     <div class="page-container">
-      ${pageHead("发布助手", "本地 Windows 软件负责平台账号登录和执行；发布运营只负责选择审核通过的文章、账号组和平台。", `<a class="secondary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载桌面软件</a><button class="primary-button" type="button" data-action="pair-device"><span data-icon="plus"></span>配对新设备</button>`)}
-      <section class="card assistant-hero"><div class="device-state"><span class="device-icon" data-icon="monitor"><i></i></span><div><h3>${escapeHtml(deviceName)}</h3><p>最近心跳：${lastHeartbeat ? escapeHtml(formatTimeLabel(lastHeartbeat)) : "尚未连接"}</p></div></div><div class="assistant-meta"><span>设备状态${statusBadge(liveState)}</span><span>账号组<b>${groups ? state.accountGroups.filter((group) => group.id !== "unpaired").length : 0} 组</b></span><span>平台账号<b>${accountCount} 个</b></span></div></section>
+      ${pageHead("发布助手", "本地 Windows 软件负责平台账号登录和执行；发布任务只负责选择审核通过的文章、账号组和平台。")}
+      <section class="card assistant-hero"><div class="device-state"><span class="device-icon" data-icon="monitor"><i></i></span><div class="device-state-body"><h3>${escapeHtml(deviceName)}</h3><p class="device-state-meta">${lastHeartbeat ? `最近心跳：${escapeHtml(formatTimeLabel(lastHeartbeat))}` : '本机尚未安装桐灼 GEO 桌面发布器'}</p><div class="device-state-hint">${lastHeartbeat ? '' : '下载并安装桌面软件后,点击「生成配对码」建立与本后台的连接。'}</div></div></div><div class="assistant-meta"><div class="meta-cell"><span>设备状态</span><b>${lastHeartbeat ? statusBadge(liveState) : '<span class="meta-empty">未连接</span>'}</b></div><div class="meta-cell"><span>账号组</span><b>${groups ? state.accountGroups.filter((group) => group.id !== "unpaired").length : 0} <small>组</small></b></div><div class="meta-cell"><span>平台账号</span><b>${accountCount} <small>个</small></b></div></div></section>
       <section class="card assistant-download-card"><div class="assistant-download-copy"><span class="download-app-icon" data-icon="monitor"></span><div><span class="section-kicker">桌面客户端 · Windows</span><h3>桐灼 GEO 桌面发布器</h3><p>桌面软件启动后会在本机托盘运行，账号登录态只留在客户电脑；后台通过任务队列把审核后的文章交给它执行。</p></div></div><div class="assistant-download-actions"><a class="primary-button" href="${publisherDownloadHref()}" download><span data-icon="download"></span>下载 Windows 桌面软件</a><button class="secondary-button" type="button" data-action="pair-device"><span data-icon="link"></span>生成配对码</button></div></section>
-      <div class="stack">${groups || '<section class="card empty-state"><div><span data-icon="monitor"></span><h3>尚未连接本地发布器</h3><p>下载软件、安装后点击“生成配对码”，再把配对码填入桌面软件。</p><button class="primary-button" type="button" data-action="pair-device">生成配对码</button></div></section>'}</div>
-      <section class="card assistant-platform-catalog"><div class="card-header"><div><h3>发布平台目录</h3><p>首期正式支持企业官网、微信公众号、知乎与头条号；其余平台为本地发布器规划目录，暂不进入发布选择。状态按当前账号组的本地登录会话实时同步。</p></div><div class="assistant-catalog-tools">${catalogGroupOptions ? `<label><span>账号组</span><select class="select" data-assistant-catalog-group>${catalogGroupOptions}</select></label>` : ""}<span class="small-tag teal">${catalogPlatforms.filter((platform) => FORMAL_PLATFORM_IDS.has(platform.id)).length} 个正式支持 · ${loggedInPlatformCount} 个已登录</span></div></div><div class="assistant-platform-list">${catalogRows || '<div class="empty-state compact"><p>等待桌面发布器目录同步。</p></div>'}</div></section>
+      <section class="card assistant-platform-catalog"><div class="card-header"><div><h3>发布平台目录</h3><p>当前目录包含 ${formalCount} 个正式支持平台；可发布平台会在创建任务时自动开放。账号登录态只保存在客户电脑上。</p></div><div class="assistant-catalog-tools">${catalogGroupOptions ? `<label><span>账号组</span><select class="select" data-assistant-catalog-group>${catalogGroupOptions}</select></label>` : ""}<span class="small-tag teal">${readyCount} 个可发布</span></div></div><div class="assistant-catalog-summary"><span><b>${formalCount}</b> 正式支持</span><span><b>${readyCount}</b> 可直接发布</span><span><b>${pendingLoginCount}</b> 待登录</span>${comingPlatformCount ? `<span><b>${comingPlatformCount}</b> 规划中</span>` : ""}</div><div class="assistant-catalog-toolbar"><div class="compact-search"><span data-icon="search"></span><input class="input" value="${escapeHtml(ui.assistantCatalogSearch || "")}" placeholder="搜索平台、能力或账号" aria-label="搜索发布平台" data-assistant-catalog-search /></div><label><span>平台类型</span><select class="select" data-assistant-catalog-category>${categoryOptions}</select></label><label><span>状态</span><select class="select" data-assistant-catalog-status>${statusOptions}</select></label></div><div class="assistant-platform-list">${catalogRows || '<div class="empty-state compact"><p>等待桌面发布器目录同步。</p></div>'}</div></section>
       <div class="privacy-note"><span data-icon="lock"></span><span><b class="block-title">平台登录态只留在本机</b>密码、Cookie、验证码与浏览器 Profile 不会上送服务器；后台只保存设备状态、账号别名、任务状态和发布结果。</span></div>
     </div>
   `;
@@ -12115,6 +13228,33 @@ function renderAiProviderCards() {
 }
 
 function renderSettingsPanel() {
+  if (ui.settingsTab === "effect-relay") {
+    const snapshot = effectRelayConfigSnapshot;
+    const config = snapshot.config || {};
+    const managedByEnvironment = config.source === "environment";
+    const canManageRelay = currentUserCan("system.manage");
+    if (snapshot.loading && !snapshot.loaded) return '<section class="card"><div class="card-body ai-provider-empty"><span class="loading-spinner dark"></span><b>正在读取 AI 效果检测服务配置</b><p>配置只保存在客户服务器，不会写入浏览器。</p></div></section>';
+    if (snapshot.error && !snapshot.loaded) return `<section class="card"><div class="card-body ai-provider-empty error"><span data-icon="alert"></span><b>配置服务暂不可用</b><p>${escapeHtml(snapshot.error)}</p><button class="secondary-button button-small" type="button" data-action="refresh-effect-relay-config"><span data-icon="refresh"></span>重新读取</button></div></section>`;
+    const disabled = managedByEnvironment ? "disabled" : "";
+    const test = snapshot.test || (config.lastTestStatus ? { status: config.lastTestStatus, message: config.lastTestMessage, details: config.lastTestDetails } : null);
+    const testMessage = test?.message || config.lastTestMessage || "尚未测试连接。";
+    const capabilityCount = Number(test?.details?.capabilityCount ?? config.lastTestDetails?.capabilityCount ?? 0);
+    return `
+      <section class="card settings-relay-card">
+        <div class="card-header"><div><h3>AI 效果检测服务</h3><p>配置爱搜 / 灼见中转服务，用于实时搜索、品牌诊断和品牌监测。密钥只在服务端加密保存，保存后不会回显。</p></div><div class="settings-relay-status">${effectRelayStatusMarkup(config, snapshot.relay)}</div></div>
+        ${managedByEnvironment ? '<div class="privacy-note panel"><span data-icon="lock"></span><span>当前实例由环境变量接管配置。页面仅展示脱敏状态，修改请更新 TZ_RELAY_* 环境变量并重启服务。</span></div>' : ""}
+        <div class="setting-section settings-relay-form">
+          <label class="setting-field"><span>中转服务地址</span><input id="effect-relay-base-url" class="input" type="url" value="${escapeHtml(config.baseUrl || "")}" placeholder="https://relay.example.com" ${disabled} /></label>
+          <label class="setting-field"><span>实例 ID</span><input id="effect-relay-instance-id" class="input" value="${escapeHtml(config.instanceId || "")}" placeholder="客户实例标识" ${disabled} /></label>
+          <label class="setting-field"><span>Client ID</span><input id="effect-relay-client-id" class="input" value="${escapeHtml(config.clientId || "")}" placeholder="中转服务分配的 Client ID" ${disabled} /></label>
+          <label class="setting-field"><span>Client Secret</span><input id="effect-relay-client-secret" class="input" type="password" value="" autocomplete="new-password" placeholder="${config.hasClientSecret ? "已保存，留空表示不更换" : "输入实例密钥"}" ${disabled} /></label>
+          <label class="setting-field"><span>交付消费者 <small>可选</small></span><input id="effect-relay-delivery-consumer" class="input" value="${escapeHtml(config.deliveryConsumer || "")}" placeholder="默认 private-sync:实例ID" ${disabled} /></label>
+        </div>
+        <div class="setting-row settings-relay-summary"><div><b>连接状态</b><small>${escapeHtml(testMessage)}${config.lastTestAt ? ` · ${escapeHtml(formatTimeLabel(config.lastTestAt))}` : ""}</small></div><div class="setting-value">${capabilityCount ? `${capabilityCount} 项能力` : (snapshot.relay?.configured ? "已配置" : "未配置")}</div></div>
+        <div class="card-footer settings-relay-actions"><button class="secondary-button button-small" type="button" data-action="refresh-effect-relay-config"><span data-icon="refresh"></span>刷新状态</button><button class="ghost-button button-small" type="button" data-action="test-effect-relay-config" ${snapshot.testing || !canManageRelay ? "disabled" : ""}>${snapshot.testing ? '<span class="loading-spinner"></span>测试中…' : `${icon("chart")}测试连接`}</button>${managedByEnvironment ? "" : `<button class="primary-button button-small" type="button" data-action="save-effect-relay-config" ${snapshot.saving || !canManageRelay ? "disabled" : ""}>${snapshot.saving ? '<span class="loading-spinner"></span>保存中…' : "保存配置"}</button>`}</div>
+      </section>
+    `;
+  }
   if (ui.settingsTab === "models") {
     return `
       <section class="card">
@@ -12176,6 +13316,7 @@ function renderSettings() {
   const items = [
     ["general", "settings", "通用设置"],
     ["models", "cpu", "AI 模型"],
+    ["effect-relay", "chart", "AI 效果检测"],
     ["members", "users", "成员权限"],
     ["logs", "log", "操作日志"]
   ];
@@ -12191,10 +13332,10 @@ function renderSettings() {
   `;
 }
 
-function closeModal() {
+function closeModal({ resolvePending = true } = {}) {
   if (ui.modal?.type === "onboarding") persistOnboardingDraft();
-  if (ui.modal?._confirmResolve) ui.modal._confirmResolve(false);
-  if (ui.modal?._promptResolve) ui.modal._promptResolve(null);
+  if (resolvePending && ui.modal?._confirmResolve) ui.modal._confirmResolve(false);
+  if (resolvePending && ui.modal?._promptResolve) ui.modal._promptResolve(null);
   document.body.classList.remove("modal-open");
   ui.modal = null;
   ui.publishSelection = null;
@@ -12296,7 +13437,7 @@ function renderModal() {
 /* 异步确认（系统弹窗，替换 window.confirm） */
 function uiConfirm(message, title = "确认操作") {
   return new Promise((resolve) => {
-    ui.modal = { type: "confirm", title, message, danger: true, confirmLabel: "确认", cancelLabel: "取消", _confirmResolve: resolve, onConfirm: () => resolve(true) };
+    ui.modal = { type: "confirm", title, message, danger: true, confirmLabel: "确认", cancelLabel: "取消", _confirmResolve: resolve, onConfirm: () => { resolve(true); return true; } };
     renderModal();
   });
 }
@@ -12304,7 +13445,25 @@ function uiConfirm(message, title = "确认操作") {
 /* 异步输入（系统弹窗，替换 window.prompt） */
 function uiPrompt(title, placeholder = "", value = "", multiline = false) {
   return new Promise((resolve) => {
-    ui.modal = { type: "prompt", title, placeholder, value, multiline, _promptResolve: resolve, onConfirm: () => { const v = promptValue(); if (v || multiline) resolve(v); } };
+    ui.modal = {
+      type: "prompt",
+      title,
+      placeholder,
+      value,
+      multiline,
+      _promptResolve: resolve,
+      onConfirm: () => {
+        const v = promptValue();
+        if (!v) {
+          ui.modal.error = "请填写内容后再确认。";
+          renderModal();
+          window.setTimeout(() => document.getElementById("prompt-input")?.focus(), 30);
+          return false;
+        }
+        resolve(v);
+        return true;
+      }
+    };
     renderModal();
     window.setTimeout(() => document.getElementById("prompt-input")?.focus(), 30);
   });
@@ -12329,7 +13488,11 @@ function openPrompt(options) {
 
 function renderPromptModal() {
   const m = ui.modal;
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${escapeHtml(m.title)}</h2></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body">${m.multiline ? `<textarea class="textarea" id="prompt-input" rows="5" placeholder="${escapeHtml(m.placeholder)}">${escapeHtml(m.value)}</textarea>` : `<input class="input" id="prompt-input" value="${escapeHtml(m.value)}" placeholder="${escapeHtml(m.placeholder)}" />`}</div><div class="modal-foot"><span>按 Enter 确认</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="confirm-action">确定</button></div></div>`, { className: "prompt-dialog" });
+  const errorAttributes = m.error ? ' aria-invalid="true" aria-describedby="prompt-error"' : "";
+  const input = m.multiline
+    ? `<textarea class="textarea ${m.error ? "input-error" : ""}" id="prompt-input" rows="5" placeholder="${escapeHtml(m.placeholder)}"${errorAttributes}>${escapeHtml(m.value)}</textarea>`
+    : `<input class="input ${m.error ? "input-error" : ""}" id="prompt-input" value="${escapeHtml(m.value)}" placeholder="${escapeHtml(m.placeholder)}"${errorAttributes} />`;
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${escapeHtml(m.title)}</h2></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body">${input}${m.error ? `<small class="error-text" id="prompt-error" role="alert">${escapeHtml(m.error)}</small>` : ""}</div><div class="modal-foot"><span>按 Enter 确认</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="confirm-action">确定</button></div></div>`, { className: "prompt-dialog" });
 }
 
 function promptValue() {
@@ -12598,7 +13761,7 @@ function renderArticleModal() {
     : reviewPending
     ? manualReview
       ? canReview
-        ? '<button class="secondary-button" type="button" data-action="reject-article"><span data-icon="edit"></span>退回修改</button><button class="primary-button" type="button" data-action="approve-article"><span data-icon="check"></span>审核通过</button>'
+        ? '<button class="secondary-button" type="button" data-action="reject-article" data-article-id="' + article.id + '"><span data-icon="edit"></span>' + (canSubmitReview ? '退回并修改' : '退回修改') + '</button><button class="primary-button" type="button" data-action="approve-article"><span data-icon="check"></span>审核通过</button>'
         : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>等待审核人员处理</button>'
       : revisionRequested
         ? canSubmitReview ? '<button class="primary-button" type="button" data-action="open-article-studio" data-article-id="' + article.id + '"><span data-icon="edit"></span>继续修改</button>' : '<button class="primary-button" type="button" disabled><span data-icon="lock"></span>等待内容运营修改</button>'
@@ -12617,7 +13780,10 @@ function renderArticleModal() {
     const version = knowledgeVersionById(citation.versionId || citation.knowledgeVersionId);
     return `<button class="article-citation-row" type="button" data-action="open-citation" data-citation-id="${citation.id}"><b>${escapeHtml(citation.marker)}</b><span><strong>${escapeHtml(item?.title || item?.question || "企业知识")}</strong><small>${escapeHtml(base?.name || "知识库")} · v${escapeHtml(version?.version || citation.knowledgeVersion || "1")}</small></span><span data-icon="arrow"></span></button>`;
   }).join("");
-  const editorContent = articleContentForEditor(article, citations);
+  const editorRiskScan = scanArticleRisk(article);
+  const editorSourceContent = articleContentForEditor(article, citations);
+  const editorContent = highlightArticleRiskHtml(editorSourceContent, editorRiskScan.hits);
+  const titleRiskPreview = renderArticleRiskTitlePreview(article, editorRiskScan, "article");
   const articleAgent = article.generationSnapshot?.writingAgent || null;
   const selectableAgents = activeWritingAgents(article.businessLineId || businessLine?.id, plan?.contentType || article.category);
   const selectedAgentIsActive = selectableAgents.some((agent) => agent.id === articleAgent?.agentId);
@@ -12633,14 +13799,16 @@ function renderArticleModal() {
     <div class="modal-body">
       ${!lineActive ? '<div class="knowledge-update-banner danger"><span data-icon="lock"></span><div><b>所属业务线已删除</b><p>历史正文和引用证据仍可查看；恢复业务线后才能编辑、审核或创建新的发布任务。</p></div></div>' : ""}
       ${hasKnowledgeUpdates ? '<div class="knowledge-update-banner"><span data-icon="history"></span><div><b>企业知识已有新版本</b><p>本文继续引用生成时冻结的旧版本；如需使用最新知识，请从内容计划重新生成新版本。</p></div></div>' : ""}
-      ${manualReview ? `<div class="manual-review-banner"><span class="manual-review-step active"><i>1</i><b>人工审核中</b><small>正文、引用、风险</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>2</i><b>审核通过</b><small>冻结当前版本</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>3</i><b>进入发布</b><small>官网 / 多平台</small></span></div><div class="manual-review-meta"><div><span>当前状态</span><b class="status-badge status-review">待人工审核</b></div><div><span>提交时间</span><b>${escapeHtml(submittedAt)}</b></div><div><span>提交人</span><b>${escapeHtml(article.reviewSubmittedBy || "内容团队")}</b></div><div><span>审核版本</span><b>${escapeHtml(article.version)}</b></div></div><div class="manual-review-checklist"><b>审核清单</b><span class="ok">正文完整</span><span class="${citations.length ? "ok" : "warning"}">${citations.length ? "企业知识已引用" : "缺少企业知识引用"}</span><span class="${article.riskStatus === "clean" ? "ok" : "warning"}">${article.riskStatus === "clean" ? "风控已通过" : "待完成风控"}</span><small>审核通过后才会解锁发布，修改正文后会自动生成新版本并重新审核。</small></div>` : revisionRequested ? `<div class="knowledge-update-banner"><span data-icon="edit"></span><div><b>已退回修改</b><p>${escapeHtml(article.reviewNote || "请根据审核意见修改后重新提交。")}</p></div></div>` : reviewPending ? `<div class="knowledge-update-banner"><span data-icon="clock"></span><div><b>当前为编辑草稿</b><p>确认正文、企业知识引用和风险状态后，再提交人工审核；未提交的草稿不能审核或发布。</p></div></div>` : `<div class="manual-review-complete"><span data-icon="check"></span><div><b>人工审核已通过 · 当前版本可发布</b><p>审核人：${escapeHtml(article.reviewedBy || "内容团队")} · ${escapeHtml(reviewedAt)} · 已冻结 ${escapeHtml(article.version)} 的正文与知识引用</p></div></div><div class="manual-review-complete-actions">${canPublish && canPublishContent ? '<button class="primary-button button-small" type="button" data-action="open-publish" data-article-id="' + escapeHtml(article.id) + '"><span data-icon="send"></span>去发布</button>' : ""}</div>`}
+      ${manualReview ? `<div class="manual-review-banner"><span class="manual-review-step active"><i>1</i><b>人工审核中</b><small>正文、引用、风险</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>2</i><b>审核通过</b><small>冻结当前版本</small></span><span class="manual-review-arrow">→</span><span class="manual-review-step"><i>3</i><b>进入发布</b><small>官网 / 多平台</small></span></div><div class="manual-review-meta"><div><span>当前状态</span><b class="status-badge status-review">待人工审核</b></div><div><span>提交时间</span><b>${escapeHtml(submittedAt)}</b></div><div><span>提交人</span><b>${escapeHtml(article.reviewSubmittedBy || "内容团队")}</b></div><div><span>审核版本</span><b>${escapeHtml(article.version)}</b></div></div><div class="manual-review-checklist"><b>审核清单</b><span class="ok">正文完整</span><span class="${citations.length ? "ok" : "warning"}">${citations.length ? "企业知识已引用" : "缺少企业知识引用"}</span><span class="${article.riskStatus === "clean" ? "ok" : "warning"}">${article.riskStatus === "clean" ? "风控已通过" : "待完成风控"}</span><small>审核通过后才会解锁发布，修改正文后会自动生成新版本并重新审核。</small></div>` : revisionRequested ? `<div class="knowledge-update-banner"><span data-icon="edit"></span><div><b>已退回修改</b><p>${escapeHtml(article.reviewNote || "请根据审核意见修改后重新提交。")}</p><small>审核人：${escapeHtml(article.reviewedBy || "审核人员")} · ${escapeHtml(reviewedAt)}</small></div></div>` : reviewPending ? `<div class="knowledge-update-banner"><span data-icon="clock"></span><div><b>当前为编辑草稿</b><p>确认正文、企业知识引用和风险状态后，再提交人工审核；未提交的草稿不能审核或发布。</p></div></div>` : `<div class="manual-review-complete"><span data-icon="check"></span><div><b>人工审核已通过 · 当前版本可发布</b><p>审核人：${escapeHtml(article.reviewedBy || "内容团队")} · ${escapeHtml(reviewedAt)} · 已冻结 ${escapeHtml(article.version)} 的正文与知识引用</p></div></div><div class="manual-review-complete-actions">${canPublish && canPublishContent ? '<button class="primary-button button-small" type="button" data-action="open-publish" data-article-id="' + escapeHtml(article.id) + '"><span data-icon="send"></span>去发布</button>' : ""}</div>`}
       <div class="article-drawer-grid">
         <div>
           <textarea class="editor-title" id="article-title-editor" rows="2" ${canEditArticle ? "" : "readonly"}>${escapeHtml(article.title)}</textarea>
+          ${titleRiskPreview}
           <div class="editor-toolbar" aria-label="编辑工具栏">
             <button type="button" data-action="article-format" data-command="bold" aria-label="粗体" title="粗体" ${canEditArticle ? "" : "disabled"}><b>B</b></button><button type="button" data-action="article-format" data-command="italic" aria-label="斜体" title="斜体" ${canEditArticle ? "" : "disabled"}><i>I</i></button><button type="button" data-action="article-format" data-command="formatBlock" data-value="h2" aria-label="标题" title="二级标题" ${canEditArticle ? "" : "disabled"}>H2</button>
             <button type="button" data-action="article-format" data-command="insertUnorderedList" aria-label="列表" title="无序列表" ${canEditArticle ? "" : "disabled"}>☷</button><button type="button" data-action="article-link" aria-label="链接" title="插入链接" ${canEditArticle ? "" : "disabled"}><span data-icon="link"></span></button><button type="button" data-action="open-article-studio" data-article-id="${article.id}" aria-label="图片" title="在 AI 创作台插入或管理图片" ${canEditArticle ? "" : "disabled"}><span data-icon="image"></span></button>
           </div>
+          ${renderArticleRiskInlineNotice(article, "article", editorRiskScan)}
           <article class="article-content ${canEditArticle ? "" : "read-only"}" id="article-content-editor" contenteditable="${canEditArticle ? "true" : "false"}" spellcheck="false">${editorContent}</article>
         </div>
         <aside class="article-side">
@@ -12762,12 +13930,16 @@ function saveArticleEditor(options = {}) {
   const contentInput = document.getElementById("article-content-editor");
   const visibilityInput = document.getElementById("article-show-public-citations");
   if (!article || !titleInput || !contentInput) return null;
+  if (article.reviewStage === "manual_review") {
+    if (!options.silent) showToast("当前版本正在人工审核", "请先执行“退回并修改”，服务端确认退回后才能编辑。", "error");
+    return null;
+  }
   if (!articleBusinessLineIsActive(article)) {
     if (!options.silent) showToast("业务线已删除", "恢复业务线后才能编辑这篇历史文章。", "error");
     return article;
   }
   const nextTitle = titleInput.value.trim();
-  const nextContent = sanitizeStudioHtml(contentInput.innerHTML.trim());
+  const nextContent = sanitizeStudioHtml(stripArticleRiskHighlights(contentInput.innerHTML.trim()));
   const nextShowPublicCitationMarkers = visibilityInput ? visibilityInput.checked : articlePublicCitationMarkersVisible(article);
   if (!nextTitle) {
     showToast("标题不能为空", "请填写文章标题后再保存。", "error");
@@ -12812,9 +13984,11 @@ function saveArticleEditor(options = {}) {
   }
   if (changed) {
     article.contentSyncPending = true;
-    void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+    markContentArticleEditPending(article);
+    void queueContentArticleSync(article, { createVersion: true }).catch((error) => {
       article.contentSyncPending = false;
       article.contentSyncError = error.message || "内容版本同步失败";
+      updateContentArticleEditGuard(article, { pending: true });
       saveState();
       if (!options.silent) showToast("内容版本同步失败", article.contentSyncError, "warning");
     });
@@ -12830,12 +14004,14 @@ async function submitArticleForManualReview(articleId, options = {}) {
   if (!currentUserCan("content.generate")) return showToast("没有提交审核权限", "请由内容运营或管理员提交人工审核。", "error");
   if (!articleBusinessLineIsActive(article)) return showToast("业务线已删除", "恢复业务线后才能提交审核。", "error");
   if (article.reviewStatus === "approved") return showToast("当前版本已经审核通过", "修改正文会自动创建新版本并重新进入审核。", "error");
+  if (article.reviewStage === "manual_review") return showToast("当前版本正在人工审核", "请等待审核结果；如需修改，先由审核人员退回。", "error");
   const rollback = options.rollback || {
     article: cloneData(article),
     knowledgeCitations: cloneData(state.knowledgeCitations || [])
   };
   let formalVersionReady = false;
   if (options.fromArticleModal && ui.modal?.type === "article" && ui.modal.articleId === article.id) {
+    await waitForFormalContentMigration();
     const saved = saveArticleEditor({ silent: true });
     if (!saved) return null;
   }
@@ -12855,9 +14031,18 @@ async function submitArticleForManualReview(articleId, options = {}) {
       return null;
     }
     await contentServerRiskScan(article, scan);
-    await contentServerAction(article, "submit-review", {
-      note: article.reviewNote || "",
-      riskScan: { findings: scan.hits || [], policyVersion: `workspace-${Object.values(scan.ruleVersions || {}).join("-")}`, completedAt: scan.scannedAt }
+    // The compatibility workspace may still have a debounced draft snapshot
+    // in flight from the editor.  Serialize the review mutation and read the
+    // authoritative records again before projecting the review state locally.
+    await withContentWorkflowLock(article, async () => {
+      await performContentServerAction(article, "submit-review", {
+        note: article.reviewNote || "",
+        riskScan: { findings: scan.hits || [], policyVersion: `workspace-${Object.values(scan.ruleVersions || {}).join("-")}`, completedAt: scan.scannedAt }
+      });
+      const serverSnapshot = await performRefreshContentServerSnapshot(article);
+      if (serverSnapshot.version?.reviewStatus !== "pending" || serverSnapshot.article?.status !== "in_review" || serverSnapshot.task?.status !== "in_review") {
+        throw new Error("服务端未确认文章已进入人工审核，请刷新后重试");
+      }
     });
   } catch (error) {
     if (!formalVersionReady) {
@@ -12889,42 +14074,111 @@ async function submitArticleForManualReview(articleId, options = {}) {
     workspace.status = "review";
     workspace.updatedAt = article.updatedAt;
   }
+  markContentArticleWorkspacePending(article);
   saveState();
+  try {
+    // Make the review transition durable in the compatibility workspace after
+    // all older debounced editor snapshots have drained.  Without this flush,
+    // a draft PUT could land after the content API's submit-review mutation and
+    // visually roll the article back to an editable draft.
+    await flushWorkspaceSyncNow("content-review-submit");
+  } catch (error) {
+    article.contentSyncError = error.message || "提交审核后的工作区同步失败";
+    saveState();
+  }
   return article;
 }
 
-async function rejectArticle() {
-  const article = state.articles.find((item) => item.id === ui.modal?.articleId);
-  if (!article) return;
+async function requestArticleChanges(article, options = {}) {
+  if (!article) return null;
   if (!currentUserCan("content.review")) return showToast("没有人工审核权限", "请由审核人员或管理员执行退回修改。", "error");
+  // Recover from a compatibility-workspace snapshot that was written before
+  // the submit-review response.  The formal content API is authoritative, so
+  // a pending/in-review article gets one fresh read before we reject it as
+  // non-reviewable.
+  if (article.reviewStage !== "manual_review" && (article.reviewStatus === "pending" || article.contentStatus === "in_review" || article.contentTaskStatus === "in_review")) {
+    try { await refreshContentServerSnapshot(article); } catch { /* the guard below reports the actionable state */ }
+  }
   if (article.reviewStage !== "manual_review") return showToast("文章尚未进入人工审核", "请先从文章编辑页提交审核。", "error");
+  if (!articleBusinessLineIsActive(article)) return showToast("业务线已删除", "恢复业务线后才能退回并修改这篇文章。", "error");
   const workspace = (state.writingWorkspaces || []).find((item) => item.articleId === article.id);
-  const reason = await uiPrompt("请输入退回修改原因", "", article.reviewNote || "请补充正文、知识引用或风险处理后重新提交审核。");
+  const reason = options.note === undefined
+    ? await uiPrompt("请输入退回修改原因", "请说明需要修改的内容", article.reviewNote || "请补充正文、知识引用或风险处理后重新提交审核。", true)
+    : options.note;
   if (reason === null) return;
-  const reviewNote = reason.trim() || "请根据审核清单修改后重新提交。";
+  const reviewNote = String(reason || "").trim();
+  if (!reviewNote) return showToast("请填写退回原因", "退回意见会随审核记录保存，方便内容人员按要求修改。", "error");
+  let serverSnapshot;
   try {
-    await contentServerAction(article, "request-changes", { note: reviewNote });
+    await withContentWorkflowLock(article, async () => {
+      await waitForContentSync(article);
+      await performContentServerAction(article, "request-changes", { note: reviewNote });
+      // Read the two authoritative records again.  The action response updates
+      // the local compatibility snapshot, but the follow-up read proves that
+      // the immutable version, article and task all entered the returned state.
+      serverSnapshot = await performRefreshContentServerSnapshot(article);
+      const serverTask = serverSnapshot.task;
+      const serverArticle = serverSnapshot.article;
+      const serverVersion = serverSnapshot.version;
+      if (serverVersion?.reviewStatus !== "changes_requested" || serverArticle?.status !== "changes_requested" || serverTask?.status !== "changes_requested") {
+        throw new Error("服务端未确认文章已退回，请刷新后重试");
+      }
+    });
   } catch (error) {
     article.contentSyncError = error.message || "退回审核同步失败";
     showToast("退回审核同步失败", article.contentSyncError, "error");
     saveState();
     return null;
   }
-  article.reviewStatus = "pending";
-  article.reviewStage = "revision_requested";
-  article.reviewNote = reviewNote;
-  article.reviewedAt = null;
-  article.reviewedBy = null;
+  // applyContentServerSnapshot has already projected the server state to the
+  // local UI.  Keep these fallbacks for older API payloads while preserving
+  // the server-confirmed review note and reviewer when they are available.
+  article.reviewStatus = article.reviewStatus === "approved" ? "pending" : article.reviewStatus || "pending";
+  article.reviewStage = article.reviewStage === "manual_review" ? "revision_requested" : article.reviewStage || "revision_requested";
+  article.reviewNote = article.reviewNote || reviewNote;
+  article.reviewedAt = article.reviewedAt || new Date().toISOString();
+  article.reviewedBy = article.reviewedBy || currentUserName() || "审核人员";
   article.status = "draft";
+  article.contentStatus = "changes_requested";
+  article.contentTaskStatus = "changes_requested";
   if (workspace) {
     workspace.status = "revision";
     workspace.updatedAt = Date.now();
   }
   article.updatedAt = Date.now();
+  markContentArticleWorkspacePending(article);
   saveState();
-  closeModal();
-  openContentStudio(article.id);
-  showToast("已退回修改", "文章已回到内容编辑页，修改后请重新提交人工审核。", "warning");
+  let workspacePersistError = null;
+  try {
+    // The content API is authoritative for the review transition, while the
+    // compatibility workspace drives the list and editor route.  Persist the
+    // confirmed projection before opening the studio so the next render and a
+    // later refresh both see the editable state.
+    await flushWorkspaceSyncNow("content-review-request-changes");
+  } catch (error) {
+    workspacePersistError = error;
+    article.contentSyncError = error.message || "退回状态工作区同步失败";
+    saveState();
+  }
+  if (options.openStudio !== false && currentUserCan("content.generate")) {
+    closeModal();
+    openContentStudio(article.id);
+    showToast(workspacePersistError ? "已退回，正在同步修改状态" : "已退回并进入修改", workspacePersistError ? "服务端已保存退回状态；工作区正在重试同步，当前文章仍可编辑。" : "服务端已保存退回状态和审核意见，修改后请重新提交人工审核。", "warning");
+  } else {
+    closeModal();
+    ui.contentView = "articles";
+    ui.articleTaskView = "articles";
+    ui.articleTab = "draft";
+    render();
+    showToast("已退回修改", "服务端已保存退回状态和审核意见，文章已进入“草稿 / 退回”。", "warning");
+  }
+  return article;
+}
+
+async function rejectArticle(articleId = null) {
+  const workspace = studioWorkspaceById(ui.studioWorkspaceId);
+  const article = state.articles.find((item) => item.id === (articleId || ui.modal?.articleId)) || studioArticleForWorkspace(workspace);
+  return requestArticleChanges(article, { openStudio: true });
 }
 
 async function approveArticle() {
@@ -13065,6 +14319,9 @@ async function openPublish(articleId) {
 
 async function submitPublish() {
   if (!(await ensurePublisherIntegration())) return;
+  if (!(await refreshPublisherSnapshot())) {
+    return showToast("发布器状态未同步", publisherSnapshot.error || "请等待桌面发布器完成一次心跳后重试。", "error");
+  }
   if (ui.submittingPublish || !ui.publishSelection) return;
   const selection = ui.publishSelection;
   const article = state.articles.find((item) => item.id === selection.articleId);
@@ -13103,7 +14360,7 @@ async function submitPublish() {
 }
 
 function taskAggregateStatus(task) {
-  const statuses = Object.values(task.targets).map((target) => target.status);
+  const statuses = Object.values(task?.targets || {}).map((target) => target?.status);
   if (statuses.some((status) => ["queued", "running"].includes(status))) return "running";
   if (statuses.every((status) => status === "success")) return "success";
   if (statuses.some((status) => ["failed", "needs_login", "needs_verification", "draft_saved", "result_unknown"].includes(status))) return "partial";
@@ -13228,7 +14485,7 @@ function schedulePlatformChoices(selection, group) {
     const available = isWeb || (publisherPlatformSelectable(platform) && connection.ready);
     const selected = (selection.platforms || []).includes(platform) && available;
     const help = isWeb ? "服务器发布" : publisherConnectionMessage(connection);
-    return `<label class="platform-choice schedule-platform-choice ${selected ? "selected" : ""} ${available ? "" : "disabled"}"><input class="checkbox" type="checkbox" data-schedule-platform="${platform}" ${selected ? "checked" : ""} ${available ? "" : "disabled"} />${platformLogo(platform)}<span><b>${PLATFORM_META[platform].name}</b><small>${escapeHtml(help)}</small></span>${statusBadge(available ? "online" : connection.status || "needs_login")}</label>`;
+    return `<label class="platform-choice schedule-platform-choice ${selected ? "selected" : ""} ${available ? "" : "disabled"}"><input class="checkbox" type="checkbox" data-schedule-platform="${platform}" ${selected ? "checked" : ""} ${available ? "" : "disabled"} />${platformLogo(platform)}<span><b>${escapeHtml(publishPlatformName(platform))}</b><small>${escapeHtml(help)}</small></span>${statusBadge(available ? "online" : connection.status || "needs_login")}</label>`;
   }).join("");
 }
 
@@ -13406,11 +14663,11 @@ function refreshAfterTaskUpdate(task) {
 function renderTaskModal() {
   const task = state.publishTasks.find((item) => item.id === ui.modal.taskId);
   if (!task) return "";
-  const targetRows = Object.entries(task.targets).map(([platform, target]) => `
+  const targetRows = Object.entries(task.targets || {}).map(([platform, target]) => `
     <div class="platform-choice">
       <span></span>${platformLogo(platform)}
-      <span><b>${PLATFORM_META[platform].name}</b><small>${escapeHtml(target.account)}${target.remoteUrl ? " · 已返回页面地址" : ""}${target.message ? " · " + escapeHtml(target.message) : ""}</small></span>
-      ${statusBadge(target.status)}
+      <span><b>${escapeHtml(publishPlatformName(platform))}</b><small>${escapeHtml(target?.account || "未绑定账号")}${target?.remoteUrl ? " · 已返回页面地址" : ""}${target?.message ? " · " + escapeHtml(target.message) : ""}</small></span>
+      ${statusBadge(target?.status || "draft")}
     </div>
   `).join("");
   const logs = task.logs.slice().reverse().map((log) => '<div class="log-item"><span>' + escapeHtml(log.time) + "</span><b>" + escapeHtml(log.platform) + "</b><span>" + escapeHtml(log.message) + "</span></div>").join("");
@@ -14434,6 +15691,189 @@ function scanArticleRisk(article) {
     ruleCounts: Object.fromEntries(["adLaw", "sensitive", "banned"].map((type) => [type, riskRuleEntries(type).length])),
     hits
   };
+}
+
+function stripArticleRiskHighlights(html = "") {
+  const source = String(html || "");
+  if (!source) return source;
+  if (typeof document === "undefined") {
+    return source.replace(/<(?:mark|span)\b[^>]*class=["'][^"']*article-risk-highlight[^"']*["'][^>]*>([\s\S]*?)<\/(?:mark|span)>/gi, "$1");
+  }
+  const template = document.createElement("template");
+  template.innerHTML = source;
+  template.content.querySelectorAll("mark.article-risk-highlight, span.article-risk-highlight").forEach((node) => {
+    const parent = node.parentNode;
+    if (!parent) return;
+    while (node.firstChild) parent.insertBefore(node.firstChild, node);
+    parent.removeChild(node);
+  });
+  return template.innerHTML;
+}
+
+function articleRiskHighlightDescriptors(hits = []) {
+  const byTerm = new Map();
+  (Array.isArray(hits) ? hits : []).forEach((hit) => {
+    const term = String(hit?.term || "").trim();
+    if (!term) return;
+    const key = term.toLocaleLowerCase();
+    const current = byTerm.get(key);
+    if (!current || (hit.level === "blocked" && current.level !== "blocked")) byTerm.set(key, { ...hit, term });
+  });
+  return [...byTerm.values()].sort((left, right) => right.term.length - left.term.length);
+}
+
+function articleRiskHighlightRegex(hits = []) {
+  const descriptors = articleRiskHighlightDescriptors(hits);
+  if (!descriptors.length) return { descriptors, map: new Map(), regex: null };
+  const map = new Map(descriptors.map((hit) => [hit.term.toLocaleLowerCase(), hit]));
+  const escapedTerms = descriptors.map((hit) => hit.term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  return { descriptors, map, regex: new RegExp(escapedTerms.join("|"), "gi") };
+}
+
+function articleRiskMarkHtml(value, hit) {
+  const blocked = hit?.level === "blocked";
+  const label = blocked ? "违禁" : "复核";
+  const detail = `${articleRiskHitLabel(hit)}：${hit?.message || hit?.rule || "请核对这段文字。"}`;
+  return `<mark class="article-risk-highlight ${blocked ? "blocked" : "warning"}" data-risk-hit-id="${escapeHtml(hit?.id || "")}" data-risk-label="${label}" title="${escapeHtml(detail)}" aria-label="风险文字：${escapeHtml(value)}；${escapeHtml(detail)}">${escapeHtml(value)}</mark>`;
+}
+
+function highlightArticleRiskText(value, hits = []) {
+  const source = String(value || "");
+  const matcher = articleRiskHighlightRegex(hits);
+  if (!source || !matcher.regex) return escapeHtml(source);
+  let output = "";
+  let cursor = 0;
+  source.replace(matcher.regex, (match, offset) => {
+    output += escapeHtml(source.slice(cursor, offset));
+    const hit = matcher.map.get(match.toLocaleLowerCase()) || matcher.descriptors.find((item) => item.term.toLocaleLowerCase() === match.toLocaleLowerCase());
+    output += articleRiskMarkHtml(match, hit);
+    cursor = offset + match.length;
+    return match;
+  });
+  output += escapeHtml(source.slice(cursor));
+  return output;
+}
+
+function highlightArticleRiskHtml(html = "", hits = []) {
+  const source = stripArticleRiskHighlights(html);
+  const matcher = articleRiskHighlightRegex(hits);
+  if (!source || !matcher.regex || typeof document === "undefined") return source;
+  const template = document.createElement("template");
+  template.innerHTML = source;
+  const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    if (node.parentElement?.closest("[data-citation-id], .article-risk-highlight, script, style")) continue;
+    if (matcher.regex.test(node.nodeValue || "")) {
+      matcher.regex.lastIndex = 0;
+      textNodes.push(node);
+    }
+    matcher.regex.lastIndex = 0;
+  }
+  textNodes.forEach((textNode) => {
+    const sourceText = textNode.nodeValue || "";
+    const fragment = document.createDocumentFragment();
+    let cursor = 0;
+    sourceText.replace(matcher.regex, (match, offset) => {
+      if (offset > cursor) fragment.appendChild(document.createTextNode(sourceText.slice(cursor, offset)));
+      const hit = matcher.map.get(match.toLocaleLowerCase()) || matcher.descriptors.find((item) => item.term.toLocaleLowerCase() === match.toLocaleLowerCase());
+      const markTemplate = document.createElement("template");
+      markTemplate.innerHTML = articleRiskMarkHtml(match, hit);
+      fragment.appendChild(markTemplate.content.firstElementChild);
+      cursor = offset + match.length;
+      return match;
+    });
+    if (cursor < sourceText.length) fragment.appendChild(document.createTextNode(sourceText.slice(cursor)));
+    textNode.replaceWith(fragment);
+    matcher.regex.lastIndex = 0;
+  });
+  return template.innerHTML;
+}
+
+function renderArticleRiskTitlePreview(article, scan = null, scope = "article") {
+  const targetId = scope === "studio" ? "studio-title-risk-preview" : "article-title-risk-preview";
+  const title = String(article?.title || "");
+  const hits = (Array.isArray(scan?.hits) ? scan.hits : scanArticleRisk(article).hits || []).filter((hit) => title.toLocaleLowerCase().includes(String(hit.term || "").toLocaleLowerCase()));
+  if (!hits.length) return `<div id="${targetId}" class="article-title-risk-preview is-clean" aria-live="polite" hidden></div>`;
+  const labels = [...new Set(hits.map((hit) => articleRiskHitLabel(hit)))].join("、");
+  return `<section id="${targetId}" class="article-title-risk-preview" aria-live="polite"><div class="article-title-risk-head"><strong>标题中的问题文字</strong><span>${escapeHtml(labels)}</span></div><div class="article-title-risk-text">${highlightArticleRiskText(title, hits)}</div><small>标题中的命中内容已标识；修改后会重新检测当前版本。</small></section>`;
+}
+
+function articleRiskHitLabel(hit) {
+  if (hit?.level === "blocked") return "违禁词 / 阻断";
+  if (hit?.type === "sensitive") return "敏感词 / 需复核";
+  return "广告法 / 需复核";
+}
+
+function renderArticleRiskInlineNotice(article, scope = "article", scan = null) {
+  const targetId = scope === "studio" ? "studio-inline-risk" : "article-inline-risk";
+  const currentScan = scan || scanArticleRisk(article);
+  const hits = Array.isArray(currentScan?.hits) ? currentScan.hits : [];
+  if (!hits.length) return "<section id=\"" + targetId + "\" class=\"article-inline-risk is-clean\" aria-live=\"polite\" hidden></section>";
+  const blockedCount = hits.filter((hit) => hit.level === "blocked").length;
+  const warningCount = hits.length - blockedCount;
+  const summary = blockedCount ? "命中 " + blockedCount + " 个违禁词，当前版本不能提交审核。" : "发现 " + warningCount + " 个需复核风险词，请确认后再提交审核。";
+  const chips = hits.map((hit) => "<button class=\"article-risk-hit " + (hit.level === "blocked" ? "blocked" : "warning") + "\" type=\"button\" data-action=\"locate-risk-hit\" data-article-id=\"" + escapeHtml(article.id) + "\" data-risk-hit-id=\"" + escapeHtml(hit.id) + "\" data-risk-scope=\"" + escapeHtml(scope) + "\" aria-label=\"定位风险词：" + escapeHtml(hit.term) + "\"><span>" + escapeHtml(hit.term) + "</span><small>" + escapeHtml(articleRiskHitLabel(hit)) + "</small></button>").join("");
+  return "<section id=\"" + targetId + "\" class=\"article-inline-risk " + (blockedCount ? "has-blocked" : "has-warning") + "\" aria-live=\"polite\"><span class=\"article-inline-risk-icon\" data-icon=\"" + (blockedCount ? "alert" : "shield") + "\"></span><div class=\"article-inline-risk-copy\"><div class=\"article-inline-risk-title\"><strong>编辑器内风控提示</strong><span>" + escapeHtml(summary) + "</span></div><p>问题文字已直接在标题预览和正文中标识：红色“违禁”表示阻断，黄色“复核”表示需要人工确认；点击下方词条可定位。</p><div class=\"article-risk-hit-list\">" + chips + "</div><button class=\"text-button article-risk-details\" type=\"button\" data-action=\"open-risk\" data-article-id=\"" + escapeHtml(article.id) + "\">查看完整风控详情 <span data-icon=\"arrow\"></span></button></div></section>";
+}
+
+function refreshArticleRiskInlineNotice(article, scope = "article", draft = {}) {
+  const targetId = scope === "studio" ? "studio-inline-risk" : "article-inline-risk";
+  const target = document.getElementById(targetId);
+  if (!target || !article) return null;
+  const draftArticle = {
+    ...article,
+    title: draft.title === undefined ? article.title : draft.title,
+    content: draft.content === undefined ? article.content : sanitizeStudioHtml(draft.content)
+  };
+  const scan = scanArticleRisk(draftArticle);
+  const parent = target.parentElement;
+  target.outerHTML = renderArticleRiskInlineNotice(article, scope, scan);
+  const titleTargetId = scope === "studio" ? "studio-title-risk-preview" : "article-title-risk-preview";
+  const titleTarget = document.getElementById(titleTargetId);
+  if (titleTarget) titleTarget.outerHTML = renderArticleRiskTitlePreview(draftArticle, scan, scope);
+  hydrateIcons(parent || document);
+  return scan;
+}
+
+function locateArticleRiskHit(articleId, hitId, scope = "article") {
+  const article = state.articles.find((item) => item.id === articleId);
+  const titleInput = scope === "studio" ? document.getElementById("studio-title-editor") : document.getElementById("article-title-editor");
+  const contentInput = scope === "studio" ? document.getElementById("studio-content-editor") : document.getElementById("article-content-editor");
+  const draft = article ? {
+    title: titleInput?.value === undefined ? article.title : titleInput.value,
+    content: contentInput?.innerHTML === undefined ? article.content : sanitizeStudioHtml(contentInput.innerHTML)
+  } : {};
+  const hit = scanArticleRisk(article ? { ...article, ...draft } : {}).hits.find((item) => item.id === hitId);
+  if (!article || !hit) return showToast("风险词已变化", "请重新检测当前文章后再定位。", "warning");
+  const term = hit.term;
+  if (titleInput && titleInput.value.includes(term)) {
+    const start = titleInput.value.indexOf(term);
+    titleInput.focus();
+    titleInput.setSelectionRange(start, start + term.length);
+    titleInput.scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
+  if (!contentInput) return;
+  const walker = document.createTreeWalker(contentInput, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())) {
+    const start = node.nodeValue.indexOf(term);
+    if (start < 0) continue;
+    const range = document.createRange();
+    range.setStart(node, start);
+    range.setEnd(node, start + term.length);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    contentInput.focus();
+    node.parentElement?.scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
+  contentInput.focus();
+  contentInput.scrollIntoView({ block: "center", behavior: "smooth" });
+  showToast("未找到风险词", "当前编辑区内容可能尚未保存，请查看完整风控详情。", "warning");
 }
 
 function applyArticleRiskScan(article) {
@@ -15709,7 +17149,7 @@ async function submitContentPlan() {
   const agent = writingAgentById(agentId);
   if (!agent || !writingAgentSupports(agent, line.id, contentType)) return showToast("写作智能体不可用", "请选择一个已启用、适用于当前业务线和内容形式的智能体。", "error");
   const expectedPlatformIds = Array.from(document.querySelectorAll("[data-plan-style-platform]:checked")).map((item) => item.value).filter((id) => PLATFORM_META[id]);
-  const expectedPlatformNames = Object.fromEntries(expectedPlatformIds.map((id) => [id, PLATFORM_META[id].name]));
+  const expectedPlatformNames = Object.fromEntries(expectedPlatformIds.map((id) => [id, publishPlatformName(id)]));
   const expectedPlatformGuidance = Object.fromEntries(expectedPlatformIds.map((id) => [id, PLATFORM_STYLE_HINTS[id]]));
   const inheritedBaseIds = inheritedKnowledgeBaseIds(line);
   const resolvedBaseIds = Array.from(document.querySelectorAll("[data-plan-knowledge]:checked")).map((item) => item.value);
@@ -15978,12 +17418,12 @@ function syncStudioArticleEditor(options = {}) {
   const contentInput = document.getElementById("studio-content-editor");
   const visibilityInput = document.getElementById("studio-show-public-citations");
   if (!workspace || !article || !titleInput || !contentInput) return article || null;
-  if (article.reviewStage === "manual_review" && !currentUserCan("content.generate")) {
-    if (!options.silent) showToast("当前版本正在人工审核", "审核中的版本不能直接编辑，请先退回修改。", "error");
+  if (article.reviewStage === "manual_review") {
+    if (!options.silent) showToast("当前版本正在人工审核", "请先执行“退回并修改”，服务端确认退回后才能编辑。", "error");
     return article;
   }
   const nextTitle = titleInput.value.trim();
-  const nextContent = sanitizeStudioHtml(contentInput.innerHTML.trim());
+  const nextContent = sanitizeStudioHtml(stripArticleRiskHighlights(contentInput.innerHTML.trim()));
   const nextShowPublicCitationMarkers = visibilityInput ? visibilityInput.checked : articlePublicCitationMarkersVisible(article);
   if (!nextTitle) {
     if (!options.silent) showToast("标题不能为空", "请填写文章标题后再保存。", "error");
@@ -16003,9 +17443,11 @@ function syncStudioArticleEditor(options = {}) {
   workspace.updatedAt = article.updatedAt;
   if (changed) {
     article.contentSyncPending = true;
-    void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+    markContentArticleEditPending(article);
+    void queueContentArticleSync(article, { createVersion: true }).catch((error) => {
       article.contentSyncPending = false;
       article.contentSyncError = error.message || "内容版本同步失败";
+      updateContentArticleEditGuard(article, { pending: true });
       saveState();
       if (!options.silent) showToast("内容版本同步失败", article.contentSyncError, "error");
     });
@@ -16102,6 +17544,7 @@ async function sendStudioChat() {
   const prompt = (input?.value || ui.studioComposerDraft).trim();
   if (!prompt) return showToast("请输入调整要求", "例如：改成采购决策结构，并保留知识引用。", "error");
   const article = syncStudioArticleEditor({ silent: true }) || studioArticleForWorkspace(workspace);
+  if (article?.reviewStage === "manual_review") return showToast("当前版本正在人工审核", "审核中的版本不能继续生成或应用修改建议，请先退回并修改。", "error");
   const agent = writingAgentById(conversation.selectedAgentId) || writingAgentById(workspace.writingAgentId);
   if (!agent || !writingAgentSupports(agent, workspace.businessLineId, workspace.contentType)) return showToast("写作智能体不可用", "请选择适用于当前业务线和内容形式的智能体。", "error");
   const agentSnapshot = snapshotWritingAgent(agent, { selectionSource: "studio_chat" });
@@ -16237,6 +17680,7 @@ function applyStudioProposal(messageId) {
   const message = conversation?.messages.find((item) => item.id === messageId);
   const proposal = message?.proposal;
   const article = syncStudioArticleEditor({ silent: true }) || studioArticleForWorkspace(workspace);
+  if (article?.reviewStage === "manual_review") return showToast("当前版本正在人工审核", "请先由审核人员退回并修改，AI 建议才能写入新版本。", "error");
   if (!article || !proposal || proposal.status !== "pending") return showToast("建议不可用", "请重新发送调整要求。", "error");
   if (proposal.baseArticleVersion !== article.version || proposal.baseContentHash !== studioContentHash(article.content)) return showToast("建议已过期", "正文或版本在建议生成后发生了变化，请重新让 AI 生成建议。", "error");
   const citationClone = studioBumpArticleVersion(article, "ai_collaboration", "应用 AI 建议前");
@@ -16262,7 +17706,7 @@ function applyStudioProposal(messageId) {
   workspace.updatedAt = article.updatedAt;
   saveState();
   article.contentSyncPending = true;
-  void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+  void queueContentArticleSync(article, { createVersion: true }).catch((error) => {
     article.contentSyncPending = false;
     article.contentSyncError = error.message || "AI 修改版本同步失败";
     saveState();
@@ -16784,7 +18228,7 @@ async function executeContentPlan(planId) {
       created.push(article);
       if (!article.contentTaskId || !article.contentVersionId) {
         article.contentSyncPending = true;
-        void syncContentTaskAndVersion(article, { createVersion: true }).catch((error) => {
+        void queueContentArticleSync(article, { createVersion: true }).catch((error) => {
           article.contentSyncPending = false;
           article.contentSyncError = error.message || "生成结果同步失败";
           saveState();
@@ -17253,10 +18697,29 @@ function exportPlanningPack() {
   showToast("词包已导出", `已导出「${pack.title}」的 ${questions.length} 条问题及来源状态。`);
 }
 
-function verifyPublishResult(taskId, platform) {
+async function verifyPublishResult(taskId, platform, button = null) {
   const task = state.publishTasks.find((item) => item.id === taskId);
-  if (!task || !task.targets[platform]) return;
-  showToast("请在本地发布器确认", "后台不会直接把待确认结果改成已发布；请在本地平台完成发布后，由发布器回写真实结果。", "info");
+  if (!task || !task.targets[platform] || !task.remoteJobId) return;
+  if (button?.dataset.verifying === "1") return;
+  if (button) {
+    button.dataset.verifying = "1";
+    button.disabled = true;
+    button.innerHTML = '<span class="loading-spinner dark"></span>核验中';
+  }
+  try {
+    const payload = await publisherApi(`/api/publisher/jobs/${encodeURIComponent(task.remoteJobId)}/verify`, { method: "POST", body: { platform } });
+    await refreshPublisherSnapshot({ renderAfter: false });
+    render();
+    const result = payload?.data?.result || payload?.result || {};
+    if (payload?.data?.verified || payload?.verified) {
+      showToast("已确认发布", result.message || "检测到公开页面，任务状态已更新为已发布。", "success");
+    } else {
+      showToast("仍未检测到公开发布", result.message || "当前仍是草稿或无法访问公开页面，任务不会被误标为已发布。", "warning");
+    }
+  } catch (error) {
+    if (button) { button.dataset.verifying = ""; button.disabled = false; button.textContent = "检查发布状态"; }
+    showToast("发布状态核验失败", error.message || "暂时无法连接发布服务。", "error");
+  }
 }
 
 function runDiagnostic(button) {
@@ -17612,21 +19075,56 @@ function monitoringHideTooltip(point) {
   if (tooltip) tooltip.hidden = true;
 }
 
+let effectTrendTipEl = null;
+function effectTrendShowTip(point) {
+  effectTrendHideTip();
+  const tip = document.createElement("div");
+  tip.className = "effect-trend-tip";
+  tip.textContent = point.dataset.tip || "";
+  document.body.appendChild(tip);
+  effectTrendTipEl = tip;
+  const rect = point.getBoundingClientRect();
+  const left = Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, rect.left + rect.width / 2 - tip.offsetWidth / 2));
+  tip.style.left = `${left + window.scrollX}px`;
+  tip.style.top = `${rect.top + window.scrollY - tip.offsetHeight - 10}px`;
+  requestAnimationFrame(() => tip.classList.add("is-visible"));
+}
+function effectTrendHideTip() {
+  if (effectTrendTipEl) {
+    effectTrendTipEl.remove();
+    effectTrendTipEl = null;
+  }
+}
+
+document.addEventListener("click", (event) => {
+  if (!event.target.closest?.("[data-tab-group]")) {
+    document.querySelectorAll("[data-tab-group].is-open").forEach((group) => group.classList.remove("is-open"));
+  }
+});
+
 document.addEventListener("pointerover", (event) => {
   const point = event.target.closest?.("[data-monitor-point]");
   if (point) monitoringShowTooltip(point);
+  const trendPoint = event.target.closest?.("[data-effect-trend-point]");
+  if (trendPoint) effectTrendShowTip(trendPoint);
 });
 document.addEventListener("pointerout", (event) => {
   const point = event.target.closest?.("[data-monitor-point]");
   if (point && !point.contains(event.relatedTarget)) monitoringHideTooltip(point);
+  const trendPoint = event.target.closest?.("[data-effect-trend-point]");
+  if (trendPoint && !trendPoint.contains(event.relatedTarget)) effectTrendHideTip();
 });
 document.addEventListener("focusin", (event) => {
   const point = event.target.closest?.("[data-monitor-point]");
   if (point) monitoringShowTooltip(point);
+  const trendPoint = event.target.closest?.("[data-effect-trend-point]");
+  if (trendPoint) effectTrendShowTip(trendPoint);
 });
 document.addEventListener("focusout", (event) => {
   const point = event.target.closest?.("[data-monitor-point]");
   if (point) monitoringHideTooltip(point);
+  const trendPoint = event.target.closest?.("[data-effect-trend-point]");
+  if (trendPoint) effectTrendHideTip();
 });
 document.addEventListener("input", (event) => {
   const inputEl = event.target;
@@ -17656,6 +19154,9 @@ document.addEventListener("click", async (event) => {
   if (nav) {
     event.preventDefault();
     closeModal();
+    if (nav.dataset.effectView && nav.dataset.nav === "effect-monitor") {
+      ui.effectMonitorView = EFFECT_MONITOR_VIEWS.some(([key]) => key === nav.dataset.effectView) ? nav.dataset.effectView : "dashboard";
+    }
     navigate(nav.dataset.nav);
     return;
   }
@@ -17759,6 +19260,14 @@ document.addEventListener("click", async (event) => {
     ui.effectDiagnosticQuestions = effectDiagnosticQuestionSeed(brand);
     invalidateEffectDiagnosticQuote();
     return render();
+  }
+  if (action === "effect-monitor-tab-group") {
+    const group = actionElement.closest("[data-tab-group]");
+    if (!group) return;
+    const willOpen = !group.classList.contains("is-open");
+    group.closest(".effect-aligned-monitor-tabs")?.querySelectorAll("[data-tab-group].is-open").forEach((item) => { if (item !== group) item.classList.remove("is-open"); });
+    group.classList.toggle("is-open", willOpen);
+    return;
   }
   if (action === "effect-monitor-view") {
     const view = actionElement.dataset.view || "dashboard";
@@ -17890,8 +19399,20 @@ document.addEventListener("click", async (event) => {
   if (action === "confirm-action") {
     const modal = ui.modal;
     if (!modal) return;
-    closeModal();
-    return modal.onConfirm ? modal.onConfirm() : undefined;
+    let result;
+    try {
+      // Run the callback before tearing down the dialog.  Prompt callbacks
+      // resolve their promise synchronously; closing first used to resolve
+      // that same prompt with null and silently cancelled “退回并修改”.
+      result = modal.onConfirm ? modal.onConfirm() : true;
+      if (result && typeof result.then === "function") result = await result;
+    } catch (error) {
+      showToast("操作失败", error.message || "请稍后重试。", "error");
+      return;
+    }
+    if (result === false) return;
+    if (ui.modal === modal) closeModal({ resolvePending: false });
+    return result;
   }
   if (action === "open-search") {
     ui.commandQuery = "";
@@ -17948,8 +19469,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "preview-site") {
     await flushSiteCmsDraftSync().catch(() => {});
-    ui.modal = { type: "sitePreview", pageId: "home" };
-    return renderModal();
+    return openLiveSite("/");
   }
   if (action === "focus-seed") {
     ui.planningTab = "keywords";
@@ -18007,6 +19527,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-content-studio") return openContentStudio(null, { forceNew: true });
   if (action === "open-article-studio") {
+    await waitForFormalContentMigration();
     if (ui.modal?.type === "article") saveArticleEditor({ silent: true });
     return openContentStudio(actionElement.dataset.articleId);
   }
@@ -18282,6 +19803,22 @@ document.addEventListener("click", async (event) => {
     return questionsToTopics([question.id]);
   }
   if (action === "direct-generate-topic") return openTopicDirectStudio(actionElement.dataset.topicId);
+  if (action === "sort-score") {
+    const scope = actionElement.dataset.sortScope;
+    const field = actionElement.dataset.sortField;
+    const sortKeyMap = { "keyword-result": "keywordResultSort", "topic-library": "topicLibrarySort", "archive-topic": "archiveTopicSort" };
+    const sortKey = sortKeyMap[scope];
+    if (!sortKey) return;
+    const current = ui[sortKey];
+    if (!current || current.field !== field) {
+      ui[sortKey] = { field, dir: "desc" };
+    } else if (current.dir === "desc") {
+      ui[sortKey] = { field, dir: "asc" };
+    } else {
+      ui[sortKey] = null;
+    }
+    return render();
+  }
   if (action === "topic-to-plan") return openTopicPlanPicker(actionElement.dataset.topicId);
   if (action === "submit-topic-plan-picker") return submitTopicPlanPicker();
   if (action === "create-plan-from-topic-picker") return createPlanFromTopicPicker(actionElement.dataset.topicId);
@@ -18436,6 +19973,7 @@ ${plainText(article.contentHtml || article.content || "")}`;
     return renderModal();
   }
   if (action === "save-article") {
+    await waitForFormalContentMigration();
     const current = state.articles.find((item) => item.id === ui.modal?.articleId);
     const rollback = current ? cloneData(current) : null;
     const article = saveArticleEditor({ silent: true });
@@ -18443,8 +19981,11 @@ ${plainText(article.contentHtml || article.content || "")}`;
       try {
         await waitForContentSync(article);
         if (article.contentSyncError) throw new Error(article.contentSyncError);
+        const persisted = await flushContentArticleWorkspace(article, "content-article-save");
+        if (persisted?.contentSyncError) throw new Error(persisted.contentSyncError);
       } catch (error) {
-        if (rollback) Object.assign(article, rollback);
+        const currentArticle = state.articles.find((item) => item.id === article.id) || article;
+        if (rollback) Object.assign(currentArticle, rollback);
         saveState();
         render();
         ui.modal = { type: "article", articleId: article.id };
@@ -18593,7 +20134,7 @@ ${plainText(article.contentHtml || article.content || "")}`;
     ui.modal = { type: "task", taskId: actionElement.dataset.taskId };
     return renderModal();
   }
-  if (action === "verify-result") return verifyPublishResult(actionElement.dataset.taskId, actionElement.dataset.platform);
+  if (action === "verify-result") return verifyPublishResult(actionElement.dataset.taskId, actionElement.dataset.platform, actionElement);
   if (action === "notification-task") {
     closeModal();
     ui.publishTab = "action";
@@ -18785,8 +20326,8 @@ ${plainText(article.contentHtml || article.content || "")}`;
   if (action === "site-page-save") return saveSitePage();
   if (action === "site-page-preview") {
     await flushSiteCmsDraftSync().catch(() => {});
-    ui.modal = { type: "sitePreview", pageId: actionElement.dataset.pageId || ui.sitePageId };
-    return renderModal();
+    const page = sitePageDefinition(actionElement.dataset.pageId || ui.sitePageId);
+    return openLiveSite(page?.path || "/");
   }
   if (action === "site-preview-reload") {
     await flushSiteCmsDraftSync().catch(() => {});
@@ -18990,6 +20531,9 @@ ${plainText(article.contentHtml || article.content || "")}`;
     ui.modal = { type: "risk", articleId: actionElement.dataset.articleId };
     return renderModal();
   }
+  if (action === "locate-risk-hit") {
+    return locateArticleRiskHit(actionElement.dataset.articleId, actionElement.dataset.riskHitId, actionElement.dataset.riskScope || "article");
+  }
   if (action === "back-article") return openArticle(actionElement.dataset.articleId);
   if (action === "run-risk-scan") {
     const article = state.articles.find((item) => item.id === actionElement.dataset.articleId);
@@ -19041,11 +20585,15 @@ ${plainText(article.contentHtml || article.content || "")}`;
     ui.settingsTab = actionElement.dataset.tab;
     render();
     if (ui.settingsTab === "models" && !aiProviderSnapshot.loaded) return refreshAiProviders({ renderAfter: true });
+    if (ui.settingsTab === "effect-relay" && !effectRelayConfigSnapshot.loaded) return refreshEffectRelayConfig({ renderAfter: true });
     if (ui.settingsTab === "members") return refreshProductionMembers({ renderAfter: true });
     if (ui.settingsTab === "logs") return refreshProductionAudit({ renderAfter: true });
     return;
   }
   if (action === "refresh-ai-providers") return refreshAiProviders({ renderAfter: true });
+  if (action === "refresh-effect-relay-config") return refreshEffectRelayConfig({ renderAfter: true });
+  if (action === "save-effect-relay-config") return saveEffectRelayConfig();
+  if (action === "test-effect-relay-config") return testEffectRelayConfig();
   if (action === "add-ai-provider") {
     const returnToModelKind = ui.modal?.type === "modelEditor" ? ui.modal.modelKind : "";
     ui.modal = { type: "aiProvider", returnToModelKind };
@@ -19249,6 +20797,13 @@ document.addEventListener("input", (event) => {
       row.hidden = Boolean(query && !row.textContent.toLowerCase().includes(query));
     });
   }
+  if (event.target.matches("[data-assistant-catalog-search]")) {
+    ui.assistantCatalogSearch = event.target.value;
+    const query = event.target.value.trim().toLowerCase();
+    document.querySelectorAll("[data-catalog-platform]").forEach((card) => {
+      card.hidden = Boolean(query && !card.textContent.toLowerCase().includes(query));
+    });
+  }
   if (event.target.id === "studio-topic-input") {
     ui.studioTopicDraft = event.target.value;
     const workspace = studioWorkspaceById(ui.studioWorkspaceId);
@@ -19267,7 +20822,11 @@ document.addEventListener("input", (event) => {
     const workspace = studioWorkspaceById(ui.studioWorkspaceId);
     const article = workspace && studioArticleForWorkspace(workspace);
     if (article) {
-      syncStudioArticleEditor({ silent: true });
+      const synced = syncStudioArticleEditor({ silent: true }) || article;
+      refreshArticleRiskInlineNotice(synced, "studio", {
+        title: event.target.id === "studio-title-editor" ? event.target.value : document.getElementById("studio-title-editor")?.value,
+        content: event.target.id === "studio-content-editor" ? event.target.innerHTML : document.getElementById("studio-content-editor")?.innerHTML
+      });
     } else if (workspace) {
       if (event.target.id === "studio-title-editor") {
         workspace.draftTitle = event.target.value;
@@ -19282,6 +20841,15 @@ document.addEventListener("input", (event) => {
     }
     document.querySelector(".studio-save-state")?.classList.remove("unsaved");
     if (document.querySelector(".studio-save-state")) document.querySelector(".studio-save-state").textContent = "已自动保存";
+  }
+  if (event.target.id === "article-title-editor" || event.target.id === "article-content-editor") {
+    const article = state.articles.find((item) => item.id === ui.modal?.articleId);
+    if (article) {
+      refreshArticleRiskInlineNotice(article, "article", {
+        title: event.target.id === "article-title-editor" ? event.target.value : document.getElementById("article-title-editor")?.value,
+        content: event.target.id === "article-content-editor" ? event.target.innerHTML : document.getElementById("article-content-editor")?.innerHTML
+      });
+    }
   }
   if (event.target.id === "business-keyword-input") {
     ui.businessKeywordInput = event.target.value;
@@ -19458,7 +21026,11 @@ document.addEventListener("change", (event) => {
   }
   if (event.target.matches("[data-effect-monitor-range]")) {
     ui.effectMonitorRange = event.target.value || "30";
-    return render();
+    return refreshEffectMonitoringAnalytics({
+      planId: ui.effectMonitorPlanId,
+      range: ui.effectMonitorRange,
+      renderAfter: true
+    });
   }
   if (event.target.matches("[data-effect-search-consent]")) {
     ui.effectSearchExternalConsent = Boolean(event.target.checked);
@@ -19623,6 +21195,14 @@ document.addEventListener("change", (event) => {
   }
   if (event.target.matches("[data-assistant-catalog-group]")) {
     ui.assistantCatalogGroupId = event.target.value || null;
+    return render();
+  }
+  if (event.target.matches("[data-assistant-catalog-status]")) {
+    ui.assistantCatalogStatus = event.target.value || "all";
+    return render();
+  }
+  if (event.target.matches("[data-assistant-catalog-category]")) {
+    ui.assistantCatalogCategory = event.target.value || "all";
     return render();
   }
   if (event.target.matches("[data-publish-batch-group]")) {
@@ -19970,9 +21550,6 @@ document.addEventListener("change", (event) => {
 });
 
 window.addEventListener("hashchange", render);
-document.querySelector("[data-effect-nav-group]")?.addEventListener("toggle", (event) => {
-  ui.effectNavExpanded = Boolean(event.currentTarget.open);
-});
 window.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && event.target.id === "prompt-input") {
     event.preventDefault();

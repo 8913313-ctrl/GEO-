@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo 1 · 左列表+右详情 · 知识库重设计</title>
+<style>
+  :root {
+    --bg: #faf7f1;
+    --panel: #ffffff;
+    --ink: #1d1912;
+    --muted: #37332c;
+    --muted-2: #514c44;
+    --line: #e8e4dd;
+    --line-strong: #d8d2c8;
+    --blue: #b8442f;
+    --blue-hover: #a03a26;
+    --blue-soft: rgba(184, 68, 47, .09);
+    --teal: #2e8a54;
+    --teal-soft: rgba(46, 138, 84, .1);
+    --amber: #a8740f;
+    --amber-soft: rgba(168, 116, 15, .1);
+    --shadow-sm: 0 1px 2px rgba(23,19,13,.04), 0 1px 3px rgba(23,19,13,.03);
+    --shadow-md: 0 4px 14px rgba(23,19,13,.08);
+    --shadow-lg: 0 16px 40px rgba(23,19,13,.14);
+    --radius: 10px;
+    --radius-sm: 8px;
+    --radius-lg: 12px;
+    --font: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --sidebar-w: 220px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--bg);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ---- page header ---- */
+  .page-head {
+    height: 48px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 12px;
+  }
+  .page-head h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -.2px;
+  }
+  .page-head .sep {
+    width: 1px;
+    height: 20px;
+    background: var(--line);
+  }
+  .page-head .breadcrumb { font-size: 13px; color: var(--muted-2); }
+  .page-head .breadcrumb span { color: var(--ink); }
+
+  /* ---- search bar in header ---- */
+  .header-search {
+    margin-left: auto;
+    position: relative;
+    width: 260px;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    transition: border-color .2s;
+  }
+  .header-search:focus-within { border-color: var(--blue); }
+  .header-search input {
+    border: none;
+    background: none;
+    outline: none;
+    font-size: 13px;
+    width: 100%;
+    padding-left: 8px;
+    color: var(--ink);
+  }
+  .header-search input::placeholder { color: #b0a89d; }
+  .header-search svg { flex-shrink: 0; color: #b0a89d; }
+
+  /* ---- layout shell ---- */
+  .shell { display: flex; height: calc(100vh - 48px); }
+
+  /* ---- left sidebar list ---- */
+  .kb-sidebar {
+    width: var(--sidebar-w);
+    flex-shrink: 0;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .kb-sidebar-head {
+    padding: 16px 14px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .kb-sidebar-head h2 { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  .kb-filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .kb-chip {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    cursor: pointer;
+    transition: all .15s;
+    color: var(--muted-2);
+    white-space: nowrap;
+  }
+  .kb-chip:hover { border-color: var(--line-strong); background: var(--bg); }
+  .kb-chip.active {
+    background: var(--blue-soft);
+    border-color: var(--blue);
+    color: var(--blue);
+    font-weight: 600;
+  }
+
+  .kb-sidebar-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  .kb-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background .12s;
+    border-left: 3px solid transparent;
+    position: relative;
+  }
+  .kb-sidebar-item:hover { background: var(--bg); }
+  .kb-sidebar-item.active {
+    background: var(--blue-soft);
+    border-left-color: var(--blue);
+  }
+  .kb-sidebar-item .kb-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .kb-sidebar-item .kb-icon.doc { background: var(--blue-soft); color: var(--blue); }
+  .kb-sidebar-item .kb-icon.qa  { background: var(--teal-soft); color: var(--teal); }
+  .kb-sidebar-item .kb-icon.agg { background: var(--amber-soft); color: var(--amber); }
+
+  .kb-sidebar-item .kb-meta { flex: 1; min-width: 0; }
+  .kb-sidebar-item .kb-name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .kb-sidebar-item .kb-sub {
+    font-size: 11px;
+    color: var(--muted-2);
+    margin-top: 1px;
+  }
+  .kb-sidebar-item .kb-count {
+    font-size: 11px;
+    color: var(--muted-2);
+    background: var(--bg);
+    padding: 2px 7px;
+    border-radius: 5px;
+    flex-shrink: 0;
+  }
+  .kb-sidebar-item.active .kb-count { background: rgba(184,68,47,.12); color: var(--blue); }
+
+  /* ---- right content area ---- */
+  .kb-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+  }
+
+  /* detail header */
+  .detail-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .detail-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .detail-icon.doc { background: var(--blue-soft); color: var(--blue); }
+  .detail-info { flex: 1; }
+  .detail-info h2 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .detail-info p { font-size: 13px; color: var(--muted-2); line-height: 1.5; }
+  .detail-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--line-strong); background: var(--bg); }
+  .btn-primary {
+    background: var(--blue);
+    color: #fff;
+    border-color: var(--blue);
+  }
+  .btn-primary:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
+  .btn-sm { font-size: 12px; padding: 5px 10px; }
+  .btn-danger { color: var(--red); }
+  .btn-danger:hover { background: rgba(194,69,56,.06); }
+
+  /* stat cards row */
+  .detail-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .stat-card:hover { border-color: var(--line-strong); box-shadow: var(--shadow-sm); }
+  .stat-card .stat-label { font-size: 12px; color: var(--muted-2); margin-bottom: 6px; }
+  .stat-card .stat-value { font-size: 22px; font-weight: 700; letter-spacing: -.5px; }
+  .stat-card .stat-sub { font-size: 11px; color: var(--muted-2); margin-top: 3px; }
+  .stat-value.blue { color: var(--blue); }
+  .stat-value.teal { color: var(--teal); }
+
+  /* table */
+  .detail-table { margin-bottom: 24px; }
+  .detail-table h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--bg); }
+  th {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted-2);
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  td {
+    font-size: 13px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover { background: rgba(184,68,47,.03); }
+
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .tag-doc { background: var(--blue-soft); color: var(--blue); }
+  .tag-qa  { background: var(--teal-soft); color: var(--teal); }
+  .tag-agg { background: var(--amber-soft); color: var(--amber); }
+  .tag-active { background: var(--teal-soft); color: var(--teal); }
+  .tag-pending { background: var(--amber-soft); color: var(--amber); }
+  .tag-draft { background: var(--bg); color: var(--muted-2); }
+
+  /* scope tags */
+  .scope-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .scope-tag {
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    color: var(--muted-2);
+  }
+
+  /* recent entries */
+  .recent-entries { margin-bottom: 24px; }
+  .recent-entries h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .entry-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    margin-bottom: 8px;
+    transition: border-color .15s;
+  }
+  .entry-item:hover { border-color: var(--line-strong); }
+  .entry-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    background: var(--blue-soft);
+    color: var(--blue);
+    flex-shrink: 0;
+  }
+  .entry-meta { flex: 1; min-width: 0; }
+  .entry-meta .title { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-meta .desc { font-size: 12px; color: var(--muted-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-time { font-size: 11px; color: var(--muted-2); flex-shrink: 0; }
+
+  /* empty state */
+  .empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted-2);
+  }
+  .empty-state svg { margin-bottom: 12px; color: var(--line-strong); }
+  .empty-state h4 { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+  .empty-state p { font-size: 13px; }
+
+  /* ---- demo label ---- */
+  .demo-banner {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--blue);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 16px;
+    border-radius: 0 0 8px 8px;
+    z-index: 1000;
+    letter-spacing: .5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-banner">DEMO 1 · 左列表 + 右详情</div>
+
+<div style="padding-top: 28px;">
+<div class="page-head">
+  <h1>企业知识库管理</h1>
+  <div class="sep"></div>
+  <div class="breadcrumb">首页 / <span>企业知识库</span></div>
+  <div class="header-search">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" placeholder="搜索知识库名称...">
+  </div>
+</div>
+
+<div class="shell">
+  <!-- ======== LEFT SIDEBAR LIST ======== -->
+  <div class="kb-sidebar">
+    <div class="kb-sidebar-head">
+      <h2>知识库列表</h2>
+      <div class="kb-filter-chips">
+        <span class="kb-chip active">全部 (5)</span>
+        <span class="kb-chip">文档库 (3)</span>
+        <span class="kb-chip">问答库 (2)</span>
+      </div>
+    </div>
+    <div class="kb-sidebar-list">
+      <div class="kb-sidebar-item active">
+        <div class="kb-icon doc">📄</div>
+        <div class="kb-meta">
+          <div class="kb-name">产品知识库</div>
+          <div class="kb-sub">文档库 · 128 条</div>
+        </div>
+        <div class="kb-count">128</div>
+      </div>
+      <div class="kb-sidebar-item">
+        <div class="kb-icon doc">📄</div>
+        <div class="kb-meta">
+          <div class="kb-name">竞品分析库</div>
+          <div class="kb-sub">文档库 · 45 条</div>
+        </div>
+        <div class="kb-count">45</div>
+      </div>
+      <div class="kb-sidebar-item">
+        <div class="kb-icon doc">📄</div>
+        <div class="kb-meta">
+          <div class="kb-name">用户反馈库</div>
+          <div class="kb-sub">文档库 · 89 条</div>
+        </div>
+        <div class="kb-count">89</div>
+      </div>
+      <div class="kb-sidebar-item">
+        <div class="kb-icon qa">💬</div>
+        <div class="kb-meta">
+          <div class="kb-name">FAQ 标准问答</div>
+          <div class="kb-sub">问答库 · 56 条</div>
+        </div>
+        <div class="kb-count">56</div>
+      </div>
+      <div class="kb-sidebar-item">
+        <div class="kb-icon qa">💬</div>
+        <div class="kb-meta">
+          <div class="kb-name">客服话术库</div>
+          <div class="kb-sub">问答库 · 32 条</div>
+        </div>
+        <div class="kb-count">32</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======== RIGHT CONTENT ======== -->
+  <div class="kb-content">
+    <!-- detail header -->
+    <div class="detail-head">
+      <div class="detail-icon doc">📄</div>
+      <div class="detail-info">
+        <h2>产品知识库</h2>
+        <p>收录产品介绍、使用文档、技术参数等结构化内容，支持 GEO 语义检索。</p>
+      </div>
+      <div class="detail-actions">
+        <button class="btn btn-sm">✏️ 编辑</button>
+        <button class="btn btn-sm">📤 导入</button>
+        <button class="btn btn-sm btn-primary">➕ 新建条目</button>
+      </div>
+    </div>
+
+    <!-- stats row -->
+    <div class="detail-stats">
+      <div class="stat-card">
+        <div class="stat-label">总条目</div>
+        <div class="stat-value blue">128</div>
+        <div class="stat-sub">本周新增 +12</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">覆盖关键词</div>
+        <div class="stat-value">346</div>
+        <div class="stat-sub">覆盖范围：85%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">覆盖率</div>
+        <div class="stat-value teal">85%</div>
+        <div class="stat-sub">较上月 +3%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">最后更新</div>
+        <div class="stat-value" style="font-size:16px;">今天 14:32</div>
+        <div class="stat-sub">由管理员更新</div>
+      </div>
+    </div>
+
+    <!-- recent entries -->
+    <div class="recent-entries">
+      <h3>最近条目</h3>
+      <div class="entry-item">
+        <div class="entry-icon">📝</div>
+        <div class="entry-meta">
+          <div class="title">产品 A 核心功能介绍</div>
+          <div class="desc">涵盖产品 A 的三大核心模块：数据采集、语义分析、智能推荐</div>
+        </div>
+        <div class="entry-time">2h 前</div>
+      </div>
+      <div class="entry-item">
+        <div class="entry-icon">📝</div>
+        <div class="entry-meta">
+          <div class="title">GEO 优化最佳实践</div>
+          <div class="desc">从内容结构、关键词布局、语义覆盖三个维度讲解 GEO 优化方法</div>
+        </div>
+        <div class="entry-time">5h 前</div>
+      </div>
+      <div class="entry-item">
+        <div class="entry-icon">📝</div>
+        <div class="entry-meta">
+          <div class="title">竞品功能对比矩阵</div>
+          <div class="desc">对标 B 竞品、C 竞品在语义分析、实时性、覆盖广度的差异</div>
+        </div>
+        <div class="entry-time">昨天</div>
+      </div>
+      <div class="entry-item">
+        <div class="entry-icon">📝</div>
+        <div class="entry-meta">
+          <div class="title">FAQ - 如何创建知识库</div>
+          <div class="desc">支持文档导入、手动录入、批量粘贴三种方式创建知识条目</div>
+        </div>
+        <div class="entry-time">昨天</div>
+      </div>
+    </div>
+
+    <!-- table of all entries -->
+    <div class="detail-table">
+      <h3>全部条目 <span style="font-size:12px;color:var(--muted-2);font-weight:400;margin-left:6px;">128 条</span></h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>条目名称</th>
+              <th>类型</th>
+              <th>覆盖关键词</th>
+              <th>状态</th>
+              <th>更新时间</th>
+              <th style="text-align:right;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>产品 A 核心功能介绍</strong></td>
+              <td><span class="tag tag-doc">文档</span></td>
+              <td>产品A、功能、模块</td>
+              <td><span class="tag tag-active">生效中</span></td>
+              <td>2h 前</td>
+              <td style="text-align:right;"><a style="color:var(--blue);font-size:12px;cursor:pointer;">查看</a> <a style="color:var(--muted-2);font-size:12px;cursor:pointer;margin-left:8px;">编辑</a></td>
+            </tr>
+            <tr>
+              <td><strong>GEO 优化最佳实践</strong></td>
+              <td><span class="tag tag-doc">文档</span></td>
+              <td>GEO、优化、实践</td>
+              <td><span class="tag tag-active">生效中</span></td>
+              <td>5h 前</td>
+              <td style="text-align:right;"><a style="color:var(--blue);font-size:12px;cursor:pointer;">查看</a> <a style="color:var(--muted-2);font-size:12px;cursor:pointer;margin-left:8px;">编辑</a></td>
+            </tr>
+            <tr>
+              <td><strong>竞品功能对比矩阵</strong></td>
+              <td><span class="tag tag-doc">文档</span></td>
+              <td>竞品、对比、功能</td>
+              <td><span class="tag tag-pending">审核中</span></td>
+              <td>昨天</td>
+              <td style="text-align:right;"><a style="color:var(--blue);font-size:12px;cursor:pointer;">查看</a> <a style="color:var(--muted-2);font-size:12px;cursor:pointer;margin-left:8px;">编辑</a></td>
+            </tr>
+            <tr>
+              <td><strong>FAQ - 如何创建知识库</strong></td>
+              <td><span class="tag tag-qa">问答</span></td>
+              <td>创建、知识库、方法</td>
+              <td><span class="tag tag-active">生效中</span></td>
+              <td>昨天</td>
+              <td style="text-align:right;"><a style="color:var(--blue);font-size:12px;cursor:pointer;">查看</a> <a style="color:var(--muted-2);font-size:12px;cursor:pointer;margin-left:8px;">编辑</a></td>
+            </tr>
+            <tr>
+              <td><strong>数据采集模块说明</strong></td>
+              <td><span class="tag tag-doc">文档</span></td>
+              <td>数据、采集、模块</td>
+              <td><span class="tag tag-active">生效中</span></td>
+              <td>3 天前</td>
+              <td style="text-align:right;"><a style="color:var(--blue);font-size:12px;cursor:pointer;">查看</a> <a style="color:var(--muted-2);font-size:12px;cursor:pointer;margin-left:8px;">编辑</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</body>
+</html>

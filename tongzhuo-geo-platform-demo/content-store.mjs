@@ -152,7 +152,13 @@ export class ContentStore {
       updatedBy: row.updated_by || null
     };
     if (options.includeVersion && result.currentVersionId) {
-      try { result.currentVersion = this.version(result.workspaceId, result.currentVersionId, { includeEvidence: options.includeEvidence !== false }); } catch { result.currentVersion = null; }
+      try {
+        result.currentVersion = this.version(result.workspaceId, result.currentVersionId, {
+          includeEvidence: options.includeEvidence !== false,
+          includeReviews: options.includeReviews === true,
+          includeScans: options.includeScans === true
+        });
+      } catch { result.currentVersion = null; }
     }
     return result;
   }
@@ -544,7 +550,7 @@ export class ContentStore {
       this.connection.prepare("UPDATE content_article_versions SET review_status = 'pending' WHERE id = ?").run(versionId);
       this.connection.prepare("UPDATE content_articles SET status = 'in_review', revision = revision + 1, updated_at = ?, updated_by = ? WHERE workspace_id = ? AND id = ? AND revision = ?").run(timestamp, userId, workspaceId, articleId, Number(expectedRevision));
       this.connection.prepare("UPDATE content_tasks SET status = 'in_review', revision = revision + 1, updated_at = ? WHERE workspace_id = ? AND article_id = ?").run(timestamp, workspaceId, articleId);
-      this.insertReview({ versionId, action: "submitted", fromStatus: version.review_status, toStatus: "pending", note, actor, request, timestamp });
+      this.insertReview({ versionId, action: "submitted", fromStatus: version.review_status, toStatus: "pending", note, actor, request, details: { actorName: actor?.displayName || actor?.name || actor?.username || "" }, timestamp });
       appendAuditLog(this.connection, { actorUserId: userId, action: "content.article.review.submit", entityType: "content_article_version", entityId: versionId, details: { articleId }, request, createdAt: timestamp });
     });
     return this.version(workspaceId, versionId, { includeContent: true, includeReviews: true, includeScans: true });
@@ -558,7 +564,7 @@ export class ContentStore {
       this.connection.prepare("UPDATE content_article_versions SET review_status = 'changes_requested' WHERE id = ?").run(versionId);
       this.connection.prepare("UPDATE content_articles SET status = 'changes_requested', revision = revision + 1, updated_at = ?, updated_by = ? WHERE workspace_id = ? AND id = ? AND revision = ?").run(timestamp, userId, workspaceId, articleId, Number(expectedRevision));
       this.connection.prepare("UPDATE content_tasks SET status = 'changes_requested', revision = revision + 1, updated_at = ? WHERE workspace_id = ? AND article_id = ?").run(timestamp, workspaceId, articleId);
-      this.insertReview({ versionId, action: "changes_requested", fromStatus: version.review_status, toStatus: "changes_requested", note, actor, request, timestamp });
+      this.insertReview({ versionId, action: "changes_requested", fromStatus: version.review_status, toStatus: "changes_requested", note, actor, request, details: { actorName: actor?.displayName || actor?.name || actor?.username || "" }, timestamp });
       appendAuditLog(this.connection, { actorUserId: userId, action: "content.article.review.request_changes", entityType: "content_article_version", entityId: versionId, details: { articleId }, request, createdAt: timestamp });
     });
     return this.version(workspaceId, versionId, { includeContent: true, includeReviews: true });
@@ -576,7 +582,7 @@ export class ContentStore {
       const result = this.connection.prepare("UPDATE content_articles SET status = 'approved', approved_version_id = ?, revision = revision + 1, updated_at = ?, updated_by = ? WHERE workspace_id = ? AND id = ? AND revision = ?").run(versionId, timestamp, userId, workspaceId, articleId, Number(expectedRevision));
       if (!Number(result.changes)) throw new ContentConflictError("The article revision is stale.", { articleId });
       this.connection.prepare("UPDATE content_tasks SET status = 'approved', revision = revision + 1, updated_at = ? WHERE workspace_id = ? AND article_id = ?").run(timestamp, workspaceId, articleId);
-      this.insertReview({ versionId, action: "approved", fromStatus: version.review_status, toStatus: "approved", note, actor, request, timestamp });
+      this.insertReview({ versionId, action: "approved", fromStatus: version.review_status, toStatus: "approved", note, actor, request, details: { actorName: actor?.displayName || actor?.name || actor?.username || "" }, timestamp });
       appendAuditLog(this.connection, { actorUserId: userId, action: "content.article.review.approve_freeze", entityType: "content_article_version", entityId: versionId, details: { articleId, frozenAt: timestamp }, request, createdAt: timestamp });
     });
     return this.version(workspaceId, versionId, { includeContent: true, includeEvidence: true, includeReviews: true, includeScans: true });

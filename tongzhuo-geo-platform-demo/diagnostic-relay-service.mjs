@@ -113,6 +113,11 @@ export class DiagnosticRelayService {
 
   configured() { return Boolean(this.client); }
 
+  setClient(client = null) {
+    this.client = client || null;
+    return this.status();
+  }
+
   status() {
     return {
       configured: this.configured(),

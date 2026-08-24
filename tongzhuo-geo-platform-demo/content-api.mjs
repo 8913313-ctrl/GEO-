@@ -147,7 +147,7 @@ export function createContentApi({ contentStore, requestJson, configured, onArti
       return response.json(200, { ok: true, data: article ? contentStore.canPublish(article.id, query.get("versionId") || null, { workspaceId }) : { ok: false, code: "CONTENT_ARTICLE_REQUIRED", reason: "No article is linked to this task." } });
     }
     if (parts.length === 5 && parts[3] === "articles" && method === "GET") {
-      const article = contentStore.article(workspaceId, decodeURIComponent(parts[4]), { includeVersion: true, includeEvidence: true });
+      const article = contentStore.article(workspaceId, decodeURIComponent(parts[4]), { includeVersion: true, includeEvidence: true, includeReviews: true });
       return response.json(200, { ok: true, data: { article, versions: contentStore.listVersions({ workspaceId, articleId: article.id, includeContent: true }) } });
     }
     if (parts.length === 6 && parts[3] === "articles" && parts[5] === "can-publish" && method === "GET") {

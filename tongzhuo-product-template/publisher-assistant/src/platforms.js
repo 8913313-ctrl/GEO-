@@ -15,7 +15,6 @@ export const platformCatalog = [
   { id: 'netease', name: '网易号', group: '主流内容', url: 'https://mp.163.com/' },
   { id: 'smzdm', name: '什么值得买', group: '主流内容', url: 'https://post.smzdm.com/' },
   { id: 'sohufocus', name: '搜狐焦点', group: '主流内容', url: 'https://mp.sohu.com/' },
-  { id: 'x', name: 'X（Twitter）', group: '主流内容', url: 'https://x.com/compose/post' },
   { id: 'juejin', name: '掘金', group: '技术知识', url: 'https://juejin.cn/editor/drafts/new' },
   { id: 'csdn', name: 'CSDN', group: '技术知识', url: 'https://mp.csdn.net/mp_blog/creation/editor' },
   { id: 'yuque', name: '语雀', group: '技术知识', url: 'https://www.yuque.com/dashboard' },

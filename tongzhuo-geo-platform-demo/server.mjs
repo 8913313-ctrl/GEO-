@@ -19,6 +19,7 @@ import { DiagnosticError, DiagnosticStore } from "./diagnostic-store.mjs";
 import { createDiagnosticApi } from "./diagnostic-api.mjs";
 import { createDiagnosticRelayClient } from "./diagnostic-relay-client.mjs";
 import { DiagnosticRelayService } from "./diagnostic-relay-service.mjs";
+import { DiagnosticRelayConfigError, DiagnosticRelayConfigStore } from "./diagnostic-relay-config-store.mjs";
 import { BrandMonitoringService } from "./diagnostic-monitoring-service.mjs";
 import { AdHocDiagnosticService } from "./diagnostic-ad-hoc-service.mjs";
 import { requireAdHocDiagnosticServiceApi } from "./diagnostic-ad-hoc-auth.mjs";
@@ -96,9 +97,20 @@ const contentApi = createContentApi({
 const contentAssetApi = createContentAssetApi({ contentAssetStore, requestJson, configured });
 publisherStore.setPublicationObserver((job) => contentAssetStore.syncPublisherJob(job, { workspaceId: "default" }));
 const diagnosticStore = new DiagnosticStore(database, { workspaceId: "default" });
+const diagnosticRelayConfigStore = new DiagnosticRelayConfigStore({ dataDir: configured.dataDir });
+try {
+  await diagnosticRelayConfigStore.load();
+} catch (error) {
+  productionLogger.error("diagnostic_relay.ui_configuration_load_failed", { code: error.code || "DIAGNOSTIC_RELAY_CONFIG_LOAD_FAILED", error: error.message });
+}
+const relayEnvironmentConfigured = [configured.relayBaseUrl, configured.relayInstanceId, configured.relayClientId, configured.relayClientSecret].every(Boolean);
+function activeDiagnosticRelayConfig() {
+  if (relayEnvironmentConfigured) return configured;
+  return diagnosticRelayConfigStore.runtimeConfig();
+}
 let diagnosticRelayClient = null;
 try {
-  diagnosticRelayClient = createDiagnosticRelayClient({ config: configured });
+  diagnosticRelayClient = createDiagnosticRelayClient({ config: activeDiagnosticRelayConfig() });
 } catch (error) {
   productionLogger.error("diagnostic_relay.configuration_failed", { code: error.code || "RELAY_CLIENT_CONFIGURATION", error: error.message });
 }
@@ -110,6 +122,17 @@ const diagnosticRelayService = new DiagnosticRelayService({
   workspaceId: "default",
   pullBatchSize: configured.relayPullBatchSize
 });
+function reloadDiagnosticRelayClient() {
+  try {
+    diagnosticRelayClient = createDiagnosticRelayClient({ config: activeDiagnosticRelayConfig() });
+    diagnosticRelayService.setClient(diagnosticRelayClient);
+    return { ok: true, status: diagnosticRelayService.status() };
+  } catch (error) {
+    diagnosticRelayClient = null;
+    diagnosticRelayService.setClient(null);
+    return { ok: false, code: error.code || "RELAY_CLIENT_CONFIGURATION", message: error.message || "中转服务配置无效。" };
+  }
+}
 try {
   const backfill = contentAssetStore.syncEvidence({ workspaceId: "default", limit: 20_000 });
   if (backfill.created) productionLogger.info("content_asset.citation_backfill_completed", backfill);
@@ -495,7 +518,11 @@ const mimeTypes = {
 };
 
 mimeTypes[".exe"] = "application/vnd.microsoft.portable-executable";
-const publisherDownloadPath = "/downloads/tongzhuo-geo-publisher-setup.exe";
+// Keep the management console pointed at the same versioned artifact that is
+// advertised by electron-updater.  The environment variable can still
+// override this for a staged release, but a fresh deployment must never fall
+// back to the removed legacy filename.
+const publisherDownloadPath = "https://tongzhuo.ink/downloads/%E6%A1%90%E7%81%BC%E5%8F%91%E5%B8%83%E5%8A%A9%E6%89%8B%20Setup%201.0.0.exe";
 
 function requestId(request) {
   const supplied = String(request.headers["x-request-id"] || "").trim();
@@ -789,6 +816,18 @@ function siteLeadRows() {
   });
 }
 
+function siteDeploymentBaseUrl() {
+  const candidate = String(process.env.TZ_SITE_BASE_URL || "").trim();
+  if (!candidate) return "";
+  try {
+    const url = new URL(candidate);
+    if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) return "";
+    return url.origin;
+  } catch {
+    return "";
+  }
+}
+
 async function handleSiteCmsApi(request, response, parts) {
   const method = request.method || "GET";
   const operation = parts[3] || "snapshot";
@@ -796,7 +835,8 @@ async function handleSiteCmsApi(request, response, parts) {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const draft = siteCmsStore.draft("default");
     const publication = siteCmsStore.publication("default");
-    return jsonResponse(response, 200, { ok: true, data: { draft, publication, releases: { items: siteCmsStore.releases("default", 100) }, leads: { items: siteLeadRows() } } });
+    const siteBaseUrl = siteDeploymentBaseUrl();
+    return jsonResponse(response, 200, { ok: true, data: { draft, publication, releases: { items: siteCmsStore.releases("default", 100) }, leads: { items: siteLeadRows() }, ...(siteBaseUrl ? { siteBaseUrl } : {}) } });
   }
   if (operation === "draft" && method === "PUT") {
     const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_WRITE);
@@ -1313,6 +1353,10 @@ async function handlePublisherApi(request, response, parts, principal = null) {
   if (request.method === "POST" && parts.length === 4 && parts[1] === "jobs" && parts[3] === "cancel") {
     return jsonResponse(response, 200, { ok: true, job: await publisherStore.cancelJob(parts[2]) });
   }
+  if (request.method === "POST" && parts.length === 4 && parts[1] === "jobs" && parts[3] === "verify") {
+    const body = await requestJson(request, 20_000);
+    return jsonResponse(response, 200, { ok: true, data: await publisherStore.verifyJob(parts[2], body.platform || body.platformId || "", body) });
+  }
   const method = request.method || "GET";
   if (method === "GET" && parts.length === 2 && parts[1] === "platforms") {
     return jsonResponse(response, 200, { ok: true, platforms: publisherStore.platforms() });
@@ -1355,6 +1399,10 @@ async function handlePublisherWorkerApi(request, response, parts) {
   if (parts[1] === "jobs" && parts[2] && parts[3] === "result" && request.method === "POST") {
     return jsonResponse(response, 200, { ok: true, data: await publisherStore.result(device, parts[2], await requestJson(request)) });
   }
+  if (parts[1] === "jobs" && parts[2] && parts[3] === "verify" && request.method === "POST") {
+    const body = await requestJson(request, 20_000);
+    return jsonResponse(response, 200, { ok: true, data: await publisherStore.verifyJob(parts[2], body.platform || body.platformId || "", body) });
+  }
   return jsonResponse(response, 404, { ok: false, message: "发布器任务接口不存在。" });
 }
 
@@ -1384,6 +1432,71 @@ async function handleAiProviderApi(request, response, parts) {
     return jsonResponse(response, 200, { ok: true, result });
   }
   return jsonResponse(response, 404, { ok: false, message: "AI 供应商接口不存在。" });
+}
+
+function relaySecretMasked(secret) {
+  const value = String(secret || "");
+  if (!value) return "";
+  return value.length <= 8 ? `${value.slice(0, 2)}••••${value.slice(-2)}` : `${value.slice(0, 4)}••••••••${value.slice(-4)}`;
+}
+
+function diagnosticRelayConfigView() {
+  if (relayEnvironmentConfigured) {
+    return {
+      ...diagnosticRelayConfigStore.public({ source: "environment" }),
+      configured: true,
+      source: "environment",
+      baseUrl: configured.relayBaseUrl,
+      instanceId: configured.relayInstanceId,
+      clientId: configured.relayClientId,
+      deliveryConsumer: configured.relayDeliveryConsumer || `private-sync:${configured.relayInstanceId}`,
+      hasClientSecret: true,
+      clientSecretMasked: relaySecretMasked(configured.relayClientSecret)
+    };
+  }
+  return diagnosticRelayConfigStore.public({ source: "ui" });
+}
+
+async function handleDiagnosticRelayConfigApi(request, response, parts) {
+  await diagnosticRelayConfigStore.load();
+  const method = request.method || "GET";
+  const nested = parts[3] === "relay" && parts[4] === "config";
+  const baseLength = nested ? 5 : 4;
+  if (method === "GET" && parts.length === baseLength) {
+    await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
+    const config = diagnosticRelayConfigView();
+    const relay = diagnosticRelayService.status();
+    return jsonResponse(response, 200, { ok: true, data: { ...config, config, relay, status: relay } });
+  }
+  if (method === "PUT" && parts.length === baseLength) {
+    await authService.requirePermission(request, PERMISSIONS.SYSTEM_MANAGE);
+    if (relayEnvironmentConfigured) throw new DiagnosticRelayConfigError("当前实例由环境变量接管配置，请修改部署环境中的 TZ_RELAY_* 配置。", 409, "DIAGNOSTIC_RELAY_CONFIG_ENV_MANAGED");
+    const config = await diagnosticRelayConfigStore.save(await requestJson(request, 20_000));
+    const runtime = reloadDiagnosticRelayClient();
+    if (!runtime.ok) throw new DiagnosticRelayConfigError(runtime.message, 422, runtime.code);
+    return jsonResponse(response, 200, { ok: true, data: { config: { ...config, source: "ui" }, relay: runtime.status } });
+  }
+  if (method === "POST" && parts.length === baseLength + 1 && parts[baseLength] === "test") {
+    await authService.requirePermission(request, PERMISSIONS.SYSTEM_MANAGE);
+    const runtime = reloadDiagnosticRelayClient();
+    if (!runtime.ok || !diagnosticRelayService.configured()) {
+      const message = runtime.message || "请先完整填写中转服务地址、实例 ID、Client ID 和 Client Secret。";
+      const config = await diagnosticRelayConfigStore.recordTest("failed", message, { code: runtime.code || "RELAY_CLIENT_NOT_CONFIGURED" });
+      return jsonResponse(response, 200, { ok: true, data: { config: { ...config, source: relayEnvironmentConfigured ? "environment" : "ui" }, relay: diagnosticRelayService.status(), test: { status: "failed", message, code: runtime.code || "RELAY_CLIENT_NOT_CONFIGURED" } } });
+    }
+    try {
+      const capabilities = await diagnosticRelayService.capabilities();
+      const capabilityItems = Array.isArray(capabilities?.items) ? capabilities.items : Array.isArray(capabilities?.capabilities) ? capabilities.capabilities : [];
+      const details = { capabilityCount: capabilityItems.length, capabilities: capabilityItems.slice(0, 100) };
+      const config = await diagnosticRelayConfigStore.recordTest("passed", "连接成功，已读取中转服务能力。", details);
+      return jsonResponse(response, 200, { ok: true, data: { config: diagnosticRelayConfigView(), relay: diagnosticRelayService.status(), test: { status: "passed", message: "连接成功，已读取中转服务能力。", details } } });
+    } catch (error) {
+      const message = error.message || "连接中转服务失败。";
+      const config = await diagnosticRelayConfigStore.recordTest("failed", message, { code: error.code || "RELAY_TEST_FAILED" });
+      return jsonResponse(response, 200, { ok: true, data: { config: { ...config, source: relayEnvironmentConfigured ? "environment" : "ui" }, relay: diagnosticRelayService.status(), test: { status: "failed", message, code: error.code || "RELAY_TEST_FAILED" } } });
+    }
+  }
+  return jsonResponse(response, 404, { ok: false, code: "DIAGNOSTIC_RELAY_CONFIG_ROUTE_NOT_FOUND", message: "AI 效果检测服务配置接口不存在。" });
 }
 
 async function persistGeneratedArticle(payload, generated, ragResult, principal, request) {
@@ -1547,6 +1660,7 @@ const server = http.createServer(async (request, response) => {
 
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "auth") return await handleAuthApi(request, response, parts);
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "workspace") return await handleWorkspaceApi(request, response, parts);
+    if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "diagnostics" && (parts[3] === "relay-config" || (parts[3] === "relay" && parts[4] === "config"))) return await handleDiagnosticRelayConfigApi(request, response, parts);
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "site-cms") return await handleSiteCmsApi(request, response, parts);
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "users") return await handleUsersApi(request, response, parts);
     if (parts[0] === "api" && parts[1] === "v1" && parts[2] === "audit" && method === "GET") return await handleAuditApi(request, response);
@@ -1688,6 +1802,7 @@ const server = http.createServer(async (request, response) => {
       : error instanceof CitationPackageUpdateError ? Number(error.status || 422)
       : error instanceof CitationDocumentUpdateError ? Number(error.status || 422)
       : error instanceof SiteCmsError ? Number(error.status || 422)
+      : error instanceof DiagnosticRelayConfigError ? Number(error.status || 422)
       : error instanceof AuthError || error instanceof AiProviderError || error instanceof AiGenerationError ? Number(error.status || 500)
         : Number(error.status || 500);
     const code = error.code || (error instanceof WorkspaceConflictError ? "WORKSPACE_CONFLICT" : status === 413 ? "REQUEST_TOO_LARGE" : "INTERNAL_ERROR");

@@ -34,6 +34,7 @@ services:
       # browser code, or `docker inspect` environment output.
       TZ_RELAY_CLIENT_SECRET_FILE: /run/tongzhuo-runtime-secrets/tz_relay_client_secret
       TZ_AD_HOC_DIAGNOSTIC_API_TOKEN_FILE: /run/tongzhuo-runtime-secrets/tz_ad_hoc_diagnostic_api_token
+      TZ_SITE_BASE_URL: ${TZ_PRODUCTION_SITE_BASE_URL:?Set TZ_PRODUCTION_SITE_BASE_URL in deploy/cutover.env}
     volumes:
       - geo-production-data:/app/data
     tmpfs:

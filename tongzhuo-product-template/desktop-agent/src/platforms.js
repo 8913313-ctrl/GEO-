@@ -176,7 +176,6 @@ export const platforms = [
   publishingPlatform('sohufocus', '搜狐焦点', 'https://mp.focus.cn/', 'https://mp.focus.cn/'),
   // Keep the adapter definition for a future re-enable, but exclude X from
   // the customer-visible catalog and runnable capabilities for now.
-  publishingPlatform('x', 'X（Twitter）', 'https://x.com/login', 'https://x.com/compose/post', 'assisted', { hidden: true }),
   publishingPlatform('eastmoney', '东方财富', 'https://www.eastmoney.com/', 'https://www.eastmoney.com/'),
   publishingPlatform('smzdm', '什么值得买', 'https://www.smzdm.com/', 'https://post.smzdm.com/'),
   publishingPlatform('netease', '网易号', 'https://mp.163.com/', 'https://mp.163.com/'),

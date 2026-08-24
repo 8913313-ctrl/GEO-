@@ -25,6 +25,10 @@ export class PublisherError extends Error {
 
 const PLATFORM_ALIASES = {
   wechat: "wechat_mp",
+  // The browser bridge calls the WeChat adapter `weixin`, while the public
+  // publisher catalog uses the canonical `wechat_mp` ID. Accept both so older
+  // desktop agents cannot silently lose this capability during heartbeats.
+  weixin: "wechat_mp",
   baijia: "baijiahao",
   blog: "cnblogs",
   tiktok: "douyin"
@@ -56,7 +60,6 @@ export const PUBLISHER_PLATFORMS = [
   { id: "segmentfault", name: "SegmentFault", category: "self_media", accountMode: "local", support: "manual", enabled: true, executionMode: "assistant_confirm", requiresManualConfirmation: true, manualReason: "需在 SegmentFault 编辑器确认发布", loginUrl: "https://segmentfault.com/user/login", editorUrl: "https://segmentfault.com/write" },
   { id: "cnblogs", name: "博客园", category: "self_media", accountMode: "local", support: "manual", enabled: true, executionMode: "assistant_confirm", requiresManualConfirmation: true, manualReason: "需在博客园编辑器确认发布", loginUrl: "https://account.cnblogs.com/signin", editorUrl: "https://i.cnblogs.com/posts/edit" },
   { id: "sohufocus", name: "搜狐焦点", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.focus.cn/", editorUrl: "https://mp.focus.cn/" },
-  { id: "x", name: "X（Twitter）", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://x.com/login", editorUrl: "https://x.com/compose/post" },
   { id: "eastmoney", name: "东方财富", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://www.eastmoney.com/", editorUrl: "https://www.eastmoney.com/" },
   { id: "smzdm", name: "什么值得买", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://www.smzdm.com/", editorUrl: "https://post.smzdm.com/" },
   { id: "netease", name: "网易号", category: "self_media", accountMode: "local", support: "ready", enabled: true, executionMode: "assistant_submit", requiresManualConfirmation: false, loginUrl: "https://mp.163.com/", editorUrl: "https://mp.163.com/" }
@@ -165,6 +168,10 @@ function effectiveAccountGroups(device, groups = []) {
       .filter(Boolean);
     const platformIds = new Set([...Object.keys(group.accounts || {}), ...sessionPlatformIds]);
     platformIds.forEach((platformId) => {
+      // Historical sessions may contain platforms removed from the current
+      // catalog (for example X/Twitter). Do not resurrect those records in
+      // the management UI or account-group preflight view.
+      if (!PUBLISHER_PLATFORMS.some((item) => item.id === canonicalPlatformId(platformId))) return;
       const account = effectiveAccountForGroup(device, group, platformId);
       if (account) accounts[canonicalPlatformId(platformId)] = account;
     });
@@ -262,12 +269,25 @@ function publicDevice(device) {
     lastHeartbeatAt: device.lastHeartbeatAt,
     pairedAt: device.pairedAt,
     accountGroups,
-    sessions: Object.values(device.sessions || {})
+    sessions: Object.values(device.sessions || {}).filter((session) =>
+      PUBLISHER_PLATFORMS.some((item) => item.id === canonicalPlatformId(session?.platform_id))),
   };
 }
 
 function publicJob(job, { forWorker = false } = {}) {
-  const platformIds = forWorker ? (job.workerPlatforms || job.platforms) : (job.targetPlatforms || job.platforms);
+  const workerPlatformIds = [...new Set((job.workerPlatforms || job.platforms || [])
+    .map(canonicalPlatformId)
+    .filter((platformId) => platformId && platformId !== "web"))];
+  const targetPlatformIds = [...new Set((job.targetPlatforms || job.platforms || [])
+    .map(canonicalPlatformId)
+    .filter(Boolean))];
+  const workerPlatformOrder = (job.workerPlatformOrder || job.platform_order || workerPlatformIds)
+    .map(canonicalPlatformId)
+    .filter((platformId) => workerPlatformIds.includes(platformId));
+  const targetPlatformOrder = (job.targetPlatformOrder || job.platform_order || targetPlatformIds)
+    .map(canonicalPlatformId)
+    .filter((platformId) => targetPlatformIds.includes(platformId));
+  const platformIds = forWorker ? workerPlatformIds : targetPlatformIds;
   return {
     id: job.id,
     articleId: job.articleId,
@@ -278,7 +298,13 @@ function publicJob(job, { forWorker = false } = {}) {
     group_id: job.group_id,
     group_name: job.group_name,
     platforms: platformIds,
-    platform_order: forWorker ? (job.workerPlatformOrder || job.platform_order) : (job.targetPlatformOrder || job.platform_order),
+    platform_order: forWorker ? workerPlatformOrder : targetPlatformOrder,
+    // A worker executes only `worker_platforms`, while its UI renders
+    // `target_platforms` so a server-owned website target does not disappear.
+    target_platforms: targetPlatformIds,
+    target_platform_order: targetPlatformOrder,
+    worker_platforms: workerPlatformIds,
+    worker_platform_order: workerPlatformOrder,
     platform_details: platformDetails(platformIds),
     payload: job.payload,
     status: job.status,
@@ -480,11 +506,60 @@ export class PublisherStore {
   async jobs(device, limit = 30) {
     await this.load();
     await this.processDueJobs();
+    await this.releaseStaleJobs();
+    const activeWorkerStates = new Set(["queued", "running", "processing"]);
+    const terminalWorkerStates = new Set([
+      "draft_saved",
+      "partial_failed",
+      "result_unknown",
+      "awaiting_login",
+      "failed",
+      "cancelled"
+    ]);
+    const recentAfter = Date.now() - 7 * 24 * 60 * 60 * 1000;
     return this.state.jobs
-      .filter((job) => (job.workerPlatforms || job.platforms || []).length && ["queued", "running"].includes(job.status) && (!job.claimedBy || job.claimedBy === device.id))
-      .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+      .filter((job) => {
+        if (!(job.workerPlatforms || job.platforms || []).length) return false;
+        // Keep an in-flight task visible to the worker that claimed it.  A
+        // processing callback changes the persisted status from running to
+        // processing; hiding that state makes the task disappear from the
+        // desktop queue and prevents stale recovery after a crash.
+        if (activeWorkerStates.has(job.status)) return !job.claimedBy || job.claimedBy === device.id;
+        if (!terminalWorkerStates.has(job.status) || job.claimedBy !== device.id) return false;
+        const updatedAt = Date.parse(job.updatedAt || job.createdAt || 0);
+        return Number.isFinite(updatedAt) && updatedAt >= recentAfter;
+      })
+      .sort((left, right) => {
+        const leftActive = activeWorkerStates.has(left.status);
+        const rightActive = activeWorkerStates.has(right.status);
+        if (leftActive !== rightActive) return leftActive ? -1 : 1;
+        return leftActive
+          ? new Date(left.createdAt) - new Date(right.createdAt)
+          : new Date(right.updatedAt || right.createdAt) - new Date(left.updatedAt || left.createdAt);
+      })
       .slice(0, Math.max(1, Math.min(100, Number(limit) || 30)))
       .map((job) => publicJob(job, { forWorker: true }));
+  }
+
+  async releaseStaleJobs() {
+    const staleAfterMs = 30 * 60 * 1000;
+    const nowMs = Date.now();
+    let changed = false;
+    for (const job of this.state.jobs) {
+      if (!["running", "processing"].includes(job.status) || !job.claimedBy) continue;
+      const device = this.state.devices.find((item) => item.id === job.claimedBy);
+      const deviceAlive = device && Date.parse(device.lastHeartbeatAt || 0) > nowMs - staleAfterMs;
+      if (deviceAlive) continue;
+      const jobAge = Date.parse(job.updatedAt || job.createdAt || 0);
+      if (nowMs - jobAge < staleAfterMs) continue;
+      job.status = "queued";
+      job.claimedBy = null;
+      job.message = "执行超时已回收，可重新领取。";
+      job.updatedAt = now();
+      changed = true;
+    }
+    if (changed) await this.save();
+    return changed;
   }
 
   async processDueJobs() {
@@ -568,10 +643,16 @@ export class PublisherStore {
     const article = body.article || {};
     const rawPlatforms = [...new Set((body.platformOrder || body.platforms || []).map(canonicalPlatformId))];
     const unavailablePlatforms = rawPlatforms.filter((id) => platformById(id) && !selectablePlatformIds.has(id));
-    if (unavailablePlatforms.length) throw new Error(`以下平台暂不支持创建发布任务：${unavailablePlatforms.map((id) => platformById(id)?.name || id).join("、")}`);
+    if (unavailablePlatforms.length) {
+      throw new PublisherError(
+        `以下平台暂不支持创建发布任务：${unavailablePlatforms.map((id) => platformById(id)?.name || id).join("、")}`,
+        422,
+        "PUBLISHER_PLATFORM_UNAVAILABLE",
+      );
+    }
     const requestedPlatforms = rawPlatforms.filter((id) => selectablePlatformIds.has(id));
     const platforms = requestedPlatforms.filter((id) => id !== "web");
-    if (!requestedPlatforms.length) throw new Error("请至少选择一个可用的平台。");
+    if (!requestedPlatforms.length) throw new PublisherError("请至少选择一个可用的平台。", 422, "PUBLISHER_PLATFORM_REQUIRED");
     const groupId = String(body.accountGroupId || body.groupId || "group-default");
     let syncedGroup = null;
     let syncedDevice = null;
@@ -583,12 +664,23 @@ export class PublisherStore {
         break;
       }
     }
-    if (platforms.length && (!syncedDevice || !syncedGroup)) throw new Error("账号组尚未由本地发布器同步，不能创建平台任务。");
+    if (platforms.length && (!syncedDevice || !syncedGroup)) {
+      throw new PublisherError(
+        "账号组尚未由本地发布器同步，不能创建平台任务。请等待发布器完成一次心跳后重试。",
+        409,
+        "PUBLISHER_ACCOUNT_GROUP_SYNC_PENDING",
+      );
+    }
     if (platforms.length) {
       const capabilities = new Set((syncedDevice.capabilities || []).map(canonicalPlatformId));
       const unavailable = platforms.filter((platformId) => !capabilities.has(platformId) || !accountReadyForGroup(syncedDevice, syncedGroup, platformId));
       if (unavailable.length) {
-        throw new Error(`以下平台未在本地发布器完成登录或能力同步：${unavailable.map((id) => platformById(id)?.name || id).join("、")}`);
+      throw new PublisherError(
+        `以下平台未在本地发布器完成登录或能力同步：${unavailable.map((id) => platformById(id)?.name || id).join("、")}`,
+        409,
+        "PUBLISHER_ACCOUNT_UNAVAILABLE",
+        { platforms: unavailable },
+      );
       }
     }
     const groupName = String(syncedGroup?.name || body.groupName || "默认账号组");
@@ -695,22 +787,193 @@ export class PublisherStore {
     await this.load();
     const job = this.state.jobs.find((item) => Number(item.id) === Number(id));
     if (!job) throw new Error("发布任务不存在。");
-    job.claimedBy = device.id;
-    const workerState = String(body.state || "result_unknown");
-    const incomingResults = body.platform_results || body.results;
-    if (incomingResults && typeof incomingResults === "object" && !Array.isArray(incomingResults)) {
-      const workerResults = { ...incomingResults };
-      if ((job.targetPlatforms || []).includes("web")) delete workerResults.web;
-      job.results = { ...(job.results || {}), ...workerResults };
+    const workerPlatformIds = new Set((job.workerPlatforms || job.platforms || [])
+      .map(canonicalPlatformId)
+      .filter((platformId) => platformId && platformId !== "web"));
+    if (!workerPlatformIds.size) {
+      throw new PublisherError("官网任务不接受本地发布器回写。", 422, "PUBLISHER_WEB_ONLY_JOB");
     }
+    job.claimedBy = device.id;
+    const workerState = String(body.state || "result_unknown").trim().toLowerCase();
+    const draftOnlyStates = new Set([
+      "processing",
+      "draft_saved",
+      "partial_failed",
+      "result_unknown",
+      "awaiting_login",
+      "cancelled",
+      "failed"
+    ]);
+    if (["published", "success", "completed"].includes(workerState)) {
+      throw new PublisherError("本地发布器仅允许回写草稿状态。", 422, "PUBLISHER_DRAFT_ONLY_STATE");
+    }
+    if (!draftOnlyStates.has(workerState)) {
+      throw new PublisherError("本地发布器回写了未知状态。", 422, "PUBLISHER_UNKNOWN_STATE");
+    }
+    const incomingResults = body.platform_results || body.results;
+    const workerResults = {};
+    const ignoredPlatformIds = [];
+    if (incomingResults && typeof incomingResults === "object" && !Array.isArray(incomingResults)) {
+      for (const [rawPlatformId, rawResult] of Object.entries(incomingResults)) {
+        const platformId = canonicalPlatformId(rawPlatformId);
+        // The website is published by the server and is never worker-owned.
+        if (!platformId || platformId === "web" || !workerPlatformIds.has(platformId)) {
+          // `web` is intentionally server-owned; tolerate legacy clients
+          // echoing it in their result map, but reject every other foreign
+          // platform so a local checkbox can never redirect a task.
+          if (platformId && platformId !== "web") ignoredPlatformIds.push(platformId);
+          continue;
+        }
+        const result = rawResult && typeof rawResult === "object" && !Array.isArray(rawResult) ? { ...rawResult } : {};
+        const platformState = String(result.state || "result_unknown").trim().toLowerCase();
+        if (["published", "success", "completed"].includes(platformState)) {
+          throw new PublisherError("本地发布器仅允许回写草稿状态。", 422, "PUBLISHER_DRAFT_ONLY_STATE", { platform: platformId, state: platformState });
+        }
+        if (!draftOnlyStates.has(platformState)) {
+          throw new PublisherError("本地发布器回写了未知状态。", 422, "PUBLISHER_UNKNOWN_STATE", { platform: platformId, state: platformState });
+        }
+        if (platformState === "draft_saved") {
+          const verifiableReceipt = String(
+            result.post_id || result.postId || result.draft_id || result.draftId
+              || result.remote_url || result.remoteUrl || result.post_url || result.postUrl || ""
+          ).trim();
+          if (!verifiableReceipt) {
+            throw new PublisherError(
+              `平台 ${platformById(platformId)?.name || platformId} 未返回可核验的草稿 ID 或链接。`,
+              422,
+              "PUBLISHER_DRAFT_RECEIPT_UNVERIFIABLE",
+              { platform: platformId }
+            );
+          }
+        }
+        workerResults[platformId] = { ...result, state: platformState };
+      }
+    }
+    const acceptedPlatformIds = Object.keys(workerResults);
+    if (ignoredPlatformIds.length) {
+      throw new PublisherError(
+        `发布器回写了未分配的平台：${[...new Set(ignoredPlatformIds)].map((platformId) => platformById(platformId)?.name || platformId).join("、")}。`,
+        422,
+        "PUBLISHER_RESULT_PLATFORM_UNAUTHORIZED",
+        { accepted_platforms: acceptedPlatformIds, ignored_platforms: [...new Set(ignoredPlatformIds)] }
+      );
+    }
+    const missingPlatformIds = [...workerPlatformIds].filter((platformId) => !acceptedPlatformIds.includes(platformId));
+    if (missingPlatformIds.length) {
+      throw new PublisherError(
+        `发布器回执缺少后台分配的平台：${missingPlatformIds.map((platformId) => platformById(platformId)?.name || platformId).join("、")}。`,
+        422,
+        "PUBLISHER_RESULT_MISSING",
+        { accepted_platforms: acceptedPlatformIds, ignored_platforms: ignoredPlatformIds, missing_platforms: missingPlatformIds }
+      );
+    }
+    job.results = { ...(job.results || {}), ...workerResults };
     const webFailed = (job.targetPlatforms || []).includes("web") && job.results?.web?.state === "failed";
-    job.status = webFailed && ["success", "published"].includes(workerState) ? "partial_failed" : workerState;
+    job.status = webFailed && workerState === "draft_saved" ? "partial_failed" : workerState;
     job.message = String(body.message || "");
     job.stateSummary = body.state_summary || {};
     job.updatedAt = now();
     await this.save();
     await this.notifyPublicationObserver(job);
-    return publicJob(job);
+    return {
+      ...publicJob(job),
+      result_receipt: {
+        accepted_platforms: acceptedPlatformIds,
+        ignored_platforms: [...new Set(ignoredPlatformIds)],
+        missing_platforms: []
+      }
+    };
+  }
+
+  // Verify a worker-created draft against a publicly reachable URL.  The
+  // desktop publisher is intentionally draft-only; only this server-side
+  // check may promote a target to published, and only when the public page
+  // responds successfully and contains the assigned article title.
+  async verifyJob(id, platformId = "", options = {}) {
+    await this.load();
+    const job = this.state.jobs.find((item) => Number(item.id) === Number(id));
+    if (!job) throw new PublisherError("发布任务不存在。", 404, "PUBLISHER_JOB_NOT_FOUND");
+    const canonical = canonicalPlatformId(platformId);
+    const targetPlatforms = (job.targetPlatforms || job.platforms || []).map(canonicalPlatformId);
+    if (!canonical || !targetPlatforms.includes(canonical)) {
+      throw new PublisherError("该平台不是当前任务的目标平台。", 422, "PUBLISHER_PLATFORM_NOT_TARGET");
+    }
+    const current = { ...(job.results?.[canonical] || {}) };
+    const currentState = String(current.state || "").toLowerCase();
+    // The local browser can observe a platform's explicit success toast even
+    // when the platform does not expose a public URL immediately (Weibo is a
+    // common example). Accept only that narrowly-scoped evidence marker from
+    // the paired publisher, never a generic client-side status toggle.
+    if (options?.observed === true && options?.evidence === "platform_success_ui") {
+      current.state = "published";
+      current.verified = true;
+      current.verified_at = now();
+      if (options.publicUrl) current.remote_url = String(options.publicUrl);
+      current.message = "检测到平台发布成功提示，已更新为已发布。";
+      job.results = { ...(job.results || {}), [canonical]: current };
+      const states = Object.values(job.results || {}).map((item) => String(item?.state || "").toLowerCase());
+      job.status = states.length && states.every((state) => ["published", "success", "completed"].includes(state)) ? "success" : "partial_failed";
+      job.updatedAt = now();
+      await this.save();
+      await this.notifyPublicationObserver(job);
+      return { job: publicJob(job), platform: canonical, result: current, verified: true };
+    }
+    if (canonical === "web" && ["published", "success", "completed"].includes(currentState)) {
+      return { job: publicJob(job), platform: canonical, result: { ...current, state: "published", verified: true } };
+    }
+    if (["published", "success", "completed"].includes(currentState) && current.verified === true) {
+      return { job: publicJob(job), platform: canonical, result: current };
+    }
+    const candidate = String(current.public_url || current.publicUrl || current.remote_url || current.remoteUrl || "").trim();
+    const title = String(job.articleTitle || job.payload?.article?.title || "").trim();
+    const unsupportedEditor = !candidate || /(?:mp\.|creator\.|i\.cnblogs\.|draft|edit|publish)/i.test(candidate);
+    if (unsupportedEditor) {
+      current.state = currentState === "draft_saved" ? "draft_saved" : "result_unknown";
+      current.message = "已检查任务回执；当前链接是平台草稿/编辑地址，无法证明已公开发布。请完成平台发布后再次检查。";
+      current.checked_at = now();
+      job.results = { ...(job.results || {}), [canonical]: current };
+      job.updatedAt = now();
+      await this.save();
+      return { job: publicJob(job), platform: canonical, result: current, verified: false, reason: "editor_url" };
+    }
+    let response = null;
+    let body = "";
+    try {
+      response = await fetch(candidate, { redirect: "follow", signal: AbortSignal.timeout(10000), headers: { "User-Agent": "TongzhuoPublisherVerifier/1.0" } });
+      body = await response.text();
+    } catch (error) {
+      current.state = currentState === "draft_saved" ? "draft_saved" : "result_unknown";
+      current.message = `暂时无法访问公开地址，未将任务标记为已发布：${error.message || "网络请求失败"}`;
+      current.checked_at = now();
+      job.results = { ...(job.results || {}), [canonical]: current };
+      job.updatedAt = now();
+      await this.save();
+      return { job: publicJob(job), platform: canonical, result: current, verified: false, reason: "network" };
+    }
+    const finalUrl = String(response.url || candidate);
+    const titleMatch = !title || body.toLowerCase().includes(title.slice(0, 40).toLowerCase());
+    const isPublic = response.ok && titleMatch && !/login|signin|passport|draft|editor/i.test(finalUrl);
+    if (isPublic) {
+      current.state = "published";
+      current.verified = true;
+      current.verified_at = now();
+      current.remote_url = finalUrl;
+      current.message = "已检测到公开页面，确认文章已发布。";
+      job.results = { ...(job.results || {}), [canonical]: current };
+      const states = Object.values(job.results || {}).map((item) => String(item?.state || "").toLowerCase());
+      job.status = states.length && states.every((state) => ["published", "success", "completed"].includes(state)) ? "success" : "partial_failed";
+      job.updatedAt = now();
+      await this.save();
+      await this.notifyPublicationObserver(job);
+      return { job: publicJob(job), platform: canonical, result: current, verified: true };
+    }
+    current.state = currentState === "draft_saved" ? "draft_saved" : "result_unknown";
+    current.message = "未检测到与文章标题匹配的公开页面，仍按未发布处理。";
+    current.checked_at = now();
+    job.results = { ...(job.results || {}), [canonical]: current };
+    job.updatedAt = now();
+    await this.save();
+    return { job: publicJob(job), platform: canonical, result: current, verified: false, reason: "not_public" };
   }
 
   async overview() {
@@ -722,7 +985,8 @@ export class PublisherStore {
       platforms: this.platforms(),
       devices,
       accountGroups,
-      sessions: devices.flatMap((device) => (device.sessions || []).map((session) => ({
+      sessions: devices.flatMap((device) => (device.sessions || []).filter((session) =>
+        PUBLISHER_PLATFORMS.some((item) => item.id === canonicalPlatformId(session?.platform_id))).map((session) => ({
         ...session,
         device_id: device.id,
         device_name: device.name

@@ -7,10 +7,11 @@
     <meta name="description" content="桐灼 GEO 企业私有化运营系统" />
     <meta name="publisher-download-url" content="__TZ_PUBLISHER_DOWNLOAD_URL__" />
     <title>桐灼 GEO 运营系统</title>
-    <link rel="stylesheet" href="/styles.css?v=20260821-insights-v10" />
-    <link rel="stylesheet" href="/product-ui.css?v=20260821-insights-v10" />
-    <link rel="stylesheet" href="/geo-dashboard.css?v=20260821-insights-v10" />
-    <link rel="stylesheet" href="/design-tokens.css?v=20260821-insights-v10" />
+    <link rel="stylesheet" href="/styles.css?v=20260821-logo-cleanup-v18" />
+    <link rel="stylesheet" href="/product-ui.css?v=20260824-form-refined-v1" />
+    <link rel="stylesheet" href="/geo-dashboard.css?v=20260821-logo-cleanup-v18" />
+    <link rel="stylesheet" href="/design-tokens.css?v=20260821-logo-cleanup-v18" />
+    <link rel="stylesheet" href="/effect-ui.css?v=20260824-task-refined-v1" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到主要内容</a>
@@ -25,40 +26,42 @@
 
         <nav class="nav">
           <div class="nav-section">
-            <div class="nav-label">工作区</div>
-            <a class="nav-item" href="#dashboard" data-route="dashboard"><span class="ic" data-icon="home"></span><span>工作台</span></a>
-            <a class="nav-item" href="#planning" data-route="planning"><span class="ic" data-icon="compass"></span><span>选题中心</span></a>
-            <a class="nav-item" href="#content" data-route="content"><span class="ic" data-icon="file"></span><span>内容生产</span></a>
-            <a class="nav-item" href="#publish" data-route="publish"><span class="ic" data-icon="send"></span><span>发布运营</span></a>
-            <a class="nav-item" href="#monitoring" data-route="monitoring"><span class="ic" data-icon="chart"></span><span>运营诊断</span></a>
-            <a class="nav-item" href="#assets" data-route="assets"><span class="ic" data-icon="folder"></span><span>内容资产</span></a>
+            <div class="nav-label">工作台</div>
+            <a class="nav-item" href="#dashboard" data-route="dashboard"><span class="ic" data-icon="home"></span><span>总览</span></a>
           </div>
           <div class="nav-section">
-            <div class="nav-label">官网与知识</div>
-            <a class="nav-item" href="#site" data-route="site"><span class="ic" data-icon="globe"></span><span>官网运营</span></a>
+            <div class="nav-label">企业基础</div>
             <a class="nav-item" href="#knowledge" data-route="knowledge"><span class="ic" data-icon="book"></span><span>企业知识</span></a>
-            <details class="nav-effect-group" data-effect-nav-group>
-              <summary class="nav-item nav-effect-toggle" aria-controls="effect-nav-items">
-                <span class="ic" data-icon="monitor"></span><span>AI效果检测</span><i class="nav-effect-chevron">⌄</i>
-              </summary>
-              <div class="nav-effect-items" id="effect-nav-items">
-                <a class="nav-item" href="#effect-search" data-route="effect-search" data-effect-nav><span class="ic" data-icon="search"></span><span>实时搜索</span></a>
-                <a class="nav-item" href="#effect-diagnostic" data-route="effect-diagnostic" data-effect-nav><span class="ic" data-icon="target"></span><span>品牌诊断</span></a>
-                <a class="nav-item" href="#effect-monitor" data-route="effect-monitor" data-effect-nav><span class="ic" data-icon="chart"></span><span>品牌监测</span></a>
-              </div>
-            </details>
+            <a class="nav-item" href="#site" data-route="site"><span class="ic" data-icon="globe"></span><span>官网运营</span></a>
+            <a class="nav-item" href="#monitoring" data-route="monitoring"><span class="ic" data-icon="chart"></span><span>抓取 / SEO 诊断</span></a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-label">问题与内容</div>
+            <a class="nav-item" href="#planning" data-route="planning"><span class="ic" data-icon="compass"></span><span>问题研究</span></a>
+            <a class="nav-item" href="#content" data-route="content"><span class="ic" data-icon="file"></span><span>内容生产</span></a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-label">发布与资产</div>
+            <a class="nav-item" href="#publish" data-route="publish"><span class="ic" data-icon="send"></span><span>发布任务</span></a>
+            <a class="nav-item" href="#assets" data-route="assets"><span class="ic" data-icon="folder"></span><span>内容资产</span></a>
+            <a class="nav-item" href="#assistant" data-route="assistant"><span class="ic" data-icon="monitor"></span><span>发布助手</span></a>
+          </div>
+          <div class="nav-section">
+            <div class="nav-label nav-effect-label">AI 效果</div>
+            <a class="nav-item nav-effect-item" href="#effect-search" data-route="effect-search"><span class="ic" data-icon="search"></span><span>实时搜索</span></a>
+            <a class="nav-item nav-effect-item" href="#effect-diagnostic" data-route="effect-diagnostic"><span class="ic" data-icon="target"></span><span>品牌诊断</span></a>
+            <a class="nav-item nav-effect-item" href="#effect-monitor" data-route="effect-monitor"><span class="ic" data-icon="chart"></span><span>品牌监测</span></a>
+          </div>
+
+          <div class="nav-section">
+            <div class="nav-label">系统</div>
+            <a class="nav-item" href="#settings" data-route="settings"><span class="ic" data-icon="settings"></span><span>系统设置</span></a>
           </div>
 
           <div class="nav-promo">
             <b>让企业成为 AI 的可信答案</b>
             <p>企业知识 · 官网信源 · 持续内容运营</p>
             <a class="nav-promo-go" href="https://tongzhuo.ink/insights/" data-official-consult target="_blank" rel="noopener noreferrer">咨询桐灼 →</a>
-          </div>
-
-          <div class="nav-section">
-            <div class="nav-label">系统</div>
-            <a class="nav-item" href="#assistant" data-route="assistant"><span class="ic" data-icon="monitor"></span><span>发布助手</span></a>
-            <a class="nav-item" href="#settings" data-route="settings"><span class="ic" data-icon="settings"></span><span>系统设置</span></a>
           </div>
         </nav>
       </aside>
@@ -95,8 +98,9 @@
     <div id="toast-root" class="toast-root" aria-live="assertive"></div>
 
     <script src="/auth-bootstrap.js"></script>
-    <script src="/site-template-registry.js?v=20260821-insights-v10"></script>
+    <script src="/site-template-registry.js?v=20260821-logo-cleanup-v18"></script>
     <script src="/vendor/gsap.min.js"></script>
-    <script src="/app.js?v=20260821-insights-v10"></script>
+    <script src="/app.js?v=20260824-no-kickers-v2"></script>
+    <script src="/effect-anim.js?v=20260822-demo-aligned-v2"></script>
   </body>
 </html>

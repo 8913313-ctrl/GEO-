@@ -42,6 +42,7 @@ try {
     assert.equal(job.results.web.state, "failed");
     assert.equal(job.results.web.code, "WEB_PUBLISHER_NOT_CONFIGURED");
     assert.notEqual(job.results.web.state, "published");
+    await assert.rejects(() => store.result({ id: "DEV-WEB-ONLY" }, job.id, { state: "draft_saved" }), (error) => error?.code === "PUBLISHER_WEB_ONLY_JOB" && error?.status === 422);
   }
 
   {
@@ -155,16 +156,83 @@ try {
     const workerJobs = await store.jobs(device);
     assert.equal(workerJobs.length, 1);
     assert.deepEqual(workerJobs[0].platforms, ["zhihu"]);
-    const completed = await store.result(device, job.id, {
+    await assert.rejects(() => store.result(device, job.id, {
       state: "success",
       platform_results: {
         web: { state: "published", remote_url: "https://invalid-worker-result.test" },
         zhihu: { state: "published", remote_url: "https://example.test/zhihu/1" }
       }
+    }), (error) => error?.code === "PUBLISHER_DRAFT_ONLY_STATE" && error?.status === 422);
+    assert.equal(store.state.jobs[0].results.web.state, "failed");
+    assert.equal(store.state.jobs[0].results.zhihu, undefined);
+
+    const completed = await store.result(device, job.id, {
+      state: "draft_saved",
+      platform_results: {
+        web: { state: "published", remote_url: "https://invalid-worker-result.test" },
+        zhihu: { state: "draft_saved", remote_url: "https://example.test/zhihu/draft/1" }
+      }
     });
     assert.equal(completed.status, "partial_failed");
     assert.equal(completed.results.web.state, "failed");
-    assert.equal(completed.results.zhihu.state, "published");
+    assert.equal(completed.results.zhihu.state, "draft_saved");
+    assert.equal(completed.results.zhihu.remote_url, "https://example.test/zhihu/draft/1");
+  }
+
+  {
+    // A large task must preserve the full server target list in the worker
+    // contract. The website is server-owned, while all remaining targets are
+    // executable by the local publisher. Local UI selections must not trim
+    // this list.
+    const store = await makeStore((target) => ({
+      article: { id: target.articleId, status: "published", metadata: {} },
+      version: { id: target.versionId }
+    }));
+    const localPlatforms = store.platforms().filter((platform) => platform.id !== "web").map((platform) => platform.id);
+    const accounts = Object.fromEntries(localPlatforms.map((platformId) => [platformId, {
+      platformId,
+      name: `${platformId} 测试账号`,
+      status: "online",
+      profileKey: `group-all--${platformId}`
+    }]));
+    const device = {
+      id: "DEV-ALL-PLATFORMS",
+      name: "全平台测试发布器",
+      status: "online",
+      capabilities: localPlatforms,
+      sessions: {},
+      accountGroups: [{ id: "group-all", name: "全平台账号组", accounts }]
+    };
+    store.state.devices.push(device);
+    await store.save();
+    const job = await store.createJobs(webJob({
+      platforms: ["web", ...localPlatforms],
+      platformOrder: ["web", ...localPlatforms],
+      accountGroupId: "group-all"
+    }));
+    assert.equal(job.target_platforms.length, 29);
+    assert.equal(job.worker_platforms.length, 28);
+    const workerJobs = await store.jobs(device);
+    assert.equal(workerJobs.length, 1);
+    assert.equal(workerJobs[0].target_platforms.length, 29);
+    assert.equal(workerJobs[0].worker_platforms.length, 28);
+    assert.equal(workerJobs[0].platforms.length, 28);
+    assert.ok(workerJobs[0].target_platforms.includes("web"));
+    assert.ok(workerJobs[0].target_platforms.includes("wechat_mp"));
+
+    await store.claimJob(device, job.id);
+    const processing = await store.result(device, job.id, {
+      state: "processing",
+      platform_results: Object.fromEntries(localPlatforms.map((platformId) => [platformId, { state: "processing" }]))
+    });
+    assert.deepEqual(processing.result_receipt.accepted_platforms.sort(), [...localPlatforms].sort());
+    await assert.rejects(() => store.result(device, job.id, {
+      state: "failed",
+      platform_results: {
+        ...Object.fromEntries(localPlatforms.map((platformId) => [platformId, { state: "failed", error: "test" }])),
+        wordpress: { state: "failed", error: "foreign target" }
+      }
+    }), (error) => error?.code === "PUBLISHER_RESULT_PLATFORM_UNAUTHORIZED" && error?.status === 422);
   }
 
   console.log("publisher web publication checks passed");

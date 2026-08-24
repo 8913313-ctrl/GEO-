@@ -46,6 +46,24 @@ try {
   assert.deepEqual(evidenceValidationCalls.map((item) => item.action), ["submit-review", "approve", "publish"]);
   assert.ok(evidenceValidationCalls.every((item) => item.allowInternal === false), "content workflow must always validate citations for public use");
 
+  const revisionTask = store.createTask({ id: "TASK-CHECK-REVISION", planId: plan.id, title: "退回后可修改的文章", businessLineId: "BL-1" });
+  const revisionArticle = store.createArticle({ id: "ART-CHECK-REVISION", taskId: revisionTask.id, planId: plan.id, businessLineId: "BL-1", title: "退回修改闭环", contentHtml: "<p>需要审核后再发布的正文。</p>", evidence });
+  const revisionVersion = revisionArticle.currentVersion;
+  store.recordRiskScan({ articleId: revisionArticle.id, versionId: revisionVersion.id, status: "passed", policyVersion: "geo-risk-v1", findings: [], summary: { score: 100 } });
+  const revisionPending = store.submitReview({ articleId: revisionArticle.id, versionId: revisionVersion.id, expectedRevision: store.article("default", revisionArticle.id).revision });
+  const revisionReturned = store.requestChanges({ articleId: revisionArticle.id, versionId: revisionVersion.id, expectedRevision: store.article("default", revisionArticle.id).revision, note: "请补充适用边界后重新提交。", actor: { displayName: "审核人员" } });
+  assert.equal(revisionPending.reviewStatus, "pending");
+  assert.equal(revisionReturned.reviewStatus, "changes_requested");
+  assert.equal(revisionReturned.reviews.at(-1).action, "changes_requested");
+  assert.equal(revisionReturned.reviews.at(-1).note, "请补充适用边界后重新提交。");
+  const revisionRemoteArticle = store.article("default", revisionArticle.id, { includeVersion: true, includeReviews: true });
+  assert.equal(revisionRemoteArticle.status, "changes_requested");
+  assert.equal(revisionRemoteArticle.currentVersion.reviewStatus, "changes_requested");
+  assert.equal(revisionRemoteArticle.currentVersion.reviews.at(-1).note, "请补充适用边界后重新提交。");
+  assert.equal(store.task("default", revisionTask.id).status, "changes_requested");
+  const revisedDraft = store.createVersion({ articleId: revisionArticle.id, expectedRevision: revisionRemoteArticle.revision, baseVersionId: revisionVersion.id, title: revisionArticle.title, contentHtml: "<p>已按审核意见补充适用边界的正文。</p>", evidence });
+  assert.equal(revisedDraft.reviewStatus, "draft", "a changes-requested version must accept a new editable draft");
+
   const approvedArticle = store.article("default", article.id);
   const version2 = store.createVersion({ articleId: article.id, expectedRevision: approvedArticle.revision, baseVersionId: version1.id, title: article.title, contentHtml: "<p>更新后的文章内容。</p>", evidence });
   assert.equal(version2.reviewStatus, "draft", "editing must create an unapproved version");
