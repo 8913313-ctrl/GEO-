@@ -1,0 +1,172 @@
+{
+ "dashboard": {
+  "viewLen": 12150,
+  "docH": 1640,
+  "btnCount": 19,
+  "actions": [
+   "content",
+   "effect-monitor",
+   "knowledge",
+   "planning",
+   "publish",
+   "show-pending-articles"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "planning": {
+  "viewLen": 10575,
+  "docH": 1234,
+  "btnCount": 22,
+  "actions": [
+   "clear-questions",
+   "expand-seeds",
+   "export-pack",
+   "focus-business-keyword",
+   "generate-question-pack",
+   "manage-business-lines",
+   "open-business-line",
+   "planning-category",
+   "planning-tab",
+   "save-selected-questions"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "content": {
+  "viewLen": 5894,
+  "docH": 863,
+  "btnCount": 9,
+  "actions": [
+   "content-task-view",
+   "content-view",
+   "open-content-studio",
+   "planning"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "publish": {
+  "viewLen": 4508,
+  "docH": 863,
+  "btnCount": 9,
+  "actions": [
+   "assistant",
+   "content",
+   "go-schedule-articles",
+   "open-publish-batch",
+   "publish-approved",
+   "publish-tab"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "assets": {
+  "viewLen": 4666,
+  "docH": 863,
+  "btnCount": 9,
+  "actions": [
+   "asset-clear-search",
+   "asset-tab",
+   "content",
+   "publish",
+   "refresh-assets"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "monitoring": {
+  "viewLen": 17684,
+  "docH": 1702,
+  "btnCount": 3,
+  "actions": [
+   "refresh-monitoring",
+   "run-monitoring-diagnostic"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "effect-search": {
+  "viewLen": 8457,
+  "docH": 2146,
+  "btnCount": 2,
+  "actions": [
+   "effect-relay-refresh",
+   "effect-search-run"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "effect-diagnostic": {
+  "viewLen": 5418,
+  "docH": 1696,
+  "btnCount": 2,
+  "actions": [
+   "effect-diagnostic-start",
+   "effect-relay-refresh"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "effect-monitor": {
+  "viewLen": 8449,
+  "docH": 1880,
+  "btnCount": 4,
+  "actions": [
+   "effect-monitor-tab-group",
+   "effect-monitor-view"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "site": {
+  "viewLen": 6870,
+  "docH": 1101,
+  "btnCount": 17,
+  "actions": [
+   "preview-site",
+   "site-publish-cms",
+   "site-show-releases",
+   "site-tab"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "knowledge": {
+  "viewLen": 7710,
+  "docH": 863,
+  "btnCount": 13,
+  "actions": [
+   "create-knowledge-base",
+   "import-knowledge",
+   "knowledge-kind-filter",
+   "knowledge-tab",
+   "refresh-knowledge"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "assistant": {
+  "viewLen": 20850,
+  "docH": 2083,
+  "btnCount": 24,
+  "actions": [
+   "edit-group",
+   "pair-device"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ },
+ "settings": {
+  "viewLen": 3899,
+  "docH": 863,
+  "btnCount": 9,
+  "actions": [
+   "save-settings",
+   "settings-tab",
+   "show-version"
+  ],
+  "overflowCount": 0,
+  "errors": []
+ }
+}
