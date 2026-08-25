@@ -1,11 +1,12 @@
 {
  "dashboard": {
-  "viewLen": 12150,
+  "viewLen": 12711,
   "docH": 1640,
-  "btnCount": 19,
+  "btnCount": 20,
   "actions": [
    "content",
    "effect-monitor",
+   "effect-search-focus",
    "knowledge",
    "planning",
    "publish",

@@ -1,6 +1,7 @@
 # UI 修复任务书（给修复 AI 的机器可读工单）
 
 > 生成：2026-08-25，由 opencode 视觉+数据双轨审查产出
+> 本轮（2026-08-25）：TASK-001~003 全部修复并验证，护栏零错误零死按钮；TASK-004 评审为设计选择，不修
 > 用法：修复 AI 按 `tasks` 逐条执行，每条含定位、期望、负责文件、验收命令。禁止越界。
 
 ## 使用规则（修复 AI 必读）
@@ -13,7 +14,7 @@
 
 ## tasks
 
-### TASK-001 [pending] 死按钮：知识库「查看全部/收起」无响应
+### TASK-001 [done] 死按钮：知识库「查看全部/收起」无响应
 - 位置：`public/js/modules/knowledge.js:733`（`toggle-paged` 按钮渲染）
 - 现状：按钮渲染了 `data-action="toggle-paged"`，但全代码（bootstrap.js 及所有模块）没有任何 `action === "toggle-paged"` 处理分支，点击无反应
 - 期望：点击切换对应 `data-state` 键的展开/收起状态并重渲染
@@ -22,7 +23,7 @@
 - 验收：node --check 两个文件；浏览器打开 `#knowledge`，找到「查看全部」按钮点击，列表展开/收起且按钮文字切换；console 无新错误
 - 禁止：不改 knowledge.js 的渲染函数签名
 
-### TASK-002 [pending] 丢失按钮：effect-search-focus 无渲染入口
+### TASK-002 [done] 丢失按钮：effect-search-focus 无渲染入口
 - 位置：`public/js/modules/bootstrap.js:105`（处理分支存在：跳转 effect-search 并聚焦输入框）
 - 现状：全库无任何 `data-action="effect-search-focus"` 渲染点，该快捷入口成为死代码
 - 期望（二选一，按产品语义选）：
@@ -32,12 +33,21 @@
 - 验收：A 方案--dashboard 出现按钮，点击跳到 `#effect-search` 且输入框聚焦；B 方案--全库无 `effect-search-focus` 引用
 - 禁止：不新增 CSS；按钮复用现有 `.link-button` / `.secondary-button` 类
 
-### TASK-003 [pending] 采集盲区：data-nav 未纳入审计（护栏自身缺陷）
+### TASK-003 [done] 采集盲区：data-nav 未纳入审计（护栏自身缺陷）
 - 位置：`tools/ui-audit.mjs`（本次一并交付的护栏脚本）
 - 现状：采集只抓 `data-action`，漏掉 `data-nav`（shell 大量导航按钮走 data-nav），误报「无 action 死按钮」
 - 期望：采集器同时收集 `data-nav`，交叉对比逻辑不变（registered 集合补 `navigate(` 的参数白名单）
 - 验收：跑 `node tools/ui-audit.mjs`，「死按钮」报告不再出现 data-nav 按钮
 - 禁止：不改业务代码
+
+### TASK-004 [cancelled] planning/content 空态缺 CTA 按钮
+- **评审结论：不修**
+- 现状：shell.js:762「还没有问题词包」+ planning-content.js:682「还没有内容任务」两个空态无引导按钮
+- 不修理由：
+  - 两个页面的 page header 顶部已有完整操作入口（如「拓展种子词」「创建内容计划」），空态再放按钮是视觉冗余
+  - 其他页面（assets/publish/site）的空态 CTA 是早期添加的设计选择，不是统一规则
+  - 修复 ROI 低（不修复不影响任何功能路径），留作未来设计层审视
+- 留给后续：如果用户反馈「找不到入口」，再统一审视全站空态 CTA 模式
 
 ## 已排查、确认不是问题（不要修）
 

@@ -1320,6 +1320,13 @@ ${plainText(article.contentHtml || article.content || "")}`;
     return renderModal();
   }
   if (action === "site-save-lead") return saveSiteLead(actionElement.dataset.leadId);
+  if (action === "toggle-paged") {
+    const stateKey = actionElement.dataset.state;
+    if (stateKey) {
+      ui[stateKey + "ShowAll"] = !ui[stateKey + "ShowAll"];
+      return render();
+    }
+  }
   if (action === "site-deployment") {
     ui.modal = { type: "siteDeployment" };
     return renderModal();
