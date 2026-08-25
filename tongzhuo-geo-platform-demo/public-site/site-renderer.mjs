@@ -436,7 +436,7 @@ function publicCompanyName(site) {
 
 function pageTitle(site, title = "") {
   const brand = publicBrandName(site);
-  return title ? `${title}｜${brand}` : brand;
+  return title ? (brand ? `${title}｜${brand}` : title) : (brand || DEFAULT_DESCRIPTION);
 }
 
 function navigation(site, active = "", assetBase = "/assets") {
@@ -462,8 +462,10 @@ function navigation(site, active = "", assetBase = "/assets") {
     : items;
   const orderedItems = [...visibleItems].sort((left, right) => (navOrder.get(normalize(left.path)) ?? 100) - (navOrder.get(normalize(right.path)) ?? 100));
   const primaryPaths = new Set(["/", "/services", "/cases", "/insights", "/about", "/contact"]);
+  // 主导航文字以 CMS「导航与外观」配置为准；仅未配置该项时才回退到默认名称，
+  // 避免后台维护的导航名称被渲染层写死覆盖。
   const primaryLabels = new Map([["/", "首页"], ["/services", "产品与服务"], ["/cases", "服务案例"], ["/insights", "行业资讯"], ["/about", "关于我们"], ["/contact", "联系我们"]]);
-  const displayItems = orderedItems.filter((item) => primaryPaths.has(normalize(item.path))).map((item) => ({ ...item, label: primaryLabels.get(normalize(item.path)) || item.label }));
+  const displayItems = orderedItems.filter((item) => primaryPaths.has(normalize(item.path))).map((item) => ({ ...item, label: String(item.label || "").trim() || primaryLabels.get(normalize(item.path)) || item.path }));
   const brand = publicBrandName(site);
   return `<header class="site-header"><div class="shell nav"><a class="brand" href="/" aria-label="${escapeHtml(brand)}首页">${brandLockup(site, assetBase)}</a><nav class="nav-links" aria-label="主导航">${displayItems.map((item) => `<a${activePath === normalize(item.path) ? " class=\"active\" aria-current=\"page\"" : ""} href="${escapeHtml(item.path)}">${escapeHtml(item.label)}</a>`).join("")}</nav><div class="nav-actions"><a class="nav-cta" href="/contact/">预约诊断</a><button class="menu-toggle" type="button" aria-label="打开导航" aria-expanded="false" aria-controls="mobile-navigation"><span></span><span></span><span></span></button></div></div><nav id="mobile-navigation" class="mobile-navigation" aria-label="移动端导航">${displayItems.map((item) => `<a${activePath === normalize(item.path) ? " class=\"active\"" : ""} href="${escapeHtml(item.path)}">${escapeHtml(item.label)}</a>`).join("")}<a class="mobile-cta" href="/contact/">预约诊断</a></nav></header>`;
 }
