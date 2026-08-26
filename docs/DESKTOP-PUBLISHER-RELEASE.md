@@ -4,8 +4,8 @@
 
 ## 当前版本
 
-- 版本：`1.0.0`
-- Windows 安装包：[桐灼发布助手 Setup 1.0.0.exe](https://tongzhuo.ink/downloads/%E6%A1%90%E7%81%BC%E5%8F%91%E5%B8%83%E5%8A%A9%E6%89%8B%20Setup%201.0.0.exe)
+- 版本：`1.0.4`
+- Windows 安装包：[桐灼发布助手 Setup 1.0.4.exe](https://tongzhuo.ink/downloads/%E6%A1%90%E7%81%BC%E5%8F%91%E5%B8%83%E5%8A%A9%E6%89%8B%20Setup%201.0.4.exe)
 - 更新清单：<https://tongzhuo.ink/downloads/latest.yml>
 - 更新服务：Electron `electron-updater` + Generic provider
 

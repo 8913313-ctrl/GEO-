@@ -522,7 +522,7 @@ mimeTypes[".exe"] = "application/vnd.microsoft.portable-executable";
 // advertised by electron-updater.  The environment variable can still
 // override this for a staged release, but a fresh deployment must never fall
 // back to the removed legacy filename.
-const publisherDownloadPath = "https://tongzhuo.ink/downloads/%E6%A1%90%E7%81%BC%E5%8F%91%E5%B8%83%E5%8A%A9%E6%89%8B%20Setup%201.0.3.exe";
+const publisherDownloadPath = "https://tongzhuo.ink/downloads/%E6%A1%90%E7%81%BC%E5%8F%91%E5%B8%83%E5%8A%A9%E6%89%8B%20Setup%201.0.4.exe";
 
 function requestId(request) {
   const supplied = String(request.headers["x-request-id"] || "").trim();

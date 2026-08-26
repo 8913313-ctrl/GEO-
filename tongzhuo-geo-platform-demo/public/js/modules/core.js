@@ -2,7 +2,7 @@
 
 const STORAGE_KEY = "tongzhuo-geo-platform-demo-v11";
 const LEGACY_STORAGE_KEYS = ["tongzhuo-geo-platform-demo-v10", "tongzhuo-geo-platform-demo-v9", "tongzhuo-geo-platform-demo-v8", "tongzhuo-geo-platform-demo-v7", "tongzhuo-geo-platform-demo-v6"];
-const LOCAL_PUBLISHER_DOWNLOAD_URL = "https://tongzhuo.ink/downloads/%E6%A1%90%E7%81%BC%E5%8F%91%E5%B8%83%E5%8A%A9%E6%89%8B%20Setup%201.0.3.exe";
+const LOCAL_PUBLISHER_DOWNLOAD_URL = "https://tongzhuo.ink/downloads/%E6%A1%90%E7%81%BC%E5%8F%91%E5%B8%83%E5%8A%A9%E6%89%8B%20Setup%201.0.4.exe";
 
 function publisherDownloadHref() {
   const meta = document.querySelector('meta[name="publisher-download-url"]');
