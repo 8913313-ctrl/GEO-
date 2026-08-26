@@ -41,8 +41,35 @@ function pageHead(title, description, actions = "") {
   return '<div class="page-head"><div><h2>' + escapeHtml(title) + "</h2><p>" + escapeHtml(description) + '</p></div>' + (actions ? '<div class="page-actions">' + actions + "</div>" : "") + "</div>";
 }
 
+const ROUTES_WITH_WORKSPACE_SURFACE = new Set([
+  "content",
+  "publish",
+  "assets",
+  "assistant",
+  "effect-diagnostic",
+  "effect-monitor",
+  "settings"
+]);
+
+function hydrateRouteWorkspaceSurface(root) {
+  if (!root || !ROUTES_WITH_WORKSPACE_SURFACE.has(ui.route)) return;
+  const page = root.querySelector(":scope > .page-container");
+  const head = page?.querySelector(":scope > .page-head, :scope > .effect-aligned-head");
+  if (!page || !head || head.nextElementSibling?.classList.contains("route-workspace-surface")) return;
+
+  const surface = document.createElement("div");
+  surface.className = `route-workspace-surface route-${ui.route}-workspace page-workspace-surface`;
+  head.after(surface);
+  while (surface.nextSibling) surface.appendChild(surface.nextSibling);
+}
+
 function customerFacingEffectText(value) {
-  return String(value || "")
+  const raw = String(value || "");
+  // 5xx/连接类错误：客户可读为"服务未连接"，技术细节不再直接糊在首屏。
+  if (/服务器处理请求失败|请查看服务日志|ECONNREFUSED|连接被拒绝|请求超时|网络错误|fetch failed|失败，请查看服务日志/i.test(raw)) {
+    return "检测服务未连接，请到系统设置完成服务配置后重试。";
+  }
+  return raw
     .replace(/桐灼中转站|中央中转站|中转站/gi, "灼见检测服务")
     .replace(/统一爱搜账号|爱搜账号|爱搜|AIDSO/gi, "AI 检测服务")
     .replace(/relay run/gi, "检测任务")
@@ -86,11 +113,33 @@ function showToast(title, message, type = "success") {
 function updateShell() {
   const meta = PAGE_META[ui.route];
   document.body.dataset.route = ui.route;
-  document.getElementById("page-title").textContent = meta.title;
-  document.getElementById("breadcrumb-current").textContent = meta.title;
-  document.title = meta.title + " · 桐灼 GEO";
+  const EFFECT_VIEW_TITLES = {
+    dashboard: "数据看板",
+    settings: "品牌监测",
+    mentions: "提及率 / 排名",
+    insight: "AI 洞察",
+    sentiment: "舆情 / 情感",
+    "product-cards": "商品卡分析",
+    sources: "AI 引用来源",
+    dialogs: "AI 对话记录",
+    works: "作品引用追踪",
+    runs: "历史运行",
+    export: "导出报告",
+    "question-bank": "AI 问题库"
+  };
+  const pageTitle = ui.route === "effect-monitor" ? (EFFECT_VIEW_TITLES[ui.effectMonitorView] || "数据看板") : meta.title;
+  document.getElementById("page-title").textContent = pageTitle;
+  document.getElementById("breadcrumb-current").textContent = pageTitle;
+  document.title = pageTitle + " · 桐灼 GEO";
   document.querySelectorAll("[data-route]").forEach((link) => {
-    const active = link.dataset.route === ui.route;
+    // AI 效果子主题共享 effect-monitor 路由：按 data-effect-view 精确高亮，
+    // 无 data-effect-view 的入口只在未指定子主题时高亮。
+    let active = link.dataset.route === ui.route;
+    if (active && link.dataset.route === "effect-monitor") {
+      const navView = link.dataset.effectView || "";
+      const currentView = ["dashboard", "settings", "mentions", "insight", "sentiment", "product-cards", "sources", "dialogs", "works", "runs", "export", "question-bank"].includes(ui.effectMonitorView) ? ui.effectMonitorView : "dashboard";
+      active = !navView || navView === currentView;
+    }
     link.classList.toggle("active", active);
     if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
@@ -132,6 +181,7 @@ function render() {
     console.error("route_render_failed", { route: ui.route, error });
     view.innerHTML = `<div class="page-container route-render-error"><section class="card"><span class="effect-demo-kicker">页面暂时无法显示</span><h2>${escapeHtml(PAGE_META[ui.route]?.title || "当前页面")}</h2><p>页面数据正在同步，刚才的内容没有完整加载。请刷新当前页面重试。</p><button type="button" class="primary-button" data-action="route-render-retry">重新加载</button></section></div>`;
   }
+  hydrateRouteWorkspaceSurface(view);
   if (ui.route === "effect-diagnostic") hydrateEffectDiagnosticCompetitorEditor(view);
   if (ui.route === "effect-diagnostic") hydrateEffectDiagnosticQuestionEditor(view);
   if (ui.route === "effect-diagnostic") hydrateEffectDiagnosticBrandIntroduction(view);
@@ -428,7 +478,7 @@ function renderDashboard() {
   if (readyToPublish) taskRows.push(`<button class="dashboard-task-row is-pending" type="button" data-nav="publish"><span class="dashboard-task-icon" data-icon="send"></span><span class="dashboard-task-copy"><b>${readyToPublish} 篇文章已审核可发布</b><small>内容版本已就绪，等待创建发布任务</small></span><span class="dashboard-task-action">创建发布任务 <span aria-hidden="true">→</span></span></button>`);
   if (knowledge.gaps) taskRows.push(`<button class="dashboard-task-row is-warning" type="button" data-nav="knowledge"><span class="dashboard-task-icon" data-icon="book"></span><span class="dashboard-task-copy"><b>${knowledge.gaps} 项企业事实存在缺口</b><small>补齐后才能安全支撑内容生产与证据回溯</small></span><span class="dashboard-task-action">补充企业知识 <span aria-hidden="true">→</span></span></button>`);
   if (!effect.hasEvidence) taskRows.push(`<button class="dashboard-task-row is-neutral" type="button" data-nav="effect-monitor"><span class="dashboard-task-icon" data-icon="chart"></span><span class="dashboard-task-copy"><b>${effect.status === "尚未配置监测" ? "尚未配置品牌监测" : "品牌监测等待首次运行"}</b><small>没有真实 live evidence，不显示估算分数</small></span><span class="dashboard-task-action">查看 AI 效果 <span aria-hidden="true">→</span></span></button>`);
-  taskRows.push(`<button class="dashboard-task-row is-neutral" type="button" data-action="effect-search-focus"><span class="dashboard-task-icon" data-icon="search"></span><span class="dashboard-task-copy"><b>发起一次实时搜索</b><small>在真实 AI 平台上检索品牌，并基于可追溯证据组织报告</small></span><span class="dashboard-task-action">进入实时搜索 <span aria-hidden="true">→</span></span></button>`);
+  taskRows.push(`<button class="dashboard-task-row is-neutral" type="button" data-action="effect-monitor-view" data-view="mentions"><span class="dashboard-task-icon" data-icon="chart"></span><span class="dashboard-task-copy"><b>查看品牌 AI 表现</b><small>平台×品牌提及率、排名与竞品对比全视图</small></span><span class="dashboard-task-action">查看平台表现 <span aria-hidden="true">→</span></span></button>`);
   if (!taskRows.length) taskRows.push(`<div class="dashboard-empty-state"><span class="dashboard-empty-icon" data-icon="check"></span><div><b>当前没有阻塞任务</b><p>内容、发布与知识状态都没有需要立即处理的异常。</p></div><button class="secondary-button button-small" type="button" data-nav="content">继续内容生产</button></div>`);
 
   const loopSteps = [
@@ -444,7 +494,7 @@ function renderDashboard() {
     <td><span class="tag-line">${escapeHtml(article.category || "未分类")}</span></td>
     <td>${articleReviewBadge(article)}</td>
     <td>${escapeHtml(article.author || "未署名")}</td>
-    <td class="text-right text-nowrap"><button class="link-button" type="button" data-action="open-article" data-article-id="${escapeHtml(article.id)}">打开</button><button class="link-button" type="button" data-action="open-article-studio" data-article-id="${escapeHtml(article.id)}">AI 协作</button></td>
+    <td class="text-right text-nowrap"><div class="dashboard-table-actions"><button class="link-button dashboard-table-action dashboard-table-action-secondary" type="button" data-action="open-article" data-article-id="${escapeHtml(article.id)}">打开</button><button class="link-button dashboard-table-action dashboard-table-action-primary" type="button" data-action="open-article-studio" data-article-id="${escapeHtml(article.id)}">AI 协作</button></div></td>
   </tr>`).join("");
 
   return `
@@ -508,7 +558,7 @@ function renderDashboard() {
       </section>
 
       <section class="dashboard-detail-grid">
-        <section class="card table-card dashboard-recent-card"><div class="dashboard-section-head"><div><h3>最近文章</h3><p>快速打开最近更新的文章，不承担主要工作入口。</p></div><button class="link-button" type="button" data-nav="content">查看全部 →</button></div>${recentArticleRows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>文章 / 任务</th><th>分类</th><th>状态</th><th>作者</th><th class="text-right">操作</th></tr></thead><tbody>${recentArticleRows}</tbody></table></div>` : `<div class="dashboard-empty-state compact"><span data-icon="file"></span><div><b>还没有文章</b><p>从问题研究或创作工作区开始第一篇内容。</p></div><button class="secondary-button button-small" type="button" data-nav="content">进入内容生产</button></div>`}</section>
+        <section class="card table-card dashboard-recent-card"><div class="dashboard-section-head"><div><h3>最近文章</h3><p>快速打开最近更新的文章，不承担主要工作入口。</p></div><button class="link-button dashboard-view-all-button" type="button" data-nav="content">查看全部 <span aria-hidden="true">→</span></button></div>${recentArticleRows ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>文章 / 任务</th><th>分类</th><th>状态</th><th>作者</th><th class="text-right">操作</th></tr></thead><tbody>${recentArticleRows}</tbody></table></div>` : `<div class="dashboard-empty-state compact"><span data-icon="file"></span><div><b>还没有文章</b><p>从问题研究或创作工作区开始第一篇内容。</p></div><button class="secondary-button button-small" type="button" data-nav="content">进入内容生产</button></div>`}</section>
         <section class="card dashboard-activity-card"><div class="dashboard-section-head"><div><h3>最近活动</h3><p>文章、知识和发布动作的最近变更。</p></div><span class="dashboard-section-count">次级信息</span></div><div class="dashboard-activity-list">${dashboardActivityItems()}</div></section>
       </section>
     </div>

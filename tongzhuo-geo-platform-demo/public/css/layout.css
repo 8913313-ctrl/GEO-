@@ -507,9 +507,9 @@
 
 /* --- 第 23 节（原 design-tokens.css） --- */
 /* ============ 23. 侧边栏 demo 版（完整移植） ============ */
-.sidebar {
+html body aside.sidebar {
   width: var(--sidebar-width);
-  padding: 20px 10px 14px;
+  padding: 18px 8px 10px;
   background: transparent;
   border-right: 1px solid var(--line);
   display: flex;
@@ -520,16 +520,16 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 0 10px 22px;
+  padding: 2px 8px 14px;
   border-bottom: 0;
   margin-bottom: 0;
 }
 .sidebar .brand-mark {
-  width: 24px; height: 24px;
-  border-radius: 7px;
+  width: 22px; height: 22px;
+  border-radius: 6px;
   background: linear-gradient(135deg, #c9573f, #a03a26);
   color: #fff;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -537,7 +537,7 @@
   flex-shrink: 0;
 }
 .sidebar .brand-text {
-  font-size: 14.5px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--ink-strong);
   letter-spacing: -.2px;
@@ -565,9 +565,9 @@
   padding: 0;
   overflow: visible;
 }
-.sidebar .nav-section { margin-bottom: 6px; }
+.sidebar .nav-section { margin-bottom: 2px; }
 .sidebar .nav-label {
-  padding: 16px 10px 6px;
+  padding: 10px 10px 4px;
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 10px;
   font-weight: 600;
@@ -578,16 +578,16 @@
 .sidebar .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 2px 0;
-  padding: 8px 10px;
+  gap: 9px;
+  margin: 1px 0;
+  padding: 6px 10px;
   border-radius: 7px;
   color: var(--nav-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 450;
   text-decoration: none;
   position: relative;
-  min-height: 34px;
+  min-height: 30px;
   background: transparent;
   box-shadow: none;
   transition: background .12s, color .12s;
@@ -665,8 +665,8 @@
   transition: transform .15s;
 }
 .sidebar .nav-effect-group[open] .nav-effect-chevron { transform: rotate(180deg); }
-.sidebar .nav-effect-items { padding-left: 8px; }
-.sidebar .nav-effect-items .nav-item { min-height: 30px; padding: 6px 8px; font-size: 12.5px; }
+.sidebar .nav-effect-items { padding-left: 6px; }
+.sidebar .nav-effect-items .nav-item { min-height: 28px; padding: 5px 8px; font-size: 12px; }
 .sidebar .nav-promo {
   margin: 14px 4px 6px;
   padding: 12px;
@@ -693,4 +693,29 @@
   transition: background .12s;
 }
 .sidebar .nav-promo-go:hover { background: var(--blue-hover); }
+
+/* ============================================================
+ * 26. 侧边栏 promo 卡片悬浮化（2026-08-26，紧凑 v2）
+ * 侧边栏主体恢复贴边；仅 promo 卡片与侧边栏视觉分离：
+ * 白底圆角 + 柔和投影，悬浮于导航流之上，吸底可见。
+ * ============================================================ */
+.sidebar .nav .nav-promo {
+  margin: 10px 8px 10px;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(23, 19, 13, .04), 0 8px 24px rgba(23, 19, 13, .08);
+  margin-top: auto;
+  position: sticky;
+  bottom: 10px;
+  z-index: 2;
+}
+
+/* 桌面段（821-980px）回收让位：dashboard.css 的 270px+margin:0 在窄 desktop 会
+   推挤所有非 dashboard 路由的主区域被侧栏盖住。这里统一恢复 210px 侧栏 + 210px 让位。 */
+@media (min-width: 821px) and (max-width: 980px) {
+  .sidebar { width: var(--sidebar-width); }
+  .main-column { margin-left: var(--sidebar-width); }
+}
 

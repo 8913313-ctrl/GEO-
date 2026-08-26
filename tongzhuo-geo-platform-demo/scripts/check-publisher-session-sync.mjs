@@ -10,7 +10,7 @@ process.env.TZ_PUBLISHER_DATA_DIR = temporaryDataDir;
 try {
   const moduleUrl = pathToFileURL(path.resolve("publisher-store.mjs"));
   moduleUrl.searchParams.set("session-sync-check", String(Date.now()));
-  const { PublisherStore } = await import(moduleUrl.href);
+  const { PublisherStore, PUBLISHER_HEARTBEAT_TTL_MS } = await import(moduleUrl.href);
   const store = new PublisherStore();
   await store.load();
 
@@ -91,6 +91,38 @@ try {
         updated_at: "2026-07-24T12:02:00.000Z"
       }
     }
+  }, {
+    // Two installations may both send the historical group-default id. The
+    // server must scope that id by device before exposing it to the UI.
+    id: "device-default-b",
+    name: "另一台电脑发布器",
+    status: "online",
+    capabilities: ["baijiahao"],
+    lastHeartbeatAt: new Date().toISOString(),
+    accountGroups: [{
+      id: "group-default",
+      name: "默认账号组",
+      accounts: {
+        baijiahao: {
+          platformId: "baijiahao",
+          name: "另一台账号",
+          accountName: "另一台账号",
+          status: "online",
+          profileKey: "another-local-profile"
+        }
+      }
+    }],
+    sessions: {
+      "baijiahao:another-local-profile": {
+        platform_id: "baijiahao",
+        profile_key: "another-local-profile",
+        account_name: "另一台账号",
+        login_state: "ready",
+        auto_allowed: true,
+        meta: { group_id: "group-default" },
+        updated_at: new Date().toISOString()
+      }
+    }
   }];
   store.state.nextJobId = 1;
   await store.save();
@@ -106,6 +138,10 @@ try {
   assert.equal(groupB?.accounts?.baijiahao?.status, "needs_verification");
   assert.equal(groupC?.accounts?.baijiahao?.status, "unknown");
   assert.equal(overview.sessions.find((session) => session.profile_key === "group-a--baijiahao")?.device_id, "device-session-check");
+  const scopedDefault = overview.accountGroups.find((group) => group.id === "group-device-default-b-default");
+  assert.equal(Boolean(scopedDefault), true);
+  assert.equal(overview.accountGroups.some((group) => group.id === "group-default"), false);
+  assert.equal(scopedDefault?.accounts?.baijiahao?.accountName, "另一台账号");
 
   const job = await store.createJobs({
     accountGroupId: "group-a",
@@ -131,6 +167,49 @@ try {
     }),
     /未在本地发布器完成登录或能力同步/
   );
+
+  // A stopped/uninstalled desktop must not leave an old heartbeat and ready
+  // session looking online forever. The configured grace period is longer
+  // than the normal five-minute heartbeat interval.
+  store.state.devices[0].lastHeartbeatAt = new Date(Date.now() - PUBLISHER_HEARTBEAT_TTL_MS - 1).toISOString();
+  const staleOverview = await store.overview();
+  assert.equal(staleOverview.devices[0]?.status, "offline");
+  assert.equal(staleOverview.sessions.find((session) => session.profile_key === "group-a--baijiahao")?.login_state, "unknown");
+  assert.equal(staleOverview.accountGroups.find((group) => group.id === "group-a")?.accounts?.baijiahao?.status, "unknown");
+  await assert.rejects(
+    () => store.createJobs({
+      accountGroupId: "group-a",
+      article: { id: "article-stale", title: "离线设备文章", version: "v1" },
+      platforms: ["baijiahao"]
+    }),
+    /未在本地发布器完成登录或能力同步/
+  );
+
+  // Registration and session updates from two fresh installations must keep
+  // the same legacy payload id in separate device scopes.
+  const pairingOne = await store.createPairing();
+  await store.register({
+    pairing_code: pairingOne.code,
+    device_id: "device-register-a",
+    name: "注册设备 A",
+    capabilities: ["baijiahao"],
+    meta: { account_groups: [{ id: "group-default", name: "默认账号组", accounts: {} }], active_group_id: "group-default" }
+  });
+  const pairingTwo = await store.createPairing();
+  await store.register({
+    pairing_code: pairingTwo.code,
+    device_id: "device-register-b",
+    name: "注册设备 B",
+    capabilities: ["baijiahao"],
+    meta: { account_groups: [{ id: "group-default", name: "默认账号组", accounts: {} }], active_group_id: "group-default" }
+  });
+  const registeredA = store.state.devices.find((device) => device.id === "device-register-a");
+  const registeredB = store.state.devices.find((device) => device.id === "device-register-b");
+  await store.updateSession(registeredA, { platform_id: "baijiahao", profile_key: "local-a", account_name: "账号 A", login_state: "ready", meta: { group_id: "group-default" } });
+  await store.updateSession(registeredB, { platform_id: "baijiahao", profile_key: "local-b", account_name: "账号 B", login_state: "needs_login", meta: { group_id: "group-default" } });
+  const registeredOverview = await store.overview();
+  assert.equal(registeredOverview.accountGroups.find((group) => group.id === "group-device-register-a-default")?.accounts?.baijiahao?.accountName, "账号 A");
+  assert.equal(registeredOverview.accountGroups.find((group) => group.id === "group-device-register-b-default")?.accounts?.baijiahao?.status, "needs_login");
 
   console.log("publisher session sync check passed");
 } finally {

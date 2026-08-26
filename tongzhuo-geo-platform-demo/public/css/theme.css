@@ -265,3 +265,45 @@ label { color: #37332c; font-size: 12.5px; font-weight: 550; }
 .production-auth-message.info { color: var(--muted); }
 .production-auth-card footer { border-top-color: var(--line); color: var(--muted-2); }
 
+/* 工作区配色：暖浅灰外层、暖米白内层、白色业务卡片 */
+#view .page-workspace-surface :is(
+  .kb-summary-row,
+  .knowledge-toolbar,
+  .knowledge-library-grid,
+  .asset-summary,
+  .asset-list,
+  .content-plan-summary,
+  .publish-summary,
+  .publish-list,
+  .site-workspace,
+  .settings-layout
+) {
+  border-color: var(--workspace-line);
+  background: var(--panel-soft);
+}
+
+#view .page-workspace-surface :is(
+  .kb-summary-card,
+  .summary-card,
+  .asset-list,
+  .publish-task,
+  .site-workspace-nav,
+  .settings-nav
+) {
+  border-color: var(--workspace-line);
+}
+
+#view.route-planning .page-workspace-surface .planning-workbench-body {
+  border-color: var(--workspace-line);
+  background: linear-gradient(180deg, var(--panel-soft), var(--workspace));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), 0 14px 30px rgba(23, 19, 13, .04);
+}
+
+#view.route-site .site-workspace {
+  border-color: var(--workspace-line);
+  background: var(--workspace);
+}
+
+#view.route-site .site-workspace-nav {
+  border-color: var(--workspace-line);
+}

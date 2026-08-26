@@ -81,6 +81,10 @@ PUBLISHER_PLATFORMS.forEach((platform) => Object.assign(platform, platformRuntim
 const readyPlatformIds = new Set(PUBLISHER_PLATFORMS.filter((item) => item.enabled).map((item) => item.id));
 const selectablePlatformIds = new Set(PUBLISHER_PLATFORMS.filter((item) => item.enabled).map((item) => item.id));
 const manualConfirmationPlatformIds = new Set();
+// The desktop agent sends a heartbeat every five minutes. Keep a generous
+// grace period for sleeping laptops, but never let an old heartbeat advertise
+// a stopped/uninstalled publisher as online indefinitely.
+export const PUBLISHER_HEARTBEAT_TTL_MS = 15 * 60 * 1000;
 
 function platformById(id) {
   return platformRuntimeContract(PUBLISHER_PLATFORMS.find((item) => item.id === id) || null);
@@ -129,7 +133,7 @@ function latestSessionForGroup(device, group, platformId) {
     .filter((session) => {
       const matchedGroupId = sessionGroupId(session);
       return matchedGroupId
-        ? matchedGroupId === groupId
+        ? (matchedGroupId === groupId || scopedAccountGroupId(device.id, matchedGroupId) === groupId)
         : Boolean(profileKey && String(session?.profile_key || "") === profileKey);
     })
     .sort((left, right) => sessionUpdatedAt(right) - sessionUpdatedAt(left))[0] || null;
@@ -163,7 +167,11 @@ function effectiveAccountGroups(device, groups = []) {
   return groups.map((group) => {
     const accounts = {};
     const sessionPlatformIds = Object.values(device.sessions || {})
-      .filter((session) => sessionGroupId(session) === String(group.id || "").trim())
+      .filter((session) => {
+        const matchedGroupId = sessionGroupId(session);
+        const groupId = String(group.id || "").trim();
+        return matchedGroupId === groupId || scopedAccountGroupId(device.id, matchedGroupId) === groupId;
+      })
       .map((session) => canonicalPlatformId(session.platform_id))
       .filter(Boolean);
     const platformIds = new Set([...Object.keys(group.accounts || {}), ...sessionPlatformIds]);
@@ -180,7 +188,32 @@ function effectiveAccountGroups(device, groups = []) {
 }
 
 function accountReadyForGroup(device, group, platformId) {
-  return accountReady(effectiveAccountForGroup(device, group, platformId));
+  return deviceIsOnline(device) && accountReady(effectiveAccountForGroup(device, group, platformId));
+}
+
+function deviceIsOnline(device, nowMs = Date.now()) {
+  if (!device || String(device.status || '').toLowerCase() !== 'online') return false;
+  const heartbeatAt = Date.parse(device.lastHeartbeatAt || '');
+  // Legacy device records may not have a heartbeat timestamp. Preserve their
+  // explicit online state until the next heartbeat writes one.
+  return !Number.isFinite(heartbeatAt) || heartbeatAt > nowMs - PUBLISHER_HEARTBEAT_TTL_MS;
+}
+
+function publicSession(device, session, nowMs = Date.now()) {
+  const rawGroupId = sessionGroupId(session);
+  const normalized = rawGroupId
+    ? { ...session, meta: { ...(session.meta || {}), group_id: scopedAccountGroupId(device?.id, rawGroupId) } }
+    : { ...session };
+  if (deviceIsOnline(device, nowMs)) return normalized;
+  return {
+    ...normalized,
+    // A session is local to the desktop. Once that desktop is stale, the
+    // previous `ready` value is only a historical snapshot and must not keep
+    // the GEOFlow account center showing “已登录”.
+    login_state: session.login_state === 'ready' || session.login_state === 'online' ? 'unknown' : session.login_state,
+    auto_allowed: false,
+    last_error_message: session.last_error_message || '本地发布器已离线，等待重新连接后确认登录状态。',
+  };
 }
 
 function now() {
@@ -194,6 +227,17 @@ function token(prefix) {
 function canonicalPlatformId(id) {
   const value = String(id || "").trim();
   return PLATFORM_ALIASES[value] || value;
+}
+
+function defaultAccountGroupId(deviceId = "") {
+  const scope = String(deviceId || "").trim();
+  return scope ? `group-${scope}-default` : "group-default";
+}
+
+function scopedAccountGroupId(deviceId, groupId) {
+  const value = String(groupId || "").trim();
+  if (!value || value === "group-default") return defaultAccountGroupId(deviceId);
+  return value;
 }
 
 function emptyState() {
@@ -231,8 +275,8 @@ function migratePublisherState(rawState) {
   return { state, changed };
 }
 
-function cleanAccountGroups(groups = []) {
-  if (!Array.isArray(groups) || !groups.length) return [{ id: "group-default", name: "默认账号组", accounts: {} }];
+function cleanAccountGroups(groups = [], deviceId = "") {
+  if (!Array.isArray(groups) || !groups.length) return [{ id: defaultAccountGroupId(deviceId), name: "默认账号组", accounts: {} }];
   return groups.map((group) => {
     const accounts = {};
     Object.entries(group.accounts || {}).forEach(([rawPlatform, account]) => {
@@ -248,7 +292,7 @@ function cleanAccountGroups(groups = []) {
       };
     });
     return {
-      id: String(group.id || `group-${crypto.randomBytes(4).toString("hex")}`),
+      id: scopedAccountGroupId(deviceId, group.id || `group-${crypto.randomBytes(4).toString("hex")}`),
       name: String(group.name || "未命名账号组"),
       deviceId: String(group.deviceId || ""),
       deviceName: String(group.deviceName || ""),
@@ -259,17 +303,30 @@ function cleanAccountGroups(groups = []) {
 }
 
 function publicDevice(device) {
-  const accountGroups = effectiveAccountGroups(device, cleanAccountGroups(device.accountGroups));
+  const nowMs = Date.now();
+  const online = deviceIsOnline(device, nowMs);
+  const accountGroups = effectiveAccountGroups({
+    ...device,
+    status: online ? 'online' : 'offline',
+    sessions: Object.fromEntries(Object.entries(device.sessions || {}).map(([key, session]) => [key, publicSession(device, session, nowMs)])),
+  }, cleanAccountGroups(device.accountGroups, device.id)).map((group) => ({
+    ...group,
+    accounts: Object.fromEntries(Object.entries(group.accounts || {}).map(([platformId, account]) => [platformId, online ? account : {
+      ...account,
+      status: account.status === 'online' || account.status === 'ready' ? 'unknown' : account.status,
+      updatedAt: account.updatedAt || device.lastHeartbeatAt,
+    }]))
+  }));
   return {
     id: device.id,
     name: device.name,
-    status: device.status,
+    status: online ? 'online' : 'offline',
     capabilities: device.capabilities,
     connectionMode: device.connectionMode,
     lastHeartbeatAt: device.lastHeartbeatAt,
     pairedAt: device.pairedAt,
     accountGroups,
-    sessions: Object.values(device.sessions || {}).filter((session) =>
+    sessions: Object.values(device.sessions || {}).map((session) => publicSession(device, session, nowMs)).filter((session) =>
       PUBLISHER_PLATFORMS.some((item) => item.id === canonicalPlatformId(session?.platform_id))),
   };
 }
@@ -419,8 +476,8 @@ export class PublisherStore {
     device.deviceSecretDigest = secretDigest(deviceSecret);
     delete device.token;
     delete device.deviceSecret;
-    device.accountGroups = cleanAccountGroups(body.meta?.account_groups);
-    device.activeGroupId = body.meta?.active_group_id || device.accountGroups[0]?.id || "group-default";
+    device.accountGroups = cleanAccountGroups(body.meta?.account_groups, deviceId);
+    device.activeGroupId = scopedAccountGroupId(deviceId, body.meta?.active_group_id || device.accountGroups[0]?.id);
     if (!existing) this.state.devices.push(device);
     pairing.status = "used";
     pairing.deviceId = deviceId;
@@ -449,13 +506,24 @@ export class PublisherStore {
       : device.capabilities;
     device.connectionMode = String(body.connection_mode || device.connectionMode || "paired");
     if (body.meta?.account_groups) {
-      device.accountGroups = effectiveAccountGroups(device, cleanAccountGroups(body.meta.account_groups));
+      device.accountGroups = effectiveAccountGroups(device, cleanAccountGroups(body.meta.account_groups, device.id));
     } else {
-      device.accountGroups = effectiveAccountGroups(device, cleanAccountGroups(device.accountGroups));
+      device.accountGroups = effectiveAccountGroups(device, cleanAccountGroups(device.accountGroups, device.id));
     }
-    if (body.meta?.active_group_id) device.activeGroupId = String(body.meta.active_group_id);
+    if (body.meta?.active_group_id) device.activeGroupId = scopedAccountGroupId(device.id, body.meta.active_group_id);
     await this.save();
     return publicDevice(device);
+  }
+
+  async disconnect(device, reason = "publisher_shutdown") {
+    await this.load();
+    const current = this.state.devices.find((item) => item.id === device?.id) || device;
+    if (!current) throw new PublisherError("发布器设备不存在。", 404, "PUBLISHER_DEVICE_NOT_FOUND");
+    current.status = "offline";
+    current.disconnectedAt = now();
+    current.disconnectReason = String(reason || "publisher_shutdown").slice(0, 120);
+    await this.save();
+    return publicDevice(current);
   }
 
   async sessions(device) {
@@ -482,8 +550,10 @@ export class PublisherStore {
     };
     device.sessions = device.sessions || {};
     device.sessions[key] = session;
-    const groupId = session.meta.group_id || String(session.profile_key).split("--")[0];
-    const groups = cleanAccountGroups(device.accountGroups);
+    device.status = "online";
+    const groupId = scopedAccountGroupId(device.id, session.meta.group_id || String(session.profile_key).split("--")[0]);
+    session.meta = { ...session.meta, group_id: groupId };
+    const groups = cleanAccountGroups(device.accountGroups, device.id);
     const group = groups.find((item) => item.id === groupId) || groups[0];
     if (group && platformId !== "web") {
       group.accounts[platformId] = {
@@ -653,14 +723,17 @@ export class PublisherStore {
     const requestedPlatforms = rawPlatforms.filter((id) => selectablePlatformIds.has(id));
     const platforms = requestedPlatforms.filter((id) => id !== "web");
     if (!requestedPlatforms.length) throw new PublisherError("请至少选择一个可用的平台。", 422, "PUBLISHER_PLATFORM_REQUIRED");
-    const groupId = String(body.accountGroupId || body.groupId || "group-default");
+    const requestedGroupId = String(body.accountGroupId || body.groupId || "").trim();
+    let groupId = requestedGroupId || "";
     let syncedGroup = null;
     let syncedDevice = null;
     for (const device of this.state.devices) {
-      const group = cleanAccountGroups(device.accountGroups).find((item) => item.id === groupId);
+      const candidateId = scopedAccountGroupId(device.id, requestedGroupId || device.activeGroupId || "group-default");
+      const group = cleanAccountGroups(device.accountGroups, device.id).find((item) => item.id === candidateId);
       if (group) {
         syncedDevice = device;
         syncedGroup = group;
+        groupId = group.id;
         break;
       }
     }

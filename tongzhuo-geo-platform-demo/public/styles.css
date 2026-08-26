@@ -414,6 +414,18 @@ button [data-icon] svg { display: block; }
 .empty-cell { text-align: center; color: var(--muted); padding: 28px; }
 .block-subtext { display: block; margin-top: 4px; color: var(--muted-2); }
 .block-title { display: block; margin-bottom: 2px; color: var(--ink); font-weight: 600; }
+.page-workspace-surface { min-width: 0; padding: 12px; border: 1px solid var(--workspace-line); border-radius: 16px; background: var(--workspace); }
+@media (max-width: 900px) { .page-workspace-surface { border-radius: 14px; } }
+@media (max-width: 640px) {
+  .route-settings-workspace .settings-layout,
+  .route-settings-workspace .settings-layout > *,
+  .route-settings-workspace .settings-nav { min-width: 0; max-width: 100%; }
+  .route-settings-workspace .settings-layout .setting-row {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+}
 .check-line { display: flex; align-items: center; gap: 8px; padding-top: 8px; }
 .textarea-lg { min-height: 240px; }
 .section-title-sm { margin: 20px 0 6px; font-size: 13px; color: var(--ink-strong); }
@@ -3176,8 +3188,8 @@ button.article-version-row:hover { border-color: #b8cdec; background: #f8fbff; }
 
 .studio-composer-input::placeholder { color: #a5b1c1; }
 .studio-composer-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(184, 68, 47, .12); background: white; }
-.studio-composer-toolbar { display: flex; min-width: 0; align-items: center; gap: 4px; margin-top: 7px; }
-.studio-composer-toolbar > * { flex: 0 0 auto; }
+.studio-composer-toolbar { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 6px; margin-top: 7px; }
+.studio-composer-tools { display: flex; min-width: 0; align-items: center; gap: 4px; flex-wrap: wrap; }
 
 .studio-tool-button {
   display: inline-flex;
@@ -3215,7 +3227,7 @@ button.article-version-row:hover { border-color: #b8cdec; background: #f8fbff; }
 }
 
 .studio-agent-select:focus { border-color: var(--blue); outline: none; box-shadow: 0 0 0 3px rgba(184, 68, 47, .12); }
-.studio-send-button { display: inline-flex; min-width: 64px; height: 31px; margin-left: auto; align-items: center; justify-content: center; gap: 5px; padding: 0 10px; border: 0; border-radius: 9px; color: white; background: var(--blue); box-shadow: 0 4px 10px rgba(37, 99, 235, .18); font-size: 10px; font-weight: 600; }
+.studio-send-button { display: inline-flex; min-width: 64px; height: 31px; align-items: center; justify-content: center; gap: 5px; padding: 0 10px; border: 0; border-radius: 9px; color: white; background: var(--blue); box-shadow: 0 4px 10px rgba(37, 99, 235, .18); font-size: 10px; font-weight: 600; }
 .studio-send-button::after { content: "发送"; }
 .studio-send-button:hover { background: var(--blue-hover); }
 .studio-send-button:disabled { cursor: not-allowed; opacity: .48; box-shadow: none; }
@@ -3277,6 +3289,39 @@ button.article-version-row:hover { border-color: #b8cdec; background: #f8fbff; }
 .studio-picker-head p { margin: 4px 0 0; overflow: hidden; color: var(--muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .studio-picker-head > button { flex: 0 0 auto; }
 .studio-picker-list { min-width: 0; overflow: auto; padding: 7px; }
+.studio-asset-picker { position: fixed; z-index: 80; top: 88px; right: 24px; bottom: 24px; width: min(430px, calc(100vw - 48px)); max-height: none; }
+.studio-picker-search { display: grid; gap: 6px; padding: 10px 11px 8px; color: var(--ink); font-size: 11px; font-weight: 650; }
+.studio-picker-search > div { display: grid; min-width: 0; grid-template-columns: 16px minmax(0, 1fr); align-items: center; gap: 6px; padding: 0 9px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel-soft); }
+.studio-picker-search > div:focus-within { border-color: var(--blue); background: white; box-shadow: 0 0 0 3px rgba(184, 68, 47, .12); }
+.studio-picker-search svg { width: 14px; height: 14px; color: var(--muted); }
+.studio-picker-search input { width: 100%; height: 34px; min-width: 0; padding: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: inherit; font-weight: 500; }
+.studio-picker-summary { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 0 11px 7px; color: var(--muted); font-size: 10px; }
+.studio-picker-summary > span { display: inline-flex; min-width: 0; align-items: center; gap: 4px; }
+.studio-picker-summary svg { width: 11px; height: 11px; color: var(--blue); }
+.studio-picker-summary b { color: var(--ink); font-size: 11px; }
+.studio-picker-ai-badge { color: var(--blue); font-weight: 700; }
+.studio-asset-result[hidden] { display: none; }
+.studio-picker-no-results { display: grid; min-height: 150px; place-items: center; align-content: center; gap: 5px; padding: 18px; color: var(--muted); text-align: center; }
+.studio-picker-no-results[hidden] { display: none; }
+.studio-picker-no-results > span { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 10px; color: var(--blue); background: var(--blue-soft); }
+.studio-picker-no-results svg { width: 17px; height: 17px; }
+.studio-picker-no-results b { color: var(--ink); font-size: 12px; }
+.studio-picker-no-results p { margin: 0; font-size: 10px; }
+.studio-picker-foot { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; background: #fbfcfe; }
+.studio-picker-foot .secondary-button { min-height: 36px; }
+.studio-asset-toolbar-button {
+  display: inline-flex;
+  width: auto;
+  min-width: 72px;
+  height: 29px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  color: var(--blue);
+  white-space: nowrap;
+}
+.studio-asset-toolbar-button [data-icon] { display: inline-flex; width: 15px; height: 15px; align-items: center; justify-content: center; flex: 0 0 auto; }
 
 .studio-picker-item {
   display: grid;
@@ -3301,9 +3346,18 @@ button.article-version-row:hover { border-color: #b8cdec; background: #f8fbff; }
 .studio-picker-item b { color: var(--ink); font-size: 9px; }
 .studio-picker-item small { margin-top: 4px; color: var(--muted); font-size: 8px; }
 .studio-picker-item > em { color: var(--teal); font-size: 8px; font-style: normal; white-space: nowrap; }
+.studio-asset-result { grid-template-columns: 44px minmax(0, 1fr) auto; min-height: 58px; }
+.studio-asset-result b { font-size: 11px; }
+.studio-asset-result small,
+.studio-asset-result > em { font-size: 10px; }
+.studio-asset-result:focus-visible { border-color: var(--blue); outline: 3px solid rgba(184, 68, 47, .12); background: var(--blue-soft); }
 
 .studio-picker-thumb { display: grid; width: 30px; height: 30px; place-items: center; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; color: var(--blue); background: var(--panel-soft); font-size: 9px; font-weight: 700; }
 .studio-picker-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+@media (max-width: 1040px) {
+  .studio-inline-picker.studio-asset-picker { top: 72px; right: 0; bottom: 12px; left: 16px; width: auto; }
+}
 
 .studio-info-pane { overflow: auto; padding: 12px; background: #fbfcfe; }
 .studio-info-pane > h3 { margin: 1px 2px 9px; color: var(--ink-strong); font-size: 12px; }
@@ -3334,7 +3388,7 @@ button.article-version-row:hover { border-color: #b8cdec; background: #f8fbff; }
   .studio-editor-body { padding-right: 16px; padding-left: 16px; }
   .studio-chat-messages { padding-right: 9px; padding-left: 9px; }
   .studio-composer { padding-right: 8px; padding-left: 8px; }
-  .studio-composer-toolbar { overflow-x: auto; scrollbar-width: thin; }
+  .studio-composer-toolbar { overflow: visible; }
   .studio-agent-select { max-width: 130px; }
 }
 
@@ -3397,14 +3451,114 @@ button.article-version-row:hover { border-color: #b8cdec; background: #f8fbff; }
   .studio-chat-messages { padding: 10px 9px 12px; }
   .studio-composer { padding: 8px 8px 9px; }
   .studio-composer-input { min-height: 58px; max-height: 150px; font-size: 10px; }
-  .studio-composer-toolbar { min-width: 0; overflow: visible; padding-bottom: 1px; flex-wrap: wrap; }
+  .studio-composer-toolbar { min-width: 0; overflow: visible; padding-bottom: 1px; }
   .studio-tool-button { flex: 0 0 auto; }
   .studio-agent-select { flex: 1 0 100%; width: 100%; max-width: none; font-size: 8px; }
-  .studio-send-button { margin-left: 1px; }
   .studio-inline-picker { right: 8px; bottom: 8px; width: calc(100vw - 16px); }
   .studio-picker-item { grid-template-columns: 28px minmax(0, 1fr) auto; }
   .studio-picker-thumb { width: 28px; height: 28px; }
   .studio-info-pane { padding: 10px; }
+}
+
+/* Image citation picker: final layout contract. Keep this block after the
+   legacy studio media rules so the picker cannot be pulled back into the
+   composer or clipped by an ancestor with a narrow width. */
+.studio-inline-picker.studio-asset-picker {
+  position: fixed;
+  z-index: 120;
+  inset: 76px 24px 24px auto;
+  display: flex;
+  width: min(420px, calc(100vw - 48px));
+  max-height: none;
+  min-height: 0;
+  box-sizing: border-box;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, .42);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .18), 0 4px 14px rgba(15, 23, 42, .08);
+}
+.studio-inline-picker.studio-asset-picker .studio-picker-head,
+.studio-inline-picker.studio-asset-picker .studio-picker-search,
+.studio-inline-picker.studio-asset-picker .studio-picker-summary,
+.studio-inline-picker.studio-asset-picker .studio-picker-foot { flex: 0 0 auto; }
+.studio-inline-picker.studio-asset-picker .studio-picker-head { min-height: 70px; padding: 11px 16px; align-items: flex-start; }
+.studio-inline-picker.studio-asset-picker .studio-picker-head > div { min-width: 0; flex: 1 1 auto; padding-top: 1px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-head h4 { font-size: 13px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-head p { max-width: 100%; margin-top: 4px; overflow: hidden; color: #6b7280; font-size: 10px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.studio-inline-picker.studio-asset-picker .studio-picker-search { padding: 12px 16px 8px; font-size: 12px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-search > div { padding: 0 11px; border-radius: 10px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-search > div:focus-within { box-shadow: 0 0 0 2px rgba(184, 68, 47, .14); }
+.studio-inline-picker.studio-asset-picker .studio-picker-search input,
+.studio-inline-picker.studio-asset-picker .studio-picker-search input:focus,
+.studio-inline-picker.studio-asset-picker .studio-picker-search input:focus-visible { height: 40px; font-size: 12px; outline: none !important; box-shadow: none !important; }
+.studio-inline-picker.studio-asset-picker .studio-picker-summary { padding: 0 16px 9px; font-size: 11px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-summary b { font-size: 12px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 10px 10px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-item { grid-template-columns: 48px minmax(0, 1fr) auto; gap: 10px; min-height: 68px; padding: 9px; border-radius: 10px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-thumb { width: 48px; height: 48px; border-radius: 10px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-item b { font-size: 12px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-item small,
+.studio-inline-picker.studio-asset-picker .studio-picker-item > em { font-size: 10px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-foot { min-height: 52px; padding: 9px 16px; font-size: 11px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-foot .secondary-button { min-height: 34px; }
+
+@media (max-width: 1040px) {
+  .studio-inline-picker.studio-asset-picker { inset: 72px 16px 16px; width: auto; }
+}
+@media (max-width: 640px) {
+  .studio-inline-picker.studio-asset-picker { inset: 64px 12px 12px; border-radius: 14px; }
+  .studio-inline-picker.studio-asset-picker .studio-picker-head { min-height: 70px; padding: 11px 13px; }
+  .studio-inline-picker.studio-asset-picker .studio-picker-search { padding: 10px 13px 7px; }
+  .studio-inline-picker.studio-asset-picker .studio-picker-summary { padding-inline: 13px; }
+  .studio-inline-picker.studio-asset-picker .studio-picker-list { padding-inline: 7px; }
+  .studio-inline-picker.studio-asset-picker .studio-picker-item { grid-template-columns: 42px minmax(0, 1fr) auto; min-height: 62px; gap: 8px; padding: 8px; }
+  .studio-inline-picker.studio-asset-picker .studio-picker-thumb { width: 42px; height: 42px; }
+.studio-inline-picker.studio-asset-picker .studio-picker-foot { padding-inline: 13px; }
+}
+
+/* Compact studio context bar on desktop. The metadata used to stack four
+   block rows, making the editor start far below the page header. Keep the
+   same information, but present it as one readable inline rail when there
+   is enough horizontal room. */
+@media (min-width: 1180px) {
+  .studio-topbar {
+    min-height: 62px;
+    padding: 8px 12px;
+    gap: 12px;
+  }
+  .studio-back-button { min-height: 32px; }
+  .studio-doc-meta {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+  }
+  .studio-doc-meta > span,
+  .studio-doc-title,
+  .studio-save-state { flex: 0 1 auto; margin: 0; }
+  .studio-doc-meta > span { max-width: 180px; }
+  .studio-doc-title { max-width: 210px; }
+  .studio-save-state { max-width: 150px; }
+  .studio-context-chips { display: contents; }
+  .studio-context-chip { max-width: 190px; min-height: 24px; }
+  .studio-top-actions { flex: 0 0 auto; }
+}
+
+@media (min-width: 1440px) {
+  .studio-doc-meta { gap: 9px; overflow: visible; white-space: nowrap; }
+  .studio-doc-meta > span { max-width: 220px; }
+  .studio-doc-title { max-width: 230px; }
+  .studio-save-state { max-width: 180px; }
+  .studio-context-chip { max-width: 220px; }
+}
+
+@media (max-width: 1179px) and (min-width: 1041px) {
+  .studio-topbar { min-height: 86px; }
+  .studio-doc-meta { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); align-items: center; gap: 0 10px; }
+  .studio-context-chips { grid-column: 1 / -1; margin-top: 5px; }
 }
 
 /* 内容生产现在包含创作台、文章任务和写作智能体三个入口。 */

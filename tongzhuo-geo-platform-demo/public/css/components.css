@@ -102,6 +102,57 @@
   background: var(--red-soft);
 }
 
+/* 表格中的并排操作需要明确的按钮边界，避免多个文字链接连成一串。 */
+#view .data-table .table-actions .link-button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--panel);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+#view .data-table .table-actions .link-button:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+  text-decoration: none;
+}
+#view .data-table .table-actions .link-button.danger-link,
+#view .data-table .table-actions .link-button.danger-text {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 35%, var(--line-strong));
+  background: var(--panel);
+}
+#view .data-table .table-actions .link-button.danger-link:hover,
+#view .data-table .table-actions .link-button.danger-text:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-soft);
+}
+
+/* Dashboard action links also carry the generic table-link class. The more
+   specific generic rule above must not turn the primary action into white on
+   white; keep the theme primary treatment explicit and readable. */
+#view.route-dashboard .dashboard-table-actions .dashboard-table-action-primary {
+  color: #fff !important;
+  border-color: var(--blue) !important;
+  background: var(--blue) !important;
+  box-shadow: 0 2px 5px color-mix(in srgb, var(--blue) 18%, transparent);
+}
+#view.route-dashboard .dashboard-table-actions .dashboard-table-action-primary:hover {
+  color: #fff !important;
+  border-color: var(--blue-hover) !important;
+  background: var(--blue-hover) !important;
+}
+
 .icon-button {
   min-width: 36px;
   min-height: 36px;
@@ -173,6 +224,47 @@
 }
 #view .input::placeholder,
 #view .field input::placeholder { color: var(--muted-2); }
+
+/* File inputs need an explicit theme treatment because the browser's native
+   selector button otherwise falls back to a platform-gray control. Keep the
+   native filename affordance, but make its container and button use the same
+   warm surface, border, typography, and focus signal as the rest of the app. */
+#view .input[type="file"],
+#modal-root .input[type="file"] {
+  min-height: 40px;
+  padding: 4px 8px;
+  color: var(--muted);
+  background: var(--panel);
+  cursor: pointer;
+}
+#view .input[type="file"]::file-selector-button,
+#modal-root .input[type="file"]::file-selector-button {
+  min-height: 30px;
+  margin-right: 10px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  color: var(--ink);
+  background: var(--panel-soft);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+}
+#view .input[type="file"]:hover,
+#modal-root .input[type="file"]:hover {
+  border-color: var(--blue);
+}
+#view .input[type="file"]:hover::file-selector-button,
+#modal-root .input[type="file"]:hover::file-selector-button {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-soft);
+}
+#view .input[type="file"]:focus-visible,
+#modal-root .input[type="file"]:focus-visible {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(184, 68, 47, .12);
+}
 
 /* Monitoring's suggestion selector is an explicitly compact control. Keep
    its 30px geometry after the shared 40px form primitive without changing
@@ -626,4 +718,3 @@ body.modal-open .quick-action-fab {
 .nav-effect-items .nav-icon { margin-right: 10px; }
 .nav-effect-toggle .nav-icon,
 .nav-effect-toggle .nav-icon svg { width: 18px; height: 18px; }
-

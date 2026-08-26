@@ -99,27 +99,27 @@
 .route-content .content-article-toolbar .select,
 .route-content .content-article-toolbar .compact-search .input { height: 32px; }
 
-.route-content .content-page-container > .table-card {
+.route-content .content-page-container > .route-content-workspace > .table-card {
   border-color: #d5dfeb;
   box-shadow: 0 8px 22px rgba(30, 44, 72, .055);
 }
 
-.route-content .content-page-container > .table-card .card-header { min-height: 56px; padding: 11px 15px; }
+.route-content .content-page-container > .route-content-workspace > .table-card .card-header { min-height: 56px; padding: 11px 15px; }
 
-.route-content .content-page-container > .table-card .card-header h3 { font-size: 14px; }
+.route-content .content-page-container > .route-content-workspace > .table-card .card-header h3 { font-size: 14px; }
 
-.route-content .content-page-container > .table-card .card-header p { margin-top: 3px; font-size: 10px; }
+.route-content .content-page-container > .route-content-workspace > .table-card .card-header p { margin-top: 3px; font-size: 10px; }
 
-.route-content .content-page-container > .table-card .data-table th { height: 38px; font-size: 9.5px; }
+.route-content .content-page-container > .route-content-workspace > .table-card .data-table th { height: 38px; font-size: 9.5px; }
 
-.route-content .content-page-container > .table-card .data-table td { height: 62px; padding-top: 7px; padding-bottom: 7px; }
+.route-content .content-page-container > .route-content-workspace > .table-card .data-table td { height: 62px; padding-top: 7px; padding-bottom: 7px; }
 
-.route-content .content-page-container > .table-card .article-title-cell button { font-size: 12px; }
+.route-content .content-page-container > .route-content-workspace > .table-card .article-title-cell button { font-size: 12px; }
 
 #view.route-content .content-section-tabs-row,
 #view.route-content .content-task-switcher,
 #view.route-content .content-plan-summary,
-#view.route-content .content-page-container > .table-card { position: relative; z-index: 1; }
+#view.route-content .content-page-container > .route-content-workspace > .table-card { position: relative; z-index: 1; }
 
 #view.route-content .content-section-tabs-row {
   margin-bottom: 4px;
@@ -147,9 +147,9 @@
 
 #view.route-content .content-plan-summary .summary-card:last-child { border-right: 0; }
 
-#view.route-content .content-page-container > .table-card { border-radius: 11px; box-shadow: 0 16px 34px rgba(28, 49, 83, .065); }
+#view.route-content .content-page-container > .route-content-workspace > .table-card { border-radius: 11px; box-shadow: 0 16px 34px rgba(28, 49, 83, .065); }
 
-#view.route-content .content-page-container > .table-card .card-header { background: #fff; }
+#view.route-content .content-page-container > .route-content-workspace > .table-card .card-header { background: #fff; }
 
 #view.route-content .content-section-tabs {
   width: min(100%, 680px);
@@ -345,12 +345,12 @@
   font-size: 11px;
 }
 
-#view.route-content .content-page-container > .table-card .data-table th {
+#view.route-content .content-page-container > .route-content-workspace > .table-card .data-table th {
   height: 42px;
   font-size: 11px;
 }
 
-#view.route-content .content-page-container > .table-card .data-table td {
+#view.route-content .content-page-container > .route-content-workspace > .table-card .data-table td {
   min-height: 72px;
   padding-top: 10px;
   padding-bottom: 10px;
@@ -603,7 +603,7 @@
 }
 
 #view.route-content .content-queue-card .content-plan-table th,
-#view.route-content .content-page-container > .table-card .data-table th {
+#view.route-content .content-page-container > .route-content-workspace > .table-card .data-table th {
   color: #776d64;
   background: #faf7f2;
   border-bottom-color: var(--line);
@@ -622,7 +622,7 @@
 #view.route-content .content-article-toolbar,
 #view.route-content .content-queue-summary,
 #view.route-content .content-plan-summary,
-#view.route-content .content-page-container > .table-card {
+#view.route-content .content-page-container > .route-content-workspace > .table-card {
   border-color: var(--line) !important;
   background: var(--panel-soft) !important;
 }
@@ -676,15 +676,15 @@
 }
 
 #view.route-content .content-queue-card,
-#view.route-content .content-page-container > .table-card,
+#view.route-content .content-page-container > .route-content-workspace > .table-card,
 #view.route-content .content-queue-card .card-header,
-#view.route-content .content-page-container > .table-card .card-header {
+#view.route-content .content-page-container > .route-content-workspace > .table-card .card-header {
   background: var(--panel) !important;
   border-color: var(--line) !important;
 }
 
 #view.route-content .content-queue-card .content-plan-table th,
-#view.route-content .content-page-container > .table-card .data-table th {
+#view.route-content .content-page-container > .route-content-workspace > .table-card .data-table th {
   background: var(--panel-soft) !important;
   border-bottom-color: var(--line) !important;
 }

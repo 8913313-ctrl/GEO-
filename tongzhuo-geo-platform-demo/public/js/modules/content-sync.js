@@ -241,7 +241,7 @@ function contentPlanServerPayload(plan) {
   return {
     id: plan.contentPlanId || plan.id,
     businessLineId: plan.businessLineId || null,
-    name: plan.name,
+    name: String(plan.name || `计划 ${String(plan.id || "").slice(0, 8)}`),
     contentType: plan.contentType || "",
     status: formalPlanStatus(plan),
     scheduledFor: plan.scheduledFor || null,

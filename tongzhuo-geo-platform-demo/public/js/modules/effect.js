@@ -243,18 +243,9 @@ function effectAlignedSystemStatus() {
 }
 
 function renderEffectSearch() {
-  if (!effectRelaySnapshot.attempted && !effectRelaySnapshot.loading) queueMicrotask(() => refreshEffectRelay({ renderAfter: true }));
-  const question = effectSearchQuestionList(ui.effectSearchQuestion)[0] || "";
-  const supportedItems = effectRelaySupportedItems(ui.effectPlatformScopes, ui.effectPlatformModes, [{ id: "realtime-draft", text: question }]);
-  const entry = effectRelayHistoryEntry(ui.effectSearchRunId, "realtime");
-  const estimatedCredits = effectSearchEstimatedCredits(supportedItems);
-  const composerDisabled = ui.effectSearchSubmitting || !question || !supportedItems.length;
-  const entries = effectRelayHistoryEntries("realtime");
-  const records = entry ? effectRelayRecordsFromRun(entry.run, entry.link) : effectSearchRecordsForView();
-  const status = effectRelayRunStatus(entry?.link, entry?.run);
-  const running = ui.effectSearchSubmitting || ["pending", "submitted", "queued", "running"].includes(status);
-  const brand = String(ui.effectSearchBrand || state.enterpriseProfile?.brandName || "").trim();
-  return `<div class="page-container effect-demo-page effect-search-page effect-aligned-page">${effectAlignedPageHead({ eyebrow: "", title: "实时搜索", accent: "让品牌被 AI 准确看见", description: "在用户真正提问的 AI 平台上，实时检索企业的真实表现，看清每一次被引用或被忽略的瞬间。" })}${effectAlignedSearchKpis(entries, records)}<section class="effect-aligned-task"><header class="effect-aligned-task-head"><div><h3>发起一次实时搜索</h3><p>输入问题，选择平台，立即查看 AI 给出的真实答案与你的引用表现</p></div></header><div class="effect-aligned-search-row"><input id="effect-search-question" type="text" value="${escapeHtml(question)}" placeholder="例：国内做 GEO 优化的企业有哪些？哪家更值得选？" aria-label="实时搜索问题" /><input id="effect-search-brand" type="hidden" value="${escapeHtml(brand)}" /><input id="effect-search-industry" type="hidden" value="${escapeHtml(ui.effectSearchIndustry || "")}" /><button class="effect-aligned-primary" type="button" data-action="effect-search-run" ${composerDisabled ? "disabled" : ""}>${ui.effectSearchSubmitting ? '<span class="loading-spinner"></span>正在检索…' : "开始检索 →"}</button></div><div class="effect-live-estimate effect-aligned-estimate" data-effect-search-estimate ${question ? "" : "hidden"}><span>${icon("credit-card")}</span><b>本次预计消耗 ${estimatedCredits.toLocaleString("zh-CN")} 积分</b><small>发送时会按最新价格与额度自动校验</small></div>${effectAlignedCapabilityChips({ scopes: ui.effectPlatformScopes, modes: ui.effectPlatformModes, label: "检索平台：" })}<div class="effect-aligned-task-status">${effectRelayStatusPanel({ flow: "realtime", entry, scopes: ui.effectPlatformScopes, modes: ui.effectPlatformModes, questions: [{ id: "realtime-draft", text: question }], cancelAction: "effect-search-cancel", cancelRunId: ui.effectSearchRunId })}</div></section><section class="effect-aligned-results">${effectAlignedSearchAnswerCard(records, running)}${effectAlignedSearchDiagnosisCard(records, entry)}</section>${effectAlignedPlatformTable(records, running)}<section class="effect-aligned-bottom">${effectAlignedSearchHistory(entries)}${effectAlignedSystemStatus()}</section></div>`;
+  // 实时搜索已并入「提及率 / 排名」：旧 #effect-search 链接重定向到同一视图。
+  ui.effectMonitorView = "mentions";
+  return renderEffectMonitor();
 }
 
 function effectPagesTabs(active) {
@@ -775,6 +766,7 @@ function monitoringPlanRecords(plan = effectMonitoringSnapshot.activePlan) {
 
 const EFFECT_MONITOR_VIEWS = Object.freeze([
   ["dashboard", "数据大盘"],
+  ["insight", "AI 洞察"],
   ["mentions", "提及率 / 排名"],
   ["sentiment", "舆情 / 情感"],
   ["product-cards", "商品卡分析"],
@@ -816,6 +808,7 @@ function effectMonitorDisplay(value, fallback = "—") {
 function effectMonitorPlatformBadge(platform, size = 22) {
   const name = String(platform || "").trim() || "—";
   const code = Object.keys(EFFECT_RELAY_PLATFORM_NAMES).find((key) => EFFECT_RELAY_PLATFORM_NAMES[key] === name) || "";
+  if (code && size >= 18) return pfLogo(code, size);
   const meta = EFFECT_RELAY_PLATFORM_UI[code] || null;
   const text = meta?.code || name.slice(0, 1);
   const color = meta?.color || "var(--blue)";
@@ -1267,7 +1260,8 @@ function effectMonitorAnalyticsCards(data = {}, view = "dashboard") {
     ]
   };
   const cards = cardsByView[view] || cardsByView.dashboard;
-  return `<div class="effect-monitor-analytics-cards">${cards.map(([label, value, note]) => `<article><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b><em>${escapeHtml(note)}</em></article>`).join("")}</div>`;
+  // 子页统计与实时搜索统一为"统计条"（小标签 + 数值 + 说明），自动换行。
+  return `<section class="pf-stat-strip is-wrap" aria-label="监测统计">${cards.map(([label, value, note]) => `<span class="pf-stat-item"><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b><em>${escapeHtml(note)}</em></span>`).join("")}</section>`;
 }
 
 function effectMonitorDashboardViewLegacy(plan, data) {
@@ -1297,6 +1291,23 @@ function effectMonitorDashboardRange(records, range = ui.effectMonitorRange) {
   const latest = Math.max(...dated.map((record) => Date.parse(record.observedAt)));
   const cutoff = latest - days * 24 * 60 * 60 * 1000;
   return dated.filter((record) => Date.parse(record.observedAt) >= cutoff);
+}
+
+function effectMonitorScopedData(data, plan) {
+  const allRecords = effectMonitorDashboardRecords(data, plan);
+  const records = effectMonitorDashboardRange(allRecords);
+  const hasExplicitRecordPayload = Array.isArray(data?.records) || Array.isArray(data?.dialogs);
+  const hasRecordSource = hasExplicitRecordPayload || allRecords.length > 0;
+  if (!hasRecordSource) return { data, allRecords, records, hasRecordSource };
+  const scoped = effectMonitorLocalAnalytics(plan, records);
+  const latestAvailable = allRecords.slice().sort((left, right) => String(right.observedAt || "").localeCompare(String(left.observedAt || "")))[0]?.observedAt || null;
+  if (!scoped.overview.lastObservedAt && latestAvailable) scoped.overview.lastObservedAt = latestAvailable;
+  return {
+    data: { ...(data || {}), ...scoped, overview: { ...(data?.overview || {}), ...scoped.overview } },
+    allRecords,
+    records,
+    hasRecordSource
+  };
 }
 
 function effectMonitorDashboardTrend(records) {
@@ -1409,12 +1420,44 @@ function effectMonitorDashboardView(plan, data) {
   const runs = Array.isArray(plan?.runs) ? plan.runs : (effectMonitoringSnapshot.runs || []);
   const alerts = effectMonitorAlertRows(data, trend, runs);
   const platforms = effectMonitorPlatformRows(data, records);
-  return `<section class="effect-monitor-dashboard-stack">${effectMonitorTaskCard(plan)}${effectMonitorTrendPanel(trend)}<div class="effect-monitor-dashboard-grid">${effectMonitorAlertsPanel(alerts)}${effectMonitorPlatformsPanel(platforms)}</div>${effectMonitorArchivePanel(plan, runs)}</section>`;
+  const brandName = String(plan?.project?.targetBrand || plan?.name || ui.effectMonitorBrand || "").trim();
+  return `<section class="effect-monitor-dashboard-stack">${effectMonitorTaskCard(plan)}${pfPlatformMatrix({ records: records.filter((record) => record.status === "verified"), running: false, brandName, competitors: ui.effectMonitorCompetitors || [] })}${effectMonitorTrendPanel(trend)}<div class="effect-monitor-dashboard-grid">${effectMonitorAlertsPanel(alerts)}${effectMonitorPlatformsPanel(platforms)}</div>${effectMonitorArchivePanel(plan, runs)}</section>`;
 }
 
-function effectMonitorMentionView(data) {
+function effectMonitorMentionView(data, plan = null, records = [], competitors = []) {
   const rows = Array.isArray(data?.mentionRank) ? data.mentionRank : [];
-  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "mentions")}<section class="card effect-monitor-view-panel"><header><div><h2>品牌提及率 / 排名</h2><p>检测结果未提供排名字段时显示“—”，不会根据回答顺序推测排名。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-mentions-table"><div class="head"><span>平台</span><span>终端</span><span>样本</span><span>提及率</span><span>平均首次排名</span><span>引用</span></div>${rows.map((row) => `<div class="row"><b class="effect-monitor-pf-cell">${effectMonitorPlatformBadge(row.platform, 20)}${escapeHtml(row.platform || "—")}</b><span>${escapeHtml(row.terminal || "—")}</span><span>${effectMonitorNumber(row.samples)}</span><strong>${effectMonitorPercent(row.mentionRate)}</strong><span>${row.averageRank === null || row.averageRank === undefined ? "—" : `#${escapeHtml(row.averageRank)}`}</span><span>${effectMonitorNumber(row.citations)}</span></div>`).join("")}</div>` : effectMonitorEmptyState("暂无已验证的提及率或排名数据。")}</section></section>`;
+  const brandName = String(plan?.project?.targetBrand || ui.effectMonitorBrand || "").trim();
+  const compList = [...(Array.isArray(plan?.competitors) ? plan.competitors : []), ...(Array.isArray(competitors) ? competitors : [])].map((item) => {
+    if (item && typeof item === "object") return item;
+    return { name: String(item).split(/[：:/]/)[0].trim() };
+  }).filter((item) => item && String(item.name || "").trim());
+  const matrix = pfPlatformMatrix({ records: (records || []).filter((record) => record.status === "verified"), running: false, brandName, competitors: compList });
+  return `<section class="effect-monitor-view-stack">${effectMonitorAnalyticsCards(data, "mentions")}${matrix}<section class="card effect-monitor-view-panel"><header><div><h2>平台 × 终端明细</h2><p>检测结果未提供排名字段时显示“—”，不会根据回答顺序推测排名。</p></div></header>${rows.length ? `<div class="effect-monitor-data-table effect-monitor-mentions-table"><div class="head"><span>平台</span><span>终端</span><span>样本</span><span>提及率</span><span>平均首次排名</span><span>引用</span></div>${rows.map((row) => `<div class="row"><b class="effect-monitor-pf-cell">${effectMonitorPlatformBadge(row.platform, 20)}${escapeHtml(row.platform || "—")}</b><span>${escapeHtml(row.terminal || "—")}</span><span>${effectMonitorNumber(row.samples)}</span><strong>${effectMonitorPercent(row.mentionRate)}</strong><span>${row.averageRank === null || row.averageRank === undefined ? "—" : `#${escapeHtml(row.averageRank)}`}</span><span>${effectMonitorNumber(row.citations)}</span></div>`).join("")}</div>` : effectMonitorEmptyState("暂无已验证的提及率或排名数据。", { hint: "完成品牌监测计划运行并收到已验收回答后，这里会按平台与终端汇总提及率与平均首次排名。", action: "effect-monitor-view", actionLabel: "去品牌监测创建计划", actionView: "settings" })}</section></section>`;
+}
+
+/** AI 洞察：单页聚合（舆情/情感、商品卡分析、AI 引用来源、AI 对话记录、作品引用追踪）。 */
+function effectMonitorInsightView(data, plan = null, records = [], competitors = []) {
+  const overview = data?.overview || {};
+  const sentimentRows = Array.isArray(data?.sentiment) ? data.sentiment : [];
+  const sourceRows = Array.isArray(data?.sources) ? data.sources : [];
+  const dialogRows = Array.isArray(data?.dialogs) ? data.dialogs : [];
+  const workRows = Array.isArray(data?.works) ? data.works : [];
+  const verifiedCount = (records || []).filter((record) => record.status === "verified").length;
+  const stat = (label, value, note) => `<span class="pf-stat-item"><small>${escapeHtml(label)}</small><b>${escapeHtml(value)}</b><em>${escapeHtml(note)}</em></span>`;
+  const sentimentStats = ["正面", "中性", "负面"].map((label) => {
+    const row = sentimentRows.find((item) => String(item.label || "").includes(label));
+    return stat(`${label}情感`, effectMonitorPercent(row?.rate), row ? `${effectMonitorNumber(row.count)} 条` : "无情感字段,不生成推测");
+  }).join("");
+  const strip = `<section class="pf-stat-strip is-wrap" aria-label="AI 洞察统计">${stat("已验证对话", effectMonitorNumber(overview.verified ?? verifiedCount), "已验收 AI 对话样本")}${sentimentStats}${stat("引用来源", effectMonitorNumber(overview.sourceCount), "唯一引用来源数量")}${stat("引用次数", effectMonitorNumber(overview.citations), "已验证回答中的引用")}${stat("追踪作品", effectMonitorNumber((workRows || []).length), "当前引用作品记录")}</section>`;
+  const empty = (msg, hint) => effectMonitorEmptyState(msg, { hint });
+  const sections = [
+    `<section class="card effect-monitor-view-panel"><header><div><h2>舆情 / 情感</h2><p>仅当检测结果返回标准化情感字段时展示统计；无字段不生成推测结论。</p></div></header>${sentimentRows.length ? `<div class="effect-monitor-sentiment-grid">${sentimentRows.map((row) => `<article><b>${escapeHtml(row.label || "—")}</b><strong>${effectMonitorNumber(row.count)}</strong><small>${effectMonitorPercent(row.rate)}</small></article>`).join("")}</div>` : empty("当前检测结果尚未返回可验证的情感字段", "检测服务返回标准化情感标签后，这里按正面/中性/负面展示占比。")}</section>`,
+    `<section class="card effect-monitor-view-panel"><header><div><h2>商品卡分析</h2><p>记录 AI 平台返回的商品卡、产品推荐和商品引用字段；未返回时保持为空。</p></div></header><div class="effect-product-empty"><span>${icon("layers")}</span><b>${plan ? "当前计划尚未返回商品卡字段" : "请先创建品牌监测计划"}</b><small>商品卡能力将在检测服务返回结构化商品字段后展示。</small></div></section>`,
+    `<section class="card effect-monitor-view-panel"><header><div><h2>AI 引用来源</h2><p>来源名称、域名与 URL 均来自已验收回答引用。</p></div></header>${sourceRows.length ? `<div class="effect-monitor-data-table effect-monitor-source-table"><div class="head"><span>来源</span><span>域名</span><span>引用次数</span><span>最近出现</span></div>${sourceRows.map((row) => `<div class="row"><b>${escapeHtml(row.title || "—")}</b><span>${escapeHtml(row.domain || "—")}</span><strong>${effectMonitorNumber(row.citations)}</strong><span>${escapeHtml(row.lastObservedAt ? formatDateTime(row.lastObservedAt) : "—")}</span></div>`).join("")}</div>` : empty("暂无 AI 引用来源", "AI 回答返回可验证引用后，这里按来源汇总域名、引用次数与最近出现时间。")}</section>`,
+    `<section class="card effect-monitor-view-panel"><header><div><h2>AI 对话记录</h2><p>按平台、终端、问题和采样时间查看原始回答；缺失字段保持“—”，明确为零时显示“未提及”。</p></div></header>${dialogRows.length ? `<div class="effect-monitor-dialog-list">${dialogRows.map((row) => `<article><header><div class="effect-dialog-platform">${effectMonitorPlatformBadge(row.platform, 20)}<div><b>${escapeHtml(row.platform || "—")} · ${escapeHtml(row.terminal || "—")}</b><small>${escapeHtml(row.mode || "—")} · ${escapeHtml(row.observedAt ? formatDateTime(row.observedAt) : "—")}</small></div></div><span class="status-badge ${row.status === "verified" ? "status-approved" : "status-pending"}">${escapeHtml(row.status || "—")}</span></header><p class="question">${escapeHtml(row.question || "—")}</p><p class="answer">${escapeHtml(row.answer || "—")}</p><footer><span>品牌提及：${escapeHtml(effectMonitorMentionLabel(row))}</span><span>引用：${row.citationSources?.length === undefined ? "—" : escapeHtml(row.citationSources.length)}</span><span>证据：${escapeHtml(row.evidenceId || "—")}</span></footer></article>`).join("")}</div>` : empty("暂无可展示的 AI 对话记录", "已验收的真实回答会按平台、终端与问题逐条展示，缺失字段保持“—”。")}</section>`,
+    `<section class="card effect-monitor-view-panel"><header><div><h2>作品引用追踪</h2><p>追踪被 AI 回答引用的网页作品；未返回 URL 时只显示来源名称。</p></div></header>${workRows.length ? `<div class="effect-monitor-data-table effect-monitor-source-table"><div class="head"><span>作品 / 来源</span><span>URL</span><span>引用次数</span><span>最近出现</span></div>${workRows.map((row) => { const url = effectMonitorSafeUrl(row.url); return `<div class="row"><b>${escapeHtml(row.title || "—")}</b><span>${url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>` : "—"}</span><strong>${effectMonitorNumber(row.citations)}</strong><span>${escapeHtml(row.lastObservedAt ? formatDateTime(row.lastObservedAt) : "—")}</span></div>`; }).join("")}</div>` : empty("暂无作品引用记录", "被 AI 回答引用的网页作品会按引用次数与最近出现时间追踪；未返回 URL 时只显示来源名称。")}</section>`
+  ];
+  return `<section class="effect-monitor-view-stack">${strip}${sections.join("")}</section>`;
 }
 
 function effectMonitorSentimentView(data) {
@@ -1463,8 +1506,12 @@ function effectMonitorQuestionBankView(data, plan) {
 }
 
 function effectMonitorViewContent(view, plan, data, questions, aliases, competitors, supportedItems, canCreate) {
+  const scoped = view === "dashboard" ? null : effectMonitorScopedData(data, plan);
+  const scopedData = view === "dashboard" ? data : scoped.data;
+  const scopedRecords = scoped ? scoped.records : [];
   switch (view) {
-    case "mentions": return effectMonitorMentionView(data);
+    case "insight": return effectMonitorInsightView(scopedData, plan, scopedRecords, competitors);
+    case "mentions": return effectMonitorMentionView(scopedData, plan, scopedRecords, competitors);
     case "sentiment": return effectMonitorSentimentView(data);
     case "product-cards": return effectMonitorProductCardsView(data, plan);
     case "sources": return effectMonitorSourcesView(data);
@@ -1512,9 +1559,9 @@ function renderRealEffectMonitor() {
   const dashboard = view === "dashboard";
   const pageHead = effectAlignedPageHead({ eyebrow: "", title: "品牌监测", accent: "把品牌在 AI 中的长期表现变成趋势", description: "按冻结问题和平台范围持续采样，只展示客户服务端已验收的真实检测证据。" });
   if (dashboard) {
-    return `<div class="page-container effect-demo-page effect-monitor-page effect-aligned-page">${pageHead}${effectPagesTabs("effect-monitor")}${effectMonitorViewTabs(view)}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
+    return `<div class="page-container effect-demo-page effect-monitor-page effect-aligned-page">${pageHead}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
   }
-  return `<div class="page-container effect-demo-page effect-monitor-page effect-aligned-page">${pageHead}${effectPagesTabs("effect-monitor")}${effectMonitorViewTabs(view)}${effectRelayStatusPanel({ entry: latestEntry, scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, questions: draftQuestions })}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
+  return `<div class="page-container effect-demo-page effect-monitor-page effect-aligned-page">${pageHead}${effectRelayStatusPanel({ entry: latestEntry, scopes: ui.effectMonitorScopes, modes: ui.effectMonitorModes, questions: draftQuestions })}${effectMonitorViewContent(view, activePlan, data, questions, aliases, competitors, supportedItems, canCreate)}</div>`;
 }
 
 function effectDiagnosticQuestionSeed(brand, options = {}) {

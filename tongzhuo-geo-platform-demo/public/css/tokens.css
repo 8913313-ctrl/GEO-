@@ -9,6 +9,8 @@
   --bg: #faf7f1;
   --panel: #ffffff;
   --panel-soft: #fbf8f2;
+  --workspace: #f5f2ec;
+  --workspace-line: #e5ded3;
   --ink: #1d1912;
   --ink-strong: #17130d;
   --muted: #37332c;
@@ -282,4 +284,3 @@ body,
 #view .effect-monitor-hero-meta {
   font-size: 12px !important;
 }
-

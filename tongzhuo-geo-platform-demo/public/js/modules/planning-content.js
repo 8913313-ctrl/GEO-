@@ -62,7 +62,7 @@ function renderPlanning() {
           ? '<button class="primary-button" type="button" data-action="planning-tab" data-tab="topics"><span data-icon="plus"></span>从选题创建计划</button>'
           : '<button class="secondary-button" type="button" data-action="planning-archive-kind" data-kind="questions"><span data-icon="help"></span>查看归档问题</button>';
   const panel = ui.planningTab === "keywords" ? renderKeywordWorkspace() : ui.planningTab === "questions" ? renderQuestionLibrary() : ui.planningTab === "topics" ? renderTopicLibrary() : ui.planningTab === "plans" ? renderContentPlans() : renderPlanningArchive();
-  return `<div class="page-container planning-page-shell planning-workbench-page"><header class="page-head page-head-terminal planning-workbench-head"><div><h2>问题研究</h2><p>从客户问题与搜索需求中发现内容机会，并将确认结果推进到选题与生产计划。</p></div><div class="planning-head-actions">${actions}</div></header><section class="planning-workflow-nav"><div class="planning-workflow-meta"><span>研究流程</span><span class="health"><i></i>来源链完整</span></div>${planningLifecycle()}</section>${renderBusinessScope()}<main class="planning-workbench-body">${panel}</main></div>`;
+  return `<div class="page-container planning-page-shell planning-workbench-page"><header class="page-head page-head-terminal planning-workbench-head"><div><h2>问题研究</h2><p>从客户问题与搜索需求中发现内容机会，并将确认结果推进到选题与生产计划。</p></div><div class="planning-head-actions">${actions}</div></header><div class="planning-workspace page-workspace-surface"><section class="planning-workflow-nav"><div class="planning-workflow-meta"><span>研究流程</span><span class="health"><i></i>来源链完整</span></div>${planningLifecycle()}</section>${renderBusinessScope()}<main class="planning-workbench-body">${panel}</main></div></div>`;
 }
 
 function contentSectionTabs() {
@@ -161,13 +161,67 @@ function studioApprovedKnowledgeEntries(workspace) {
 }
 
 function studioKnowledgeAssets(workspace) {
-  const allowed = new Set(workspace?.knowledgeScope?.resolvedBaseIds || []);
+  const scopedBaseIds = new Set(workspace?.knowledgeScope?.resolvedBaseIds || []);
   return (state.contentAssets || []).filter((asset) => {
-    if (asset.kind !== "knowledge_image" || asset.archived || asset.reviewStatus !== "approved" || !allowed.has(asset.knowledgeBaseId)) return false;
+    if (asset.kind !== "knowledge_image" || asset.archived || asset.reviewStatus !== "approved") return false;
     // Only server-backed assets have a real binary file and a durable source
-    // record. Legacy demo cards intentionally do not enter the writing picker.
+    // record. Images are tenant-wide creative material: a business-line scope
+    // boosts recommendations but does not hide the enterprise media library.
+    // Legacy demo cards intentionally do not enter the writing picker.
     return Boolean(asset.serverBackedKnowledgeAsset);
-  });
+  }).sort((left, right) => Number(scopedBaseIds.has(right.knowledgeBaseId)) - Number(scopedBaseIds.has(left.knowledgeBaseId)));
+}
+
+function studioAssetSearchText(asset) {
+  const metadata = asset?.metadata || {};
+  const base = knowledgeBaseById(asset?.knowledgeBaseId);
+  return [
+    asset?.name,
+    asset?.altText,
+    asset?.caption,
+    asset?.license,
+    base?.name,
+    metadata.caption,
+    metadata.category,
+    metadata.sourceRole,
+    ...(Array.isArray(metadata.tags) ? metadata.tags : [])
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function studioAssetRecommendationScore(asset, workspace) {
+  const article = studioArticleForWorkspace(workspace);
+  const context = [
+    article?.title,
+    studioPlainText(article?.content || ""),
+    workspace?.draftTitle,
+    workspace?.draftContent,
+    workspace?.topic?.title,
+    workspace?.topic?.keyword,
+    ui.studioComposerDraft
+  ].filter(Boolean).join(" ").toLowerCase();
+  if (!context) return 0;
+  const metadata = asset?.metadata || {};
+  const tokens = [
+    ...(Array.isArray(metadata.tags) ? metadata.tags : []),
+    metadata.category,
+    asset?.altText,
+    String(asset?.name || "").replace(/\.[^.]+$/, "").split(/[\s_\-—、，,。.（）()]+/)
+  ].flat().map((token) => String(token || "").trim().toLowerCase()).filter((token) => token.length >= 2);
+  return [...new Set(tokens)].reduce((score, token) => score + (context.includes(token) ? Math.min(8, token.length) : 0), 0);
+}
+
+function studioAssetInsertionIndex() {
+  const editor = document.getElementById("studio-content-editor");
+  if (!editor) return null;
+  const selection = window.getSelection?.();
+  if (!selection?.rangeCount) return editor.children.length;
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.startContainer)) return editor.children.length;
+  if (range.startContainer === editor) return Math.max(0, Math.min(editor.children.length, range.startOffset));
+  let block = range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
+  while (block?.parentElement && block.parentElement !== editor) block = block.parentElement;
+  const index = [...editor.children].indexOf(block);
+  return index < 0 ? editor.children.length : index + 1;
 }
 
 function createStudioWorkspace(article = null) {
@@ -302,8 +356,20 @@ function renderStudioPicker(workspace, conversation) {
     return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>引用企业知识 / 文件</h4><p>只显示当前业务线授权范围内可用的资料版本</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list">${rows || '<div class="studio-empty-chat"><div><span data-icon="book"></span><b>没有可引用知识</b><p>请先在企业知识中上传资料。</p></div></div>'}</div></div>`;
   }
   if (ui.studioPicker === "knowledge-image") {
-    const rows = studioKnowledgeAssets(workspace).map((asset) => `<button class="studio-picker-item" type="button" data-action="insert-studio-asset" data-asset-id="${asset.id}">${asset.url ? `<img class="studio-picker-image" src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.altText || asset.name)}" />` : `<span class="studio-picker-thumb ${escapeHtml(asset.accent || "blue")}" data-icon="image"></span>`}<span><b>${escapeHtml(asset.name)}</b><small>${escapeHtml(asset.caption)} · ${escapeHtml(asset.license)} · 可用</small></span><em>${studioArticleForWorkspace(workspace) ? "插入" : "选择"}</em></button>`).join("");
-    return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>知识库图片</h4><p>只显示当前知识范围内可直接使用的企业图片</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list">${rows || '<div class="studio-empty-chat"><div><span data-icon="image"></span><b>没有可用图片</b><p>当前业务线知识库中暂无可用图片，可先上传到图片资料库。</p></div></div>'}</div></div>`;
+    const search = String(ui.studioAssetSearch || "").trim().toLowerCase();
+    const assets = studioKnowledgeAssets(workspace).map((asset) => ({ asset, score: studioAssetRecommendationScore(asset, workspace), searchText: studioAssetSearchText(asset) }))
+      .sort((left, right) => right.score - left.score || Number(right.asset.createdAt || 0) - Number(left.asset.createdAt || 0));
+    const visibleCount = assets.filter((entry) => !search || entry.searchText.includes(search)).length;
+    const recommendedCount = assets.filter((entry) => entry.score > 0).length;
+    const rows = assets.map(({ asset, score, searchText }) => {
+      const base = knowledgeBaseById(asset.knowledgeBaseId);
+      const hidden = search && !searchText.includes(search) ? " hidden" : "";
+      return `<button class="studio-picker-item studio-asset-result" type="button" data-action="insert-studio-asset" data-asset-id="${escapeHtml(asset.id)}" data-studio-asset-searchable="${escapeHtml(searchText)}"${hidden}>${asset.url ? `<img class="studio-picker-image" src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.altText || asset.name)}" loading="lazy" />` : `<span class="studio-picker-thumb ${escapeHtml(asset.accent || "blue")}" data-icon="image"></span>`}<span><b>${escapeHtml(asset.name)}</b><small>${score > 0 ? '<span class="studio-picker-ai-badge">AI 推荐</span> · ' : ""}${escapeHtml(base?.name || "企业图片")} · ${escapeHtml(asset.caption || asset.altText || "来源已记录")}</small></span><em>插入</em></button>`;
+    }).join("");
+    const empty = assets.length
+      ? `<div class="studio-picker-no-results" data-studio-asset-empty ${visibleCount ? "hidden" : ""}><span data-icon="search"></span><b>没有匹配的图片</b><p>换一个名称、说明或标签试试。</p></div>`
+      : '<div class="studio-empty-chat"><div><span data-icon="image"></span><b>没有可用图片</b><p>当前业务线知识库中暂无可用图片，可先上传到图片资料库。</p></div></div>';
+    return `<div class="studio-inline-picker studio-asset-picker" role="dialog" aria-label="插入图片资料"><div class="studio-picker-head"><div><h4>图片资料库</h4><p>搜索、选择后插入到当前光标所在段落</p></div><button class="icon-button" type="button" data-action="close-studio-picker" aria-label="关闭图片资料库"><span data-icon="x"></span></button></div><label class="studio-picker-search"><span>搜索图片资料</span><div><span data-icon="search"></span><input id="studio-asset-search" type="search" value="${escapeHtml(ui.studioAssetSearch || "")}" placeholder="名称、说明或标签" autocomplete="off" data-studio-asset-search /></div></label><div class="studio-picker-summary"><span><b data-studio-asset-result-count>${visibleCount}</b> 张可选</span>${recommendedCount ? `<span><span data-icon="sparkle"></span>AI 已按当前文章推荐 ${recommendedCount} 张</span>` : ""}</div><div class="studio-picker-list">${rows}${empty}</div><div class="studio-picker-foot"><button class="secondary-button button-small" type="button" data-action="trigger-studio-image-upload"><span data-icon="upload"></span>上传并立即入库</button><span>无需逐张审核</span></div></div>`;
   }
   return `<div class="studio-inline-picker"><div class="studio-picker-head"><div><h4>插入图片</h4><p>图片会保留来源、版权和知识库关联</p></div><button class="icon-button" type="button" data-action="close-studio-picker"><span data-icon="x"></span></button></div><div class="studio-picker-list"><button class="studio-picker-item" type="button" data-action="generate-studio-image"><span class="studio-picker-thumb" data-icon="sparkle"></span><span><b>AI 配图占位（演示）</b><small>创建待确认的配图占位；正式部署后接入图片生成与对象存储</small></span><em>生成</em></button><button class="studio-picker-item" type="button" data-action="trigger-studio-image-upload"><span class="studio-picker-thumb" data-icon="upload"></span><span><b>上传到当前知识库</b><small>图片会立即保存到当前业务线知识库，可直接作为文章配图</small></span><em>上传</em></button><button class="studio-picker-item" type="button" data-action="open-studio-knowledge-images"><span class="studio-picker-thumb" data-icon="database"></span><span><b>从知识库图片选择</b><small>只使用当前知识范围内的企业图片</small></span><em>选择</em></button></div></div>`;
 }
@@ -318,7 +384,7 @@ function renderStudioChat(workspace, conversation, article) {
   const knowledgeChips = (conversation?.selectedKnowledgeItemIds || []).map((itemId) => knowledgeItemById(itemId)).filter(Boolean).map((item) => `<span class="studio-selection-chip"><span data-icon="book"></span><b>${escapeHtml(item.title || item.question)}</b><button type="button" data-action="remove-studio-context" data-kind="knowledge" data-id="${item.id}"><span data-icon="x"></span></button></span>`).join("");
   const attachmentChips = (workspace.attachmentIds || []).map((assetId) => (state.contentAssets || []).find((asset) => asset.id === assetId)).filter(Boolean).map((asset) => `<span class="studio-selection-chip"><span data-icon="paperclip"></span><b>${escapeHtml(asset.name)}</b><button type="button" data-action="remove-studio-context" data-kind="attachment" data-id="${asset.id}"><span data-icon="x"></span></button></span>`).join("");
   const imageChips = (conversation?.imageIds || []).map((assetId) => (state.contentAssets || []).find((asset) => asset.id === assetId)).filter(Boolean).map((asset) => `<span class="studio-selection-chip"><span data-icon="image"></span><b>${escapeHtml(asset.name)}</b><button type="button" data-action="remove-studio-context" data-kind="image" data-id="${asset.id}"><span data-icon="x"></span></button></span>`).join("");
-  return `<aside class="studio-chat-panel"><div class="studio-chat-head"><div><h3>AI 协作</h3><p>先给建议，再由你决定是否写入正文</p></div><div class="studio-chat-head-actions"><button class="icon-button" type="button" data-action="new-studio-conversation" title="新对话"><span data-icon="plus"></span></button><button class="icon-button" type="button" data-action="studio-pane" data-pane="info" title="文章信息"><span data-icon="info"></span></button></div></div><div class="studio-chat-context"><b>${article ? "当前全文" : "创作准备"}</b><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(selectedAgent?.name || "未选择智能体")}</b></span>${conversation?.webSearchEnabled ? '<span class="studio-context-chip teal"><span data-icon="globe"></span><b>联网检索演示</b></span>' : ""}</div><div class="studio-chat-messages">${messages || '<div class="studio-empty-chat"><div><span data-icon="sparkle"></span><b>从一个具体要求开始</b><p>例如：改成采购决策结构，并保留企业知识引用。</p></div></div>'}</div><div class="studio-composer">${renderStudioPicker(workspace, conversation)}<div class="studio-selected-context">${knowledgeChips}${attachmentChips}${imageChips}</div><textarea class="studio-composer-input" id="studio-composer-input" placeholder="例如：把文章改成采购决策结构，先给我看大纲差异…">${escapeHtml(ui.studioComposerDraft)}</textarea><div class="studio-composer-toolbar"><select class="studio-agent-select" id="studio-chat-agent" aria-label="选择写作智能体">${agentOptions}</select><button class="studio-tool-button teal ${conversation?.webSearchEnabled ? "active" : ""}" type="button" data-action="toggle-studio-web" title="联网检索演示（未接入真实搜索服务）"><span data-icon="globe"></span><span>联网演示</span></button><button class="studio-tool-button" type="button" data-action="open-studio-image-picker" title="插入图片"><span data-icon="image"></span></button><button class="studio-tool-button ${(workspace.attachmentIds || []).length ? "has-value" : ""}" type="button" data-action="trigger-studio-attachment" title="上传附件"><span data-icon="paperclip"></span></button><button class="studio-tool-button ${(conversation?.selectedKnowledgeItemIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-picker" title="引用知识库或文件"><span data-icon="quote"></span><span>@知识</span></button><button class="studio-tool-button ${(conversation?.imageIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-images" title="知识库图片"><span data-icon="database"></span></button><button class="studio-send-button" type="button" data-action="send-studio-chat" ${ui.studioComposerDraft.trim() ? "" : "disabled"} aria-label="发送"><span data-icon="send"></span></button></div><input id="studio-attachment-input" type="file" hidden multiple /><input id="studio-image-input" type="file" accept="image/*" hidden multiple /></div></aside>`;
+  return `<aside class="studio-chat-panel"><div class="studio-chat-head"><div><h3>AI 协作</h3><p>先给建议，再由你决定是否写入正文</p></div><div class="studio-chat-head-actions"><button class="icon-button" type="button" data-action="new-studio-conversation" title="新对话"><span data-icon="plus"></span></button><button class="icon-button" type="button" data-action="studio-pane" data-pane="info" title="文章信息"><span data-icon="info"></span></button></div></div><div class="studio-chat-context"><b>${article ? "当前全文" : "创作准备"}</b><span class="studio-context-chip blue"><span data-icon="sparkle"></span><b>${escapeHtml(selectedAgent?.name || "未选择智能体")}</b></span>${conversation?.webSearchEnabled ? '<span class="studio-context-chip teal"><span data-icon="globe"></span><b>联网检索演示</b></span>' : ""}</div><div class="studio-chat-messages">${messages || '<div class="studio-empty-chat"><div><span data-icon="sparkle"></span><b>从一个具体要求开始</b><p>例如：改成采购决策结构，并保留企业知识引用。</p></div></div>'}</div><div class="studio-composer">${renderStudioPicker(workspace, conversation)}<div class="studio-selected-context">${knowledgeChips}${attachmentChips}${imageChips}</div><textarea class="studio-composer-input" id="studio-composer-input" placeholder="例如：把文章改成采购决策结构，先给我看大纲差异…">${escapeHtml(ui.studioComposerDraft)}</textarea><div class="studio-composer-toolbar"><div class="studio-composer-tools"><select class="studio-agent-select" id="studio-chat-agent" aria-label="选择写作智能体">${agentOptions}</select><button class="studio-tool-button teal ${conversation?.webSearchEnabled ? "active" : ""}" type="button" data-action="toggle-studio-web" title="联网检索演示（未接入真实搜索服务）"><span data-icon="globe"></span><span>联网演示</span></button><button class="studio-tool-button" type="button" data-action="open-studio-image-picker" title="插入图片"><span data-icon="image"></span></button><button class="studio-tool-button ${(workspace.attachmentIds || []).length ? "has-value" : ""}" type="button" data-action="trigger-studio-attachment" title="上传附件"><span data-icon="paperclip"></span></button><button class="studio-tool-button ${(conversation?.selectedKnowledgeItemIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-picker" title="引用知识库或文件"><span data-icon="quote"></span><span>@知识</span></button><button class="studio-tool-button ${(conversation?.imageIds || []).length ? "has-value" : ""}" type="button" data-action="open-studio-knowledge-images" title="知识库图片"><span data-icon="database"></span></button></div><button class="studio-send-button" type="button" data-action="send-studio-chat" ${ui.studioComposerDraft.trim() ? "" : "disabled"} aria-label="发送"><span data-icon="send"></span></button></div><input id="studio-attachment-input" type="file" hidden multiple /><input id="studio-image-input" type="file" accept="image/*" hidden multiple /></div></aside>`;
 }
 
 function renderStudioInfo(workspace, article) {
@@ -329,7 +395,7 @@ function renderStudioInfo(workspace, article) {
 }
 
 function renderStudioRichToolbar() {
-  return `<div class="studio-editor-toolbar studio-editor-toolbar-rich" aria-label="文章编辑工具栏"><div class="studio-toolbar-group"><button class="studio-format-button studio-format-wide" type="button" data-action="studio-format" data-command="formatBlock" data-value="p" title="正文">正文⌄</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="formatBlock" data-value="blockquote" title="引用">❝</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="bold" title="粗体"><b>B</b></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="underline" title="下划线"><u>U</u></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="italic" title="斜体"><i>I</i></button></div><div class="studio-toolbar-group"><button class="studio-format-button studio-format-wide" type="button" data-action="studio-format" data-command="formatBlock" data-value="h2" title="二级标题">标题 2</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="insertUnorderedList" title="无序列表">☷</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="insertOrderedList" title="有序列表">1.</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="justifyLeft" title="左对齐">☰</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="justifyCenter" title="居中">≡</button></div><div class="studio-toolbar-group"><button class="studio-format-button" type="button" data-action="studio-link" title="插入链接"><span data-icon="link"></span></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="undo" title="撤销">↶</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="redo" title="重做">↷</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="removeFormat" title="清除格式">⌫</button></div></div>`;
+  return `<div class="studio-editor-toolbar studio-editor-toolbar-rich" aria-label="文章编辑工具栏"><div class="studio-toolbar-group"><button class="studio-format-button studio-format-wide" type="button" data-action="studio-format" data-command="formatBlock" data-value="p" title="正文">正文⌄</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="formatBlock" data-value="blockquote" title="引用">❝</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="bold" title="粗体"><b>B</b></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="underline" title="下划线"><u>U</u></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="italic" title="斜体"><i>I</i></button></div><div class="studio-toolbar-group"><button class="studio-format-button studio-format-wide" type="button" data-action="studio-format" data-command="formatBlock" data-value="h2" title="二级标题">标题 2</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="insertUnorderedList" title="无序列表">☷</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="insertOrderedList" title="有序列表">1.</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="justifyLeft" title="左对齐">☰</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="justifyCenter" title="居中">≡</button></div><div class="studio-toolbar-group"><button class="studio-format-button studio-format-wide studio-asset-toolbar-button" type="button" data-action="open-studio-knowledge-images" title="搜索并插入图片资料"><span data-icon="image"></span>图片资料</button><button class="studio-format-button" type="button" data-action="studio-link" title="插入链接"><span data-icon="link"></span></button><button class="studio-format-button" type="button" data-action="studio-format" data-command="undo" title="撤销">↶</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="redo" title="重做">↷</button><button class="studio-format-button" type="button" data-action="studio-format" data-command="removeFormat" title="清除格式">⌫</button></div></div>`;
 }
 
 function renderStudioTextEditor(workspace) {

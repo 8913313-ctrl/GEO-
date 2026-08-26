@@ -1722,9 +1722,15 @@ const EFFECT_RELAY_PLATFORM_CODES = Object.freeze({
 });
 const EFFECT_RELAY_PLATFORM_NAMES = Object.freeze({ DB: "豆包", DS: "DeepSeek", YB: "元宝", QW: "千问", BD: "百度AI", WX: "文心一言", KIMI: "Kimi", DYAI: "AI抖音", RED: "红书问一问" });
 const EFFECT_RELAY_PLATFORM_UI = Object.freeze({
-  DB: { code: "豆", color: "#18a7e9" }, DS: { code: "DS", color: "#647cf0" }, YB: { code: "元", color: "#13b878" },
-  QW: { code: "千", color: "#4c68e9" }, BD: { code: "百", color: "#7856e8" }, WX: { code: "文", color: "#378ee5" },
-  KIMI: { code: "Km", color: "#17191d" }, DYAI: { code: "抖", color: "#17191d" }, RED: { code: "书", color: "#f0445b" }
+  DB: { code: "豆", color: "#18a7e9", logo: "/platform-icons/ai/doubao.png" },
+  DS: { code: "DS", color: "#4d6bfe", logo: "/platform-icons/ai/deepseek.ico" },
+  YB: { code: "元", color: "#13b878", logo: "/platform-icons/ai/yuanbao.png" },
+  QW: { code: "千", color: "#615ced", logo: "/platform-icons/ai/qwen.png" },
+  BD: { code: "百", color: "#7856e8", logo: "/platform-icons/ai/baidu-ai.png", logoClass: "is-wide" },
+  WX: { code: "文", color: "#378ee5", logo: "/platform-icons/ai/baidu.ico" },
+  KIMI: { code: "Km", color: "#1c1e26", logo: "/platform-icons/ai/kimi.ico" },
+  DYAI: { code: "抖", color: "#111827", logo: "/platform-icons/douyin.png" },
+  RED: { code: "书", color: "#f0445b", logo: "/platform-icons/xiaohongshu.png" }
 });
 const EFFECT_RELAY_TERMINALS = Object.freeze({ "网页": "web", "手机": "mobile", "电商": "commerce" });
 const EFFECT_RELAY_MODES = Object.freeze({ "快速": "fast", "深度": "deep", "专家": "expert", "思考": "thinking", "深度思考": "deep" });
@@ -1754,6 +1760,154 @@ function effectRelayTerminalCode(terminal) {
 
 function effectRelayModeCode(mode) {
   return EFFECT_RELAY_MODES[mode] || String(mode || "fast").trim().toLowerCase();
+}
+
+/* --------------------------------------------------------------------------
+ * 平台视觉系统（pf- 前缀）：品牌化 logo / 平台覆盖条 / 平台×品牌矩阵
+ * 覆盖条与矩阵是“能力声明 + 证据状态”展示：无数据时只显示待监测/即将支持，
+ * 绝不虚构提及或未提及；服务未接入时平台同样可见（未接入态）。
+ * -------------------------------------------------------------------------- */
+const PF_PLATFORM_ORDER = Object.freeze(["DB", "DS", "QW", "YB", "KIMI", "BD", "WX", "DYAI", "RED"]);
+
+function pfPlatformMeta(code) {
+  const ui = EFFECT_RELAY_PLATFORM_UI[code] || {};
+  return {
+    code,
+    name: EFFECT_RELAY_PLATFORM_NAMES[code] || String(code),
+    letter: ui.code || String(code).slice(0, 1),
+    color: ui.color || "#64748b",
+    logo: ui.logo || "",
+    logoClass: ui.logoClass || ""
+  };
+}
+
+function pfLogo(code, size = 26) {
+  const meta = pfPlatformMeta(code);
+  const image = meta.logo
+    ? `<img src="${escapeHtml(meta.logo)}" alt="" decoding="async" />`
+    : `<span>${escapeHtml(meta.letter)}</span>`;
+  return `<span class="pf-logo ${escapeHtml(meta.logoClass)}" style="--pf-color:${escapeHtml(meta.color)};--pf-size:${size}px" title="${escapeHtml(meta.name)}" aria-hidden="true">${image}</span>`;
+}
+
+function pfPlatformInCapabilities(code) {
+  return effectRelayCapabilityItems().some((item) => String(item.platform || "").trim() === code);
+}
+
+/** 平台覆盖条：全量 AE 平台 + 状态徽标，恒显（含未接入/即将支持）。 */
+function pfPlatformShelf({ records = [] } = {}) {
+  const items = PF_PLATFORM_ORDER.map((code) => {
+    const meta = pfPlatformMeta(code);
+    const inCapabilities = pfPlatformInCapabilities(code);
+    const hasEvidence = records.some((record) => {
+      const rp = String(record.platform || "").trim();
+      return rp === meta.name || rp === code;
+    });
+    let state = "enabled", label = "已纳入";
+    if (effectRelaySnapshot.error) { state = "unconnected"; label = "未接入"; }
+    else if (!effectRelaySnapshot.loaded) { state = "pending"; label = "读取中"; }
+    else if (!inCapabilities) { state = "coming"; label = "即将支持"; }
+    else if (hasEvidence) { state = "monitoring"; label = "监测中"; }
+    return `<li class="pf-shelf-item is-${state}"><span class="pf-shelf-logo">${pfLogo(code, 22)}</span><span class="pf-shelf-name">${escapeHtml(meta.name)}</span><em class="pf-shelf-state">${label}</em></li>`;
+  }).join("");
+  return `<section class="pf-platform-shelf" aria-label="检测平台覆盖"><header class="pf-shelf-head"><b>平台覆盖</b><small>豆包 / DeepSeek / 千问 / 元宝 / Kimi 等 AI 平台 · 由当前检测能力配置决定</small></header><ul class="pf-shelf-list">${items}</ul></section>`;
+}
+
+/** 平台×品牌矩阵：有数据给真值（提及率/出现位置/引用），无样本显示待监测/即将支持；含竞品对比列。 */
+function pfPlatformMatrix({ records = [], running = false, brandName = "", competitors = [] } = {}) {
+  const comps = [...new Set((competitors || []).map((item) => {
+    const name = String(item?.name || item?.label || item || "").trim();
+    return name;
+  }).filter(Boolean))];
+  const compField = (record, name) => {
+    const mentions = record?.competitorMentions && typeof record.competitorMentions === "object" ? record.competitorMentions : null;
+    const list = Array.isArray(record?.competitors) ? record.competitors : [];
+    const fromMap = mentions ? (mentions[name] || mentions[name.replace(/\s+/g, "")]) : null;
+    const fromList = list.find((item) => String(item?.name || item?.label || "").trim() === name);
+    const meta = fromMap && typeof fromMap === "object" ? fromMap : fromList && typeof fromList === "object" ? fromList : null;
+    if (!meta) return null;
+    return { count: Number(meta.mentionCount ?? meta.count ?? 0), rank: meta.firstMentionRank ?? meta.firstRank ?? meta.rank ?? null };
+  };
+  const gridCols = `1.5fr 1.4fr .75fr${comps.map(() => " minmax(0, 1fr)").join("")} .85fr 1.15fr`;
+  const rows = PF_PLATFORM_ORDER.map((code) => {
+    const meta = pfPlatformMeta(code);
+    const items = records.filter((record) => {
+      const rp = String(record.platform || "").trim();
+      return rp === meta.name || rp === code;
+    });
+    const verified = items.filter((record) => record.status === "verified");
+    const mentioned = verified.filter((record) => Number(record.brandMentionCount || 0) > 0);
+    const ranked = verified.filter((record) => Number.isFinite(Number(record.firstMentionRank)) && Number(record.firstMentionRank) > 0);
+    const avgRank = ranked.length ? Number((ranked.reduce((sum, record) => sum + Number(record.firstMentionRank), 0) / ranked.length).toFixed(1)) : null;
+    const citations = verified.reduce((sum, record) => sum + Number(record.citationSources?.length || 0), 0);
+    const latest = verified.slice().sort((left, right) => String(right.observedAt || "").localeCompare(String(left.observedAt || "")))[0]?.observedAt || null;
+    const inCapabilities = pfPlatformInCapabilities(code);
+    const runningThis = running && inCapabilities;
+    let state, stateLabel, mentionCell, rankCell, citeCell, timeCell;
+    if (effectRelaySnapshot.error) { state = "unconnected"; stateLabel = "未接入"; }
+    else if (!inCapabilities) { state = "coming"; stateLabel = "即将支持"; }
+    else if (verified.length) { state = "evidenced"; stateLabel = `已验证 ${verified.length}`; }
+    else if (runningThis) { state = "running"; stateLabel = "检测中"; }
+    else { state = "pending"; stateLabel = "待监测"; }
+    if (state === "evidenced") {
+      mentionCell = mentioned.length
+        ? `<span class="pf-matrix-ok">✓ 已提及 · ${Math.round(mentioned.length / verified.length * 100)}%</span>`
+        : `<span class="pf-matrix-no">✗ 未提及</span>`;
+      rankCell = avgRank === null ? "—" : `#${avgRank}`;
+      citeCell = citations || "—";
+      timeCell = latest ? escapeHtml(formatRelative(latest)) : "—";
+    } else {
+      mentionCell = `<span class="pf-matrix-neutral">${stateLabel}</span>`;
+      rankCell = "—"; citeCell = "—"; timeCell = "—";
+    }
+    const compCells = comps.map((name) => {
+      const values = verified.map((record) => compField(record, name)).filter(Boolean);
+      if (!verified.length) return `<span class="pf-matrix-neutral">待监测</span>`;
+      if (!values.length) return `<span class="pf-matrix-neutral">未检测</span>`;
+      const withCount = values.filter((item) => item.count > 0);
+      const rate = values.length ? Math.round(withCount.length / values.length * 100) : 0;
+      return withCount.length
+        ? `<span class="pf-matrix-ok">✓ ${rate}%</span>`
+        : `<span class="pf-matrix-no">✗ 未提及</span>`;
+    }).join("");
+    return `<div class="pf-matrix-row is-${state}" style="grid-template-columns:${gridCols}"><div class="pf-matrix-platform">${pfLogo(code, 24)}<b>${escapeHtml(meta.name)}</b></div><div>${mentionCell}</div><div class="num">${rankCell}</div>${compCells}<div class="num">${citeCell}</div><div>${timeCell}</div></div>`;
+  }).join("");
+  const compHead = comps.length
+    ? comps.map((name) => `<div class="pf-matrix-comp-head" title="竞品 ${escapeHtml(name)} 的提及表现（需要上游返回竞品检测字段）"><b>${escapeHtml(name)}</b><small>竞品</small></div>`).join("")
+    : "";
+  const head = `<div class="pf-matrix-row pf-matrix-head" style="grid-template-columns:${gridCols}"><div>平台</div><div>品牌提及</div><div class="num">出现位置</div>${compHead}<div class="num">引用来源</div><div>最近采样</div></div>`;
+  const legend = `<footer class="pf-matrix-legend">${brandName ? `品牌口径：<b>${escapeHtml(brandName)}</b> · ` : ""}无样本只显示「待监测」，不推断提及/未提及；${comps.length ? "竞品表现在上游返回竞品检测字段后填充，缺失时显示「未检测」，可在品牌监测设置 / 品牌诊断中调整竞品清单。" : "在品牌监测设置或品牌诊断中配置竞品后，这里将展示你的品牌与对手的逐平台对比。"}</footer>`;
+  return `<section class="pf-platform-matrix" aria-label="平台×品牌表现矩阵"><header class="pf-matrix-title"><b>平台表现</b><small>按平台查看你的品牌与竞品的提及、出现位置与引用来源</small></header><div class="pf-matrix-table">${head}${rows}</div>${legend}</section>`;
+}
+
+/** 检索平台选择器：独立自控的品牌化平台卡（不再复用旧窄卡绝对定位布局）。 */
+function pfPlatformSelector({ scopes = ui.effectPlatformScopes, modes = ui.effectPlatformModes, disabled = false } = {}) {
+  const items = effectRelayCapabilityItems();
+  const selectedScopes = new Set((scopes || []).map(effectRelayNormalizeScope));
+  const selectedModes = new Set((modes || []).map(effectRelayModeCode));
+  const serviceError = Boolean(effectRelaySnapshot.error);
+  const cards = PF_PLATFORM_ORDER.map((code) => {
+    const meta = pfPlatformMeta(code);
+    const layoutRows = EFFECT_REALTIME_PLATFORM_LAYOUT[code] || [];
+    const hasAvailable = layoutRows.some((row) => items.some((item) => String(item.platform) === code && String(item.terminal) === row.terminal));
+    const state = serviceError ? "unconnected" : !hasAvailable ? "coming" : "enabled";
+    const stateLabel = serviceError ? "未接入" : !hasAvailable ? "即将支持" : "可检测";
+    const rowsHtml = layoutRows.map((row) => {
+      const scope = effectRelayScopeKey(code, row.terminal);
+      const available = hasAvailable;
+      const checked = selectedScopes.has(scope) && available;
+      return `<label class="pf-picker-row ${checked ? "checked" : ""} ${available ? "" : "unavailable"}"><span class="pf-picker-row-main"><input type="checkbox" value="${escapeHtml(scope)}" data-effect-platform-scope ${checked ? "checked" : ""} ${available && !disabled ? "" : "disabled"} /><i class="pf-picker-check">${icon("check")}</i><b>${escapeHtml(EFFECT_RELAY_TERMINAL_NAMES[row.terminal] || row.terminal)}</b>${row.badge ? `<em>${escapeHtml(row.badge)}</em>` : ""}</span><span class="pf-picker-modes">${(row.modes || []).map((mode) => {
+        const modeName = EFFECT_RELAY_MODE_NAMES[mode] || mode;
+        return `<span class="pf-picker-mode ${selectedModes.has(mode) && available ? "active" : ""}">${escapeHtml(modeName)}</span>`;
+      }).join("")}</span></label>`;
+    }).join("");
+    return `<article class="pf-picker-card is-${state}"><header class="pf-picker-head">${pfLogo(code, 30)}<div class="pf-picker-title"><b>${escapeHtml(meta.name)}</b><small>${stateLabel}</small></div></header><div class="pf-picker-body">${rowsHtml || `<div class="pf-picker-pending">${state === "coming" ? "支持中 · 待开通" : "等待配置"}</div>`}</div></article>`;
+  }).join("");
+  const note = serviceError
+    ? "检测服务未连接；完成服务配置后即可选择平台执行检测。"
+    : !items.length
+      ? "当前企业尚未配置 AI 检测平台；完成检测服务配置后即可选择平台执行检测。"
+      : `已选 ${selectedScopes.size} 个平台终端 · 点击平台卡勾选检测范围`;
+  return `<div class="pf-platform-picker" role="group" aria-label="检索平台选择"><div class="pf-picker-grid">${cards}</div><div class="pf-picker-note">${escapeHtml(note)}</div></div>`;
 }
 
 function effectRelayItemAvailable(platform, terminal, mode) {
@@ -2170,8 +2324,24 @@ function effectRelayReconcileCapabilities() {
   }
 }
 
-async function refreshEffectRelay({ renderAfter = false } = {}) {
+/** 检测服务不可用时暂缓自动重试（5 分钟窗口），避免每次刷新都弹出 503。 */
+function effectRelayAutoRetryBlocked() {
+  try {
+    const key = Number(sessionStorage.getItem("tz.effect-relay-auto-retry") || 0);
+    return key > 0 && Date.now() - key < 5 * 60 * 1000;
+  } catch { return false; }
+}
+
+function markEffectRelayBlocked(blocked) {
+  try {
+    if (blocked) sessionStorage.setItem("tz.effect-relay-auto-retry", String(Date.now()));
+    else sessionStorage.removeItem("tz.effect-relay-auto-retry");
+  } catch { /* storage 不可用时忽略 */ }
+}
+
+async function refreshEffectRelay({ renderAfter = false, bypass = false } = {}) {
   if (effectRelaySnapshot.loading) return effectRelaySnapshot;
+  if (!bypass && effectRelayAutoRetryBlocked()) return effectRelaySnapshot;
   effectRelaySnapshot = { ...effectRelaySnapshot, attempted: true, loading: true, error: "" };
   try {
     const [capabilitiesResult, quotaResult, projectsResult, historyResult] = await Promise.allSettled([
@@ -2222,6 +2392,8 @@ async function refreshEffectRelay({ renderAfter = false } = {}) {
       error: failures.length === 3 ? customerFacingEffectText(failures[0].reason?.message || "AI 检测服务暂不可用") : customerFacingEffectText(failures.map((item) => item.reason?.message).filter(Boolean).join("；")),
       loadedAt: Date.now()
     };
+    markEffectRelayBlocked(capabilitiesResult.status === "rejected" || quotaResult.status === "rejected");
+    if (capabilitiesResult.status === "fulfilled" && quotaResult.status === "fulfilled") markEffectRelayBlocked(false);
     if (capabilitiesResult.status === "fulfilled") effectRelayReconcileCapabilities();
     const project = effectRelaySearchProject(projects);
     if (project && !ui.effectSearchProjectId) ui.effectSearchProjectId = project.id;
@@ -2242,6 +2414,7 @@ async function refreshEffectRelay({ renderAfter = false } = {}) {
     }
   } catch (error) {
     effectRelaySnapshot = { ...effectRelaySnapshot, loading: false, loaded: false, error: customerFacingEffectText(error.message || "AI 检测服务连接失败"), loadedAt: Date.now() };
+    markEffectRelayBlocked(true);
   }
   if (renderAfter && ["effect-search", "effect-diagnostic", "effect-monitor"].includes(currentRoute())) render();
   return effectRelaySnapshot;
@@ -2573,7 +2746,9 @@ function effectRelayStatusPanel({ flow = currentRoute() === "effect-diagnostic" 
   const capabilityCount = effectRelayCapabilityItems().length;
   const unsupported = effectRelaySupportedItems(scopes, modes, questions).length === 0 && (scopes || []).length && (modes || []).length;
   const runId = cancelRunId || link?.diagnosticRunId || "";
-  const canCancel = ["pending", "submitted", "queued", "running"].includes(status) && runId;
+  const running = ["pending", "submitted", "queued", "running"].includes(status);
+  const canCancel = running && runId;
+  const serviceIssue = Boolean(effectRelaySnapshot.error || flowState.error);
   const statusText = customerFacingEffectText(flowState.error || effectRelaySnapshot.error || (capabilityCount ? `当前可用 ${capabilityCount} 个检测能力项` : "正在读取检测能力与额度"));
   const stageState = effectRelayStageState(status, stats);
   const stages = ["配置", "排队", "分析", "校验", "完成"];
@@ -2587,22 +2762,25 @@ function effectRelayStatusPanel({ flow = currentRoute() === "effect-diagnostic" 
   const progress = stats.requested
     ? `<div class="effect-run-progress" data-effect-progress data-effect-progress-key="${escapeHtml(String(progressKey))}" data-effect-progress-value="${verifiedRatio}" aria-label="检测结果校验进度"><div class="effect-run-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="${stats.requested}" aria-valuenow="${stats.verified}" aria-valuetext="已校验 ${stats.verified} / ${stats.requested}"><i data-effect-progress-fill style="transform:scaleX(${verifiedRatio})"></i></div><small>已回传 ${stats.delivered} / ${stats.requested} · 已校验 ${stats.verified} / ${stats.requested}</small></div>`
     : "";
-  const serviceIssue = Boolean(effectRelaySnapshot.error || flowState.error);
-  const serviceLabel = serviceIssue ? "服务异常" : effectRelaySnapshot.loaded ? "已连接" : "连接中";
-  return `<div class="effect-relay-status ${serviceIssue ? "is-error" : ""}"><span data-icon="server"></span><div><b>灼见 AI 检测服务 · ${escapeHtml(serviceLabel)}</b><small>${escapeHtml(statusText)}</small></div><em>${escapeHtml(effectRelayRunLabel(status))}</em>${stageFlow}${progress}${quota.availableCredits !== undefined ? `<span class="effect-relay-quota">可用 ${Number(quota.availableCredits).toLocaleString("zh-CN")} 积分</span>` : ""}${quote ? `<span class="effect-relay-quote">本次预计 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</span>` : ""}${unsupported ? '<span class="effect-relay-warning">当前选择没有可执行能力项</span>' : ""}${canCancel ? `<button class="link-button" type="button" data-action="${escapeHtml(cancelAction)}" data-effect-run-id="${escapeHtml(runId)}">取消任务</button>` : ""}<button class="link-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button></div>`;
+  const quotaText = quota.availableCredits !== undefined ? `可用 ${Number(quota.availableCredits).toLocaleString("zh-CN")} 积分` : "";
+  const refresh = `<button class="link-button" type="button" data-action="effect-relay-refresh">${icon("refresh")}刷新</button>`;
+  // 服务连接状态是环境状态，由页头状态点（effect-head-status）与全局提示条（effectServiceBanner）
+  // 承担；页面内容区只在任务真正运行时展示阶段步骤与校验进度。
+  if (!running) return "";
+  return `<div class="effect-relay-status is-running ${serviceIssue ? "is-error" : ""}"><span data-icon="server"></span><div><b>检测服务·任务执行中</b><small>${escapeHtml(statusText)}</small></div><em>${escapeHtml(effectRelayRunLabel(status))}</em>${stageFlow}${progress}${quotaText ? `<span class="effect-relay-quota">${escapeHtml(quotaText)}</span>` : ""}${quote ? `<span class="effect-relay-quote">本次预计 ${Number(quote.estimatedCustomerCredits || 0).toLocaleString("zh-CN")} 积分</span>` : ""}${unsupported ? '<span class="effect-relay-warning">当前选择没有可执行能力项</span>' : ""}${canCancel ? `<button class="link-button" type="button" data-action="${escapeHtml(cancelAction)}" data-effect-run-id="${escapeHtml(runId)}">取消任务</button>` : ""}${refresh}</div>`;
 }
 
 function effectPlatformCatalog() {
   return [
-    { name: "豆包", code: "豆", color: "#1d9bea", rows: [{ device: "网页", modes: ["快速", "专家"] }, { device: "手机", badge: "电商", modes: ["快速", "专家"] }] },
-    { name: "DeepSeek", code: "DS", color: "#5775ed", rows: [{ device: "网页", modes: ["快速", "深度"] }, { device: "手机", modes: ["快速", "深度"] }] },
-    { name: "元宝", code: "元", color: "#13b878", rows: [{ device: "网页", badge: "电商", modes: ["快速", "深度"] }, { device: "手机", badge: "电商", modes: ["快速", "深度"] }] },
-    { name: "千问", code: "千", color: "#4c68e9", rows: [{ device: "网页", modes: ["快速", "深度"] }, { device: "手机", badge: "电商", modes: ["快速", "深度"] }] },
-    { name: "百度AI", code: "百", color: "#7a5ce4", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
-    { name: "文心一言", code: "文", color: "#378ee5", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
-    { name: "Kimi", code: "Km", color: "#15171c", rows: [{ device: "网页", modes: ["快速", "思考"] }] },
-    { name: "AI抖音", code: "抖", color: "#111827", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
-    { name: "红书问一问", code: "书", color: "#f04d63", rows: [{ device: "手机", modes: ["快速"] }] }
+    { name: "豆包", platformCode: "DB", rows: [{ device: "网页", modes: ["快速", "专家"] }, { device: "手机", badge: "电商", modes: ["快速", "专家"] }] },
+    { name: "DeepSeek", platformCode: "DS", rows: [{ device: "网页", modes: ["快速", "深度"] }, { device: "手机", modes: ["快速", "深度"] }] },
+    { name: "元宝", platformCode: "YB", rows: [{ device: "网页", badge: "电商", modes: ["快速", "深度"] }, { device: "手机", badge: "电商", modes: ["快速", "深度"] }] },
+    { name: "千问", platformCode: "QW", rows: [{ device: "网页", modes: ["快速", "深度"] }, { device: "手机", badge: "电商", modes: ["快速", "深度"] }] },
+    { name: "百度AI", platformCode: "BD", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
+    { name: "文心一言", platformCode: "WX", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
+    { name: "Kimi", platformCode: "KIMI", rows: [{ device: "网页", modes: ["快速", "思考"] }] },
+    { name: "AI抖音", platformCode: "DYAI", rows: [{ device: "网页", modes: ["快速", "深度"] }] },
+    { name: "红书问一问", platformCode: "RED", rows: [{ device: "手机", modes: ["快速"] }] }
   ];
 }
 
@@ -2621,7 +2799,7 @@ function effectPlatformPicker(options = {}) {
   const cards = catalog.map((platform) => {
     const selectedRows = platform.rows.filter((row) => selectedScopes.has(`${platform.name}|${row.device}`)).length;
     return `<article class="effect-platform-card ${selectedRows ? "selected" : ""}">
-      <header class="effect-platform-card-head"><span class="effect-platform-logo" style="--platform:${platform.color}">${platform.code}</span><b>${platform.name}</b><small>${selectedRows}/${platform.rows.length}</small></header>
+      <header class="effect-platform-card-head">${pfLogo(platform.platformCode, 36)}<b>${platform.name}</b><small>${selectedRows}/${platform.rows.length}</small></header>
       <div class="effect-platform-card-body">${platform.rows.map((row) => {
         const scope = `${platform.name}|${row.device}`;
         const available = !availability || row.modes.some((mode) => availability(platform.name, row.device, mode));
@@ -2637,8 +2815,20 @@ function effectPlatformPicker(options = {}) {
 
 function effectRelayCapabilityPicker(options = {}) {
   const items = effectRelayCapabilityItems();
-  if (!effectRelaySnapshot.capabilities) return '<div class="effect-capability-empty">正在读取当前可用的 AI 检测能力…</div>';
-  if (!items.length) return '<div class="effect-capability-empty">当前客户尚未配置 AI 检测能力，请联系灼见运营人员。</div>';
+  // 无能力配置/服务未接入时不隐藏平台：全部平台以"未接入/未开通"态渲染，让覆盖面永远可见。
+  const fallbackPicker = (statusLabel, note) => {
+    const fallbackLayout = options.realtimeLayout ? EFFECT_REALTIME_PLATFORM_LAYOUT : null;
+    const fallbackCards = Object.entries(fallbackLayout || {}).map(([platform, rows]) => {
+      const meta = pfPlatformMeta(platform);
+      return `<article class="effect-platform-card unavailable"><header class="effect-platform-card-head">${pfLogo(platform, 36)}<b>${escapeHtml(meta.name)}</b><small>${escapeHtml(statusLabel)}</small></header><div class="effect-platform-card-body">${rows.map((row) => `<label class="effect-platform-row unavailable"><span class="effect-platform-row-main"><input type="checkbox" disabled /><i class="effect-platform-check">${icon("check")}</i><b>${escapeHtml(EFFECT_RELAY_TERMINAL_NAMES[row.terminal] || row.terminal)}</b>${row.badge ? `<em>${escapeHtml(row.badge)}</em>` : ""}</span><span class="effect-platform-modes">${row.modes.map((mode) => `<span class="effect-platform-mode unavailable">${escapeHtml(EFFECT_RELAY_MODE_NAMES[mode] || mode)}</span>`).join("")}</span></label>`).join("")}</div></article>`;
+    }).join("");
+    return `<div class="effect-platform-picker effect-capability-picker"><div class="effect-platform-grid">${fallbackCards || ""}</div><div class="effect-capability-empty">${escapeHtml(note)}</div></div>`;
+  };
+  if (!effectRelaySnapshot.capabilities) {
+    if (effectRelaySnapshot.error) return fallbackPicker("未接入", "检测服务未连接；完成服务配置后即可选择平台执行检测。");
+    return '<div class="effect-capability-empty">正在读取当前可用的 AI 检测能力…</div>';
+  }
+  if (!items.length) return fallbackPicker("未开通", "当前企业尚未配置 AI 检测平台；完成检测服务配置后即可选择平台执行检测。");
   const selectedScopes = new Set((options.scopes || ui.effectPlatformScopes || []).map(effectRelayNormalizeScope));
   const activeModes = new Set((options.modes || ui.effectPlatformModes || []).map(effectRelayModeCode));
   const scopeAttribute = options.scopeAttribute || "data-effect-platform-scope";
@@ -2684,10 +2874,9 @@ function effectRelayCapabilityPicker(options = {}) {
   const cards = platforms.map((group) => {
     const selectedCount = group.terminals.filter((terminal) => selectedScopes.has(effectRelayScopeKey(group.platform, terminal.terminal))).length;
     const platformName = EFFECT_RELAY_PLATFORM_NAMES[group.platform] || group.platform;
-    const platformUi = EFFECT_RELAY_PLATFORM_UI[group.platform] || { code: platformName.slice(0, 2), color: "#64748b" };
     const availableTerminals = group.terminals.filter((terminalGroup) => items.some((item) => String(item.platform) === group.platform && String(item.terminal) === terminalGroup.terminal));
     const selectionMeta = realtimeLayout ? "" : `<small>${availableTerminals.length ? `${selectedCount}/${availableTerminals.length}` : "暂未开通"}</small>`;
-    return `<article class="effect-platform-card ${selectedCount ? "selected" : ""} ${availableTerminals.length ? "" : "unavailable"}"><header class="effect-platform-card-head"><span class="effect-platform-logo" style="--platform:${platformUi.color}">${escapeHtml(platformUi.code)}</span><b>${escapeHtml(platformName)}</b>${selectionMeta}</header><div class="effect-platform-card-body">${group.terminals.length ? group.terminals.map((terminalGroup) => {
+    return `<article class="effect-platform-card ${selectedCount ? "selected" : ""} ${availableTerminals.length ? "" : "unavailable"}"><header class="effect-platform-card-head">${pfLogo(group.platform, 36)}<b>${escapeHtml(platformName)}</b>${selectionMeta}</header><div class="effect-platform-card-body">${group.terminals.length ? group.terminals.map((terminalGroup) => {
       const scope = effectRelayScopeKey(group.platform, terminalGroup.terminal);
       const checked = selectedScopes.has(scope);
       const terminalName = EFFECT_RELAY_TERMINAL_NAMES[terminalGroup.terminal] || terminalGroup.terminal;

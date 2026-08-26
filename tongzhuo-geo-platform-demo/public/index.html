@@ -7,24 +7,25 @@
     <meta name="description" content="桐灼 GEO 企业私有化运营系统" />
     <meta name="publisher-download-url" content="__TZ_PUBLISHER_DOWNLOAD_URL__" />
     <title>桐灼 GEO 运营系统</title>
-    <link rel="stylesheet" href="/styles.css?v=20260824-converge-v1" />
+    <link rel="stylesheet" href="/styles.css?v=20260826-workspace-warm-v1" />
     <link rel="stylesheet" href="/product-ui.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/modules/dashboard.css?v=20260824-converge-v1" />
+    <link rel="stylesheet" href="/css/modules/dashboard.css?v=20260826-action-buttons-v1" />
     <link rel="stylesheet" href="/css/modules/planning.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/modules/content.css?v=20260824-converge-v1" />
+    <link rel="stylesheet" href="/css/modules/content.css?v=20260826-workspace-surface-v1" />
     <link rel="stylesheet" href="/css/modules/publish.css?v=20260824-converge-v1" />
     <link rel="stylesheet" href="/css/modules/assets.css?v=20260824-converge-v1" />
     <link rel="stylesheet" href="/css/modules/monitoring.css?v=20260824-converge-v1" />
     <link rel="stylesheet" href="/css/modules/site.css?v=20260824-converge-v1" />
     <link rel="stylesheet" href="/css/modules/settings.css?v=20260824-converge-v1" />
     <link rel="stylesheet" href="/css/modules/knowledge.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/modules/assistant.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/tokens.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/components.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/theme.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/layout.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/demo.css?v=20260824-converge-v1" />
-    <link rel="stylesheet" href="/css/modules/effect.css?v=20260824-converge-v1" />
+    <link rel="stylesheet" href="/css/modules/assistant.css?v=20260826-platform-type-v1" />
+    <link rel="stylesheet" href="/css/tokens.css?v=20260826-workspace-warm-v1" />
+    <link rel="stylesheet" href="/css/components.css?v=20260826-readable-actions-v1" />
+    <link rel="stylesheet" href="/css/theme.css?v=20260826-workspace-warm-v2" />
+    <link rel="stylesheet" href="/css/layout.css?v=20260826-sidebar-brand-air-v4" />
+    <link rel="stylesheet" href="/css/demo.css?v=20260826-sidebar-brand-air-v4" />
+    <link rel="stylesheet" href="/css/modules/effect.css?v=20260826-left-align-v2" />
+    <link rel="stylesheet" href="/css/sidebar-fix.css?v=20260826-topbar-align-v2" />
   </head>
   <body>
     <a class="skip-link" href="#main-content">跳到主要内容</a>
@@ -61,9 +62,11 @@
           </div>
           <div class="nav-section">
             <div class="nav-label nav-effect-label">AI 效果</div>
-            <a class="nav-item nav-effect-item" href="#effect-search" data-route="effect-search"><span class="ic" data-icon="search"></span><span>实时搜索</span></a>
             <a class="nav-item nav-effect-item" href="#effect-diagnostic" data-route="effect-diagnostic"><span class="ic" data-icon="target"></span><span>品牌诊断</span></a>
-            <a class="nav-item nav-effect-item" href="#effect-monitor" data-route="effect-monitor"><span class="ic" data-icon="chart"></span><span>品牌监测</span></a>
+            <a class="nav-item nav-effect-item" href="#effect-monitor" data-route="effect-monitor" data-nav="effect-monitor" data-effect-view="settings"><span class="ic" data-icon="layers"></span><span>品牌监测</span></a>
+            <a class="nav-item nav-effect-item" href="#effect-monitor" data-route="effect-monitor" data-nav="effect-monitor" data-effect-view="dashboard"><span class="ic" data-icon="chart"></span><span>数据看板</span></a>
+            <a class="nav-item nav-effect-item" href="#effect-monitor" data-route="effect-monitor" data-nav="effect-monitor" data-effect-view="mentions"><span class="ic" data-icon="trend"></span><span>提及率 / 排名</span></a>
+            <a class="nav-item nav-effect-item" href="#effect-monitor" data-route="effect-monitor" data-nav="effect-monitor" data-effect-view="insight"><span class="ic" data-icon="pie"></span><span>AI 洞察</span></a>
           </div>
 
           <div class="nav-section">
@@ -115,15 +118,15 @@
     <script src="/vendor/gsap.min.js"></script>
     <script src="/js/modules/core.js?v=20260825-app-split-v1"></script>
     <script src="/js/modules/content-sync.js?v=20260825-app-split-v1"></script>
-    <script src="/js/modules/publisher.js?v=20260825-app-split-v1"></script>
-    <script src="/js/modules/shell.js?v=20260825-app-split-v1"></script>
-    <script src="/js/modules/planning-content.js?v=20260825-app-split-v1"></script>
-    <script src="/js/modules/monitoring-analysis.js?v=20260825-app-split-v1"></script>
-    <script src="/js/modules/effect.js?v=20260825-app-split-v1"></script>
+    <script src="/js/modules/publisher.js?v=20260826-image-citation-v2"></script>
+    <script src="/js/modules/shell.js?v=20260826-workspace-surface-v1"></script>
+    <script src="/js/modules/planning-content.js?v=20260826-workspace-surface-v1"></script>
+    <script src="/js/modules/monitoring-analysis.js?v=20260826-real-platform-logos-v3"></script>
+    <script src="/js/modules/effect.js?v=20260826-effect-redesign-v2"></script>
     <script src="/js/modules/site.js?v=20260825-app-split-v1"></script>
-    <script src="/js/modules/knowledge.js?v=20260825-app-split-v1"></script>
-    <script src="/js/modules/content-review.js?v=20260825-app-split-v1"></script>
-    <script src="/js/modules/bootstrap.js?v=20260825-app-split-v1"></script>
+    <script src="/js/modules/knowledge.js?v=20260826-workspace-surface-v1"></script>
+    <script src="/js/modules/content-review.js?v=20260826-image-citation-v3"></script>
+    <script src="/js/modules/bootstrap.js?v=20260826-image-citation-v2"></script>
     <script src="/effect-anim.js?v=20260822-demo-aligned-v2"></script>
   </body>
 </html>

@@ -1234,7 +1234,7 @@ function renderUploadKnowledgeImagesModal() {
   if (!bases.length) return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量上传图片</h2><p>请先创建一个文档知识库</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="empty-state"><div><span data-icon="book"></span><h3>还没有可用知识库</h3><p>先创建知识库，再批量上传企业照片。</p><button class="primary-button button-small" type="button" data-action="create-knowledge-base">新建知识库</button></div></div></div>`, { wide: true });
   const progress = knowledgeAssetRuntime.uploadProgress;
   const progressText = progress ? `正在上传第 ${progress.completed}/${progress.total} 批（${progress.created} 张已入库）` : "尚未选择图片";
-  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量上传图片</h2><p>一次可选择最多 500 张；系统会自动拆成小批次上传，统一设置归属后直接入库，无需逐张填写和审核</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="field-row"><div class="field"><label for="knowledge-image-base">保存到知识库 *</label><select class="select" id="knowledge-image-base">${options}</select></div><div class="field"><label for="knowledge-image-category">统一分类</label><select class="select" id="knowledge-image-category"><option>产品图片</option><option>案例现场</option><option>资质证书</option><option>流程图</option><option>数据图表</option><option>文章配图</option><option>其他资料</option></select></div></div><label class="knowledge-image-dropzone" for="knowledge-image-files"><span data-icon="images"></span><b>选择多张图片或整个文件夹</b><p>支持 PNG、JPG、JPEG、WebP、GIF；系统按文件名自动生成图片名称与 Alt 文本。</p><input id="knowledge-image-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple /></label><div class="field-row"><div class="field"><label for="knowledge-image-license">统一来源/版权</label><select class="select" id="knowledge-image-license"><option>企业自有</option><option>客户授权</option><option>供应商授权</option><option>公开资料</option></select></div><div class="field"><label for="knowledge-image-tags">统一标签（可选）</label><input class="input" id="knowledge-image-tags" placeholder="例如：产品A、工厂、应用现场" /></div></div><div class="knowledge-upload-summary" id="knowledge-image-summary"><span data-icon="${progress ? "upload" : "info"}"></span><span>${progressText}</span></div></div><div class="modal-foot"><span>上传后立即可作为文章配图；图片识别在后台继续进行</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-images" ${knowledgeAssetRuntime.uploading ? "disabled" : ""}><span data-icon="upload"></span>${knowledgeAssetRuntime.uploading ? "正在上传…" : "批量上传入库"}</button></div></div>`, { wide: true });
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">批量上传图片</h2><p>一次可选择最多 500 张；系统会自动拆成小批次上传，统一设置归属后直接入库，无需逐张填写和审核</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body"><div class="field-row"><div class="field"><label for="knowledge-image-base">保存到知识库 *</label><select class="select" id="knowledge-image-base">${options}</select></div><div class="field"><label for="knowledge-image-category">统一分类</label><select class="select" id="knowledge-image-category"><option>产品图片</option><option>案例现场</option><option>资质证书</option><option>流程图</option><option>数据图表</option><option>文章配图</option><option>其他资料</option></select></div></div><label class="knowledge-image-dropzone" for="knowledge-image-files"><span data-icon="images"></span><b>选择多张图片或整个文件夹</b><p>支持 PNG、JPG、JPEG、WebP、GIF；系统按文件名自动生成图片名称与 Alt 文本。</p><input id="knowledge-image-files" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple /></label><div class="field-row"><div class="field"><label for="knowledge-image-license">统一来源/版权</label><select class="select" id="knowledge-image-license"><option>企业自有</option><option>客户授权</option><option>供应商授权</option><option>公开资料</option></select></div><div class="field"><label for="knowledge-image-tags">统一标签（可选）</label><input class="input" id="knowledge-image-tags" placeholder="例如：产品A、工厂、应用现场" /></div></div><div class="knowledge-upload-summary" id="knowledge-image-summary"><span data-icon="${progress ? "upload" : "info"}"></span><span>${progressText}</span></div></div><div class="modal-foot"><span>上传后立即可作为文章配图；图片识别在后台继续进行</span><div class="modal-foot-right"><button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="submit-knowledge-images" ${knowledgeAssetRuntime.uploading ? "disabled" : ""}><span data-icon="upload"></span>${knowledgeAssetRuntime.uploading ? "正在上传…" : "上传"}</button></div></div>`, { wide: true });
 }
 
 function renderImportKnowledgeModal() {
@@ -4165,8 +4165,29 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
 }
 
 function studioAssetFigure(asset) {
-  if (asset.url) return `<figure class="studio-knowledge-image" data-asset-id="${escapeHtml(asset.id)}"><img src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.altText || asset.name)}" loading="lazy" /><figcaption>${escapeHtml(asset.caption || asset.altText || asset.name)}</figcaption></figure>`;
+  const base = knowledgeBaseById(asset.knowledgeBaseId);
+  const source = [base?.name || "企业图片资料库", asset.license || "来源已记录"].filter(Boolean).join(" · ");
+  if (asset.url) return `<figure class="studio-knowledge-image" data-asset-id="${escapeHtml(asset.id)}"><img src="${escapeHtml(asset.url)}" alt="${escapeHtml(asset.altText || asset.name)}" loading="lazy" /><figcaption><b>${escapeHtml(asset.caption || asset.altText || asset.name)}</b><small>图片引用 · ${escapeHtml(source)}</small></figcaption></figure>`;
   return `<figure class="studio-knowledge-image" data-asset-id="${escapeHtml(asset.id)}"><div class="knowledge-image-placeholder ${escapeHtml(asset.accent || "blue")}" role="img" aria-label="${escapeHtml(asset.altText || asset.name)}"><span data-icon="image"></span><strong>${escapeHtml(asset.name)}</strong><small>${escapeHtml(asset.kind === "knowledge_image" ? "企业知识库图片 · " + (asset.license || "来源已记录") : "创作素材 · 待审核")}</small></div><figcaption>${escapeHtml(asset.caption || asset.altText || asset.name)}</figcaption></figure>`;
+}
+
+function insertStudioAssetFigure(editor, asset, index) {
+  const template = document.createElement("template");
+  template.innerHTML = studioAssetFigure(asset);
+  const figure = template.content.firstElementChild;
+  if (!figure) return false;
+  const targetIndex = Number.isInteger(index) ? Math.max(0, Math.min(editor.children.length, index)) : editor.children.length;
+  editor.insertBefore(figure, editor.children[targetIndex] || null);
+  const spacer = document.createElement("p");
+  spacer.innerHTML = "<br>";
+  editor.insertBefore(spacer, figure.nextSibling);
+  const range = document.createRange();
+  range.selectNodeContents(spacer);
+  range.collapse(true);
+  const selection = window.getSelection?.();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+  return true;
 }
 
 function insertStudioAsset(assetId) {
@@ -4175,25 +4196,27 @@ function insertStudioAsset(assetId) {
   const asset = (state.contentAssets || []).find((item) => item.id === assetId);
   if (!workspace || !conversation || !asset) return;
   if (asset.kind === "knowledge_image" && !studioKnowledgeAssets(workspace).some((item) => item.id === asset.id)) return showToast("图片不可用", "只能使用当前知识范围内的可用企业图片。", "error");
+  const currentArticle = studioArticleForWorkspace(workspace);
+  if (currentArticle?.reviewStage === "manual_review") return showToast("当前版本正在人工审核", "请先退回并修改，再插入图片资料。", "error");
   if (!conversation.imageIds.includes(asset.id)) conversation.imageIds.push(asset.id);
-  const article = syncStudioArticleEditor({ silent: true }) || studioArticleForWorkspace(workspace);
+  const editor = document.getElementById("studio-content-editor");
+  if (!editor || !insertStudioAssetFigure(editor, asset, ui.studioAssetInsertIndex)) return showToast("无法定位插入位置", "请在正文中点击要插入图片的段落后重试。", "error");
+  const article = currentArticle;
   if (!article) {
     workspace.assetIds = Array.isArray(workspace.assetIds) ? workspace.assetIds : [];
     if (!workspace.assetIds.includes(asset.id)) workspace.assetIds.push(asset.id);
-    const editor = document.getElementById("studio-content-editor");
-    if (editor) {
-      editor.insertAdjacentHTML("beforeend", studioAssetFigure(asset));
-      workspace.draftContent = editor.innerText || "";
-      workspace.draftContentHtml = sanitizeStudioHtml(editor.innerHTML);
-    }
+    workspace.draftContent = editor.innerText || "";
+    workspace.draftContentHtml = sanitizeStudioHtml(editor.innerHTML);
     workspace.updatedAt = Date.now();
     ui.studioPicker = null;
+    ui.studioAssetInsertIndex = null;
     saveState();
     render();
-    return showToast("图片已插入草稿", "素材来源和审核状态已记录；保存文章后继续沿用。 ");
+    return showToast("图片引用已插入", "已放到所选段落后，来源与知识库关联会随文章保存。", "success");
   }
-  studioBumpArticleVersion(article, "asset_insert", "插入图片前");
-  article.content = `${article.content}${studioAssetFigure(asset)}`;
+  const citationClone = studioBumpArticleVersion(article, "asset_insert", "插入图片前");
+  const nextContent = sanitizeStudioHtml(editor.innerHTML);
+  article.content = citationClone?.idMap ? studioRemapCitationIds(nextContent, citationClone.idMap) : nextContent;
   article.assetIds = Array.isArray(article.assetIds) ? article.assetIds : [];
   if (!article.assetIds.includes(asset.id)) article.assetIds.push(asset.id);
   workspace.assetIds = Array.isArray(workspace.assetIds) ? workspace.assetIds : [];
@@ -4201,10 +4224,21 @@ function insertStudioAsset(assetId) {
   studioResetArticleReview(article, "unscanned");
   article.updatedAt = Date.now();
   workspace.updatedAt = article.updatedAt;
+  conversation.updatedAt = article.updatedAt;
+  article.contentSyncPending = true;
+  markContentArticleEditPending(article);
+  void queueContentArticleSync(article, { createVersion: true }).catch((error) => {
+    article.contentSyncPending = false;
+    article.contentSyncError = error.message || "图片引用版本同步失败";
+    updateContentArticleEditGuard(article, { pending: true });
+    saveState();
+    showToast("图片引用同步失败", `${article.contentSyncError}；本地草稿已保留，可稍后重试。`, "error");
+  });
   ui.studioPicker = null;
+  ui.studioAssetInsertIndex = null;
   saveState();
   render();
-  showToast("图片已插入", `已创建 ${article.version}，图片来源和版权信息已记录。`);
+  showToast("图片引用已插入", `已放到所选段落后并创建 ${article.version}，来源和版权信息已记录。`, "success");
 }
 
 function generateStudioImageAsset() {
@@ -4278,7 +4312,9 @@ async function addStudioFiles(fileList, kind = "attachment") {
     if (imageFiles.length > 500) return showToast("图片数量过多", "一次最多上传 500 张图片。", "error");
     const oversized = imageFiles.find((file) => Number(file.size || 0) > 20 * 1024 * 1024);
     if (oversized) return showToast("单张图片过大", `「${oversized.name}」超过 20 MB，请压缩后再上传。`, "error");
-    const library = studioKnowledgeBases(workspace).find((base) => base.kind === "document") || null;
+    const library = studioKnowledgeBases(workspace).find((base) => base.kind === "document")
+      || (state.knowledgeBases || []).find((base) => base.kind === "document" && base.status !== "archived")
+      || null;
     if (!library) return showToast("没有可用图片知识库", "请先在企业知识中创建或授权一个文档知识库，再上传文章配图。", "error");
     try {
       // A picture selected from the writing studio is a real knowledge asset,

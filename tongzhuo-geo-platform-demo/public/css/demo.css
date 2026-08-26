@@ -94,8 +94,8 @@
 }
 .sidebar .nav-item.active::before { display: none; }
 
-/* promo：demo 尺寸、去阴影 */
-.sidebar .nav-promo { box-shadow: none; margin: 14px 4px 6px; }
+/* promo：demo 字号微调（投影由 layout.css 第 26 节统一管） */
+.sidebar .nav-promo { margin: 0 10px 12px; }
 .sidebar .nav-promo b { font-size: 11.5px; }
 .sidebar .nav-promo p { font-size: 11px; margin: 8px 0 0; line-height: 1.6; }
 .sidebar .nav-promo-go { font-size: 11px; line-height: 1.4; }

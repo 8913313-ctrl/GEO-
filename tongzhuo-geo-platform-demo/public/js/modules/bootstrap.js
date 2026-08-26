@@ -29,6 +29,14 @@ document.addEventListener("focusout", (event) => {
   const trendPoint = event.target.closest?.("[data-effect-trend-point]");
   if (trendPoint) effectTrendHideTip();
 });
+
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !ui.studioPicker) return;
+  ui.studioPicker = null;
+  ui.studioAssetInsertIndex = null;
+  render();
+  window.setTimeout(() => document.querySelector('[data-action="open-studio-knowledge-images"]')?.focus(), 20);
+});
 document.addEventListener("input", (event) => {
   const inputEl = event.target;
   if (inputEl && inputEl.hasAttribute && inputEl.hasAttribute("data-lead-search")) {
@@ -84,6 +92,12 @@ document.addEventListener("click", async (event) => {
     return;
   }
 
+  const assistantPlatformTab = event.target.closest("[data-assistant-platform-tab]");
+  if (assistantPlatformTab) {
+    ui.assistantCatalogType = assistantPlatformTab.dataset.assistantPlatformTab === "official" ? "official" : "self_media";
+    return render();
+  }
+
   const settingToggle = event.target.closest("[data-setting]");
   if (settingToggle) {
     const key = settingToggle.dataset.setting;
@@ -102,9 +116,27 @@ document.addEventListener("click", async (event) => {
 
   if (action === "route-render-retry") return render();
 
+  if (action === "effect-service-banner-dismiss") {
+    ui.effectServiceBannerDismissed = true;
+    return render();
+  }
+  if (action === "effect-scroll-to") {
+    const target = document.querySelector(actionElement.dataset.scrollTarget || "");
+    if (target) target.scrollIntoView({ behavior: "auto", block: "start" });
+    return;
+  }
+
   if (action === "effect-search-focus") {
     navigate("effect-search");
     return window.setTimeout(() => document.getElementById("effect-search-question")?.focus(), 40);
+  }
+  if (action === "effect-search-default-question") {
+    const value = actionElement.value || "";
+    if (!value) return;
+    ui.effectSearchQuestion = value;
+    const input = document.getElementById("effect-search-question");
+    if (input) input.value = value;
+    return render();
   }
   if (action === "effect-search-run" || action === "effect-search-quote") return prepareEffectSearchRun();
   if (action === "effect-search-submit") return submitEffectSearchRun();
@@ -120,7 +152,7 @@ document.addEventListener("click", async (event) => {
     effectRelaySnapshot = { ...effectRelaySnapshot, quote: null };
     return render();
   }
-  if (action === "effect-relay-refresh") return refreshEffectRelay({ renderAfter: true });
+  if (action === "effect-relay-refresh") return refreshEffectRelay({ renderAfter: true, bypass: true });
   if (action === "effect-search-cancel") return cancelEffectRelayRun();
   if (action === "effect-center-open-run") {
     const runId = actionElement.dataset.effectRunId;
@@ -485,6 +517,7 @@ document.addEventListener("click", async (event) => {
     return render();
   }
   if (action === "open-studio-image-picker") {
+    ui.studioAssetInsertIndex = studioAssetInsertionIndex();
     ui.studioPicker = ui.studioPicker === "image" ? null : "image";
     return render();
   }
@@ -493,8 +526,11 @@ document.addEventListener("click", async (event) => {
     return render();
   }
   if (action === "open-studio-knowledge-images") {
+    ui.studioAssetInsertIndex = studioAssetInsertionIndex();
     ui.studioPicker = "knowledge-image";
-    return render();
+    if (window.matchMedia?.("(max-width: 1040px)").matches) ui.studioPane = "chat";
+    render();
+    return window.setTimeout(() => document.getElementById("studio-asset-search")?.focus(), 30);
   }
   if (action === "close-studio-picker") {
     ui.studioPicker = null;
@@ -1661,6 +1697,23 @@ document.addEventListener("input", (event) => {
   if (event.target.matches("[data-knowledge-asset-search]")) {
     ui.knowledgeAssetSearch = event.target.value;
     return render();
+  }
+  if (event.target.matches("[data-studio-asset-search]")) {
+    const query = String(event.target.value || "").trim().toLowerCase();
+    ui.studioAssetSearch = event.target.value;
+    const picker = event.target.closest(".studio-asset-picker");
+    const rows = [...(picker?.querySelectorAll("[data-studio-asset-searchable]") || [])];
+    let visible = 0;
+    rows.forEach((row) => {
+      const matched = !query || String(row.dataset.studioAssetSearchable || "").includes(query);
+      row.hidden = !matched;
+      if (matched) visible += 1;
+    });
+    const counter = picker?.querySelector("[data-studio-asset-result-count]");
+    if (counter) counter.textContent = String(visible);
+    const empty = picker?.querySelector("[data-studio-asset-empty]");
+    if (empty) empty.hidden = visible > 0;
+    return;
   }
   if (event.target.id === "diagnostic-industry") ui.diagnosticIndustry = event.target.value;
   if (event.target.id === "diagnostic-goal") ui.diagnosticGoal = event.target.value;
