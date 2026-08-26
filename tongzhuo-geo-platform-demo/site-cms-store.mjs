@@ -418,11 +418,17 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
     { id: "nav-insights", label: "行业资讯", path: "/insights/" }, { id: "nav-problem-map", label: "问题地图", path: "/problem-map/" },
     { id: "nav-contact", label: "联系我们", path: "/contact/" }
   ];
+  const pagesByPath = new Map(pages.map((page) => [page.path, page]));
+  const isPublishedCorePagePath = (path) => {
+    const page = pagesByPath.get(path);
+    return Boolean(page && CORE_PAGE_IDS.has(page.id) && page.status === "published");
+  };
   const navItems = (rawNav.length ? rawNav : fallbackNav).filter((item) => item && typeof item === "object").slice(0, 12).map((item, index) => {
+    const hasExplicitPath = typeof item.path === "string" && item.path.trim() !== "";
     const path = normalizeCmsPath(item.path, "/");
-    return { id: cleanId(item.id, `nav-${index + 1}`), label: cleanText(item.label, `导航 ${index + 1}`, 100), path, type: cleanText(item.type, "固定页面", 80), visible: item.visible !== false && !(legacy && OPTIONAL_PATHS.has(path) && path !== "/cases/") };
+    return { id: cleanId(item.id, `nav-${index + 1}`), label: cleanText(item.label, `导航 ${index + 1}`, 100), path, type: cleanText(item.type, "固定页面", 80), visible: hasExplicitPath && item.visible !== false && isPublishedCorePagePath(path) };
   });
-  const requiredNav = fallbackNav.map((item) => ({ ...item, type: item.path === "/insights/" ? "资讯列表" : "固定页面", visible: true }));
+  const requiredNav = fallbackNav.map((item) => ({ ...item, type: item.path === "/insights/" ? "资讯列表" : "固定页面", visible: isPublishedCorePagePath(item.path) }));
   for (const item of requiredNav) if (!navItems.some((nav) => nav.path === item.path)) navItems.push(item);
   const navOrder = new Map(requiredNav.map((item, index) => [item.path, index]));
   navItems.sort((a, b) => (navOrder.get(a.path) ?? 100) - (navOrder.get(b.path) ?? 100));

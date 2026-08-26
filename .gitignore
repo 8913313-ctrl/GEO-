@@ -48,6 +48,7 @@ make_tongzhuo_ppt.py
 # Codex and deployment scratch files can contain host-specific paths or tokens
 .codex-*
 **/.codex-*
+AGENTS.md
 
 # Local browser captures and design-review artifacts
 .impeccable/

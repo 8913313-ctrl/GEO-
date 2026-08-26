@@ -2168,14 +2168,14 @@ function siteNavItems() {
   if (!Array.isArray(cms.navItems)) cms.navItems = [];
   const normalized = cms.navItems.map((item, index) => Array.isArray(item) ? { id: `legacy-nav-${index}`, label: item[0], path: item[1], type: item[2], visible: true } : item);
   cms.navItems = normalized;
-  const extensionPaths = new Set(siteExtensionPages().map((page) => page.path));
+  const publicPrimaryPaths = new Set(sitePrimaryPages().filter((page) => page.status === "published").map((page) => sitePath(page.path)));
   normalized.forEach((item) => {
-    if (item.path === "/faq/" || extensionPaths.has(item.path) || String(item.path || "").startsWith("/topics/")) item.visible = false;
+    if (!item.path || !publicPrimaryPaths.has(sitePath(item.path))) item.visible = false;
   });
   const canonical = SITE_NAV_ITEMS.map(([label, path, type, id], index) => {
     const existing = normalized.find((item) => item.id === id || item.path === path);
     if (existing) return existing;
-    const item = { id: id || `nav-${path === "/" ? "home" : path.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9]+/gi, "-") || index + 1}`, label, path, type, visible: true };
+    const item = { id: id || `nav-${path === "/" ? "home" : path.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9]+/gi, "-") || index + 1}`, label, path, type, visible: publicPrimaryPaths.has(sitePath(path)) };
     cms.navItems.push(item);
     normalized.push(item);
     return item;

@@ -450,6 +450,9 @@ function staticPathOwnedByCms(site, pathname) {
 function staticRelativePath(pathname) {
   if (pathname.startsWith("/assets/")) return pathname.slice(1);
   if (["/rss.xsl", "/favicon.ico"].includes(pathname)) return pathname.slice(1);
+  if (pathname === "/") return "index.html";
+  if (Object.prototype.hasOwnProperty.call(STATIC_ALIASES, pathname)) return STATIC_ALIASES[pathname];
+  if (/^\/[A-Za-z0-9][A-Za-z0-9/_-]*\.html$/.test(pathname)) return pathname.slice(1);
   return "";
 }
 
@@ -537,6 +540,9 @@ export function createSiteRuntime(options = {}) {
     workspaceId: options.workspaceId || process.env.TZ_SITE_WORKSPACE_ID || "default",
     trustProxy: options.trustProxy ?? booleanValue(process.env.TZ_TRUST_PROXY),
     production: options.production ?? process.env.NODE_ENV === "production",
+    // Keep a customer's hand-authored static site authoritative while CMS
+    // editing remains available in the admin application.
+    staticOnly: options.staticOnly ?? booleanValue(process.env.TZ_SITE_STATIC_ONLY),
     logger: options.logger || console
   };
   const monitoringStore = options.monitoringStore || new MonitoringStore(store.database, { workspaceId: config.workspaceId });
@@ -674,7 +680,7 @@ export function createSiteRuntime(options = {}) {
   }
 
   async function serveStatic(request, responseObject, pathname, snapshot, origin) {
-    if (staticPathOwnedByCms(snapshot.site, pathname)) return false;
+    if (!config.staticOnly && staticPathOwnedByCms(snapshot.site, pathname)) return false;
     const relativePath = staticRelativePath(pathname);
     if (!relativePath) return false;
     const file = await readStaticFile(config.staticRoot, relativePath);
@@ -742,6 +748,10 @@ export function createSiteRuntime(options = {}) {
       // publication pointer. Draft preview is an authenticated admin concern.
       const snapshot = publishedRuntimeSnapshot(store.snapshot({ draft: false }), config.production);
       origin = requestOrigin(request, config, snapshot.site);
+      if (config.staticOnly) {
+        const staticResponse = await serveStatic(request, responseObject, pathname, snapshot, origin);
+        if (staticResponse !== false) return staticResponse;
+      }
       const location = redirectLocation(snapshot.site, pathname, url.search);
       if (location) {
         return response(request, responseObject, {

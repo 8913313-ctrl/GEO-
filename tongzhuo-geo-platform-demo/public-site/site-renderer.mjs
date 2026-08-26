@@ -21,6 +21,7 @@ const FRONTEND_NAV = Object.freeze([
   { label: "首页", path: "/" }, { label: "产品与服务", path: "/services/" }, { label: "关于我们", path: "/about/" },
   { label: "服务案例", path: "/cases/" }, { label: "行业资讯", path: "/insights/" }, { label: "问题地图", path: "/problem-map/" }, { label: "联系我们", path: "/contact/" }
 ]);
+const PRIMARY_NAV_PAGE_IDS = new Set(["home", "services", "about", "contact", "insights", "cases", "problem-map"]);
 
 const VOID_TAGS = new Set(["br", "hr", "img"]);
 const ALLOWED_TAGS = new Set([
@@ -439,21 +440,32 @@ function pageTitle(site, title = "") {
   return title ? (brand ? `${title}｜${brand}` : title) : (brand || DEFAULT_DESCRIPTION);
 }
 
+function primaryNavigationPaths(site) {
+  const pages = Array.isArray(site?.pages) ? site.pages : [];
+  if (!pages.length) return new Set(FRONTEND_NAV.map((item) => sourceNormalizePath(item.path)));
+  return new Set(pages
+    .filter((page) => page?.status === "published" && PRIMARY_NAV_PAGE_IDS.has(page?.id) && page?.path)
+    .map((page) => sourceNormalizePath(page.path)));
+}
+
+function configuredPrimaryNavigation(site) {
+  const allowedPaths = primaryNavigationPaths(site);
+  return Array.isArray(site?.navItems) ? site.navItems.filter((item) => (
+    item?.visible !== false && item?.path && allowedPaths.has(sourceNormalizePath(item.path))
+  )) : [];
+}
+
 function navigation(site, active = "", assetBase = "/assets") {
   if (site?.templateKey === "02-construction") return constructionNavigation(site, active, assetBase);
   // The first public-site version has a deliberate, complete information
   // architecture. CMS navigation labels can replace these later, but missing
   // demo pages must not make the walkthrough look unfinished.
-  const publishedPaths = new Set((Array.isArray(site.pages) ? site.pages : []).filter((page) => page?.status === "published").map((page) => String(page.path || "").replace(/\/$/, "") || "/"));
-  const cmsItems = Array.isArray(site.navItems) ? site.navItems.filter((item) => {
-    if (item?.visible === false || !item?.path) return false;
-    const path = String(item.path || "").replace(/\/$/, "") || "/";
-    return path === "/insights" ? publishedPaths.has("/insights") : publishedPaths.has(path);
-  }) : [];
+  const allowedPaths = primaryNavigationPaths(site);
+  const cmsItems = configuredPrimaryNavigation(site);
   const cmsByPath = new Map(cmsItems.map((item) => [String(item.path || "").replace(/\/$/, "") || "/", item]));
   const items = site.frontendDemo
     ? FRONTEND_NAV.map((item) => ({ ...item, label: cmsByPath.get(item.path.replace(/\/$/, "") || "/")?.label || item.label }))
-    : (cmsItems.length ? cmsItems : FRONTEND_NAV.filter((item) => ["/", "/services/", "/insights/", "/about/", "/contact/"].includes(item.path)));
+    : (cmsItems.length ? cmsItems : FRONTEND_NAV.filter((item) => ["/", "/services/", "/insights/", "/about/", "/contact/"].includes(item.path) && allowedPaths.has(sourceNormalizePath(item.path))));
   const normalize = (value) => String(value || "/").replace(/\/index\.html$/i, "/").replace(/\.html$/i, "/").replace(/\/{2,}/g, "/").replace(/\/$/, "") || "/";
   const navOrder = new Map([["/", 0], ["/services", 1], ["/about", 2], ["/cases", 3], ["/insights", 4], ["/problem-map", 5], ["/contact", 6]]);
   const activePath = normalize(active);
@@ -473,10 +485,9 @@ function navigation(site, active = "", assetBase = "/assets") {
 function constructionNavigation(site, active = "", assetBase = "/assets") {
   const normalizedActive = String(active || "/").replace(/\/$/, "") || "/";
   const fallbackItems = [["/", "首页"], ["/about/", "关于我们"], ["/services/", "服务项目"], ["/cases/", "工程案例"], ["/insights/", "新闻动态"], ["/contact/", "联系我们"]];
-  const configuredItems = Array.isArray(site.navItems)
-    ? site.navItems.filter((item) => item?.visible !== false && item?.path).slice(0, 12).map((item) => [item.path, item.label])
-    : [];
-  const items = configuredItems.length ? configuredItems : fallbackItems;
+  const allowedPaths = primaryNavigationPaths(site);
+  const configuredItems = configuredPrimaryNavigation(site).slice(0, 12).map((item) => [item.path, item.label]);
+  const items = configuredItems.length ? configuredItems : fallbackItems.filter(([path]) => allowedPaths.has(sourceNormalizePath(path)));
   const company = publicCompanyName(site);
   const phone = site.contact?.phone || "";
   return `<header class="site-header header"><nav class="nav container"><a class="brand logo" href="/" aria-label="${escapeHtml(company)}首页"><span class="logo-icon logo-image" aria-hidden="true"><img src="${escapeHtml(configuredBrandMark(site, assetBase))}" alt="" width="32" height="32" decoding="async"></span><span>${escapeHtml(publicBrandName(site))}</span></a><ul class="nav-menu">${items.map(([path, label]) => `<li><a${normalizedActive === (String(path).replace(/\/$/, "") || "/") ? ' class="active" aria-current="page"' : ""} href="${escapeHtml(safeUrl(path, "link") || "/")}">${escapeHtml(label || "导航")}</a></li>`).join("")}</ul><div class="nav-contact">${phone ? `<span class="nav-phone">${escapeHtml(phone)}</span>` : ""}<a class="btn btn-primary" href="/contact/">预约咨询</a></div><button class="mobile-menu-btn" type="button" aria-label="打开导航" aria-expanded="false"><span></span><span></span><span></span></button></nav></header>`;
@@ -629,14 +640,13 @@ function sourceNavigation(site, active, template, assetBase = "/assets") {
     ["/insights/", "新闻动态"],
     ["/contact/", "联系我们"]
   ];
-  const configuredItems = Array.isArray(site.navItems)
-    ? site.navItems.filter((item) => item?.visible !== false && item?.path).slice(0, 12).map((item) => [item.path, item.label])
-    : [];
-  const items = configuredItems.length ? configuredItems : fallbackItems;
+  const allowedPaths = primaryNavigationPaths(site);
+  const configuredItems = configuredPrimaryNavigation(site).slice(0, 12).map((item) => [item.path, item.label]);
+  const items = configuredItems.length ? configuredItems : fallbackItems.filter(([path]) => allowedPaths.has(sourceNormalizePath(path)));
   const company = publicCompanyName(site);
   const phone = site.contact?.phone || "";
   const links = items.map(([path, label]) => `<li><a${activePath === sourceNormalizePath(path) ? ' class="active" aria-current="page"' : ""} href="${escapeHtml(safeUrl(path, "link") || "/")}">${escapeHtml(label || "导航")}</a></li>`).join("");
-  const topbar = template.key === "01-industry" ? `<div class="topbar"><div class="container"><span>欢迎访问${escapeHtml(company)}</span><div class="right"><a href="/contact/">在线询价</a><a href="/insights/">企业新闻</a><a href="/about/">加入我们</a></div></div></div>` : template.key === "11-ups" ? `<div class="topbar"><div class="container"><span>${escapeHtml(company)} · 电源设备服务</span><div class="right"><a href="/contact/">在线询价</a><a href="/insights/">行业知识</a></div></div></div>` : "";
+  const topbar = template.key === "01-industry" ? `<div class="topbar"><div class="container"><span>欢迎访问${escapeHtml(company)}</span><div class="right"><a href="/contact/">在线询价</a><a href="/insights/">企业新闻</a><a href="/about/">关于我们</a></div></div></div>` : template.key === "11-ups" ? `<div class="topbar"><div class="container"><span>${escapeHtml(company)} · 电源设备服务</span><div class="right"><a href="/contact/">在线询价</a><a href="/insights/">行业知识</a></div></div></div>` : "";
   return `${topbar}<header class="header"><nav class="nav container"><a href="/" class="logo" aria-label="${escapeHtml(company)}首页"><span class="logo-icon logo-image"><img src="${escapeHtml(configuredBrandMark(site, assetBase, template))}" alt="" width="32" height="32" decoding="async"></span><span>${escapeHtml(publicBrandName(site))}</span></a><ul class="nav-menu">${links}</ul><div class="nav-contact">${phone ? `<span class="nav-phone">${escapeHtml(phone)}</span>` : ""}<a href="/contact/" class="btn btn-primary">${escapeHtml(site.cta || profile.ctaLabel)}</a></div><button type="button" class="mobile-menu-btn" aria-label="打开导航" aria-expanded="false"><span></span><span></span><span></span></button></nav></header>`;
 }
 

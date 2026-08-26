@@ -164,16 +164,31 @@ try {
   assert.equal(workspaces.listBusinessRecords("enterprise", "question").length, 0);
   assert.equal(workspaces.listBusinessRecords("enterprise", "article").length, 2);
   assert.equal(workspaces.listRevisions("enterprise").length, 2);
+  const duplicate = workspaces.save(state2, {
+    workspaceId: "enterprise",
+    expectedRevision: 2,
+    actorUserId: bearerPrincipal.userId,
+    reason: "duplicate browser sync"
+  });
+  assert.equal(duplicate.revision, 2);
+  assert.equal(duplicate.unchanged, true);
+  assert.equal(workspaces.listRevisions("enterprise").length, 2);
   await assert.rejects(
     async () => workspaces.save("enterprise", state2, { expectedRevision: 1, actor: bearerPrincipal }),
     (error) => error instanceof WorkspaceConflictError && error.currentRevision === 2 && error.status === 409
   );
 
+  const retainedWorkspaces = new WorkspaceStore(database, { revisionRetention: 2 });
+  retainedWorkspaces.save("retained", { value: 1 }, { expectedRevision: 0, actorUserId: bearerPrincipal.userId });
+  retainedWorkspaces.save("retained", { value: 2 }, { expectedRevision: 1, actorUserId: bearerPrincipal.userId });
+  retainedWorkspaces.save("retained", { value: 3 }, { expectedRevision: 2, actorUserId: bearerPrincipal.userId });
+  assert.deepEqual(retainedWorkspaces.listRevisions("retained").map((item) => item.revision), [3, 2]);
+
   const auditActions = database.connection.prepare("SELECT action FROM audit_logs ORDER BY id").all().map((row) => row.action);
   assert.ok(auditActions.includes("auth.setup"));
   assert.ok(auditActions.includes("auth.login_failed"));
   assert.ok(auditActions.includes("auth.login"));
-  assert.equal(auditActions.filter((action) => action === "workspace.save").length, 2);
+  assert.equal(auditActions.filter((action) => action === "workspace.save").length, 0);
 
   const logoutResponse = new MockResponse();
   assert.deepEqual(await auth.logout(login.sessionToken, logoutResponse), { loggedOut: true });

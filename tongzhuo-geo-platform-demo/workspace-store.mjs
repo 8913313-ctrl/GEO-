@@ -155,6 +155,7 @@ export class WorkspaceStore {
     this.database = database;
     this.connection = database.connection;
     this.maxStateBytes = boundedInteger(options.maxStateBytes ?? process.env.TZ_WORKSPACE_MAX_BYTES, 15_000_000, 100_000, 100_000_000);
+    this.revisionRetention = boundedInteger(options.revisionRetention ?? process.env.TZ_WORKSPACE_REVISION_RETENTION, 50, 1, 500);
     this.recordArrayMap = normalizeRecordArrayMap(options.recordArrayMap);
     this.trustProxy = options.trustProxy ?? (String(process.env.TZ_TRUST_PROXY || "").toLowerCase() === "true");
   }
@@ -192,9 +193,26 @@ export class WorkspaceStore {
     const now = new Date().toISOString();
     let saved;
     this.database.transaction(() => {
-      const current = this.connection.prepare("SELECT revision, created_at FROM workspace_state WHERE workspace_id = ?").get(workspaceId);
+      const current = this.connection.prepare(`
+        SELECT revision, checksum, created_at, updated_at, updated_by
+        FROM workspace_state WHERE workspace_id = ?
+      `).get(workspaceId);
       const currentRevision = Number(current?.revision || 0);
       if (currentRevision !== expectedRevision) throw new WorkspaceConflictError(expectedRevision, currentRevision);
+      if (current?.checksum === serialized.checksum) {
+        saved = {
+          workspaceId,
+          revision: currentRevision,
+          state,
+          checksum: serialized.checksum,
+          createdAt: current.created_at,
+          updatedAt: current.updated_at,
+          updatedBy: current.updated_by || null,
+          recordCounts: Object.fromEntries(recordGroups.map((group) => [group.recordType, group.records.length])),
+          unchanged: true
+        };
+        return;
+      }
       const revision = currentRevision + 1;
       if (current) {
         this.connection.prepare(`
@@ -214,6 +232,16 @@ export class WorkspaceStore {
           workspace_id, revision, state_json, checksum, created_at, updated_by
         ) VALUES (?, ?, ?, ?, ?, ?)
       `).run(workspaceId, revision, serialized.json, serialized.checksum, now, actorUserId);
+      this.connection.prepare(`
+        DELETE FROM workspace_revisions
+        WHERE workspace_id = ?
+          AND revision NOT IN (
+            SELECT revision FROM workspace_revisions
+            WHERE workspace_id = ?
+            ORDER BY revision DESC
+            LIMIT ?
+          )
+      `).run(workspaceId, workspaceId, this.revisionRetention);
 
       const existingRows = this.connection.prepare(`
         SELECT record_id, created_at FROM business_records
@@ -256,7 +284,8 @@ export class WorkspaceStore {
         createdAt: current?.created_at || now,
         updatedAt: now,
         updatedBy: actorUserId,
-        recordCounts
+        recordCounts,
+        unchanged: false
       };
     });
     return saved;

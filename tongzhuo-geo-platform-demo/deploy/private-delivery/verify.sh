@@ -139,7 +139,7 @@ for secret_target in /run/secrets/tz_relay_client_secret /run/secrets/tz_ad_hoc_
     || pd_die "geo-admin is missing the required Compose secret mount: $secret_target"
 done
 docker exec "$admin_container" sh -ceu \
-  'test "$(stat -c "%u:%g:%a" /run/tongzhuo-runtime-secrets)" = "0:1000:710"; test "$(ps -o user= -p 1 | tr -d " ")" = "node"' >/dev/null 2>&1 \
+  'test "$(stat -c "%u:%g:%a" /run/tongzhuo-runtime-secrets)" = "0:1000:710"; test "$(awk "/^Uid:/ { print \$2 }" /proc/1/status)" = "$(id -u node)"; test "$(awk "/^Gid:/ { print \$2 }" /proc/1/status)" = "$(id -g node)"' >/dev/null 2>&1 \
   || pd_die "geo-admin bootstrap did not create the expected root:node tmpfs or did not drop PID 1 to node."
 for raw_secret_target in /run/secrets/tz_relay_client_secret /run/secrets/tz_ad_hoc_diagnostic_api_token; do
   runtime_secret_target="/run/tongzhuo-runtime-secrets/$(basename "$raw_secret_target")"

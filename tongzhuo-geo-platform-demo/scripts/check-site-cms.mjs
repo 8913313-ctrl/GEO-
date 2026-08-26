@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { ProductionDatabase } from "../production-database.mjs";
 import { SiteCmsError, SiteCmsStore } from "../site-cms-store.mjs";
+import { SITE_TEMPLATES } from "../site-template-registry.mjs";
 import { createSiteRuntime } from "../site-server.mjs";
 import { PublicSiteStore } from "../public-site/site-store.mjs";
 import { WorkspaceStore } from "../workspace-store.mjs";
@@ -86,7 +87,7 @@ try {
   assert.deepEqual(bootstrapPublication.snapshot, bootstrapDraft.snapshot);
   assert.equal(bootstrapDraft.snapshot.schemaVersion, 4);
   assert.equal(bootstrapDraft.snapshot.assets.defaultImageUrl, "/assets/template-01-default.png");
-  assert.equal(Object.keys(bootstrapDraft.snapshot.templateConfigs).length, 10);
+  assert.equal(Object.keys(bootstrapDraft.snapshot.templateConfigs).length, SITE_TEMPLATES.length);
   assert.equal(bootstrapDraft.snapshot.footer.showIcp, true);
   const bootstrapReleases = cmsStore.releases(workspaceId);
   assert.equal(bootstrapReleases.length, 1);
@@ -138,9 +139,17 @@ try {
     { id: "published-after-release", type: "专题页", title: "待发布专题", path: "/published-after-release/", status: "published", sitemapEnabled: true },
     { id: "draft-only", type: "专题页", title: "内部草稿专题", path: "/draft-only/", status: "draft", sitemapEnabled: true }
   );
+  draftCms.pages.find((page) => page.id === "services").status = "draft";
+  draftCms.navItems.push(
+    { id: "nav-published-after-release", label: "扩展页入口不可见", path: "/published-after-release/", type: "专题页", visible: true },
+    { id: "nav-draft-only", label: "草稿页入口不可见", path: "/draft-only/", type: "专题页", visible: true }
+  );
   const savedDraft = cmsStore.saveDraft({ expectedRevision: bootstrapDraft.revision, cms: draftCms }, null, null, workspaceId);
   assert.equal(savedDraft.revision, 2);
   assert.notEqual(savedDraft.checksum, bootstrapDraft.checksum);
+  assert.equal(savedDraft.snapshot.navItems.find((item) => item.id === "nav-services")?.visible, false, "draft core pages must not enter primary navigation");
+  assert.equal(savedDraft.snapshot.navItems.find((item) => item.id === "nav-published-after-release")?.visible, false, "published extension pages must not enter primary navigation");
+  assert.equal(savedDraft.snapshot.navItems.find((item) => item.id === "nav-draft-only")?.visible, false, "draft extension pages must not enter primary navigation");
 
   // Preview reads the current draft, while the default public snapshot remains
   // pinned to the last published release.

@@ -49,7 +49,9 @@ function cookieHeader(response) {
 }
 
 async function waitUntilReady() {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  // A fresh Windows test database can take more than five seconds to apply
+  // the complete production schema and initialize all stores.
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     try {
       const result = await request("/health/ready");
       if (result.response.status === 200 && result.body.ok) return;
@@ -96,6 +98,13 @@ try {
     body: JSON.stringify({ state, expectedRevision: 0 })
   });
   assert(result.response.status === 200 && result.body.data.revision === 1, "Workspace initial import failed");
+
+  result = await request("/api/v1/workspace", {
+    method: "PUT",
+    headers: { Cookie: adminCookie, "X-CSRF-Token": adminCsrf, "Content-Type": "application/json" },
+    body: JSON.stringify({ state, expectedRevision: 1 })
+  });
+  assert(result.response.status === 200 && result.body.data.revision === 1 && result.body.data.unchanged === true, "Duplicate workspace sync should be idempotent");
 
   result = await request("/api/v1/workspace", {
     method: "PUT",
@@ -159,7 +168,7 @@ try {
   assert(result.response.status === 403, "Operator must not manage model credentials");
 
   result = await request("/api/v1/audit?limit=50", { headers: { Cookie: adminCookie } });
-  assert(result.response.status === 200 && result.body.data.items.some((item) => item.action === "workspace.save"), "Server audit log is missing workspace event");
+  assert(result.response.status === 200 && !result.body.data.items.some((item) => item.action === "workspace.save"), "Low-value workspace sync should stay out of the audit feed");
 
   result = await request("/api/v1/auth/logout", {
     method: "POST",
