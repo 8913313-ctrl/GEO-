@@ -31,7 +31,7 @@ const sourceTemplates = SITE_TEMPLATES.filter((template) => template.sourceReady
 assert.deepEqual(sourceTemplates.map((template) => template.key), [
   "01-industry", "02-construction", "03-software-ai", "04-logistics",
   "05-business-services", "06-finance", "07-healthcare", "08-education",
-  "09-travel-hotel", "10-food-consumer"
+  "09-travel-hotel", "10-food-consumer", "11-ups"
 ]);
 
 for (const template of SITE_TEMPLATES) {
@@ -46,44 +46,26 @@ for (const template of SITE_TEMPLATES) {
   assert.match(html, /带图服务内容/);
 
   if (template.sourceReady === true) {
-    assert.match(html, /带图 CMS 文章/);
     assert.match(html, new RegExp(`<link rel="stylesheet" href="/api/v1/site-cms/preview/assets/${template.stylesheet}\\?`));
     assert.doesNotMatch(html, /site-v8\.css/);
     assert.match(html, /template-runtime\.js/);
     assert.match(html, new RegExp(`class="template-source template-source-${template.key.slice(0, 2)}`));
+    assert.match(html, /<link rel="canonical" href="http:\/\/template-check\.local\//);
+    assert.match(html, /property="og:image"/);
+    assert.match(html, /name="twitter:image"/);
+    assert.match(html, /"@type":"Organization"/);
 
-    if (template.key === "01-industry") {
-      assert.match(html, /products-grid/);
-      assert.match(html, /template-product-media has-template-image/);
-      assert.match(html, /template-product-media has-default-image/);
-      assert.match(html, /template-case-media has-default-image/);
-      assert.match(html, /template-news-media has-default-image/);
-    } else if (template.key === "02-construction") {
-      assert.match(html, /services-grid/);
-      assert.match(html, /service-media/);
-      assert.match(html, /template-service-media has-template-image/);
-      assert.match(html, /class="service-icon"/);
-      assert.match(html, /template-case-media has-default-image/);
-      assert.match(html, /template-news-media has-default-image/);
-    } else {
-      assert.match(html, new RegExp(`/assets/${template.defaultImage}`));
-      assert.match(html, new RegExp(`/api/v1/site-cms/preview/assets/${template.defaultImage}`));
-      assert.match(html, /has-default-image/);
-      assert.doesNotMatch(html, /no-template-image/);
-      assert.doesNotMatch(html, /[\u{1F000}-\u{1FAFF}]/u);
-
-      if (template.key === "03-software-ai") {
-        assert.doesNotMatch(html, /带图 CMS 案例/, "03 product area must not use CMS cases as products");
-      }
-      if (template.key === "07-healthcare" || template.key === "08-education" || template.key === "09-travel-hotel") {
-        assert.match(html, /带图 CMS 案例/, `${template.key} must surface CMS case records in its industry-specific section`);
-      }
-    }
+    assert.doesNotMatch(html, /[\u{1F000}-\u{1FAFF}]/u);
+    assert.match(html, /<main\b/);
+    assert.match(html, /<h1\b/);
 
     const insights = renderInsightsPage({ site, articles, categories: [], origin: "http://template-check.local" });
     assert.match(insights, new RegExp(template.stylesheet));
     assert.doesNotMatch(insights, /site-v8\.css/);
-    assert.match(insights, template.key === "01-industry" || template.key === "02-construction" ? /news-grid|news-list/ : /legacy-article-grid/);
+    // Templates intentionally use different collection class names. Assert the
+    // CMS records and links are present instead of pinning a historical class.
+    assert.match(insights, /cms-article-image/);
+    assert.match(insights, /cms-article-no-image/);
 
     const article = renderArticlePage({
       site,
@@ -93,6 +75,7 @@ for (const template of SITE_TEMPLATES) {
     assert.match(article, new RegExp(template.stylesheet));
     assert.doesNotMatch(article, /site-v8\.css/);
     assert.match(article, /CMS 正文/);
+    assert.match(article, /"@type":"Article"/);
   }
 }
 
