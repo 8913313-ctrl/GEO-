@@ -1496,3 +1496,27 @@ body.template-source-11 .reveal-d1 { transition-delay: .1s; }
     animation-duration: .01ms !important;
   }
 }
+
+/* Individual skin: UPS / electrical engineering */
+body.template-source.template-source-11 { --ink:#123b70; --ink-2:#0b1f3a; --orange:#f28c28; --orange-dark:#c96816; --paper:#f7fafc; --paper-2:#eaf1f7; --paper-3:#d8e5ef; --line:#c2d2df; --text:#18324a; --muted:#617589; background:var(--paper); }
+body.template-source.template-source-11 .header,body.template-source.template-source-11 .topbar { background:#f7fafc; border-color:var(--line); }
+body.template-source.template-source-11 .hero { background:linear-gradient(135deg,#eaf2f8,#f7fafc 58%,#dcebf5); }
+body.template-source.template-source-11 .hero .container { min-height:620px; grid-template-columns:minmax(0,1fr) minmax(330px,.86fr); gap:54px; }
+body.template-source.template-source-11 .hero h1 { max-width:12ch; color:var(--ink-2); font-size:clamp(44px,5.8vw,80px); letter-spacing:-.045em; }
+body.template-source.template-source-11 .hero .ph { overflow:hidden; border:1px solid var(--line); border-radius:8px; background:#fff; box-shadow:14px 14px 0 var(--orange); }
+body.template-source.template-source-11 .series { grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
+body.template-source.template-source-11 .series .s { overflow:hidden; border:1px solid var(--line); border-radius:6px; background:#fff; }
+body.template-source.template-source-11 .series .ph { aspect-ratio:1.35; background:var(--paper-2); }
+body.template-source.template-source-11 .series .keys { display:flex; flex-wrap:wrap; gap:8px; }
+body.template-source.template-source-11 .series .k { min-width:86px; padding:8px 10px; border-left:2px solid var(--orange); background:var(--paper-2); }
+body.template-source.template-source-11 .gallery { grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+body.template-source.template-source-11 .gallery .g { position:relative; overflow:hidden; border:1px solid var(--line); border-radius:4px; background:#fff; }
+body.template-source.template-source-11 .gallery .g img { aspect-ratio:1.3; object-fit:cover; transition:transform .25s ease; }
+body.template-source.template-source-11 .gallery .g:hover img { transform:scale(1.04); }
+body.template-source.template-source-11 .scenes { grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+body.template-source.template-source-11 .scene,body.template-source.template-source-11 .a { padding:20px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+body.template-source.template-source-11 .stats { background:var(--ink-2); }
+body.template-source.template-source-11 .stats .cell strong { color:#ffb45f; }
+body.template-source.template-source-11 .cta { background:var(--ink); }
+@media (max-width:900px){ body.template-source.template-source-11 .hero .container{grid-template-columns:1fr;min-height:auto;} body.template-source.template-source-11 .gallery,body.template-source.template-source-11 .scenes{grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media (max-width:680px){ body.template-source.template-source-11 .series,body.template-source.template-source-11 .gallery,body.template-source.template-source-11 .scenes{grid-template-columns:1fr;} }

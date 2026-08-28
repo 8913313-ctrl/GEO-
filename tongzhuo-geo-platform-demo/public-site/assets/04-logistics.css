@@ -2930,3 +2930,24 @@ body.template-source-04 {
 }
 
 body.template-source-04 { margin: 0; }
+
+/* Individual skin: logistics / route control */
+body.template-source.template-source-04 { --tg-bg:#f4f8fc; --tg-paper:#fff; --tg-paper-2:#e8f3fa; --tg-ink:#102a43; --tg-ink-mute:#60758a; --tg-line:#c9d9e6; --tg-brand:#ef6c2f; --tg-brand-deep:#1677b9; background:var(--tg-bg); color:var(--tg-ink); }
+body.template-source.template-source-04 .header { background:#fff; border-color:var(--tg-line); }
+body.template-source.template-source-04 .hero { background:linear-gradient(120deg,#dcecf6 0%,#f9fbfd 62%,#e6f1f8); }
+body.template-source.template-source-04 .hero .container { min-height:600px; grid-template-columns:minmax(0,1fr) 390px; gap:56px; }
+body.template-source.template-source-04 .hero h1 { max-width:12ch; color:var(--tg-ink); font-size:clamp(44px,5.8vw,78px); }
+body.template-source.template-source-04 .quick { padding:24px; border:1px solid var(--tg-line); border-radius:18px; background:#fff; box-shadow:0 20px 44px rgba(21,79,112,.12); }
+body.template-source.template-source-04 .quick .grid { grid-template-columns:repeat(2,1fr); gap:10px; }
+body.template-source.template-source-04 .quick a { min-height:82px; border-radius:12px; color:var(--tg-brand-deep); background:var(--tg-paper-2); }
+body.template-source.template-source-04 .services { grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+body.template-source.template-source-04 .service { padding:24px 18px; border:1px solid var(--tg-line); border-radius:14px; background:#fff; }
+body.template-source.template-source-04 .service .ic { color:var(--tg-brand); }
+body.template-source.template-source-04 .network { background:#e8f3fa; }
+body.template-source.template-source-04 .network .wrap { grid-template-columns:1.1fr .9fr; gap:28px; }
+body.template-source.template-source-04 .network .map { min-height:320px; border-radius:18px; background:radial-gradient(circle,#fff 1px,transparent 1px),#d7ebf6; background-size:18px 18px; color:#6b91aa; }
+body.template-source.template-source-04 .stats { background:var(--tg-ink); }
+body.template-source.template-source-04 .stats .cell strong { color:#ff9b62; }
+body.template-source.template-source-04 .cta { background:var(--tg-brand-deep); }
+@media (max-width:900px){ body.template-source.template-source-04 .hero .container,body.template-source.template-source-04 .network .wrap{grid-template-columns:1fr;min-height:auto;} body.template-source.template-source-04 .quick{max-width:520px;} }
+@media (max-width:680px){ body.template-source.template-source-04 .services{grid-template-columns:repeat(2,minmax(0,1fr));} }

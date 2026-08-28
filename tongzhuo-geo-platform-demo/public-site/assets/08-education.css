@@ -2926,3 +2926,24 @@ body.template-source-08 {
 }
 
 body.template-source-08 { margin: 0; }
+
+/* Individual skin: education / warm classroom */
+body.template-source.template-source-08 { --tg-bg:#fffaf0; --tg-paper:#fff; --tg-paper-2:#fff2cf; --tg-ink:#2f3140; --tg-ink-mute:#78798a; --tg-line:#eadfca; --tg-brand:#635bff; --tg-brand-deep:#e76f51; background:var(--tg-bg); color:var(--tg-ink); }
+body.template-source.template-source-08 .header { background:#fffdf8; border-color:var(--tg-line); }
+body.template-source.template-source-08 .hero { background:linear-gradient(125deg,#fff2cf,#fffaf0 58%,#e6e2ff); }
+body.template-source.template-source-08 .hero .container { min-height:600px; grid-template-columns:minmax(0,1fr) minmax(320px,.85fr); gap:48px; }
+body.template-source.template-source-08 .hero h1 { max-width:13ch; color:var(--tg-ink); font-size:clamp(44px,5.8vw,80px); }
+body.template-source.template-source-08 .hero .media { overflow:hidden; border-radius:28px 28px 8px 28px; box-shadow:14px 18px 0 #e76f51; }
+body.template-source.template-source-08 .courses { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+body.template-source.template-source-08 .course { overflow:hidden; border:1px solid var(--tg-line); border-radius:16px; background:#fff; }
+body.template-source.template-source-08 .course .media { min-height:130px; background:var(--tg-paper-2); }
+body.template-source.template-source-08 .course .price { color:var(--tg-brand-deep); font-weight:800; }
+body.template-source.template-source-08 .teachers { grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
+body.template-source.template-source-08 .teacher { text-align:center; padding:22px 14px; border:1px solid var(--tg-line); border-radius:18px; background:#fff; }
+body.template-source.template-source-08 .teacher .ava { width:112px; aspect-ratio:1; margin:0 auto 14px; border-radius:50%; background:var(--tg-paper-2); }
+body.template-source.template-source-08 .adv { grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+body.template-source.template-source-08 .a { padding:22px; border:1px solid var(--tg-line); border-radius:14px; background:#fff; }
+body.template-source.template-source-08 .stats { background:var(--tg-ink); }
+body.template-source.template-source-08 .stats .cell strong { color:#ffd166; }
+@media (max-width:900px){ body.template-source.template-source-08 .hero .container{grid-template-columns:1fr;min-height:auto;} body.template-source.template-source-08 .teachers,body.template-source.template-source-08 .adv{grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media (max-width:680px){ body.template-source.template-source-08 .courses,body.template-source.template-source-08 .teachers,body.template-source.template-source-08 .adv{grid-template-columns:1fr;} }

@@ -2942,3 +2942,24 @@ body.template-source-07 {
 }
 
 body.template-source-07 { margin: 0; }
+
+/* Individual skin: healthcare / appointment first */
+body.template-source.template-source-07 { --tg-bg:#f2f8fb; --tg-paper:#fff; --tg-paper-2:#e4f2f7; --tg-ink:#123047; --tg-ink-mute:#688294; --tg-line:#cfe1e9; --tg-brand:#159a9c; --tg-brand-deep:#0d6e87; background:var(--tg-bg); color:var(--tg-ink); }
+body.template-source.template-source-07 .header { background:#fff; border-color:var(--tg-line); }
+body.template-source.template-source-07 .hero { background:linear-gradient(135deg,#dff3f6,#f7fcfd 62%,#d9edf5); }
+body.template-source.template-source-07 .hero .container { min-height:600px; grid-template-columns:minmax(0,1fr) 360px; gap:44px; }
+body.template-source.template-source-07 .hero h1 { color:var(--tg-ink); font-size:clamp(42px,5.5vw,74px); }
+body.template-source.template-source-07 .appt { padding:24px; border:1px solid var(--tg-line); border-radius:20px; background:#fff; box-shadow:0 20px 48px rgba(20,89,112,.13); }
+body.template-source.template-source-07 .appt .field input,body.template-source.template-source-07 .appt .field textarea { min-height:46px; border:1px solid var(--tg-line); border-radius:10px; background:#f8fcfd; }
+body.template-source.template-source-07 .depts { grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+body.template-source.template-source-07 .dept { min-height:132px; padding:22px 18px; border:1px solid var(--tg-line); border-radius:16px; background:#fff; }
+body.template-source.template-source-07 .dept:hover { border-color:var(--tg-brand); transform:translateY(-4px); }
+body.template-source.template-source-07 .doctors { grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+body.template-source.template-source-07 .doctor { overflow:hidden; border:1px solid var(--tg-line); border-radius:16px; background:#fff; }
+body.template-source.template-source-07 .doctor .ava { aspect-ratio:1.2; background:var(--tg-paper-2); }
+body.template-source.template-source-07 .svcs { grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px 26px; }
+body.template-source.template-source-07 .svc { padding:18px 0; border-bottom:1px solid var(--tg-line); }
+body.template-source.template-source-07 .stats { background:var(--tg-brand-deep); }
+body.template-source.template-source-07 .stats .cell strong { color:#8fe2d6; }
+@media (max-width:900px){ body.template-source.template-source-07 .hero .container{grid-template-columns:1fr;min-height:auto;} body.template-source.template-source-07 .depts,body.template-source.template-source-07 .doctors{grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media (max-width:680px){ body.template-source.template-source-07 .depts,body.template-source.template-source-07 .doctors,body.template-source.template-source-07 .svcs{grid-template-columns:1fr;} }

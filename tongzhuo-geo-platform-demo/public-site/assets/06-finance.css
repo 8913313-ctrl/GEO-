@@ -2929,3 +2929,25 @@ body.template-source-06 {
 }
 
 body.template-source-06 { margin: 0; }
+
+/* Individual skin: finance / calm wealth */
+body.template-source.template-source-06 { --tg-bg:#f5f8f2; --tg-paper:#fff; --tg-paper-2:#e8f0e5; --tg-ink:#173524; --tg-ink-mute:#637766; --tg-line:#ceddce; --tg-brand:#c69c4b; --tg-brand-deep:#28734e; background:var(--tg-bg); color:var(--tg-ink); }
+body.template-source.template-source-06 .header { background:#fff; border-color:var(--tg-line); }
+body.template-source.template-source-06 .hero { background:linear-gradient(120deg,#0f2e20,#1e4a32); color:#fff; }
+body.template-source.template-source-06 .hero .container { min-height:610px; align-content:center; }
+body.template-source.template-source-06 .hero h1 { max-width:13ch; color:#fff; font-size:clamp(46px,6.2vw,84px); }
+body.template-source.template-source-06 .hero p { color:#c8dfcd; }
+body.template-source.template-source-06 .hero .note { max-width:560px; padding:12px 16px; border-left:3px solid var(--tg-brand); color:#d9eadc; background:rgba(255,255,255,.08); }
+body.template-source.template-source-06 .products { grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+body.template-source.template-source-06 .product { padding:22px 18px; border:1px solid var(--tg-line); border-radius:14px; background:#fff; }
+body.template-source.template-source-06 .product .ic { color:var(--tg-brand-deep); background:var(--tg-paper-2); }
+body.template-source.template-source-06 .product .rate { color:var(--tg-brand-deep); font-weight:800; }
+body.template-source.template-source-06 .chart-band { background:#e8f0e5; }
+body.template-source.template-source-06 .chart-band .wrap { grid-template-columns:1.1fr .9fr; gap:32px; }
+body.template-source.template-source-06 .chart { min-height:280px; border:1px solid var(--tg-line); border-radius:18px; background:linear-gradient(160deg,#fff,#edf6ec); color:#66816d; }
+body.template-source.template-source-06 .adv { grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+body.template-source.template-source-06 .a { padding:24px; border:1px solid var(--tg-line); border-radius:14px; background:#fff; }
+body.template-source.template-source-06 .stats { background:#173524; }
+body.template-source.template-source-06 .stats .cell strong { color:#e5bd6a; }
+@media (max-width:900px){ body.template-source.template-source-06 .products{grid-template-columns:repeat(2,minmax(0,1fr));} body.template-source.template-source-06 .chart-band .wrap{grid-template-columns:1fr;} }
+@media (max-width:680px){ body.template-source.template-source-06 .products,body.template-source.template-source-06 .adv{grid-template-columns:1fr;} }

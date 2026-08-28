@@ -2934,3 +2934,24 @@ body.template-source-05 {
 }
 
 body.template-source-05 { margin: 0; }
+
+/* Individual skin: business services / editorial strategy */
+body.template-source.template-source-05 { --tg-bg:#fbf8ff; --tg-paper:#fff; --tg-paper-2:#f1eaff; --tg-ink:#2c1c46; --tg-ink-mute:#766889; --tg-line:#dfd1ef; --tg-brand:#8b5cf6; --tg-brand-deep:#ec4899; background:var(--tg-bg); color:var(--tg-ink); }
+body.template-source.template-source-05 .header { background:#fff; border-color:var(--tg-line); }
+body.template-source.template-source-05 .hero { background:linear-gradient(130deg,#2e1b4d,#51217a 58%,#9b3c91); color:#fff; }
+body.template-source.template-source-05 .hero .container { min-height:570px; display:grid; place-items:center; text-align:center; }
+body.template-source.template-source-05 .hero h1 { max-width:18ch; color:#fff; font-size:clamp(46px,6.2vw,84px); }
+body.template-source.template-source-05 .hero p { max-width:650px; color:#eadfff; }
+body.template-source.template-source-05 .hero .meta { justify-content:center; }
+body.template-source.template-source-05 .svc-list { border-top:1px solid var(--tg-line); }
+body.template-source.template-source-05 .svc { grid-template-columns:76px 1fr 36px; gap:18px; padding:24px 8px; border-bottom:1px solid var(--tg-line); }
+body.template-source.template-source-05 .svc:hover { padding-inline:20px; background:var(--tg-paper-2); color:var(--tg-brand-deep); }
+body.template-source.template-source-05 .svc .no { color:var(--tg-brand); font-size:28px; }
+body.template-source.template-source-05 .steps { grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+body.template-source.template-source-05 .step { padding:26px 20px; border:1px solid var(--tg-line); border-radius:16px; background:#fff; }
+body.template-source.template-source-05 .step .n { color:var(--tg-brand-deep); font-size:38px; font-weight:800; }
+body.template-source.template-source-05 .stats { background:#2c1c46; }
+body.template-source.template-source-05 .stats .cell strong { color:#f7b5ff; }
+body.template-source.template-source-05 .cta { background:linear-gradient(120deg,#7c3aed,#db2777); }
+@media (max-width:900px){ body.template-source.template-source-05 .steps{grid-template-columns:repeat(2,minmax(0,1fr));} }
+@media (max-width:680px){ body.template-source.template-source-05 .hero .container{min-height:500px;} body.template-source.template-source-05 .steps{grid-template-columns:1fr;} body.template-source.template-source-05 .svc{grid-template-columns:48px 1fr 24px;} }
