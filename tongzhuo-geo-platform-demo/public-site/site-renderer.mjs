@@ -1523,7 +1523,7 @@ function sourceDocumentShell({ site, origin, pathname, title, description, activ
   const cssRoot = assetRoot(assetBase, "/site-assets-r9");
   const imageRoot = assetRoot(assetBase, "/assets");
   const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260827-tpl-01-11-refactor-v1`;
-  const sharedFixesHref = `${cssRoot}/template-source-fixes.css?v=20260828-tpl-shared-fixes-v1`;
+  const sharedFixesHref = `${cssRoot}/template-source-fixes.css?v=20260828-tpl-shared-fixes-v2`;
   const runtimeHref = `${cssRoot}/template-runtime.js?v=20260827-tpl-01-11-refactor-v1`;
   const brandMark = siteFavicon(site, imageRoot);
   const socialImage = absoluteResourceUrl(origin, configuredBrandLogo(site, imageRoot, activeTemplate)) || absoluteResourceUrl(origin, brandMark);

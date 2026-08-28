@@ -26,6 +26,10 @@ body.template-source-02 { --source-accent: var(--gold); --source-accent-strong: 
 body.template-source-11 { --source-accent: var(--orange); --source-accent-strong: var(--ink); --source-ink: var(--ink-2); --source-muted: var(--muted); --source-line: var(--line); --source-paper: var(--paper); --source-soft: var(--paper-2); --source-dark: var(--ink-3); }
 
 body.template-source .container { width: min(var(--source-max), calc(100% - (var(--source-gutter) * 2))); margin-inline: auto; padding-inline: 0; }
+/* Keep the accessibility skip link available to keyboard users without
+   consuming layout space or appearing as stray text in the first viewport. */
+body.template-source .template-skip { position: fixed; top: 10px; left: 10px; z-index: 1000; max-width: min(280px, calc(100vw - 20px)); padding: 10px 14px; color: #fff; background: var(--source-dark); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); transform: translateY(-180%); transition: transform .2s ease; }
+body.template-source .template-skip:focus { transform: translateY(0); }
 body.template-source .section { padding-block: var(--source-section); }
 body.template-source .header { position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--source-paper) 94%, transparent); border-bottom: 1px solid var(--source-line); backdrop-filter: blur(14px); }
 body.template-source .header .nav { min-height: 72px; display: flex; align-items: center; gap: 28px; }
