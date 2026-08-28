@@ -602,6 +602,26 @@ function sourceTemplateProfile(template) {
       stats: [["20", "年行业经验"], ["300", "完成项目"], ["50", "专业团队"], ["98", "客户满意度"]]
     };
   }
+  if (template.key === "11-ups") {
+    return {
+      heroTitle: "关键设备，稳定供电",
+      heroHighlight: "稳定供电",
+      heroDescription: "为机房、门店与关键设备提供可选型、可维护的 UPS 电源与持续服务。",
+      pageProductTitle: "UPS 产品",
+      pageProductLead: "在线式、后备式 UPS 与配套电池，按负载和场景清晰选型。",
+      aboutLead: "围绕 UPS 选型、安装、调试与维护，把关键设备的供电保障做成可理解、可执行的服务。",
+      serviceSectionTitle: "UPS 产品系列",
+      serviceSectionLead: "从功率、续航到安装环境，呈现每个系列的适用范围与服务支持。",
+      caseSectionTitle: "应用场景",
+      caseSectionLead: "覆盖门店、机房、办公与工业设备等关键用电场景。",
+      articleSectionTitle: "电源知识",
+      articleSectionLead: "了解 UPS 选型、维护与供电可靠性。",
+      ctaLabel: "获取选型建议",
+      ctaHref: "/contact/",
+      aboutFeatures: ["在线式 UPS", "后备式 UPS", "快速响应", "本地服务"],
+      stats: [["10", "电源行业经验"], ["2", "产品系列"], ["24", "快速响应"], ["365", "服务支持"]]
+    };
+  }
   return { ...SOURCE_DEFAULT_PROFILE };
 }
 
@@ -1522,7 +1542,7 @@ function sourceDocumentShell({ site, origin, pathname, title, description, activ
   const schema = pageSchema(site, origin, pathname, schemaExtra, { pageEnabled: configuredPage?.schemaEnabled !== false, name: pageTitle(site, title), description: description || site.description || DEFAULT_DESCRIPTION });
   const cssRoot = assetRoot(assetBase, "/site-assets-r9");
   const imageRoot = assetRoot(assetBase, "/assets");
-  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260828-tpl-individual-v2`;
+  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260828-tpl-individual-v3`;
   const redesignHref = `${cssRoot}/template-source-redesign.css?v=20260828-tpl-redesign-v1`;
   const sharedFixesHref = `${cssRoot}/template-source-fixes.css?v=20260828-tpl-shared-fixes-v2`;
   const runtimeHref = `${cssRoot}/template-runtime.js?v=20260827-tpl-01-11-refactor-v1`;
