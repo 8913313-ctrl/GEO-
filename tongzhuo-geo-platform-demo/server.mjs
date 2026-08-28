@@ -911,7 +911,8 @@ async function handleSiteCmsApi(request, response, parts) {
       "template-09-travel-hotel.css": "09-travel-hotel.css",
       "template-10-food-consumer.css": "10-food-consumer.css",
       "template-11-ups.css": "template-11-ups.css",
-      "template-source-fixes.css": "template-source-fixes.css"
+      "template-source-fixes.css": "template-source-fixes.css",
+      "template-source-redesign.css": "template-source-redesign.css"
     });
     const previewAssets = new Set([
       "site.css",

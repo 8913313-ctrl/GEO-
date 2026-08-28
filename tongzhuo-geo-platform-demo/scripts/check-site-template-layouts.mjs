@@ -47,6 +47,7 @@ for (const template of SITE_TEMPLATES) {
 
   if (template.sourceReady === true) {
     assert.match(html, new RegExp(`<link rel="stylesheet" href="/api/v1/site-cms/preview/assets/${template.stylesheet}\\?`));
+    assert.match(html, /template-source-redesign\.css\?v=/);
     assert.doesNotMatch(html, /site-v8\.css/);
     assert.match(html, /template-runtime\.js/);
     assert.match(html, new RegExp(`class="template-source template-source-${template.key.slice(0, 2)}`));

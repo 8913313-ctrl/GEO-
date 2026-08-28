@@ -98,6 +98,8 @@ try {
   assert.equal(result.response.status, 200); assert.match(result.response.headers.get("content-type"), /text\/css/);
   result = await request(base, "/site-assets-r9/template-source-fixes.css");
   assert.equal(result.response.status, 200); assert.match(result.response.headers.get("content-type"), /text\/css/);
+  result = await request(base, "/site-assets-r9/template-source-redesign.css");
+  assert.equal(result.response.status, 200); assert.match(result.response.headers.get("content-type"), /text\/css/);
   for (let templateNumber = 1; templateNumber <= 10; templateNumber += 1) {
     const defaultImagePath = `/assets/template-${String(templateNumber).padStart(2, "0")}-default.png`;
     result = await request(base, defaultImagePath);
