@@ -1415,7 +1415,9 @@ export class AiGenerationService {
     } catch (error) {
       if (error instanceof AiGenerationError) throw error;
       if (error?.name === "AbortError") throw new AiGenerationError("上游模型请求超时。", 504, "UPSTREAM_TIMEOUT");
-      throw new AiGenerationError(`无法连接上游模型：${cleanProviderError(error?.message, provider.apiKey)}`, 502, "UPSTREAM_CONNECTION_ERROR");
+      const networkCode = error?.cause?.code || error?.cause?.errno || error?.code || "";
+      const suffix = networkCode && networkCode !== error?.message ? `（网络原因：${String(networkCode).slice(0, 40)}）` : "";
+      throw new AiGenerationError(`无法连接上游模型：${cleanProviderError(error?.message, provider.apiKey)}${suffix}`, 502, "UPSTREAM_CONNECTION_ERROR");
     } finally {
       clearTimeout(timeout);
     }
@@ -1462,7 +1464,9 @@ export class AiGenerationService {
     } catch (error) {
       if (error instanceof AiGenerationError) throw error;
       if (error?.name === "AbortError") throw new AiGenerationError("Embedding 上游请求超时。", 504, "UPSTREAM_TIMEOUT");
-      throw new AiGenerationError(`无法连接 Embedding 上游：${cleanProviderError(error?.message, provider.apiKey)}`, 502, "UPSTREAM_CONNECTION_ERROR");
+      const networkCode = error?.cause?.code || error?.cause?.errno || error?.code || "";
+      const suffix = networkCode && networkCode !== error?.message ? `（网络原因：${String(networkCode).slice(0, 40)}）` : "";
+      throw new AiGenerationError(`无法连接 Embedding 上游：${cleanProviderError(error?.message, provider.apiKey)}${suffix}`, 502, "UPSTREAM_CONNECTION_ERROR");
     } finally {
       clearTimeout(timeout);
     }

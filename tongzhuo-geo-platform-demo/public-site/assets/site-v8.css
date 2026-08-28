@@ -2981,3 +2981,461 @@ body.site-v8.template-02-construction .site-footer .footer-about h3 { color: #ff
 }
 
 body.template-source-11 .direction-icon-right { transform: rotate(180deg); }
+
+/* ============================================================
+   11 套模板行业风格覆盖层（2026-08-27 翻新）
+   命名空间：body.site-v8.template-XX-XXX
+   思路：在 passport 公共样式之上叠加行业气质，不破坏基础结构
+   ============================================================ */
+
+/* ---------- 公司名兜底（11 套共用） ---------- */
+body.site-v8 .brand b,
+body.site-v8 .brand small,
+body.site-v8 .brand > span,
+body.site-v8 .footer-brand + .footer-meta,
+body.site-v8 .template-brand-inline {
+  display: inline-block;
+  max-width: min(280px, 38vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* ============================================================
+   02 建筑工程 修补
+   ============================================================ */
+body.site-v8.template-02-construction .page-hero,
+body.site-v8.template-02-construction .article-hero,
+body.site-v8.template-02-construction .problem-detail-hero {
+  background: #3a2817;
+  background-image:
+    linear-gradient(rgba(216,183,138,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(216,183,138,.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+body.site-v8.template-02-construction .site-header { background: #2a1c10; border-bottom: 3px double #a8753a; }
+body.site-v8.template-02-construction .nav-cta { background: #a8753a; border-color: #a8753a; color: #fff; }
+body.site-v8.template-02-construction .nav-cta:hover { background: #8c5f2d; }
+body.site-v8.template-02-construction .nav-links a { font-family: "PingFang SC", sans-serif; letter-spacing: .04em; }
+body.site-v8.template-02-construction .nav-links a:hover,
+body.site-v8.template-02-construction .nav-links a.active { color: #d8b78a; }
+body.site-v8.template-02-construction .article-hero h1,
+body.site-v8.template-02-construction .problem-detail-hero h1 { color: #d8b78a !important; }
+body.site-v8.template-02-construction .blog-entry h3,
+body.site-v8.template-02-construction .blog-entry h3 a,
+body.site-v8.template-02-construction .direct-answer-label,
+body.site-v8.template-02-construction .answer-box strong { color: #a8753a !important; }
+body.site-v8.template-02-construction .blog-entry-link,
+body.site-v8.template-02-construction .text-link,
+body.site-v8.template-02-construction .insight-copy time,
+body.site-v8.template-02-construction .insight-copy .text-link { color: #a8753a !important; }
+body.site-v8.template-02-construction .button.primary { background: #a8753a; border-color: #a8753a; color: #fff; }
+body.site-v8.template-02-construction .button.primary:hover { background: #8c5f2d; border-color: #8c5f2d; }
+
+/* ============================================================
+   03 软件科技 / AI —— 深空黑 + 极光青
+   ============================================================ */
+body.site-v8.template-03-software-ai .site-header { background: #0a0e14; border-bottom: 1px solid #1a2030; }
+body.site-v8.template-03-software-ai .nav-cta { border-color: #0d9488; color: #5eead4; background: transparent; }
+body.site-v8.template-03-software-ai .nav-cta:hover { background: #0d9488; color: #fff; }
+body.site-v8.template-03-software-ai .page-hero,
+body.site-v8.template-03-software-ai .article-hero,
+body.site-v8.template-03-software-ai .problem-detail-hero {
+  background: #0a0e14; color: #e8eef4;
+  position: relative; overflow: hidden;
+}
+body.site-v8.template-03-software-ai .page-hero::before,
+body.site-v8.template-03-software-ai .article-hero::before,
+body.site-v8.template-03-software-ai .problem-detail-hero::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(13,148,136,.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13,148,136,.08) 1px, transparent 1px);
+  background-size: 48px 48px; pointer-events: none;
+}
+body.site-v8.template-03-software-ai .page-hero h1,
+body.site-v8.template-03-software-ai .article-hero h1,
+body.site-v8.template-03-software-ai .problem-detail-hero h1 { color: #fff !important; font-family: "Inter", "PingFang SC", sans-serif; letter-spacing: -.02em; }
+body.site-v8.template-03-software-ai .page-hero h1 strong,
+body.site-v8.template-03-software-ai .article-hero h1 strong { color: #5eead4 !important; }
+body.site-v8.template-03-software-ai .page-hero p,
+body.site-v8.template-03-software-ai .article-hero p,
+body.site-v8.template-03-software-ai .problem-detail-hero p { color: #98a4b5; }
+body.site-v8.template-03-software-ai .article-hero .kicker,
+body.site-v8.template-03-software-ai .article-meta { color: #5eead4; }
+body.site-v8.template-03-software-ai .button.primary { background: #0d9488; border-color: #0d9488; color: #fff; }
+body.site-v8.template-03-software-ai .button.primary:hover { background: #0f766e; border-color: #0f766e; }
+body.site-v8.template-03-software-ai .button.secondary { border-color: #5eead4; color: #5eead4; }
+body.site-v8.template-03-software-ai .button.secondary:hover { background: #0d9488; color: #fff; border-color: #0d9488; }
+body.site-v8.template-03-software-ai .insight-feature { border-color: rgba(13,148,136,.18) !important; background: #fafbfc !important; }
+body.site-v8.template-03-software-ai .insight-copy h3,
+body.site-v8.template-03-software-ai .blog-entry h3,
+body.site-v8.template-03-software-ai .blog-entry h3 a,
+body.site-v8.template-03-software-ai .direct-answer-label,
+body.site-v8.template-03-software-ai .answer-box strong,
+body.site-v8.template-03-software-ai .article-toc strong,
+body.site-v8.template-03-software-ai .blog-list-head h2 { color: #0a0e14 !important; font-family: "Inter", "PingFang SC", sans-serif; }
+body.site-v8.template-03-software-ai .blog-entry-link,
+body.site-v8.template-03-software-ai .text-link,
+body.site-v8.template-03-software-ai .blog-date strong,
+body.site-v8.template-03-software-ai .insight-copy time,
+body.site-v8.template-03-software-ai .insight-copy .text-link { color: #0d9488 !important; }
+body.site-v8.template-03-software-ai .blog-entry { border-color: rgba(10,14,20,.1); }
+body.site-v8.template-03-software-ai .blog-panel { border-top-color: #0d9488; }
+body.site-v8.template-03-software-ai .blog-panel a.active { color: #0a0e14; background: rgba(13,148,136,.08); box-shadow: inset 2px 0 0 #0d9488; }
+body.site-v8.template-03-software-ai .blog-tags span { border-color: rgba(13,148,136,.25); color: #0d9488; background: rgba(13,148,136,.06); }
+body.site-v8.template-03-software-ai .prose { color: #2a3340; }
+body.site-v8.template-03-software-ai .site-footer { background: #0a0e14; }
+body.site-v8.template-03-software-ai .site-footer .footer-about p,
+body.site-v8.template-03-software-ai .site-footer .footer-links a,
+body.site-v8.template-03-software-ai .site-footer .footer-bottom { color: #98a4b5; }
+body.site-v8.template-03-software-ai .site-footer .footer-links h4,
+body.site-v8.template-03-software-ai .site-footer .footer-about h3,
+body.site-v8.template-03-software-ai .site-footer .brand b { color: #fff; }
+body.site-v8.template-03-software-ai .contact-band { background: #0d9488 !important; }
+body.site-v8.template-03-software-ai .article-layout { background: #fafbfc; color: #2a3340; }
+
+/* ============================================================
+   04 物流运输 / 供应链 —— 海蓝 + 公路橙
+   ============================================================ */
+body.site-v8.template-04-logistics .site-header { background: #1f2937; }
+body.site-v8.template-04-logistics .nav-cta { background: #ea580c; border-color: #ea580c; color: #fff; }
+body.site-v8.template-04-logistics .nav-cta:hover { background: #c2410c; border-color: #c2410c; }
+body.site-v8.template-04-logistics .page-hero,
+body.site-v8.template-04-logistics .article-hero,
+body.site-v8.template-04-logistics .problem-detail-hero {
+  background: #0c4a6e;
+  background-image:
+    radial-gradient(circle at 30% 50%, rgba(14,165,233,.15), transparent 50%),
+    radial-gradient(circle at 80% 30%, rgba(234,88,12,.1), transparent 40%);
+}
+body.site-v8.template-04-logistics .page-hero h1,
+body.site-v8.template-04-logistics .article-hero h1,
+body.site-v8.template-04-logistics .problem-detail-hero h1 { color: #fff !important; }
+body.site-v8.template-04-logistics .page-hero p,
+body.site-v8.template-04-logistics .article-hero p,
+body.site-v8.template-04-logistics .problem-detail-hero p { color: #c8e3f2; }
+body.site-v8.template-04-logistics .button.primary { background: #ea580c; border-color: #ea580c; color: #fff; }
+body.site-v8.template-04-logistics .button.primary:hover { background: #c2410c; border-color: #c2410c; }
+body.site-v8.template-04-logistics .button.secondary { border-color: #0ea5e9; color: #0ea5e9; }
+body.site-v8.template-04-logistics .insight-feature { border-color: rgba(14,165,233,.2); background: #fff; }
+body.site-v8.template-04-logistics .insight-copy h3,
+body.site-v8.template-04-logistics .blog-entry h3,
+body.site-v8.template-04-logistics .blog-entry h3 a,
+body.site-v8.template-04-logistics .direct-answer-label,
+body.site-v8.template-04-logistics .answer-box strong,
+body.site-v8.template-04-logistics .blog-list-head h2 { color: #0c4a6e !important; }
+body.site-v8.template-04-logistics .blog-entry-link,
+body.site-v8.template-04-logistics .text-link,
+body.site-v8.template-04-logistics .blog-date strong,
+body.site-v8.template-04-logistics .insight-copy time,
+body.site-v8.template-04-logistics .insight-copy .text-link { color: #ea580c !important; }
+body.site-v8.template-04-logistics .blog-entry { border-color: rgba(12,74,110,.15); }
+body.site-v8.template-04-logistics .blog-panel { border-top-color: #0c4a6e; }
+body.site-v8.template-04-logistics .blog-panel a.active { color: #0c4a6e; background: rgba(12,74,110,.06); box-shadow: inset 2px 0 0 #ea580c; }
+body.site-v8.template-04-logistics .blog-tags span { border-color: rgba(12,74,110,.2); color: #0c4a6e; background: rgba(12,74,110,.06); }
+body.site-v8.template-04-logistics .prose { color: #2a3340; }
+body.site-v8.template-04-logistics .site-footer { background: #1f2937; }
+body.site-v8.template-04-logistics .site-footer .footer-about p,
+body.site-v8.template-04-logistics .site-footer .footer-links a,
+body.site-v8.template-04-logistics .site-footer .footer-bottom { color: #c8d3df; }
+body.site-v8.template-04-logistics .site-footer .footer-links h4,
+body.site-v8.template-04-logistics .site-footer .footer-about h3,
+body.site-v8.template-04-logistics .site-footer .brand b { color: #fff; }
+body.site-v8.template-04-logistics .contact-band { background: #0c4a6e !important; }
+
+/* ============================================================
+   05 企业服务 / 咨询营销 —— 商务紫 + 香槟金
+   ============================================================ */
+body.site-v8.template-05-business-services .site-header { background: #2e1065; border-bottom: 1px solid #c8a96a; }
+body.site-v8.template-05-business-services .nav-cta { background: #c8a96a; border-color: #c8a96a; color: #2e1065; }
+body.site-v8.template-05-business-services .nav-cta:hover { background: #a98c52; border-color: #a98c52; color: #fff; }
+body.site-v8.template-05-business-services .page-hero,
+body.site-v8.template-05-business-services .article-hero,
+body.site-v8.template-05-business-services .problem-detail-hero { background: #faf7f1; color: #1f1735; }
+body.site-v8.template-05-business-services .page-hero h1,
+body.site-v8.template-05-business-services .article-hero h1,
+body.site-v8.template-05-business-services .problem-detail-hero h1 { color: #1f1735 !important; font-family: "Noto Serif SC", "Songti SC", serif; }
+body.site-v8.template-05-business-services .page-hero p,
+body.site-v8.template-05-business-services .article-hero p,
+body.site-v8.template-05-business-services .problem-detail-hero p { color: #4a3f5e; }
+body.site-v8.template-05-business-services .article-hero .kicker,
+body.site-v8.template-05-business-services .article-meta { color: #6d28d9; }
+body.site-v8.template-05-business-services .button.primary { background: #6d28d9; border-color: #6d28d9; color: #fff; }
+body.site-v8.template-05-business-services .button.primary:hover { background: #5b21b6; border-color: #5b21b6; }
+body.site-v8.template-05-business-services .button.secondary { border-color: #6d28d9; color: #6d28d9; }
+body.site-v8.template-05-business-services .button.secondary:hover { background: #6d28d9; color: #fff; }
+body.site-v8.template-05-business-services .insight-feature { border-color: rgba(109,40,217,.18); background: #fff; }
+body.site-v8.template-05-business-services .insight-copy h3,
+body.site-v8.template-05-business-services .blog-entry h3,
+body.site-v8.template-05-business-services .blog-entry h3 a,
+body.site-v8.template-05-business-services .direct-answer-label,
+body.site-v8.template-05-business-services .answer-box strong,
+body.site-v8.template-05-business-services .blog-list-head h2 { color: #1f1735 !important; font-family: "Noto Serif SC", "Songti SC", serif; }
+body.site-v8.template-05-business-services .blog-entry-link,
+body.site-v8.template-05-business-services .text-link,
+body.site-v8.template-05-business-services .blog-date strong,
+body.site-v8.template-05-business-services .insight-copy time,
+body.site-v8.template-05-business-services .insight-copy .text-link { color: #6d28d9 !important; }
+body.site-v8.template-05-business-services .blog-entry { border-color: rgba(31,23,53,.12); }
+body.site-v8.template-05-business-services .blog-panel { border-top-color: #6d28d9; }
+body.site-v8.template-05-business-services .blog-panel a.active { color: #1f1735; background: rgba(109,40,217,.06); box-shadow: inset 2px 0 0 #6d28d9; }
+body.site-v8.template-05-business-services .blog-tags span { border-color: rgba(109,40,217,.2); color: #6d28d9; background: rgba(109,40,217,.06); }
+body.site-v8.template-05-business-services .prose { color: #2a2238; font-family: "Noto Serif SC", "Songti SC", serif; }
+body.site-v8.template-05-business-services .site-footer { background: #2e1065; }
+body.site-v8.template-05-business-services .site-footer .footer-about p,
+body.site-v8.template-05-business-services .site-footer .footer-links a,
+body.site-v8.template-05-business-services .site-footer .footer-bottom { color: #d8c8e8; }
+body.site-v8.template-05-business-services .site-footer .footer-links h4,
+body.site-v8.template-05-business-services .site-footer .footer-about h3,
+body.site-v8.template-05-business-services .site-footer .brand b { color: #fff; }
+body.site-v8.template-05-business-services .contact-band { background: #6d28d9 !important; }
+
+/* ============================================================
+   06 金融服务 / 投资 —— 深松绿 + 烫金
+   ============================================================ */
+body.site-v8.template-06-finance .site-header { background: #052e16; border-bottom: 1px solid #a16207; }
+body.site-v8.template-06-finance .nav-cta { background: #a16207; border-color: #a16207; color: #fff; }
+body.site-v8.template-06-finance .nav-cta:hover { background: #854d0e; border-color: #854d0e; }
+body.site-v8.template-06-finance .page-hero,
+body.site-v8.template-06-finance .article-hero,
+body.site-v8.template-06-finance .problem-detail-hero { background: #14532d; color: #f6f8f3; }
+body.site-v8.template-06-finance .page-hero h1,
+body.site-v8.template-06-finance .article-hero h1,
+body.site-v8.template-06-finance .problem-detail-hero h1 { color: #fff !important; font-family: "Source Serif Pro", "Noto Serif SC", serif; letter-spacing: -.005em; }
+body.site-v8.template-06-finance .page-hero p,
+body.site-v8.template-06-finance .article-hero p,
+body.site-v8.template-06-finance .problem-detail-hero p { color: #d8dccf; }
+body.site-v8.template-06-finance .article-hero .kicker,
+body.site-v8.template-06-finance .article-meta { color: #facc15; }
+body.site-v8.template-06-finance .button.primary { background: #14532d; border-color: #a16207; color: #fff; }
+body.site-v8.template-06-finance .button.primary:hover { background: #166534; }
+body.site-v8.template-06-finance .button.secondary { border-color: #a16207; color: #a16207; }
+body.site-v8.template-06-finance .button.secondary:hover { background: #a16207; color: #fff; }
+body.site-v8.template-06-finance .insight-feature { border-color: rgba(161,98,7,.25); background: #fff; }
+body.site-v8.template-06-finance .insight-copy h3,
+body.site-v8.template-06-finance .blog-entry h3,
+body.site-v8.template-06-finance .blog-entry h3 a,
+body.site-v8.template-06-finance .direct-answer-label,
+body.site-v8.template-06-finance .answer-box strong,
+body.site-v8.template-06-finance .blog-list-head h2 { color: #14532d !important; font-family: "Source Serif Pro", "Noto Serif SC", serif; }
+body.site-v8.template-06-finance .blog-entry-link,
+body.site-v8.template-06-finance .text-link,
+body.site-v8.template-06-finance .blog-date strong,
+body.site-v8.template-06-finance .insight-copy time,
+body.site-v8.template-06-finance .insight-copy .text-link { color: #a16207 !important; }
+body.site-v8.template-06-finance .blog-entry { border-color: rgba(20,83,45,.2); }
+body.site-v8.template-06-finance .blog-panel { border-top-color: #14532d; }
+body.site-v8.template-06-finance .blog-panel a.active { color: #14532d; background: rgba(20,83,45,.06); box-shadow: inset 2px 0 0 #a16207; }
+body.site-v8.template-06-finance .blog-tags span { border-color: rgba(161,98,7,.25); color: #14532d; background: rgba(161,98,7,.06); }
+body.site-v8.template-06-finance .prose { color: #1f2937; }
+body.site-v8.template-06-finance .site-footer { background: #052e16; }
+body.site-v8.template-06-finance .site-footer .footer-about p,
+body.site-v8.template-06-finance .site-footer .footer-links a,
+body.site-v8.template-06-finance .site-footer .footer-bottom { color: #d8dccf; }
+body.site-v8.template-06-finance .site-footer .footer-links h4,
+body.site-v8.template-06-finance .site-footer .footer-about h3,
+body.site-v8.template-06-finance .site-footer .brand b { color: #fff; }
+body.site-v8.template-06-finance .contact-band { background: #14532d !important; }
+
+/* ============================================================
+   07 医疗健康 —— 生命青 + 柔白
+   ============================================================ */
+body.site-v8.template-07-healthcare .site-header { background: #134e4a; border-bottom: 1px solid #5eead4; }
+body.site-v8.template-07-healthcare .nav-cta { background: #14b8a6; border-color: #14b8a6; color: #fff; border-radius: 8px; }
+body.site-v8.template-07-healthcare .nav-cta:hover { background: #0d9488; border-color: #0d9488; }
+body.site-v8.template-07-healthcare .page-hero,
+body.site-v8.template-07-healthcare .article-hero,
+body.site-v8.template-07-healthcare .problem-detail-hero { background: #134e4a; color: #f0fdfa; }
+body.site-v8.template-07-healthcare .page-hero h1,
+body.site-v8.template-07-healthcare .article-hero h1,
+body.site-v8.template-07-healthcare .problem-detail-hero h1 { color: #fff !important; }
+body.site-v8.template-07-healthcare .page-hero h1 strong,
+body.site-v8.template-07-healthcare .article-hero h1 strong { color: #5eead4 !important; }
+body.site-v8.template-07-healthcare .page-hero p,
+body.site-v8.template-07-healthcare .article-hero p,
+body.site-v8.template-07-healthcare .problem-detail-hero p { color: #c8e8e5; }
+body.site-v8.template-07-healthcare .article-hero .kicker,
+body.site-v8.template-07-healthcare .article-meta { color: #5eead4; }
+body.site-v8.template-07-healthcare .button.primary { background: #14b8a6; border-color: #14b8a6; color: #fff; border-radius: 8px; }
+body.site-v8.template-07-healthcare .button.primary:hover { background: #0d9488; border-color: #0d9488; }
+body.site-v8.template-07-healthcare .button.secondary { border-color: #5eead4; color: #5eead4; }
+body.site-v8.template-07-healthcare .button.secondary:hover { background: #14b8a6; color: #fff; border-color: #14b8a6; }
+body.site-v8.template-07-healthcare .insight-feature { border-color: rgba(15,118,110,.18); background: #fff; border-radius: 8px; }
+body.site-v8.template-07-healthcare .insight-copy h3,
+body.site-v8.template-07-healthcare .blog-entry h3,
+body.site-v8.template-07-healthcare .blog-entry h3 a,
+body.site-v8.template-07-healthcare .direct-answer-label,
+body.site-v8.template-07-healthcare .answer-box strong,
+body.site-v8.template-07-healthcare .blog-list-head h2 { color: #134e4a !important; }
+body.site-v8.template-07-healthcare .blog-entry-link,
+body.site-v8.template-07-healthcare .text-link,
+body.site-v8.template-07-healthcare .blog-date strong,
+body.site-v8.template-07-healthcare .insight-copy time,
+body.site-v8.template-07-healthcare .insight-copy .text-link { color: #0d9488 !important; }
+body.site-v8.template-07-healthcare .blog-entry { border-color: rgba(15,118,110,.18); }
+body.site-v8.template-07-healthcare .blog-panel { border-top-color: #14b8a6; }
+body.site-v8.template-07-healthcare .blog-panel a.active { color: #134e4a; background: rgba(20,184,166,.08); box-shadow: inset 2px 0 0 #14b8a6; }
+body.site-v8.template-07-healthcare .blog-tags span { border-color: rgba(15,118,110,.25); color: #134e4a; background: rgba(15,118,110,.06); }
+body.site-v8.template-07-healthcare .prose { color: #2a3f3e; }
+body.site-v8.template-07-healthcare .site-footer { background: #134e4a; }
+body.site-v8.template-07-healthcare .site-footer .footer-about p,
+body.site-v8.template-07-healthcare .site-footer .footer-links a,
+body.site-v8.template-07-healthcare .site-footer .footer-bottom { color: #c8e8e5; }
+body.site-v8.template-07-healthcare .site-footer .footer-links h4,
+body.site-v8.template-07-healthcare .site-footer .footer-about h3,
+body.site-v8.template-07-healthcare .site-footer .brand b { color: #fff; }
+body.site-v8.template-07-healthcare .contact-band { background: #14b8a6 !important; }
+body.site-v8.template-07-healthcare .article-layout { background: #f0fdfa; }
+
+/* ============================================================
+   08 教育培训 / 学校 —— 学府橙 + 米杏
+   ============================================================ */
+body.site-v8.template-08-education .site-header { background: #431407; border-bottom: 1px solid #ea580c; }
+body.site-v8.template-08-education .nav-cta { background: #ea580c; border-color: #ea580c; color: #fff; }
+body.site-v8.template-08-education .nav-cta:hover { background: #c2410c; border-color: #c2410c; }
+body.site-v8.template-08-education .page-hero,
+body.site-v8.template-08-education .article-hero,
+body.site-v8.template-08-education .problem-detail-hero { background: #fff7ed; color: #3b2114; }
+body.site-v8.template-08-education .page-hero h1,
+body.site-v8.template-08-education .article-hero h1,
+body.site-v8.template-08-education .problem-detail-hero h1 { color: #3b2114 !important; font-family: "Noto Serif SC", "Songti SC", serif; }
+body.site-v8.template-08-education .page-hero p,
+body.site-v8.template-08-education .article-hero p,
+body.site-v8.template-08-education .problem-detail-hero p { color: #6b5546; }
+body.site-v8.template-08-education .article-hero .kicker,
+body.site-v8.template-08-education .article-meta { color: #c2410c; }
+body.site-v8.template-08-education .button.primary { background: #c2410c; border-color: #c2410c; color: #fff; }
+body.site-v8.template-08-education .button.primary:hover { background: #9a3412; border-color: #9a3412; }
+body.site-v8.template-08-education .button.secondary { border-color: #c2410c; color: #c2410c; }
+body.site-v8.template-08-education .button.secondary:hover { background: #c2410c; color: #fff; }
+body.site-v8.template-08-education .insight-feature { border-color: rgba(194,65,12,.2); background: #fff; }
+body.site-v8.template-08-education .insight-copy h3,
+body.site-v8.template-08-education .blog-entry h3,
+body.site-v8.template-08-education .blog-entry h3 a,
+body.site-v8.template-08-education .direct-answer-label,
+body.site-v8.template-08-education .answer-box strong,
+body.site-v8.template-08-education .blog-list-head h2 { color: #3b2114 !important; font-family: "Noto Serif SC", "Songti SC", serif; }
+body.site-v8.template-08-education .blog-entry-link,
+body.site-v8.template-08-education .text-link,
+body.site-v8.template-08-education .blog-date strong,
+body.site-v8.template-08-education .insight-copy time,
+body.site-v8.template-08-education .insight-copy .text-link { color: #c2410c !important; }
+body.site-v8.template-08-education .blog-entry { border-color: rgba(59,33,20,.15); }
+body.site-v8.template-08-education .blog-panel { border-top-color: #c2410c; }
+body.site-v8.template-08-education .blog-panel a.active { color: #3b2114; background: rgba(194,65,12,.06); box-shadow: inset 2px 0 0 #c2410c; }
+body.site-v8.template-08-education .blog-tags span { border-color: rgba(194,65,12,.2); color: #3b2114; background: rgba(194,65,12,.06); }
+body.site-v8.template-08-education .prose { color: #2a1f15; }
+body.site-v8.template-08-education .site-footer { background: #431407; }
+body.site-v8.template-08-education .site-footer .footer-about p,
+body.site-v8.template-08-education .site-footer .footer-links a,
+body.site-v8.template-08-education .site-footer .footer-bottom { color: #f8d8c4; }
+body.site-v8.template-08-education .site-footer .footer-links h4,
+body.site-v8.template-08-education .site-footer .footer-about h3,
+body.site-v8.template-08-education .site-footer .brand b { color: #fff; }
+body.site-v8.template-08-education .contact-band { background: #c2410c !important; }
+
+/* ============================================================
+   09 旅游酒店 / 文旅 —— 旅途玫红 + 暮金
+   ============================================================ */
+body.site-v8.template-09-travel-hotel .site-header { background: #4c0519; border-bottom: 1px solid #e11d48; }
+body.site-v8.template-09-travel-hotel .nav-cta { background: #e11d48; border-color: #e11d48; color: #fff; border-radius: 999px; }
+body.site-v8.template-09-travel-hotel .nav-cta:hover { background: #be123c; border-color: #be123c; }
+body.site-v8.template-09-travel-hotel .page-hero,
+body.site-v8.template-09-travel-hotel .article-hero,
+body.site-v8.template-09-travel-hotel .problem-detail-hero {
+  background: #be123c; color: #fff7f7;
+  background-image: radial-gradient(circle at 20% 80%, rgba(245,158,11,.15), transparent 40%);
+}
+body.site-v8.template-09-travel-hotel .page-hero h1,
+body.site-v8.template-09-travel-hotel .article-hero h1,
+body.site-v8.template-09-travel-hotel .problem-detail-hero h1 { color: #fff !important; }
+body.site-v8.template-09-travel-hotel .page-hero h1 strong,
+body.site-v8.template-09-travel-hotel .article-hero h1 strong { color: #fcd34d !important; }
+body.site-v8.template-09-travel-hotel .page-hero p,
+body.site-v8.template-09-travel-hotel .article-hero p,
+body.site-v8.template-09-travel-hotel .problem-detail-hero p { color: #fce7f3; }
+body.site-v8.template-09-travel-hotel .article-hero .kicker,
+body.site-v8.template-09-travel-hotel .article-meta { color: #fcd34d; }
+body.site-v8.template-09-travel-hotel .button.primary { background: #be123c; border-color: #be123c; color: #fff; border-radius: 999px; }
+body.site-v8.template-09-travel-hotel .button.primary:hover { background: #9f1239; border-color: #9f1239; }
+body.site-v8.template-09-travel-hotel .button.secondary { border-color: #fcd34d; color: #fcd34d; border-radius: 999px; }
+body.site-v8.template-09-travel-hotel .button.secondary:hover { background: #fcd34d; color: #4c0519; }
+body.site-v8.template-09-travel-hotel .insight-feature { border-color: rgba(190,18,60,.2); background: #fff; border-radius: 16px; }
+body.site-v8.template-09-travel-hotel .insight-copy h3,
+body.site-v8.template-09-travel-hotel .blog-entry h3,
+body.site-v8.template-09-travel-hotel .blog-entry h3 a,
+body.site-v8.template-09-travel-hotel .direct-answer-label,
+body.site-v8.template-09-travel-hotel .answer-box strong,
+body.site-v8.template-09-travel-hotel .blog-list-head h2 { color: #4c0519 !important; font-family: "Noto Serif SC", "Songti SC", serif; }
+body.site-v8.template-09-travel-hotel .blog-entry-link,
+body.site-v8.template-09-travel-hotel .text-link,
+body.site-v8.template-09-travel-hotel .blog-date strong,
+body.site-v8.template-09-travel-hotel .insight-copy time,
+body.site-v8.template-09-travel-hotel .insight-copy .text-link { color: #be123c !important; }
+body.site-v8.template-09-travel-hotel .blog-entry { border-color: rgba(76,5,25,.12); }
+body.site-v8.template-09-travel-hotel .blog-panel { border-top-color: #be123c; }
+body.site-v8.template-09-travel-hotel .blog-panel a.active { color: #4c0519; background: rgba(190,18,60,.06); box-shadow: inset 2px 0 0 #be123c; }
+body.site-v8.template-09-travel-hotel .blog-tags span { border-color: rgba(190,18,60,.25); color: #4c0519; background: rgba(190,18,60,.06); }
+body.site-v8.template-09-travel-hotel .prose { color: #2a1f24; }
+body.site-v8.template-09-travel-hotel .site-footer { background: #4c0519; }
+body.site-v8.template-09-travel-hotel .site-footer .footer-about p,
+body.site-v8.template-09-travel-hotel .site-footer .footer-links a,
+body.site-v8.template-09-travel-hotel .site-footer .footer-bottom { color: #fce7f3; }
+body.site-v8.template-09-travel-hotel .site-footer .footer-links h4,
+body.site-v8.template-09-travel-hotel .site-footer .footer-about h3,
+body.site-v8.template-09-travel-hotel .site-footer .brand b { color: #fff; }
+body.site-v8.template-09-travel-hotel .contact-band { background: #be123c !important; }
+
+/* ============================================================
+   10 食品餐饮 / 消费 —— 烟火赤陶 + 鲜蔬绿
+   ============================================================ */
+body.site-v8.template-10-food-consumer .site-header { background: #431407; border-bottom: 1px solid #9a3412; }
+body.site-v8.template-10-food-consumer .nav-cta { background: #c2410c; border-color: #c2410c; color: #fff; border-radius: 999px; }
+body.site-v8.template-10-food-consumer .nav-cta:hover { background: #9a3412; border-color: #9a3412; }
+body.site-v8.template-10-food-consumer .page-hero,
+body.site-v8.template-10-food-consumer .article-hero,
+body.site-v8.template-10-food-consumer .problem-detail-hero {
+  background: #9a3412; color: #fffaf0;
+  background-image: radial-gradient(circle at 80% 30%, rgba(234,179,8,.18), transparent 40%);
+}
+body.site-v8.template-10-food-consumer .page-hero h1,
+body.site-v8.template-10-food-consumer .article-hero h1,
+body.site-v8.template-10-food-consumer .problem-detail-hero h1 { color: #fff !important; font-family: "PingFang SC", "Noto Sans SC", sans-serif; }
+body.site-v8.template-10-food-consumer .page-hero h1 strong,
+body.site-v8.template-10-food-consumer .article-hero h1 strong { color: #fde047 !important; }
+body.site-v8.template-10-food-consumer .page-hero p,
+body.site-v8.template-10-food-consumer .article-hero p,
+body.site-v8.template-10-food-consumer .problem-detail-hero p { color: #f7e7c7; }
+body.site-v8.template-10-food-consumer .article-hero .kicker,
+body.site-v8.template-10-food-consumer .article-meta { color: #fde047; }
+body.site-v8.template-10-food-consumer .button.primary { background: #9a3412; border-color: #9a3412; color: #fff; }
+body.site-v8.template-10-food-consumer .button.primary:hover { background: #7c2d12; border-color: #7c2d12; }
+body.site-v8.template-10-food-consumer .button.secondary { border-color: #65a30d; color: #65a30d; }
+body.site-v8.template-10-food-consumer .button.secondary:hover { background: #65a30d; color: #fff; }
+body.site-v8.template-10-food-consumer .insight-feature { border-color: rgba(154,52,18,.2); background: #fff; }
+body.site-v8.template-10-food-consumer .insight-copy h3,
+body.site-v8.template-10-food-consumer .blog-entry h3,
+body.site-v8.template-10-food-consumer .blog-entry h3 a,
+body.site-v8.template-10-food-consumer .direct-answer-label,
+body.site-v8.template-10-food-consumer .answer-box strong,
+body.site-v8.template-10-food-consumer .blog-list-head h2 { color: #3a2418 !important; font-family: "PingFang SC", "Noto Sans SC", sans-serif; }
+body.site-v8.template-10-food-consumer .blog-entry-link,
+body.site-v8.template-10-food-consumer .text-link,
+body.site-v8.template-10-food-consumer .blog-date strong,
+body.site-v8.template-10-food-consumer .insight-copy time,
+body.site-v8.template-10-food-consumer .insight-copy .text-link { color: #9a3412 !important; }
+body.site-v8.template-10-food-consumer .blog-entry { border-color: rgba(58,36,24,.15); }
+body.site-v8.template-10-food-consumer .blog-panel { border-top-color: #9a3412; }
+body.site-v8.template-10-food-consumer .blog-panel a.active { color: #3a2418; background: rgba(154,52,18,.06); box-shadow: inset 2px 0 0 #9a3412; }
+body.site-v8.template-10-food-consumer .blog-tags span { border-color: rgba(154,52,18,.25); color: #3a2418; background: rgba(154,52,18,.06); }
+body.site-v8.template-10-food-consumer .prose { color: #2a1f15; }
+body.site-v8.template-10-food-consumer .site-footer { background: #431407; }
+body.site-v8.template-10-food-consumer .site-footer .footer-about p,
+body.site-v8.template-10-food-consumer .site-footer .footer-links a,
+body.site-v8.template-10-food-consumer .site-footer .footer-bottom { color: #f7e7c7; }
+body.site-v8.template-10-food-consumer .site-footer .footer-links h4,
+body.site-v8.template-10-food-consumer .site-footer .footer-about h3,
+body.site-v8.template-10-food-consumer .site-footer .brand b { color: #fff; }
+body.site-v8.template-10-food-consumer .contact-band { background: #9a3412 !important; }

@@ -2,14 +2,13 @@
 
 这是可复制交付的三部分产品模板：
 
-1. GEOFlow 工作台：负责企业知识、文章、审核、分发任务和线索管理。
+1. 桐灼 GEO Node.js 工作台：负责企业知识、文章、审核、分发任务和线索管理，正式代码位于同级 `tongzhuo-geo-platform-demo/`。
 2. AI 友好官网：读取已发布内容，提供行业资讯、文章详情、RSS、Sitemap、llms.txt 和结构化数据。
 3. 桌面发布执行器：运行在运营人员 Windows 电脑上，连接 GEOFlow 任务队列和本地平台登录态，负责平台登录、验证码、页面自动化和结果回写。
 
 ## 目录
 
 - `website/`：官网静态模板与 AI 抓取入口。
-- `geoflow-integration/`：部署到 GEOFlow Laravel 项目的路由、控制器、模型、视图和迁移覆盖层。
 - `desktop-agent/`：新的 Windows 发布执行器骨架，负责设备绑定、心跳、任务轮询和平台浏览器 Profile。
 - `publisher-assistant/`：旧版本地发布助手，保留为兼容和迁移参考。
 - `docs/`：产品蓝图、发布设备协议和交付边界说明。
@@ -21,16 +20,14 @@
 
 ## 发布执行器嵌入工作台
 
-产品主线采用“GEOFlow 云端工作台 + Windows 桌面发布执行器”：
+产品主线采用“桐灼 GEO Node.js 工作台 + Windows 桌面发布执行器”：
 
-- GEOFlow 后台负责写文章、发布官网、创建分发任务、查看设备在线状态和任务状态。
-- `desktop-agent/` 安装在运营人员电脑，保存平台登录态，从 GEOFlow 领取任务，打开平台编辑器并回写结果。
-- `geoflow-integration/server-overrides/` 新增发布设备表、设备注册和心跳接口。
+- Node.js 后台负责写文章、发布官网、创建分发任务、查看设备在线状态和任务状态。
+- `desktop-agent/` 安装在运营人员电脑，保存平台登录态，从后台领取任务，打开平台编辑器并回写结果。
 
-旧版 `publisher-assistant/` 支持两种交付形态，作为兼容层保留：
+旧版 `publisher-assistant/` 作为兼容层保留：
 
 - `publisher-assistant/deploy/`：使用 Docker 在服务器上运行独立发布服务，默认端口为 `19181`，容器异常自动重启。
-- `geoflow-integration/server-overrides/`：在 GEOFlow 后台增加“发布助手”菜单和内嵌页面，并通过 Nginx 反向代理访问发布服务。
 
 发布服务的健康检查地址为 `/healthz`。平台账号、Cookie、验证码等登录态不进入模板包；服务端直发仍受平台登录态、风控和页面变化影响，保留草稿回退。
 
@@ -256,13 +253,13 @@ The output is written under `publishing-loop-dry-runs/` as JSON and Markdown. Us
 
 ## 交付流程
 
-### 1. GEOFlow 工作台
+### 1. 桐灼 GEO 工作台
 
-把 `geoflow-integration/` 中的覆盖文件合并到客户的 GEOFlow Laravel 项目，执行迁移、路由和缓存清理。生产环境通过环境变量配置站点名称、站点 URL、后台路径和主题，不把客户信息写死在代码中。
+正式后台使用同级 `tongzhuo-geo-platform-demo/` 的 Node.js 服务。生产环境通过环境变量配置站点名称、站点 URL、后台域名和主题，不把客户信息写死在代码中。
 
 ### 2. 官网
 
-官网可以先以静态演示方式验收；正式上线时把同名 Blade、路由和控制器接入 GEOFlow，使行业资讯、文章详情、RSS、Sitemap 和 AI 文件读取同一套已发布文章数据。不要在生产环境同时保留静态占位页和服务端同名路由。
+官网可以先以静态演示方式验收；正式上线时由 Node.js 官网服务读取同一套已发布文章数据，统一输出行业资讯、文章详情、RSS、Sitemap 和 AI 文件。不要在生产环境同时保留静态占位页和服务端同名路由。
 
 ### 3. 桌面发布执行器
 
@@ -272,7 +269,7 @@ The output is written under `publishing-loop-dry-runs/` as JSON and Markdown. Us
 powershell -ExecutionPolicy Bypass -File .\desktop-agent\install-desktop.ps1 -InstallAutostart -StartAfterInstall
 ```
 
-管理员在 GEOFlow 后台生成 10 分钟有效的配对码，运营电脑安装执行器后输入节点名称和配对码即可绑定。绑定完成后，日常发布动作都从 GEOFlow 后台发起；执行器在本机静默运行，负责平台登录窗口、验证码处理、内容填充、草稿/发布和结果回写。
+管理员在桐灼 GEO 后台生成 10 分钟有效的配对码，运营电脑安装执行器后输入节点名称和配对码即可绑定。绑定完成后，日常发布动作都从统一后台发起；执行器在本机静默运行，负责平台登录窗口、验证码处理、内容填充、草稿/发布和结果回写。
 
 默认本地健康检查为 `http://127.0.0.1:19380/healthz`。本地诊断页 `http://127.0.0.1:19380` 只给实施和售后排查使用，可以检查服务端口、GEOFlow 地址、设备 ID、绑定状态、最近心跳、可执行平台和后台连接探测。客户日常不需要打开它。
 
@@ -284,7 +281,7 @@ powershell -ExecutionPolicy Bypass -File .\desktop-agent\install-desktop.ps1 -In
 
 ## 安全边界
 
-- 每个客户使用独立 GEOFlow、数据库、域名和 API Token。
+- 每个客户使用独立后台实例、数据库、域名和设备凭证。
 - 交付前删除 `.data/`、`node_modules/`、日志和浏览器配置目录。
 - 不把客户 Token、平台密码、Cookie、验证码或联系人数据打进模板压缩包。
 - 公开官网不展示服务价格，内容页面只保留服务范围、方法、事实和联系方式。

@@ -73,5 +73,6 @@ tongzhuo-geo-platform-demo/research-packages/**/.updates/
 Thumbs.db
 .idea/
 .vscode/
+.trae/
 ops/scratch/
 tongzhuo-geo-platform-demo/ops/scratch/

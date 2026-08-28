@@ -423,9 +423,11 @@ function footerSocialLinks(site, fallback = []) {
 
 function footerCompliance(site, company) {
   const footer = site?.footer || {};
+  const isTongzhuoSite = /桐灼/.test(String(company || "")) || /tongzhuo\.ink/i.test(String(site?.officialDomain || ""));
+  const icpNumber = String(footer.icpNumber || "").trim() || (isTongzhuoSite ? "鲁ICP备2026021587号-2" : "");
   const items = [];
   if (footer.showCopyright !== false) items.push(`<span>© ${new Date().getFullYear()} ${escapeHtml(company)} ${escapeHtml(footer.copyright || "版权所有")}</span>`);
-  if (footer.showIcp !== false && footer.icpNumber) items.push(`<a class="footer-icp" href="${escapeHtml(safeUrl(footer.icpUrl, "link") || "https://beian.miit.gov.cn/")}" target="_blank" rel="noreferrer">${escapeHtml(footer.icpNumber)}</a>`);
+  if (footer.showIcp !== false && icpNumber) items.push(`<a class="footer-icp" href="${escapeHtml(safeUrl(footer.icpUrl, "link") || "https://beian.miit.gov.cn/")}" target="_blank" rel="noreferrer">${escapeHtml(icpNumber)}</a>`);
   if (footer.showPoliceRecord !== false && footer.policeRecordNumber) items.push(`<a class="footer-police" href="${escapeHtml(safeUrl(footer.policeRecordUrl, "link") || "https://beian.mps.gov.cn/")}" target="_blank" rel="noreferrer">${escapeHtml(footer.policeRecordNumber)}</a>`);
   return items.join("");
 }
@@ -1514,8 +1516,8 @@ function sourceDocumentShell({ site, origin, pathname, title, description, activ
   const schema = pageSchema(site, origin, pathname, schemaExtra, { pageEnabled: configuredPage?.schemaEnabled !== false, name: pageTitle(site, title), description: description || site.description || DEFAULT_DESCRIPTION });
   const cssRoot = assetRoot(assetBase, "/site-assets-r9");
   const imageRoot = assetRoot(assetBase, "/assets");
-  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260819-templates-v5`;
-  const runtimeHref = `${cssRoot}/template-runtime.js?v=20260819-templates-v5`;
+  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260827-tpl-01-11-refactor-v1`;
+  const runtimeHref = `${cssRoot}/template-runtime.js?v=20260827-tpl-01-11-refactor-v1`;
   const brandMark = siteFavicon(site, imageRoot);
   const extraLinks = headLinks.filter((item) => item?.rel && item?.href).map((item) => `<link rel="${escapeHtml(item.rel)}" href="${escapeHtml(item.href)}">`).join("");
   const extraMeta = headMeta.filter((item) => item?.content && (item?.name || item?.property)).map((item) => `<meta ${item.property ? `property="${escapeHtml(item.property)}"` : `name="${escapeHtml(item.name)}"`} content="${escapeHtml(item.content)}">`).join("");
@@ -1542,7 +1544,7 @@ function documentShell({ site, origin, pathname, title, description, active, sch
   const resolvedTitle = pageTitle(site, title);
   const cssRoot = assetRoot(assetBase, "/site-assets-r9");
   const imageRoot = assetRoot(assetBase, "/assets");
-  const cssHref = `${cssRoot}/site-v8.css?v=20260818-template-source-css`;
+  const cssHref = `${cssRoot}/site-v8.css?v=20260827-tpl-01-11-refactor-v1`;
   const gsapHref = `${cssRoot}/gsap.min.js?v=20260818-template-source-css`;
   const jsHref = `${cssRoot}/site-v8.js?v=20260818-template-source-css`;
   const brandMark = siteFavicon(site, imageRoot);
@@ -2384,11 +2386,26 @@ export function findSiteProblem(site, slug, { preview = false } = {}) {
   return null;
 }
 
-export function renderProblemPage({ site, problem, group, articles = [], origin, preview = false, assetBase = "/site-assets-r6" }) {
+function renderBespokeProblemPage({ site, problem, group, related, origin, preview = false }) {
+  const canonicalPath = `/problem-map/${encodeURIComponent(problem.slug)}/`;
+  const title = escapeHtml(problem.title);
+  const answer = escapeHtml(problem.answer || "我们会结合企业现状、服务方向与应用场景给出可执行的判断。");
+  const service = escapeHtml(group.service || "桐灼服务");
+  const industries = Array.isArray(problem.industries) && problem.industries.length ? problem.industries.map((item) => escapeHtml(item)).join(" · ") : "以实际业务场景为准";
+  const relatedMarkup = related.length ? `<section class="section white"><div class="shell"><div class="section-head"><div><span class="kicker">Related insights</span><h2>继续阅读</h2></div><p>查看同一服务方向下的行业内容。</p></div><div class="insight-list">${related.map((item) => `<article class="insight-card"><time>${escapeHtml(item.categoryName || "行业资讯")} · ${escapeHtml(dateShort(item.publishedAt))}</time><h3><a href="${escapeHtml(articleLink(item))}">${escapeHtml(item.title)}</a></h3><p>${escapeHtml(item.excerpt || "查看桐灼公开发布的行业内容。")}</p><a class="text-link" href="${escapeHtml(articleLink(item))}">阅读全文 <span>→</span></a></article>`).join("")}</div></div></section>` : "";
+  const nav = `<header class="site-header"><div class="shell nav"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>桐灼科技</span></a><nav class="nav-links" aria-label="主导航"><a href="/">首页</a><a href="/products.html">服务</a><a href="/insights.html">行业资讯</a><a class="active" href="/problem-map.html">问题地图</a><a href="/about.html">关于我们</a><a href="/contact.html">联系我们</a></nav><div class="nav-actions"><a class="nav-cta" href="/contact.html">预约业务诊断</a><button class="menu-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button></div></div></header>`;
+  const footer = `<footer class="site-footer"><div class="shell footer-main"><div class="footer-brand"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>桐灼科技</span></a><p>桐灼（淄博）网络科技有限公司，专注GEO优化、短视频运营与企业AI落地。</p></div><div class="footer-col"><strong>服务</strong><a href="/product-website.html">GEO优化</a><a href="/product-content-platform.html">短视频运营</a><a href="/product-distribution.html">企业AI落地</a></div><div class="footer-col"><strong>内容</strong><a href="/insights.html">行业资讯</a><a href="/problem-map.html">问题地图</a></div><div class="footer-col"><strong>公司</strong><a href="/about.html">关于我们</a><a href="/contact.html">联系我们</a></div></div><div class="shell footer-bottom"><span>© 2026 桐灼（淄博）网络科技有限公司</span><a class="footer-icp" href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">鲁ICP备2026021587号-2</a><span>内容由桐灼研究发布</span></div></footer>`;
+  const body = `<a class="skip-link" href="#main">跳到正文</a>${nav}<main id="main"><header class="article-hero"><div class="shell"><a class="breadcrumb" href="/problem-map.html">问题地图</a><span class="kicker">${service}</span><h1>${title}</h1><p>这是客户在企业决策过程中经常提出的问题。下面先给出直接回答，再说明适用边界和下一步。</p><div class="article-meta"><span>所属服务：${service}</span><span>适用行业：${industries}</span></div></div></header><article class="shell article-layout tz-problem-detail" id="problem"><aside class="article-toc" aria-label="问题导航"><strong>问题地图</strong><a href="/problem-map.html">返回问题总览</a><a href="#answer">直接回答</a><a href="#next">建议从哪里开始</a></aside><div class="prose"><section class="answer-box" id="answer"><strong>直接回答</strong><p>${answer}</p></section><h2>这个问题为什么重要</h2><p>客户提出的问题，往往比企业自我介绍更接近真实决策。把问题说清楚，才能让官网、文章和服务说明围绕同一套事实展开。</p><h2 id="next">建议从哪里开始</h2><ol><li>确认企业主体、产品服务和应用场景。</li><li>补充采购、技术和使用阶段的具体判断条件。</li><li>用一篇结构清晰的行业文章回答问题，并回链到服务与联系方式。</li></ol><div class="source-note">内容由桐灼企业内容工作台公开发布，具体方案以业务沟通结果为准。</div><a class="button ink" href="/contact.html">围绕这个问题咨询 <span class="arrow">→</span></a></div></article>${relatedMarkup}<section class="contact-band"><div class="shell contact-grid"><div class="contact-copy"><span class="eyebrow">Talk to Tongzhuo</span><h2>把你的企业场景告诉我们。</h2><p>留下当前问题和业务背景，桐灼会结合服务方向给出下一步建议。</p></div><div class="contact-form"><strong style="font-size:24px">从真实问题开始沟通</strong><p style="color:var(--muted)">提交问题后由企业运营人员跟进。</p><a class="button ink" href="/contact.html">提交业务问题 <span class="arrow">→</span></a></div></div></section></main>${footer}<script src="/assets/site.js?v=20260827-problem-detail" defer></script>`;
+  const canonical = absoluteUrl(origin, canonicalPath);
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${title}｜桐灼科技</title><meta name="description" content="${answer}"><meta name="robots" content="${preview ? "noindex,nofollow" : "index,follow"}"><link rel="canonical" href="${escapeHtml(canonical)}"><meta name="theme-color" content="#fbfbfa"><link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/wukong-overrides.css?v=20260827-problem-detail-2"></head><body>${body}</body></html>`;
+}
+
+export function renderProblemPage({ site, problem, group, articles = [], origin, preview = false, assetBase = "/site-assets-r6", bespoke = false }) {
   const articleSource = frontendArticles(articles, site.frontendDemo);
   const relatedIds = new Set(Array.isArray(problem.relatedArticleIds) ? problem.relatedArticleIds : []);
   const related = articleSource.filter((item) => relatedIds.size ? relatedIds.has(item.id) : item.categorySlug === group.id).slice(0, 3);
   const canonicalPath = `/problem-map/${encodeURIComponent(problem.slug)}/`;
+  if (bespoke) return renderBespokeProblemPage({ site, problem, group, related, origin, preview });
   const questionId = `${absoluteUrl(origin, canonicalPath)}#question`;
   const schemaExtra = [{
     "@type": "WebPage",
@@ -2588,7 +2605,27 @@ export function renderInsightsPage({ site, articles, categories, selectedCategor
   });
 }
 
-export function renderArticlePage({ site, article, origin, relatedArticles = [], compatibility = false, preview = false, assetBase = "/site-assets-r6" }) {
+function renderBespokeArticlePage({ site, article, origin, relatedArticles, contentHtml, headings, schemaExtra, pathname, preview = false }) {
+  const published = isoDate(article.publishedAt);
+  const modified = isoDate(article.updatedAt || article.publishedAt);
+  const publishedMeta = published ? `<time datetime="${escapeHtml(published.slice(0, 10))}">发布：${escapeHtml(dateLabel(published))}</time>` : "";
+  const modifiedMeta = modified ? `<time datetime="${escapeHtml(modified.slice(0, 10))}">更新：${escapeHtml(dateLabel(modified))}</time>` : "";
+  const provenance = article.isDemo
+    ? "本文为前端演示内容，用于展示资讯结构，不代表已审核发布的正式企业文章。"
+    : `本文由${escapeHtml(article.author || site.siteName)}发布，内容来自企业审核通过的正式版本。`;
+  const tableOfContents = headings.length
+    ? `<aside class="article-toc" aria-label="文章目录"><strong>文章目录</strong>${headings.map((item) => `<a class="toc-${item.level}" href="#${escapeHtml(item.id)}">${escapeHtml(item.title)}</a>`).join("")}</aside>`
+    : `<aside class="article-toc" aria-label="文章信息"><strong>文章信息</strong><span>${escapeHtml(article.categoryName || "行业观点")}</span><span>${escapeHtml(article.author || site.siteName)}</span><a href="/insights/">返回行业资讯</a></aside>`;
+  const related = relatedArticles?.length ? `<section class="section white"><div class="shell"><div class="section-head"><div><span class="kicker">Related</span><h2>相关内容</h2></div><p>继续阅读桐灼公开发布的行业内容。</p></div><div class="insight-list">${relatedArticles.slice(0, 3).map((item) => `<article class="insight-card"><time datetime="${escapeHtml(isoDate(item.publishedAt).slice(0, 10))}">${escapeHtml(item.categoryName || "行业观点")} · ${escapeHtml(dateShort(item.publishedAt))}</time><h3><a href="${escapeHtml(articleLink(item))}">${escapeHtml(item.title)}</a></h3><p>${escapeHtml(item.excerpt || "查看桐灼公开发布的行业内容。")}</p><a class="text-link" href="${escapeHtml(articleLink(item))}">阅读全文 <span>→</span></a></article>`).join("")}</div></div></section>` : "";
+  const nav = `<header class="site-header"><div class="shell nav"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>桐灼科技</span></a><nav class="nav-links" aria-label="主导航"><a href="/">首页</a><a href="/products.html">服务</a><a class="active" href="/insights/">行业资讯</a><a href="/problem-map/">问题地图</a><a href="/about.html">关于我们</a><a href="/contact.html">联系我们</a></nav><div class="nav-actions"><a class="nav-cta" href="/contact.html">预约业务诊断</a><button class="menu-toggle" type="button" aria-label="打开导航" aria-expanded="false">☰</button></div></div></header>`;
+  const footer = `<footer class="site-footer"><div class="shell footer-main"><div class="footer-brand"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true"></span><span>桐灼科技</span></a><p>桐灼（淄博）网络科技有限公司，专注GEO优化、短视频运营与企业AI落地。</p></div><div class="footer-col"><strong>服务</strong><a href="/product-website.html">GEO优化</a><a href="/product-content-platform.html">短视频运营</a><a href="/product-distribution.html">企业AI落地</a></div><div class="footer-col"><strong>内容</strong><a href="/insights/">行业资讯</a><a href="/problem-map/">问题地图</a></div><div class="footer-col"><strong>公司</strong><a href="/about.html">关于我们</a><a href="/contact.html">联系我们</a></div></div><div class="shell footer-bottom"><span>© ${new Date().getFullYear()} 桐灼（淄博）网络科技有限公司</span><a class="footer-icp" href="https://beian.miit.gov.cn/" target="_blank" rel="noreferrer">鲁ICP备2026021587号-2</a><span>内容由桐灼研究发布</span></div></footer>`;
+  const body = `<header class="article-hero"><div class="shell"><span class="kicker">${escapeHtml(article.categoryName || "行业观点")}</span><h1>${escapeHtml(article.title)}</h1>${article.excerpt ? `<p>${escapeHtml(article.excerpt)}</p>` : ""}<div class="article-meta"><span>作者：${escapeHtml(article.author || site.siteName)}</span>${publishedMeta}${modifiedMeta}<span>预计阅读：${Math.max(1, Math.ceil(plainText(article.contentText || article.contentHtml).length / 500))}分钟</span></div></div></header><article class="shell article-layout" id="article" data-content-article-id="${escapeHtml(article.id)}">${tableOfContents}<div class="prose">${article.excerpt ? `<div class="answer-box"><strong>内容摘要</strong><p>${escapeHtml(article.excerpt)}</p></div>` : ""}${contentHtml}${article.tags?.length ? `<div class="source-note">主题：${escapeHtml(article.tags.join("、"))}</div>` : ""}<div class="source-note">${provenance}${modified ? `最后更新：${escapeHtml(dateLabel(modified))}。` : ""}</div></div></article>${related}<section class="contact-band"><div class="shell contact-grid"><div class="contact-copy"><span class="eyebrow">Build Your Source</span><h2>让企业知识成为客户和 AI 可以理解的可信信源</h2><p>${escapeHtml(site.description || DEFAULT_DESCRIPTION)}</p></div><div class="contact-form"><strong style="font-size:24px">了解桐灼服务</strong><p style="color:var(--muted)">查看服务详情，或提交与本文相关的业务问题。</p><a class="button ink" href="/contact.html">联系我们 <span class="arrow">→</span></a></div></div></section>`;
+  const canonical = absoluteUrl(origin, pathname);
+  const schema = pageSchema(site, origin, pathname, schemaExtra, { pageEnabled: true, name: article.title, description: article.excerpt || site.description || DEFAULT_DESCRIPTION });
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(article.title)}｜桐灼科技</title><meta name="description" content="${escapeHtml(article.excerpt || site.description || DEFAULT_DESCRIPTION)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive" : "index,follow,max-image-preview:large,max-snippet:-1")}"><link rel="canonical" href="${escapeHtml(canonical)}"><meta name="theme-color" content="#fbfbfa"><link rel="stylesheet" href="/assets/styles.css?v=20260827-bespoke-article-v1"><link rel="stylesheet" href="/assets/wukong-overrides.css?v=20260827-4"><script type="application/ld+json">${safeJsonLd(schema)}</script></head><body><a class="skip-link" href="#article">跳到正文</a>${nav}<main>${body}</main>${footer}<script src="/assets/site.js?v=20260827-article-v1"></script></body></html>`;
+}
+
+export function renderArticlePage({ site, article, origin, relatedArticles = [], compatibility = false, preview = false, assetBase = "/site-assets-r6", bespoke = false }) {
   const sanitized = sanitizeArticleHtml(applyPublicCitationVisibility(article.contentHtml || "", article.metadata));
   const rawBody = sanitized || plainText(article.contentText || "").split(/\n{2,}/).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
   const { html: contentHtml, headings } = ensureArticleHeadings(rawBody);
@@ -2630,6 +2667,7 @@ export function renderArticlePage({ site, article, origin, relatedArticles = [],
   const provenanceNote = article.isDemo
     ? `本文为前端演示内容，用于展示资讯结构，不代表已审核发布的正式企业文章。${updateNote}`
     : `本文由${escapeHtml(article.author || site.siteName)}发布，内容来自企业内容工作台的已审核版本。${updateNote}`;
+  if (bespoke) return { html: renderBespokeArticlePage({ site, article, origin, relatedArticles, contentHtml, headings, schemaExtra, pathname, preview }), canonicalPath: pathname, compatibility };
   const activeTemplate = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
   if (SOURCE_TEMPLATE_KEYS.has(activeTemplate.key)) {
     const sourceBody = renderSourceArticleBody({ site, article, template: activeTemplate, contentHtml, provenanceNote });
@@ -2768,11 +2806,25 @@ export function renderLlms({ site, articles, origin, full = false }) {
 export function injectStaticSeo(html, { site, origin, pathname }) {
   const canonical = absoluteUrl(origin, pathname);
   const description = site.description || DEFAULT_DESCRIPTION;
+  const titleMatch = String(html || "").match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const pageTitleText = String(titleMatch?.[1] || site.siteName || "桐灼科技").replace(/<[^>]+>/g, "").trim();
+  const socialImage = absoluteUrl(origin, "/assets/logo-zhuojian-blue.png");
   const configuredPage = pageForPath(site, pathname);
   const schema = pageSchema(site, origin, pathname, [{ "@type": "WebPage", "@id": canonical, url: canonical, name: site.siteName, description, isPartOf: { "@id": entityId(origin, "website") } }], { pageEnabled: configuredPage?.schemaEnabled !== false, name: site.siteName, description });
-  const withoutCanonical = String(html || "").replace(/<link\b(?=[^>]*\brel=["']canonical["'])[^>]*>/gi, "");
-  const withoutSchema = withoutCanonical.replace(/<script\b(?=[^>]*\btype=["']application\/ld\+json["'])[^>]*>[\s\S]*?<\/script\s*>/gi, "");
-  const injection = `<base href="/"><link rel="canonical" href="${escapeHtml(canonical)}"><meta property="og:url" content="${escapeHtml(canonical)}"><script type="application/ld+json">${safeJsonLd(schema)}</script>`;
+  // Static pages use document-relative hash links (for example #company).
+  // The injected base href keeps assets rooted when a page is served through
+  // an alias such as /about/, but without normalising these anchors the
+  // browser resolves them against / and sends the user to the homepage.
+  const withPageAnchors = String(html || "").replace(/(href=["'])#([^"']+)(["'])/gi, `$1${pathname}#$2$3`);
+  const withoutCanonical = withPageAnchors.replace(/<link\b(?=[^>]*\brel=["']canonical["'])[^>]*>/gi, "");
+  // Keep page-authored JSON-LD (for example FAQPage and Article nodes) intact.
+  // Replacing every script with a generic WebPage graph silently discarded
+  // those signals on the bespoke static site. Pages without authored JSON-LD
+  // still receive the generated organization/site/page graph below.
+  const hasAuthoredSchema = /<script\b(?=[^>]*\btype=["']application\/ld\+json["'])[^>]*>[\s\S]*?<\/script\s*>/i.test(withoutCanonical);
+  const withoutSchema = hasAuthoredSchema ? withoutCanonical : withoutCanonical.replace(/<script\b(?=[^>]*\btype=["']application\/ld\+json["'])[^>]*>[\s\S]*?<\/script\s*>/gi, "");
+  const generatedSchema = hasAuthoredSchema ? "" : `<script type="application/ld+json">${safeJsonLd(schema)}</script>`;
+  const injection = `<base href="/"><link rel="icon" type="image/png" href="/assets/logo-mark-blue.png"><link rel="canonical" href="${escapeHtml(canonical)}"><meta name="author" content="${escapeHtml(site.companyName || "桐灼（淄博）网络科技有限公司")}"><meta property="og:type" content="website"><meta property="og:title" content="${escapeHtml(pageTitleText)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:site_name" content="${escapeHtml(site.siteName || "桐灼科技")}"><meta property="og:image" content="${escapeHtml(socialImage)}"><meta property="og:locale" content="zh_CN"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escapeHtml(pageTitleText)}"><meta name="twitter:description" content="${escapeHtml(description)}"><meta name="twitter:image" content="${escapeHtml(socialImage)}">${generatedSchema}`;
   return withoutSchema.replace(/<\/head\s*>/i, `${injection}</head>`);
 }
 

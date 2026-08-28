@@ -100,9 +100,15 @@ function showToast(title, message, type = "success") {
   const kind = ["success", "error", "warning", "info"].includes(type) ? type : "success";
   toast.className = "toast " + kind;
   const toastIcon = kind === "success" ? "check" : kind === "error" ? "alert" : kind === "warning" ? "alert" : "info";
+  // Relay wording is only appropriate on AI effect pages. Keep model/API
+  // errors intact elsewhere so content production does not show a misleading
+  // "检测服务未连接" message for a DeepSeek failure.
+  const formatToastText = ["effect-search", "effect-diagnostic", "effect-monitor"].includes(currentRoute())
+    ? customerFacingEffectText
+    : (value) => String(value || "");
   toast.innerHTML =
     "<span>" + icon(toastIcon) + "</span>" +
-    "<div><b>" + escapeHtml(customerFacingEffectText(title)) + "</b><small>" + escapeHtml(customerFacingEffectText(message)) + "</small></div>" +
+    "<div><b>" + escapeHtml(formatToastText(title)) + "</b><small>" + escapeHtml(formatToastText(message)) + "</small></div>" +
     '<button type="button" aria-label="关闭">×</button>';
   root.appendChild(toast);
   const remove = () => toast.remove();

@@ -213,6 +213,8 @@ const MIME_TYPES = Object.freeze({
 });
 
 const STATIC_ALIASES = Object.freeze({
+  "/insights": "insights.html", "/insights/": "insights.html",
+  "/problem-map": "problem-map.html", "/problem-map/": "problem-map.html",
   "/about": "about.html", "/about/": "about.html",
   "/contact": "contact.html", "/contact/": "contact.html",
   "/cases": "cases.html", "/cases/": "cases.html",
@@ -409,6 +411,44 @@ function displayedArticles(site, articles) {
   return FRONTEND_DEMO_ARTICLE_SLUGS.map((slug) => findFrontendArticle(slug)).filter(Boolean).map((article) => ({ ...article, isDemo: true }));
 }
 
+function publicArticleSummary(article) {
+  return {
+    title: String(article?.title || "未命名文章").slice(0, 300),
+    slug: String(article?.slug || "").slice(0, 240),
+    url: `/insights/${encodeURIComponent(String(article?.slug || ""))}/`,
+    excerpt: String(article?.excerpt || "").slice(0, 2_000),
+    author: String(article?.author || "企业内容团队").slice(0, 160),
+    categoryName: String(article?.categoryName || "行业观点").slice(0, 160),
+    tags: Array.isArray(article?.tags) ? article.tags.map((tag) => String(tag || "").slice(0, 120)).filter(Boolean).slice(0, 6) : [],
+    publishedAt: article?.publishedAt || null
+  };
+}
+
+function publishedProblemGroups(site) {
+  if (!Array.isArray(site?.problemGroups)) return [];
+  return site.problemGroups
+    .filter((group) => group && group.status !== "draft" && group.status !== "archived")
+    .slice()
+    .sort((left, right) => (Number(left.order) || 0) - (Number(right.order) || 0))
+    .map((group) => ({
+      id: String(group.id || "").slice(0, 160),
+      title: String(group.title || "问题分组").slice(0, 200),
+      service: String(group.service || "业务咨询").slice(0, 160),
+      description: String(group.description || "").slice(0, 500),
+      questions: (Array.isArray(group.questions) ? group.questions : [])
+        .filter((problem) => problem && problem.status !== "draft" && problem.status !== "archived" && String(problem.slug || "").trim())
+        .slice()
+        .sort((left, right) => (Number(left.order) || 0) - (Number(right.order) || 0))
+        .map((problem) => ({
+          title: String(problem.title || "客户问题").slice(0, 300),
+          answer: String(problem.answer || "").slice(0, 2_000),
+          industries: Array.isArray(problem.industries) ? problem.industries.map((industry) => String(industry || "").slice(0, 120)).filter(Boolean).slice(0, 4) : [],
+          url: `/problem-map/${encodeURIComponent(String(problem.slug))}/`
+        }))
+    }))
+    .filter((group) => group.questions.length);
+}
+
 function paginationState(url, itemCount, pageSize = INSIGHTS_PAGE_SIZE) {
   const values = url.searchParams.getAll("page");
   const raw = values[0];
@@ -584,6 +624,22 @@ export function createSiteRuntime(options = {}) {
     if (pathname === "/health/live" || pathname === "/health/ready") {
       return response(request, responseObject, { status: 200, contentType: "application/json; charset=utf-8", cacheControl: "no-store", body: JSON.stringify({ ok: true, service: "official-site", workspaceId: snapshot.workspaceId, workspaceRevision: snapshot.workspaceRevision, articleCount: machineArticles.length }) }, { pathname, track: false });
     }
+    // The bespoke Tongzhuo site is static by design, but its article archive
+    // and question map need to stay connected to the authenticated CMS. This
+    // endpoint exposes only the already-published public summaries; mutation
+    // remains exclusively in the admin application.
+    if (pathname === "/api/v1/site-public/content") {
+      const problemMapPublished = cmsPageById(site, "problem-map")?.status === "published";
+      return response(request, responseObject, {
+        status: 200,
+        contentType: "application/json; charset=utf-8",
+        cacheControl: "no-store",
+        body: JSON.stringify({
+          articles: machineArticles.map(publicArticleSummary),
+          problemGroups: problemMapPublished ? publishedProblemGroups(site) : []
+        })
+      }, { pathname, track: false });
+    }
     // Machine-readable public endpoints are reserved and cannot be shadowed
     // by a CMS page using the same path. They use the same publication gate as
     // the human-facing industry section, so taking the section offline cannot
@@ -614,7 +670,7 @@ export function createSiteRuntime(options = {}) {
       if (pathname !== canonicalPath) {
         return response(request, responseObject, { status: 301, body: "", headers: { Location: `${canonicalPath}${url.search}` }, cacheControl: "public, max-age=300" }, { pathname });
       }
-      const body = refreshSiteAssetVersion(renderProblemPage({ site, problem: found.problem, group: found.group, articles: visibleArticles, origin }));
+      const body = refreshSiteAssetVersion(renderProblemPage({ site, problem: found.problem, group: found.group, articles: visibleArticles, origin, bespoke: config.staticOnly }));
       return response(request, responseObject, { status: 200, body, canonical: new URL(canonicalPath, origin).href }, { pathname });
     }
     if (pathname === "/insights" || pathname === "/insights/") {
@@ -660,7 +716,7 @@ export function createSiteRuntime(options = {}) {
         return response(request, responseObject, { status: 301, body: "", headers: { Location: `${canonicalPath}${url.search}` }, cacheControl: "public, max-age=300" }, { pathname, articleId: article.id });
       }
       const related = visibleArticles.filter((item) => item.id !== article.id && (item.categoryId === article.categoryId || item.categorySlug === article.categorySlug)).slice(0, 3);
-       const rendered = renderArticlePage({ site, article, origin, relatedArticles: related, compatibility: articleMatch[1] === "article" });
+      const rendered = renderArticlePage({ site, article, origin, relatedArticles: related, compatibility: articleMatch[1] === "article", bespoke: config.staticOnly });
        return response(request, responseObject, { status: 200, body: refreshSiteAssetVersion(rendered.html), canonical: new URL(canonicalPath, origin).href }, { pathname, articleId: article.id });
     }
     return false;

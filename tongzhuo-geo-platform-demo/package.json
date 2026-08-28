@@ -8,9 +8,9 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "start": "node server.mjs",
-    "dev": "node server.mjs",
-    "start:site": "node site-server.mjs",
+    "start": "node --env-file-if-exists=.env server.mjs",
+    "dev": "node --env-file-if-exists=.env server.mjs",
+    "start:site": "node --env-file-if-exists=.env site-server.mjs",
     "start:site:lan": "node --env-file=.env.lan site-server.mjs",
     "check:site": "node --check site-cms-store.mjs && node --check scripts/check-site-cms.mjs && node --check scripts/check-site-ai-readiness.mjs && node --check scripts/check-site-navigation.mjs && node --check scripts/check-site-template-layouts.mjs && node scripts/check-site-cms.mjs && node scripts/check-site-publish-loop.mjs && node scripts/check-site-runtime.mjs && node scripts/check-site-ai-readiness.mjs && node scripts/check-site-navigation.mjs && node scripts/check-site-template-layouts.mjs",
     "check:site-navigation": "node scripts/check-site-navigation.mjs",
