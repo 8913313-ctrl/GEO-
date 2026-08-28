@@ -1542,7 +1542,7 @@ function sourceDocumentShell({ site, origin, pathname, title, description, activ
   const schema = pageSchema(site, origin, pathname, schemaExtra, { pageEnabled: configuredPage?.schemaEnabled !== false, name: pageTitle(site, title), description: description || site.description || DEFAULT_DESCRIPTION });
   const cssRoot = assetRoot(assetBase, "/site-assets-r9");
   const imageRoot = assetRoot(assetBase, "/assets");
-  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260828-tpl-individual-v3`;
+  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260828-tpl-individual-v4`;
   const redesignHref = `${cssRoot}/template-source-redesign.css?v=20260828-tpl-redesign-v1`;
   const sharedFixesHref = `${cssRoot}/template-source-fixes.css?v=20260828-tpl-shared-fixes-v2`;
   const runtimeHref = `${cssRoot}/template-runtime.js?v=20260827-tpl-01-11-refactor-v1`;
