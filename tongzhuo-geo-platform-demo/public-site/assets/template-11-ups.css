@@ -1498,7 +1498,7 @@ body.template-source-11 .reveal-d1 { transition-delay: .1s; }
 }
 
 /* Individual skin: UPS / electrical engineering */
-body.template-source.template-source-11 { --ink:#123b70; --ink-2:#0b1f3a; --orange:#f28c28; --orange-dark:#c96816; --paper:#f7fafc; --paper-2:#eaf1f7; --paper-3:#d8e5ef; --line:#c2d2df; --text:#18324a; --muted:#617589; background:var(--paper); }
+body.template-source.template-source-11 { --ink:#123b70; --ink-2:#0b1f3a; --orange:#f28c28; --orange-dark:#c96816; --paper:#f7fafc; --paper-2:#eaf1f7; --paper-3:#d8e5ef; --line:#c2d2df; --text:#18324a; --muted:#617589; margin:0; background:var(--paper); }
 body.template-source.template-source-11 .header,body.template-source.template-source-11 .topbar { background:#f7fafc; border-color:var(--line); }
 body.template-source.template-source-11 .hero { background:linear-gradient(135deg,#eaf2f8,#f7fafc 58%,#dcebf5); }
 body.template-source.template-source-11 .hero .container { min-height:620px; grid-template-columns:minmax(0,1fr) minmax(330px,.86fr); gap:54px; }
