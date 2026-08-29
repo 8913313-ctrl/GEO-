@@ -7,6 +7,7 @@ import { ProductionDatabase } from "../production-database.mjs";
 import { WorkspaceStore } from "../workspace-store.mjs";
 import { createSiteRuntime } from "../site-server.mjs";
 import { KnowledgeStore } from "../knowledge-store.mjs";
+import { injectStaticSeo } from "../public-site/site-renderer.mjs";
 
 const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-site-runtime-"));
 const staticRoot = path.join(temporaryDirectory, "legacy-static");
@@ -80,6 +81,9 @@ try {
 
   let result = await request(base, "/health/ready");
   assert.equal(result.response.status, 200); assert.equal(JSON.parse(result.text).service, "official-site");
+  const normalizedStatic = injectStaticSeo('<!doctype html><html><head><link rel="stylesheet" href="assets/styles.css?v=test"><script src="assets/site.js"></script></head><body></body></html>', { site: { siteName: "测试企业", companyName: "测试企业有限公司", description: "" }, origin: base, pathname: "/insights/" });
+  assert.match(normalizedStatic, /href="\/assets\/styles\.css\?v=test"/);
+  assert.match(normalizedStatic, /src="\/assets\/site\.js"/);
 
   result = await request(base, "/");
   assert.equal(result.response.status, 200); assert.match(result.text, /data-site-template="01-industry"/); assert.match(result.text, /template-source-01/); assert.match(result.text, /template-01-industry\.css/); assert.doesNotMatch(result.text, /site-v8\.css/); assert.match(result.text, /测试企业有限公司/); assert.doesNotMatch(result.text, /旧官网首页|LegacyOrg/); assert.match(result.text, /https:\/\/www\.example\.test\//);

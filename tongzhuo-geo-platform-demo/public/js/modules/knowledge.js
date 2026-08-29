@@ -932,9 +932,15 @@ async function deleteContentArticle(articleId) {
   if (!article) return showToast("文章不存在", "请刷新页面后重试。", "error");
   const published = article.status === "published";
   if (!(await uiConfirm(published ? `确认删除已发布的文章“${article.title}”？官网相关内容会一并下线，删除后不可恢复。` : `确认删除文章“${article.title}”？删除后不可恢复。`))) return;
+  try {
+    await deleteRemoteIfPresent(`/api/v1/content/articles/${encodeURIComponent(article.contentArticleId || article.id)}`);
+  } catch (error) {
+    return showToast("文章删除失败", error.message || "服务器未能归档该文章。", "error");
+  }
   state.articles = state.articles.filter((item) => item.id !== articleId);
   if (Array.isArray(state.contentAssets)) state.contentAssets = state.contentAssets.filter((asset) => asset.articleId !== articleId);
   saveState();
+  await persistWorkspaceMutation("content-article-delete");
   render();
   showToast("文章已删除", published ? "文章及其官网内容已移除。" : "文章已从列表中移除。", "success");
 }
@@ -944,9 +950,15 @@ async function deleteContentPlan(planId) {
   if (!plan) return;
   const articleCount = state.articles.filter((article) => contentPlanForArticle(article)?.id === planId).length;
   if (!(await uiConfirm(articleCount ? `确认删除内容计划“${plan.name}”？其下 ${articleCount} 篇关联文章不会被删除，但会失去计划归属。` : `确认删除内容计划“${plan.name}”？`))) return;
+  try {
+    await deleteRemoteIfPresent(`/api/v1/content/plans/${encodeURIComponent(plan.contentPlanId || plan.id)}`);
+  } catch (error) {
+    return showToast("内容计划删除失败", error.message || "服务器未能归档该计划。", "error");
+  }
   state.contentPlans = state.contentPlans.filter((item) => item.id !== planId);
   state.articles.forEach((article) => { const p = contentPlanForArticle(article); if (p?.id === planId) { article.contentPlanId = null; article.planSnapshot = null; } });
   saveState();
+  await persistWorkspaceMutation("content-plan-delete");
   render();
   showToast("内容计划已删除", articleCount ? "关联文章已解除计划归属。" : "计划已删除。", "success");
 }
@@ -960,11 +972,17 @@ async function deleteKnowledgeBase(baseId) {
   const linePart = lineNames.length ? `关联业务线：${lineNames.join("、")}` : "未关联任何业务线";
   const scope = itemCount ? `库内 ${itemCount} 条知识条目将一并移除` : "库内没有知识条目";
   if (!(await uiConfirm(`确认删除${kindLabel}“${base.name}”？${scope}，${linePart}。已生成的引用证据不会被改写，但会失去该知识库的检索来源。删除后不可恢复。`, "删除知识库"))) return;
+  try {
+    await deleteRemoteIfPresent(`/api/v1/knowledge/libraries/${encodeURIComponent(baseId)}`);
+  } catch (error) {
+    return showToast("知识库删除失败", error.message || "服务器未能归档该知识库。", "error");
+  }
   state.knowledgeBases = state.knowledgeBases.filter((item) => item.id !== baseId);
   const removedItemIds = new Set((state.knowledgeItems || []).filter((item) => item.knowledgeBaseId === baseId).map((item) => item.id));
   state.knowledgeItems = (state.knowledgeItems || []).filter((item) => item.knowledgeBaseId !== baseId);
   state.knowledgeVersions = (state.knowledgeVersions || []).filter((version) => version.knowledgeBaseId !== baseId && !removedItemIds.has(version.knowledgeItemId));
   saveState();
+  await persistWorkspaceMutation("knowledge-library-delete");
   render();
   showToast("知识库已删除", itemCount ? `知识库及 ${itemCount} 条条目已移除。` : "知识库已删除。", "success");
 }
@@ -974,21 +992,34 @@ async function deleteKnowledgeItem(itemId) {
   if (!item) return;
   const base = knowledgeBaseById(item.knowledgeBaseId);
   if (!(await uiConfirm(`确认删除知识条目“${item.title || item.question}”？历史文章仍保留引用时的知识版本，但该条目将从库中移除。`))) return;
+  try {
+    await deleteRemoteIfPresent(`/api/v1/knowledge/documents/${encodeURIComponent(itemId)}`);
+  } catch (error) {
+    return showToast("知识条目删除失败", error.message || "服务器未能归档该条目。", "error");
+  }
   state.knowledgeItems = (state.knowledgeItems || []).filter((entry) => entry.id !== itemId);
   state.knowledgeVersions = (state.knowledgeVersions || []).filter((version) => version.knowledgeItemId !== itemId);
   saveState();
+  await persistWorkspaceMutation("knowledge-document-delete");
   closeModal();
   render();
   showToast("知识条目已删除", "该条目已从知识库移除。", "success");
 }
 
 async function deleteSiteLead(leadId) {
-  const lead = (siteCms().leads || []).find((item) => item.id === leadId) || (state.siteLeads || []).find((item) => item.id === leadId);
+  const lead = siteLeads().find((item) => item.id === leadId) || (siteCms().leads || []).find((item) => item.id === leadId) || (state.siteLeads || []).find((item) => item.id === leadId);
   if (!lead) return showToast("线索不存在", "请刷新页面后重试。", "error");
   if (!(await uiConfirm(`确认删除来自 ${escapeHtml(lead.name || "未知")} 的线索？删除后不可恢复，导出 CSV 和转化统计会同步变化。`))) return;
+  try {
+    await deleteRemoteIfPresent(`/api/v1/site-cms/leads/${encodeURIComponent(leadId)}`);
+  } catch (error) {
+    return showToast("线索删除失败", error.message || "服务器未能删除该线索。", "error");
+  }
+  siteCmsRuntime.leads = (siteCmsRuntime.leads || []).filter((item) => item.id !== leadId);
   if (siteCms().leads) siteCms().leads = siteCms().leads.filter((item) => item.id !== leadId);
   if (Array.isArray(state.siteLeads)) state.siteLeads = state.siteLeads.filter((item) => item.id !== leadId);
   saveState();
+  await persistWorkspaceMutation("site-lead-delete");
   render();
   showToast("线索已删除", "线索已移除。", "success");
 }
@@ -997,8 +1028,14 @@ async function deletePublishTask(taskId) {
   const task = (state.publishTasks || []).find((item) => item.id === taskId);
   if (!task) return;
   if (!(await uiConfirm(`确认删除发布任务“${task.articleTitle}”？任务记录会从列表移除，平台上的已发布内容不受影响。`))) return;
+  try {
+    await deleteRemoteIfPresent(`/api/publisher/jobs/${encodeURIComponent(task.id)}`);
+  } catch (error) {
+    return showToast("发布任务删除失败", error.message || "服务器未能删除该任务。", "error");
+  }
   state.publishTasks = (state.publishTasks || []).filter((item) => item.id !== taskId);
   saveState();
+  await persistWorkspaceMutation("publisher-task-delete");
   render();
   showToast("发布任务已删除", "任务记录已移除。", "success");
 }
@@ -1014,6 +1051,7 @@ async function deleteStudioWorkspace(workspaceId) {
   ui.studioWorkspaceId = null;
   ui.studioArticleId = null;
   saveState();
+  await persistWorkspaceMutation("studio-workspace-delete");
   render();
   showToast("创作会话已删除", article ? "文章仍保留在列表中，可重新打开创作。" : "会话已清除。", "success");
 }
@@ -1022,8 +1060,14 @@ async function deleteKnowledgeImage(assetId) {
   const asset = (knowledgeAssetRuntime.items || []).find((item) => item.id === assetId);
   if (!asset) return;
   if (!(await uiConfirm(`确认删除图片素材“${asset.sourceName || "未命名图片"}”？已插入文章中的图片引用不受影响，但素材库将移除该图片。`))) return;
+  try {
+    await deleteRemoteIfPresent(`/api/v1/knowledge/assets/${encodeURIComponent(assetId)}`);
+  } catch (error) {
+    return showToast("图片素材删除失败", error.message || "服务器未能归档该素材。", "error");
+  }
   knowledgeAssetRuntime.items = (knowledgeAssetRuntime.items || []).filter((item) => item.id !== assetId);
   saveState();
+  await persistWorkspaceMutation("knowledge-asset-delete");
   render();
   showToast("图片素材已删除", "图片已从素材库移除。", "success");
 }
@@ -1032,8 +1076,14 @@ async function deleteAccountGroup(groupId) {
   const group = state.accountGroups.find((item) => item.id === groupId);
   if (!group) return;
   if (!(await uiConfirm(`确认解绑账号组“${group.name}”？本地发布器中的账号与配置不会被删除，但后台将移除该组的展示与发布入口。`))) return;
+  try {
+    await deleteRemoteIfPresent(`/api/publisher/account-groups/${encodeURIComponent(groupId)}`);
+  } catch (error) {
+    return showToast("账号组解绑失败", error.message || "服务器未能移除该账号组。", "error");
+  }
   state.accountGroups = state.accountGroups.filter((item) => item.id !== groupId);
   saveState();
+  await persistWorkspaceMutation("account-group-delete");
   render();
   showToast("账号组已解绑", "该账号组已从后台移除。", "success");
 }

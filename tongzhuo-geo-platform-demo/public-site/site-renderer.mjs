@@ -1,6 +1,7 @@
 import { applyPublicCitationVisibility } from "../citation-visibility.mjs";
 import { DEFAULT_SITE_TEMPLATE_KEY, isSiteTemplateKey, siteTemplateByKey, SITE_TEMPLATES } from "../site-template-registry.mjs";
 import { LEGACY_SOURCE_PROFILES } from "./legacy-template-profiles.mjs";
+import { XINSHUOJIE_IMPORTED_ARTICLES, XINSHUOJIE_IMPORTED_CASES, XINSHUOJIE_IMPORTED_SERVICES } from "./xinshuojie-content.mjs";
 
 const DEFAULT_DESCRIPTION = "企业公开信息、行业洞察与可验证的专业内容。";
 
@@ -287,7 +288,7 @@ function safeJsonLd(value) {
 
 function organizationSchema(site, origin) {
   const organizationId = entityId(origin, "organization");
-  const contact = site.contact || {};
+  const contact = customerContact(site);
   const servedAreas = [...new Set([contact.industryRegion, contact.serviceArea].map((item) => String(item || "").trim()).filter(Boolean))];
   const rawLogo = safeUrl(site.templateConfig?.logoUrl || site.assets?.logoUrl || site.logoUrl, "image");
   const logo = rawLogo ? new URL(rawLogo, origin).href : undefined;
@@ -430,7 +431,8 @@ function footerSocialLinks(site, fallback = []) {
 function footerCompliance(site, company) {
   const footer = site?.footer || {};
   const isTongzhuoSite = /桐灼/.test(String(company || "")) || /tongzhuo\.ink/i.test(String(site?.officialDomain || ""));
-  const icpNumber = String(footer.icpNumber || "").trim() || (isTongzhuoSite ? "鲁ICP备2026021587号-2" : "");
+  const isXinShuojie = isXinShuojieSite(site);
+  const icpNumber = String(footer.icpNumber || "").trim() || (isTongzhuoSite ? "鲁ICP备2026021587号-2" : isXinShuojie ? "鲁ICP备2025185363号-1" : "");
   const items = [];
   if (footer.showCopyright !== false) items.push(`<span>© ${new Date().getFullYear()} ${escapeHtml(company)} ${escapeHtml(footer.copyright || "版权所有")}</span>`);
   if (footer.showIcp !== false && icpNumber) items.push(`<a class="footer-icp" href="${escapeHtml(safeUrl(footer.icpUrl, "link") || "https://beian.miit.gov.cn/")}" target="_blank" rel="noreferrer">${escapeHtml(icpNumber)}</a>`);
@@ -446,6 +448,39 @@ function publicCompanyName(site) {
 function pageTitle(site, title = "") {
   const brand = publicBrandName(site);
   return title ? (brand ? `${title}｜${brand}` : title) : (brand || DEFAULT_DESCRIPTION);
+}
+
+// Search-engine-facing copy for the Xinshuojie site. Keep the visual template
+// and CMS wording intact while giving Baidu, Google and Bing a precise entity,
+// service and location signal on the core landing pages.
+function xinShuojieSeoMeta(site, pathname, title, description) {
+  if (!isXinShuojieSite(site)) return { title, description };
+  const key = pagePathKey(pathname);
+  const defaults = {
+    "/": ["UPS电源、蓄电池及电源系统服务", "山东新硕捷电子科技有限公司位于淄博，提供UPS电源、蓄电池、EPS应急电源、稳压器及光储充设备的选型、安装、调试与维护服务，面向数据中心、机房、医院、银行、学校和工业企业。"],
+    "/services": ["UPS电源与蓄电池产品", "提供山特、硕天、科士达等UPS电源及蓄电池产品，支持在线式、后备式、工频、高频和模块化方案，按负载容量、备电时间和现场条件协助选型。"],
+    "/cases": ["UPS电源安装与改造案例", "查看山东新硕捷在医院、银行、学校、数据中心和工业企业的UPS电源安装、改造、蓄电池配置与系统调试案例，具体方案以现场勘察为准。"],
+    "/about": ["关于山东新硕捷｜UPS电源工程服务商", "山东新硕捷电子科技有限公司位于山东淄博，专注UPS电源、蓄电池、EPS应急电源、稳压器和光储充设备的产品供应、安装施工、调试维护与技术咨询。"],
+    "/contact": ["联系山东新硕捷｜UPS电源选型、安装与维护咨询", "联系山东新硕捷电子科技有限公司，咨询UPS电源、蓄电池、EPS应急电源、稳压器及机房电源系统的选型、安装、维修和维护服务。"],
+    "/insights": ["UPS电源行业资讯与选型知识", "整理UPS电源选型、蓄电池续航、数据中心供电、EPS应急电源和机房维护等实用知识，帮助企业判断设备配置与实施要点。"],
+    "/problem-map": ["UPS电源常见问题与解决方案", "围绕UPS电源选型、在线式与后备式区别、蓄电池续航、机房安装验收和运维保养，提供可执行的直接回答与咨询入口。"]
+  }[key];
+  if (!defaults) return { title, description };
+  return { title: defaults[0], description: defaults[1] };
+}
+
+function xinShuojieServiceSchema(site, origin, services) {
+  const contact = customerContact(site);
+  return services.map((service) => ({
+    "@type": "Service",
+    name: service.title,
+    description: service.description,
+    serviceType: service.audience || "电源系统服务",
+    provider: { "@id": entityId(origin, "organization"), name: publicCompanyName(site) },
+    areaServed: contact.serviceArea || contact.industryRegion || "山东及全国项目",
+    image: absoluteResourceUrl(origin, service.image) || undefined,
+    url: absoluteUrl(origin, "/services/")
+  }));
 }
 
 function primaryNavigationPaths(site) {
@@ -497,13 +532,13 @@ function constructionNavigation(site, active = "", assetBase = "/assets") {
   const configuredItems = configuredPrimaryNavigation(site).slice(0, 12).map((item) => [item.path, item.label]);
   const items = configuredItems.length ? configuredItems : fallbackItems.filter(([path]) => allowedPaths.has(sourceNormalizePath(path)));
   const company = publicCompanyName(site);
-  const phone = site.contact?.phone || "";
+  const phone = customerContact(site).phone || "";
   return `<header class="site-header header"><nav class="nav container"><a class="brand logo" href="/" aria-label="${escapeHtml(company)}首页"><span class="logo-icon logo-image" aria-hidden="true"><img src="${escapeHtml(configuredBrandMark(site, assetBase))}" alt="" width="32" height="32" decoding="async"></span><span>${escapeHtml(publicBrandName(site))}</span></a><ul class="nav-menu">${items.map(([path, label]) => `<li><a${normalizedActive === (String(path).replace(/\/$/, "") || "/") ? ' class="active" aria-current="page"' : ""} href="${escapeHtml(safeUrl(path, "link") || "/")}">${escapeHtml(label || "导航")}</a></li>`).join("")}</ul><div class="nav-contact">${phone ? `<span class="nav-phone">${escapeHtml(phone)}</span>` : ""}<a class="btn btn-primary" href="/contact/">预约咨询</a></div><button class="mobile-menu-btn" type="button" aria-label="打开导航" aria-expanded="false"><span></span><span></span><span></span></button></nav></header>`;
 }
 
 function footer(site, assetBase = "/assets") {
   if (site?.templateKey === "02-construction") return constructionFooter(site, assetBase);
-  const contact = site.contact || {};
+  const contact = customerContact(site);
   const brand = publicBrandName(site);
   const company = publicCompanyName(site);
   const columns = footerColumns(site, [
@@ -551,7 +586,22 @@ function renderDirectionalIcons(html = "") {
 const SOURCE_TEMPLATE_KEYS = new Set(["01-industry", "02-construction", "03-software-ai", "04-logistics", "05-business-services", "06-finance", "07-healthcare", "08-education", "09-travel-hotel", "10-food-consumer", "11-ups"]);
 const LEGACY_SOURCE_TEMPLATE_KEYS = new Set([]);
 
+function isXinShuojieSite(site = {}) {
+  const text = [site.companyName, site.siteName, site.domain, site.officialDomain, site.contact?.phone, site.contact?.address].join(" ");
+  return text.includes("新硕捷") || text.includes("shuojiepower.com") || text.includes("18678123345");
+}
+
+function customerContact(site = {}) {
+  if (!isXinShuojieSite(site)) return site.contact || {};
+  return { ...(site.contact || {}), phone: "18678123345", contactPerson: "田勇", email: "70712289@qq.com", address: "山东省淄博市张店区新村西路223号尚文苑小区世源大厦1210房", industryRegion: "山东淄博", serviceArea: "山东及全国项目" };
+}
+
+const XINSHUOJIE_SERVICES = XINSHUOJIE_IMPORTED_SERVICES;
+const XINSHUOJIE_CASES = XINSHUOJIE_IMPORTED_CASES;
+const XINSHUOJIE_ARTICLES = XINSHUOJIE_IMPORTED_ARTICLES;
+
 function sourceTemplateFor(site) {
+  if (isXinShuojieSite(site)) return siteTemplateByKey("11-ups");
   const template = siteTemplateByKey(isSiteTemplateKey(site?.templateKey) ? site.templateKey : DEFAULT_SITE_TEMPLATE_KEY);
   return SOURCE_TEMPLATE_KEYS.has(template.key) ? template : null;
 }
@@ -581,7 +631,7 @@ const SOURCE_DEFAULT_PROFILE = Object.freeze({
 });
 
 function sourceTemplateProfile(template) {
-  if (LEGACY_SOURCE_PROFILES[template.key]) return { ...SOURCE_DEFAULT_PROFILE, ...LEGACY_SOURCE_PROFILES[template.key] };
+  if (LEGACY_SOURCE_PROFILES[template.key] && template.key !== "11-ups") return { ...SOURCE_DEFAULT_PROFILE, ...LEGACY_SOURCE_PROFILES[template.key] };
   if (template.key === "02-construction") {
     return {
       heroTitle: "匠心筑梦 品质为鼎",
@@ -604,22 +654,22 @@ function sourceTemplateProfile(template) {
   }
   if (template.key === "11-ups") {
     return {
-      heroTitle: "关键设备，稳定供电",
-      heroHighlight: "稳定供电",
-      heroDescription: "为机房、门店与关键设备提供可选型、可维护的 UPS 电源与持续服务。",
-      pageProductTitle: "UPS 产品",
-      pageProductLead: "在线式、后备式 UPS 与配套电池，按负载和场景清晰选型。",
-      aboutLead: "围绕 UPS 选型、安装、调试与维护，把关键设备的供电保障做成可理解、可执行的服务。",
-      serviceSectionTitle: "UPS 产品系列",
-      serviceSectionLead: "从功率、续航到安装环境，呈现每个系列的适用范围与服务支持。",
-      caseSectionTitle: "应用场景",
-      caseSectionLead: "覆盖门店、机房、办公与工业设备等关键用电场景。",
-      articleSectionTitle: "电源知识",
-      articleSectionLead: "了解 UPS 选型、维护与供电可靠性。",
+      heroTitle: "IDC与关键电源保障服务商",
+      heroHighlight: "关键电源保障",
+      heroDescription: "围绕 UPS 电源、蓄电池及配套设备，为数据中心、通信机房、医院、银行、学校和工业企业提供选型、安装与维护服务。",
+      pageProductTitle: "UPS及配套电源",
+      pageProductLead: "从 UPS 主机、蓄电池到 EPS、稳压器和光储充设备，按现场负载与备电需求配置。",
+      aboutLead: "山东新硕捷电子科技有限公司专注于 IDC 数据中心基础设施和电源保障系统，提供从现场勘察、方案设计到安装调试与运行维护的落地服务。",
+      serviceSectionTitle: "电源产品与服务",
+      serviceSectionLead: "围绕设备类型、负载容量、备电时间和施工环境，提供可执行的电源系统方案。",
+      caseSectionTitle: "UPS应用项目",
+      caseSectionLead: "服务场景覆盖医院、银行、学校、工业企业、环境监测站及重要机房。",
+      articleSectionTitle: "电源技术资讯",
+      articleSectionLead: "持续整理 UPS 选型、蓄电池维护和机房供电保障知识。",
       ctaLabel: "获取选型建议",
       ctaHref: "/contact/",
-      aboutFeatures: ["在线式 UPS", "后备式 UPS", "快速响应", "本地服务"],
-      stats: [["10", "电源行业经验"], ["2", "产品系列"], ["24", "快速响应"], ["365", "服务支持"]]
+      aboutFeatures: ["UPS电源", "蓄电池系统", "安装调试", "运行维护"],
+      stats: [["18", "UPS产品型号"], ["15", "项目案例"], ["13", "行业资讯"], ["24", "小时响应"]]
     };
   }
   return { ...SOURCE_DEFAULT_PROFILE };
@@ -672,7 +722,7 @@ function sourceNavigation(site, active, template, assetBase = "/assets") {
   const configuredItems = configuredPrimaryNavigation(site).slice(0, 12).map((item) => [item.path, item.label]);
   const items = configuredItems.length ? configuredItems : fallbackItems.filter(([path]) => allowedPaths.has(sourceNormalizePath(path)));
   const company = publicCompanyName(site);
-  const phone = site.contact?.phone || "";
+  const phone = customerContact(site).phone || "";
   const links = items.map(([path, label]) => `<li><a${activePath === sourceNormalizePath(path) ? ' class="active" aria-current="page"' : ""} href="${escapeHtml(safeUrl(path, "link") || "/")}">${escapeHtml(label || "导航")}</a></li>`).join("");
   const topbar = template.key === "01-industry" ? `<div class="topbar"><div class="container"><span>欢迎访问${escapeHtml(company)}</span><div class="right"><a href="/contact/">在线询价</a><a href="/insights/">企业新闻</a><a href="/about/">关于我们</a></div></div></div>` : template.key === "11-ups" ? `<div class="topbar"><div class="container"><span>${escapeHtml(company)} · 电源设备服务</span><div class="right"><a href="/contact/">在线询价</a><a href="/insights/">行业知识</a></div></div></div>` : "";
   return `${topbar}<header class="header"><nav class="nav container"><a href="/" class="logo" aria-label="${escapeHtml(company)}首页"><span class="logo-icon logo-image"><img src="${escapeHtml(configuredBrandMark(site, assetBase, template))}" alt="" width="32" height="32" decoding="async"></span><span>${escapeHtml(publicBrandName(site))}</span></a><ul class="nav-menu">${links}</ul><div class="nav-contact">${phone ? `<span class="nav-phone">${escapeHtml(phone)}</span>` : ""}<a href="/contact/" class="btn btn-primary">${escapeHtml(site.cta || profile.ctaLabel)}</a></div><button type="button" class="mobile-menu-btn" aria-label="打开导航" aria-expanded="false"><span></span><span></span><span></span></button></nav></header>`;
@@ -681,18 +731,19 @@ function sourceNavigation(site, active, template, assetBase = "/assets") {
 function sourceFooter(site, template, assetBase = "/assets") {
   const profile = sourceTemplateProfile(template);
   const company = publicCompanyName(site);
-  const services = frontendServices(site, false).slice(0, 4);
-  const contact = site.contact || {};
+  const services = (isXinShuojieSite(site) ? XINSHUOJIE_SERVICES : frontendServices(site, false)).slice(0, 4);
+  const contact = customerContact(site);
   const fallbackColumns = [
     { title: profile.pageProductTitle, links: services.length ? services.map((service) => ({ label: service.title, href: service.href || "/services/" })) : [{ label: profile.pageProductTitle, href: "/services/" }] },
     { title: "关于我们", links: [{ label: "公司简介", href: "/about/" }, { label: "工程案例", href: "/cases/" }, { label: "新闻动态", href: "/insights/" }, { label: "联系我们", href: "/contact/" }] },
     { title: "联系方式", links: [{ label: contact.phone || "提交表单后由运营人员联系", href: contact.phone ? `tel:${contact.phone}` : "/contact/" }, ...(contact.email ? [{ label: contact.email, href: `mailto:${contact.email}` }] : []), ...(contact.address ? [{ label: contact.address, href: "/contact/" }] : [])] }
   ];
-  const columns = footerColumns(site, fallbackColumns);
+  const columns = isXinShuojieSite(site) ? fallbackColumns : footerColumns(site, fallbackColumns);
   const socials = footerSocialLinks(site, [{ label: "联系企业", href: "/contact/" }, { label: "查看新闻", href: "/insights/" }, { label: "查看案例", href: "/cases/" }]);
   const columnMarkup = columns.map((column) => `<div class="footer-links"><h4>${escapeHtml(column.title)}</h4><ul>${column.links.map((link) => `<li><a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a></li>`).join("")}</ul></div>`).join("");
   const socialMarkup = site.footer?.showSocial === false ? "" : `<div class="footer-social" aria-label="企业社交入口">${socials.map((link, index) => `<a href="${escapeHtml(link.href)}" aria-label="${escapeHtml(link.label)}" title="${escapeHtml(link.label)}">${sourceIcon(["mail", "news", "building"][index % 3])}</a>`).join("")}</div>`;
-  return `<footer class="footer"><div class="container"><div class="footer-grid"><div class="footer-about"><a class="footer-brand-logo" href="/" aria-label="${escapeHtml(company)}首页"><img src="${escapeHtml(configuredBrandLogo(site, assetBase, template))}" alt="${escapeHtml(publicBrandName(site))}" width="150" height="56" decoding="async"></a><h3>${escapeHtml(company)}</h3><p>${escapeHtml(site.footer?.description || site.description || profile.heroDescription)}</p>${contact.serviceArea || contact.industryRegion ? `<small class="footer-meta">${escapeHtml([contact.industryRegion, contact.serviceArea].filter(Boolean).join(" · "))}</small>` : ""}${socialMarkup}</div>${columnMarkup}</div><div class="footer-bottom">${footerCompliance(site, company)}</div></div></footer>`;
+  const footerDescription = isXinShuojieSite(site) ? profile.aboutLead : (site.footer?.description || site.description || profile.heroDescription);
+  return `<footer class="footer"><div class="container"><div class="footer-grid"><div class="footer-about"><a class="footer-brand-logo" href="/" aria-label="${escapeHtml(company)}首页"><img src="${escapeHtml(configuredBrandLogo(site, assetBase, template))}" alt="${escapeHtml(publicBrandName(site))}" width="150" height="56" decoding="async"></a><h3>${escapeHtml(company)}</h3><p>${escapeHtml(footerDescription)}</p>${contact.serviceArea || contact.industryRegion ? `<small class="footer-meta">${escapeHtml([contact.industryRegion, contact.serviceArea].filter(Boolean).join(" · "))}</small>` : ""}${socialMarkup}</div>${columnMarkup}</div><div class="footer-bottom">${footerCompliance(site, company)}</div></div></footer>`;
 }
 
 function sourceBreadcrumb(title) {
@@ -716,6 +767,7 @@ function sourceContactForm(site, sourcePath, idSuffix) {
 }
 
 function sourceData(site, articles, preview) {
+  if (isXinShuojieSite(site)) return { services: XINSHUOJIE_SERVICES, cases: XINSHUOJIE_CASES, articles: XINSHUOJIE_ARTICLES };
   const data = templateHomeData(site, articles, preview);
   const services = data.services.length ? data.services : [{ id: "service-fallback", title: "企业服务方案", description: "围绕企业真实业务，整理清晰的服务范围与交付路径。" }];
   return { ...data, services, cases: data.cases || [], articles: data.articles || [] };
@@ -763,10 +815,10 @@ function sourceAboutBlock(site, template, data) {
 
 function sourceContactBlock(site, template, sourcePath) {
   const profile = sourceTemplateProfile(template);
-  const contact = site.contact || {};
+  const contact = customerContact(site);
   const rows = [
     ["pin", "公司地址", contact.address || "欢迎通过表单提交项目地址"],
-    ["phone", "联系电话", contact.phone || "提交表单后由运营人员联系"],
+    ["phone", contact.contactPerson ? `联系电话（${contact.contactPerson}）` : "联系电话", contact.phone || "提交表单后由运营人员联系"],
     ["mail", "电子邮箱", contact.email || "暂未配置公开邮箱"],
     ["clock", "服务区域", contact.serviceArea || contact.industryRegion || "以实际业务沟通为准"]
   ];
@@ -1132,20 +1184,59 @@ function renderFoodSourceHomeBody({ site, page, articles, template, preview }) {
 const UPS_HERO_IMG = "/assets/ups/ols1000exl-1.jpg";
 const UPS_GALLERY_IMGS = ["/assets/ups/ols2000e-1.jpg", "/assets/ups/ut1000e-1.jpg", "/assets/ups/ut600e-1.jpg", "/assets/ups/ut2200eb-1.jpg", "/assets/ups/ols1000exl-2.jpg", "/assets/ups/ut1000e-2.jpg"];
 
+function upsArticleImage(article, index = 0) {
+  const image = String(article?.image || "");
+  return image && !/tz-ind-|template|placeholder/i.test(image) ? image : UPS_GALLERY_IMGS[index % UPS_GALLERY_IMGS.length];
+}
+
+function cleanUpsArticleText(value = "") {
+  return String(value)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\[[^\]]+\]\([^)]*\)/g, " ")
+    .replace(/\[[^\]]+\]\([^)]*$/g, " ")
+    .replace(/\/index\.php\?[^\s]*/g, " ")
+    .replace(/山东新硕捷电子科技有限公司|186781233\d*|70712289@qq\.com|山东省淄博市[^。\n]*/g, " ")
+    .replace(/产品中心[\s\S]*?(?=新闻中心|$)|新闻中心[\s\S]*?(?=关注我们|$)|关注我们/g, " ")
+    .replace(/APC、维谛|APC|维谛|爱维达/g, "相关品牌")
+    .replace(/[ \t\u00a0]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function cleanUpsCaseSummary(value = "", title = "") {
+  const normalizedTitle = String(title || "").trim();
+  return cleanUpsArticleText(value)
+    .replace(/^客户案例\s*/i, "")
+    .replace(normalizedTitle ? new RegExp(`^${normalizedTitle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`, "i") : /^$/, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function upsArticleStructuredContent(article) {
+  const title = String(article?.title || "UPS 电源应用与选型");
+  const source = cleanUpsArticleText(article?.contentText || article?.excerpt || "");
+  const excerpt = cleanUpsArticleText(article?.excerpt || source).slice(0, 220);
+  if (/选型/.test(title)) return `<p class="article-answer"><strong>直接回答：</strong>UPS 选型应先核对负载功率与设备类型，再确定在线式/后备式拓扑、备电时间、电池组和冗余方式。山东新硕捷会按现场负载清单、机房条件和施工要求给出配置建议。</p><h2>先确认哪些现场信息</h2><ul><li>统计服务器、网络、医疗或工业设备的实际功率，并区分启动冲击负载。</li><li>明确需要支撑的备电时间，以及是否预留后续扩容容量。</li><li>核对输入输出制式、安装空间、散热和电池间条件。</li></ul><h2>按场景判断 UPS 类型</h2><p>普通办公和小型监控可评估后备式或在线互动式；服务器、通信机房、医院关键设备和工业控制负载通常优先在线双变换、纯正弦波方案。核心机房还应评估 1+1 冗余和远程监控。</p><h2>交付与验收建议</h2><p>方案确定后，应完成电池组安装、线路标识、旁路切换、带载测试和断电演练，并把运行参数和维护周期交付给使用方。</p><p class="article-source-note">本文依据山东新硕捷电子科技有限公司公开产品资料与项目服务范围整理；具体容量、续航和品牌以现场勘察及正式方案为准。</p>`;
+  if (/重要性|作用|保障电力供应/.test(title)) return `<p class="article-answer"><strong>直接回答：</strong>UPS 的价值不只是停电后继续供电，还包括稳压、滤除浪涌和为安全关机争取时间，适合服务器、通信、医疗、银行、学校机房和工业控制等不能突然掉电的负载。</p><h2>UPS 主要解决三类风险</h2><ul><li>市电中断时提供无缝或短时过渡，避免设备瞬时关机。</li><li>电压波动、浪涌和电能质量异常时，对精密设备提供隔离与保护。</li><li>配合监控和自动关机策略，降低数据损坏、业务中断和设备维修风险。</li></ul><h2>哪些场景更需要 UPS</h2><p>数据中心和服务器机房关注零中断与冗余；医院、银行和监控系统关注连续运行与记录完整；工业产线则更关注启动冲击、谐波和电池维护。</p><h2>落地时不要只看主机价格</h2><p>应同时核对电池容量、备电时间、安装环境、旁路和维护服务。山东新硕捷可提供选型、安装调试、电池更换和续保维修支持。</p><p class="article-source-note">本文为面向客户决策的 UPS 电源知识整理，参数与适用范围需结合实际负载确认。</p>`;
+  if (/数据中心|机房|IDC/i.test(title)) return `<p class="article-answer"><strong>直接回答：</strong>数据中心 UPS 方案要围绕服务器、存储、网络设备和制冷/消防等关键负载分层设计，重点核对零切换、备电时长、冗余架构、配电路径和运行维护。</p><h2>数据中心的典型用法</h2><ul><li>为服务器、存储和网络设备提供在线双变换、纯正弦波电源。</li><li>市电故障时支撑发电机启动或业务安全关机，避免数据和服务中断。</li><li>通过 1+1 或模块化冗余提升可用性，并接入 SNMP 等监控方式。</li></ul><h2>方案评估要点</h2><p>先做负载清单与功率测算，再核对机柜空间、配电和电池间条件；备电时间不能脱离发电机策略、业务恢复目标单独决定。</p><h2>实施建议</h2><p>交付阶段应完成主机与电池组安装、线路连接、旁路切换、带载测试和断电演练，运行后按周期巡检电池内阻、端电压和告警记录。</p><p class="article-source-note">本文根据数据中心电源保障的通用方法及山东新硕捷项目服务范围整理，具体架构以现场勘察结果为准。</p>`;
+  return `<p class="article-answer"><strong>直接回答：</strong>${escapeHtml(excerpt || "UPS、电池及配套电源设备需要结合负载、备电时间和现场环境进行配置，不能只按单一型号判断。")}</p><h2>客户需要重点判断什么</h2><p>${escapeHtml(source.slice(0, 520) || "先确认设备功率、用电连续性要求、安装空间和维护条件，再决定 UPS 拓扑与电池配置。")}</p><h2>从方案到交付</h2><p>山东新硕捷可协助完成现场勘察、负载分析、设备选型、安装施工、系统调试和运行维护，帮助客户把产品选择落实为可验收的供电方案。</p><p class="article-source-note">本文依据企业公开资料重新整理，具体参数、品牌和交付周期以正式沟通结果为准。</p>`;
+}
+
 function renderUpsSourceHomeBody({ site, page, articles, template, preview }) {
   const profile = sourceTemplateProfile(template);
   const data = sourceData(site, articles, preview);
   const hero = moduleOf(site, page.id, "hero", preview);
-  const heroTitle = hero?.title && hero.title !== "首屏" ? hero.title : profile.heroTitle;
-  const heroDescription = moduleText(hero, site.description || profile.heroDescription);
+  const heroTitle = profile.heroTitle;
+  const heroDescription = profile.heroDescription;
   const company = publicCompanyName(site);
 
   const defaultStats = [["10", "电源行业"], ["2", "产品系列"], ["24", "快速响应"], ["365", "用心服务"]];
   const heroStats = Array.isArray(hero?.stats) && hero.stats.length ? hero.stats : (profile.stats || defaultStats).slice(0, 4);
 
   const series = data.services.slice(0, 2).map((service, index) => {
-    const keys = heroStats.slice(0, 3).map(([number, label]) => `<div class="k"><b>${escapeHtml(number)}</b><span>${escapeHtml(label)}</span></div>`).join("");
-    return `<div class="s ${index === 0 ? "online" : "backup"} reveal${index ? " reveal-d1" : ""}"><div class="ph"><img src="${escapeHtml(industryImage(service, UPS_GALLERY_IMGS[index]))}" alt="${escapeHtml(service.title)}" loading="lazy" decoding="async"><span>${escapeHtml(service.audience || "产品实拍")}</span></div><span class="tag">${escapeHtml(service.audience || "标准系列")}</span><h3>${escapeHtml(service.title)}</h3><p class="desc">${escapeHtml(service.description || "查看产品能力与适用范围。")}</p><div class="keys">${keys}</div><div class="models"><a href="/services/">了解详情 →</a></div></div>`;
+    const linkedCases = data.cases.filter((item) => `${item.title || ""} ${item.summary || ""}`.toLowerCase().includes(String(service.title || "").toLowerCase())).length;
+    const caseLabel = linkedCases ? `关联案例 ${linkedCases} 个` : "按现场需求配置";
+    return `<div class="s ${index === 0 ? "online" : "backup"} reveal${index ? " reveal-d1" : ""}"><div class="ph"><img src="${escapeHtml(industryImage(service, UPS_GALLERY_IMGS[index]))}" alt="${escapeHtml(service.title)}" loading="lazy" decoding="async"><span>${escapeHtml(service.audience || "产品实拍")}</span></div><span class="tag">${escapeHtml(service.audience || "标准系列")}</span><h3>${escapeHtml(service.title)}</h3><p class="desc">${escapeHtml(service.description || "查看产品能力与适用范围。")}</p><div class="product-meta"><span>产品型号</span><strong>${escapeHtml(service.title)}</strong><span>${escapeHtml(caseLabel)}</span></div><div class="models"><a href="/services/">了解详情 →</a></div></div>`;
   }).join("");
 
   const gallery = data.services.slice(0, 5).map((service, index) => `<a class="g" href="/services/"><img src="${escapeHtml(industryImage(service, UPS_GALLERY_IMGS[index % UPS_GALLERY_IMGS.length]))}" alt="${escapeHtml(service.title)}" loading="lazy" decoding="async"><span>${escapeHtml(service.title)}</span></a>`).join("");
@@ -1157,7 +1248,7 @@ function renderUpsSourceHomeBody({ site, page, articles, template, preview }) {
 
   const statCells = heroStats.map(([number, label]) => `<div class="cell"><strong><span data-target="${escapeHtml(number)}">0</span></strong><span>${escapeHtml(label)}</span></div>`).join("");
 
-  return `<main id="template-main"><section class="hero"><div class="container"><div><span class="kicker">${escapeHtml(profile.aboutFeatures?.[0] || "专业服务")} · ${escapeHtml(profile.aboutFeatures?.[1] || "现货供应")}</span><h1>${industryHeroTitleMarkup(heroTitle, profile.heroHighlight)}</h1><p>${escapeHtml(heroDescription)}</p><div class="actions"><a href="/services/" class="btn btn-amber">看产品型号</a><a href="/contact/" class="btn btn-line">选型咨询</a></div></div><div class="ph"><img src="${escapeHtml(UPS_HERO_IMG)}" alt="${escapeHtml(company)}产品实拍图" loading="lazy" decoding="async"><div class="cap"><b>${escapeHtml(profile.heroHighlight)}</b> · 实拍图</div></div></div></section><section class="section"><div class="container"><div class="head reveal"><span class="kicker">产品系列</span><h2>两大类，先搞清楚区别</h2><p>${escapeHtml(profile.serviceSectionLead)}</p></div><div class="series">${series}</div></div></section>${gallery ? `<section class="section section-gray"><div class="container"><div class="head reveal"><span class="kicker">产品实拍</span><h2>几个在售型号</h2><p>门店实拍图，想多角度看的到店或联系客服。</p></div><div class="gallery reveal">${gallery}</div></div></section>` : ""}<section class="section"><div class="container"><div class="head reveal"><span class="kicker">应用场景</span><h2>这些地方都在用</h2></div><div class="scenes reveal">${scenes}</div></div></section><section class="section section-gray"><div class="container"><div class="head reveal"><span class="kicker">为什么找我们</span><h2>几个实在的理由</h2></div><div class="adv reveal">${adv}</div></div></section><section class="stats"><div class="container">${statCells}</div></section><section class="cta"><div class="container reveal"><h2>不确定该配多大功率？</h2><p>把负载情况发过来，我们帮你算选型。</p><a href="/contact/" class="btn">在线询价</a></div></section></main>`;
+  return `<main id="template-main"><section class="hero"><div class="container"><div><span class="kicker">${escapeHtml(profile.aboutFeatures?.[0] || "专业服务")} · ${escapeHtml(profile.aboutFeatures?.[1] || "现货供应")}</span><h1>${industryHeroTitleMarkup(heroTitle, profile.heroHighlight)}</h1><p>${escapeHtml(heroDescription)}</p><div class="actions"><a href="/services/" class="btn btn-amber">看产品型号</a><a href="/contact/" class="btn btn-line">选型咨询</a></div></div><div class="ph"><img src="${escapeHtml(UPS_HERO_IMG)}" alt="${escapeHtml(company)}产品实拍图" loading="lazy" decoding="async"><div class="cap"><b>${escapeHtml(profile.heroHighlight)}</b> · 实拍图</div></div></div></section><section class="section"><div class="container"><div class="head reveal"><span class="kicker">产品与服务</span><h2>核心产品与服务</h2><p>${escapeHtml(profile.serviceSectionLead)}</p></div><div class="series">${series}</div></div></section>${gallery ? `<section class="section section-gray"><div class="container"><div class="head reveal"><span class="kicker">产品实拍</span><h2>常用产品图片</h2><p>产品图片用于帮助客户快速识别系列，具体型号与参数以项目沟通为准。</p></div><div class="gallery reveal">${gallery}</div></div></section>` : ""}<section class="section"><div class="container"><div class="head reveal"><span class="kicker">应用场景</span><h2>这些地方都在用</h2></div><div class="scenes reveal">${scenes}</div></div></section><section class="section section-gray"><div class="container"><div class="head reveal"><span class="kicker">为什么找我们</span><h2>从选型到运维的完整支持</h2></div><div class="adv reveal">${adv}</div></div></section><section class="stats"><div class="container">${statCells}</div></section><section class="cta"><div class="container reveal"><h2>不确定该配多大功率？</h2><p>把负载情况发过来，我们帮你算选型。</p><a href="/contact/" class="btn">在线询价</a></div></section></main>`;
 }
 
 function renderSourceHomeBody({ site, page, articles, template, preview }) {
@@ -1203,7 +1294,8 @@ function renderSourceServicesPage({ site, page, origin, preview = false, assetBa
   if (template.key === "01-industry") {
     const products = data.services.map((service, index) => `<div class="prod reveal"><div class="media"><img src="${escapeHtml(industryImage(service, INDUSTRY_PRODUCT_FALLBACK_IMGS[index % INDUSTRY_PRODUCT_FALLBACK_IMGS.length]))}" alt="${escapeHtml(service.title)}" loading="lazy" decoding="async"></div><div class="body"><span class="cat">${escapeHtml(service.audience || "标准系列")}</span><h3>${escapeHtml(service.title)}</h3><p>${escapeHtml(service.description || "查看产品能力、应用场景与服务支持。")}</p><a href="${escapeHtml(safeUrl(service.href, "link") || "/contact/")}" class="btn btn-primary">索取报价${industryArrowSvg()}</a></div></div>`).join("");
     const body = `<main id="template-main">${sourcePageHeader(page.title || profile.pageProductTitle, profile.pageProductLead)}<section class="section"><div class="container"><div class="head reveal"><div class="l"><h2>${industrySplitTitle(profile.serviceSectionTitle, "产品中心")}</h2><p>${escapeHtml(profile.serviceSectionLead)}</p></div></div><div class="prod-list">${products}</div></div></section><section class="cta"><div class="container"><div><h2>型号没对上？</h2><p>非标定制也做，把工况和产量发过来，我们出方案。</p></div><a href="/contact/" class="btn btn-light">在线询价</a></div></section></main>`;
-    return documentShell({ site, origin, pathname: page.path || "/services/", title: page.title || profile.pageProductTitle, description: page.seoDescription || profile.pageProductLead, active: "/services/", schemaExtra: data.services.map((service) => ({ "@type": "Service", name: service.title, description: service.description })), body, preview, assetBase });
+    const serviceSchema = isXinShuojieSite(site) ? xinShuojieServiceSchema(site, origin, data.services) : data.services.map((service) => ({ "@type": "Service", name: service.title, description: service.description }));
+    return documentShell({ site, origin, pathname: page.path || "/services/", title: page.title || profile.pageProductTitle, description: page.seoDescription || profile.pageProductLead, active: "/services/", schemaExtra: serviceSchema, body, preview, assetBase });
   }
   const cards = sourceServiceCards(template, data.services, site);
   if (template.key === "03-software-ai") {
@@ -1250,6 +1342,8 @@ function renderSourceServicesPage({ site, page, origin, preview = false, assetBa
   if (template.key === "11-ups") {
     const heroStats = (profile.stats || [["10", "电源行业"], ["2", "产品系列"], ["24", "快速响应"], ["365", "用心服务"]]).slice(0, 4);
     const series = data.services.map((service, index) => {
+      const linkedCases = data.cases.filter((item) => `${item.title || ""} ${item.summary || ""}`.toLowerCase().includes(String(service.title || "").toLowerCase())).length;
+      const caseLabel = linkedCases ? `关联案例 ${linkedCases} 个` : "按现场需求配置";
       const keys = heroStats.slice(0, 3).map(([number, label]) => `<div class="k"><b>${escapeHtml(number)}</b><span>${escapeHtml(label)}</span></div>`).join("");
       return `<div class="s ${index === 0 ? "online" : "backup"} reveal"><div class="ph"><img src="${escapeHtml(industryImage(service, UPS_GALLERY_IMGS[index % UPS_GALLERY_IMGS.length]))}" alt="${escapeHtml(service.title)}" loading="lazy" decoding="async"><span>${escapeHtml(service.audience || "产品实拍")}</span></div><span class="tag">${escapeHtml(service.audience || "标准系列")}</span><h3>${escapeHtml(service.title)}</h3><p class="desc">${escapeHtml(service.description || "查看产品能力与适用范围。")}</p><div class="keys">${keys}</div><div class="models"><a href="/contact/">了解详情 →</a></div></div>`;
     }).join("");
@@ -1334,6 +1428,14 @@ function renderSourceAboutPage({ site, page, origin, preview = false, assetBase 
   const template = sourceTemplateFor(site);
   const profile = sourceTemplateProfile(template);
   const data = sourceData(site, [], preview);
+  if (isXinShuojieSite(site)) {
+    const company = "山东新硕捷电子科技有限公司";
+    const contact = customerContact(site);
+    const products = XINSHUOJIE_SERVICES.slice(0, 5).map((item) => `<article class="scene"><div class="scene-media"><img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" loading="lazy" decoding="async"></div><div class="ic">${sourceIcon("gear")}</div><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description)}</p></article>`).join("");
+    const cases = XINSHUOJIE_CASES.slice(0, 6).map((item) => `<article class="scene"><div class="scene-media"><img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title)}" loading="lazy" decoding="async"></div><span class="case-label">${escapeHtml(item.industry)}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(cleanUpsCaseSummary(item.summary, item.title) || item.result || "项目完成设备配置、安装连接与交付使用。")}</p></article>`).join("");
+    const body = `<main id="template-main" class="xinshuojie-about"><section class="page-header"><div><span class="kicker">企业简介 · 电源保障</span><h1>关于我们</h1><p>${escapeHtml(profile.aboutLead)}</p>${sourceBreadcrumb("关于我们")}</div></section><section class="section"><div class="container about-intro-grid"><div class="about-copy"><span class="kicker">公司定位</span><h2>${company}专注于关键电源系统落地</h2><p>${escapeHtml(profile.aboutLead)}</p><p>公司面向数据中心、通信机房、医院、银行、学校、工业企业、政府机关及其他公共事业单位，提供 UPS 电源、EPS 应急电源、光储充设备、稳压器和蓄电池等产品的推广、销售、安装施工与维护服务。</p><p>从项目需求沟通、现场勘察、负载分析、设备选型，到方案设计、产品供应、线路连接、系统调试和运行维护，我们围绕客户实际用电环境提供完整的项目支持。</p></div><div class="about-image"><img src="/assets/tz-ind-02.jpg" alt="${company}电源设备服务" loading="lazy" decoding="async"></div></div></section><section class="section section-gray"><div class="container"><div class="head reveal"><span class="kicker">产品与服务</span><h2>围绕供电连续性提供落地支持</h2><p>产品、工程与售后服务相互衔接，帮助重要设备降低断电和电能质量异常带来的运行风险。</p></div><div class="scenes reveal">${products}</div></div></section><section class="section"><div class="container"><div class="head reveal"><span class="kicker">项目经验</span><h2>覆盖多行业重要用电场景</h2><p>已提供医院、银行、学校、工业企业、环境监测站等场景的 UPS 安装、改造与配套服务。</p></div><div class="scenes reveal">${cases}</div></div></section><section class="section section-gray"><div class="container about-facts"><div><span class="kicker">服务理念</span><h2>质量为本，客户为根</h2><p>坚持“质量为本、客户为根、勇于拼搏、务实创新”，以“为客户保驾护航、提供有效解决方案、持续创造客户价值”为服务目标。</p></div><div class="contact-card"><h3>联系山东新硕捷</h3><p>${escapeHtml(contact.address)}</p><a href="tel:${escapeHtml(contact.phone)}">${escapeHtml(contact.phone)}</a><a href="mailto:${escapeHtml(contact.email)}">${escapeHtml(contact.email)}</a></div></div></section></main>`;
+    return documentShell({ site, origin, pathname: page.path || "/about/", title: page.title || "关于我们", description: profile.aboutLead, active: "/about/", schemaExtra: [{ "@type": "AboutPage", name: page.title || "关于我们" }], body, preview, assetBase });
+  }
   if (template.key === "01-industry") {
     const company = publicCompanyName(site);
     const heroStats = (profile.stats || [["20", "年行业经验"], ["500", "合作客户"], ["50", "专利技术"], ["100", "项目案例"]]).slice(0, 4);
@@ -1409,7 +1511,7 @@ function renderSourceInsightsPage({ site, articles, categories = [], selectedCat
   const template = sourceTemplateFor(site);
   const profile = sourceTemplateProfile(template);
   const displayCategories = frontendCategories(categories);
-  const rows = frontendArticles(articles, site.frontendDemo).filter((article) => !selectedCategory || article.categorySlug === selectedCategory.slug || article.categoryName === selectedCategory.name);
+  const rows = frontendArticles(isXinShuojieSite(site) ? XINSHUOJIE_ARTICLES : articles, site.frontendDemo).filter((article) => !selectedCategory || article.categorySlug === selectedCategory.slug || article.categoryName === selectedCategory.name);
   const safePageSize = Math.max(1, Math.min(50, Number(pageSize) || 12));
   const total = rows.length;
   const totalPages = Math.max(1, Math.ceil(total / safePageSize));
@@ -1440,7 +1542,7 @@ function renderSourceInsightsPage({ site, articles, categories = [], selectedCat
             const lead = escapeHtml((article.excerpt || "").slice(0, 60));
             const href = escapeHtml(articleLink(article));
             if (template.key === "09-travel-hotel") return `<a class="hotel" href="${href}"><div class="b"><h4>${title}</h4><div class="loc">${date}</div><div class="foot"><span class="price">${lead.slice(0, 14)}</span></div></div></a>`;
-            if (template.key === "11-ups") return `<a class="g" href="${href}"><span>${date} · ${title}</span></a>`;
+            if (template.key === "11-ups") return `<a class="g" href="${href}"><img src="${escapeHtml(upsArticleImage(article, index))}" alt="${title}" loading="lazy" decoding="async"><span>${date} · ${title}</span></a>`;
             if (template.key === "05-business-services") return `<a class="svc" href="${href}"><span class="no">${String(index + 1).padStart(2, "0")}</span><div><h3>${title}</h3><p>${date} · ${lead}</p></div><span class="go">→</span></a>`;
             if (template.key === "06-finance") return `<div class="product"><div class="ic">${escapeHtml(String(article.title).slice(0, 1))}</div><h3>${title}</h3><p>${date} · ${lead}</p><div class="rate">${escapeHtml(article.categoryName || "行业资讯")}<small></small></div></div>`;
             if (template.key === "08-education") return `<div class="course"><div class="media">${sourceIcon(iconKinds[index % iconKinds.length])}</div><div class="b"><h3><a href="${href}">${title}</a></h3><p>${date} · ${lead}</p><div class="meta"><span class="price">${escapeHtml(article.categoryName || "校园动态")}</span></div></div></div>`;
@@ -1538,11 +1640,14 @@ function renderSourceArticleBody({ site, article, template, contentHtml, provena
 
 function sourceDocumentShell({ site, origin, pathname, title, description, active, schemaExtra = [], body, robots = "index,follow,max-image-preview:large,max-snippet:-1", feed = true, preview = false, assetBase = "/site-assets-r6", headLinks = [], openGraphType = "website", headMeta = [], activeTemplate = sourceTemplateFor(site) }) {
   const canonical = absoluteUrl(origin, pathname);
+  const seoMeta = xinShuojieSeoMeta(site, pathname, title, description);
+  const effectiveTitle = seoMeta.title || title;
+  const effectiveDescription = seoMeta.description || description || site.description || DEFAULT_DESCRIPTION;
   const configuredPage = pageForPath(site, pathname);
-  const schema = pageSchema(site, origin, pathname, schemaExtra, { pageEnabled: configuredPage?.schemaEnabled !== false, name: pageTitle(site, title), description: description || site.description || DEFAULT_DESCRIPTION });
+  const schema = pageSchema(site, origin, pathname, schemaExtra, { pageEnabled: configuredPage?.schemaEnabled !== false, name: pageTitle(site, effectiveTitle), description: effectiveDescription });
   const cssRoot = assetRoot(assetBase, "/site-assets-r9");
   const imageRoot = assetRoot(assetBase, "/assets");
-  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260828-tpl-individual-v5`;
+  const cssHref = `${cssRoot}/${activeTemplate.stylesheet}?v=20260828-tpl-individual-v7`;
   const redesignHref = `${cssRoot}/template-source-redesign.css?v=20260828-tpl-redesign-v1`;
   const sharedFixesHref = `${cssRoot}/template-source-fixes.css?v=20260828-tpl-shared-fixes-v2`;
   const runtimeHref = `${cssRoot}/template-runtime.js?v=20260827-tpl-01-11-refactor-v1`;
@@ -1553,7 +1658,7 @@ function sourceDocumentShell({ site, origin, pathname, title, description, activ
   const renderedBody = renderDirectionalIcons(body);
   const sourceBody = /<main\b/i.test(renderedBody) ? renderedBody : `<main id="template-main">${renderedBody}</main>`;
   const templateNumber = activeTemplate.key.slice(0, 2);
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(pageTitle(site, title))}</title><meta name="description" content="${escapeHtml(description || site.description || DEFAULT_DESCRIPTION)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive" : robots)}"><meta name="author" content="${escapeHtml(publicCompanyName(site))}"><link rel="icon" type="image/png" href="${escapeHtml(brandMark)}"><link rel="canonical" href="${escapeHtml(canonical)}">${extraLinks}${feed && !preview ? `<link rel="alternate" type="application/rss+xml" title="${escapeHtml(publicBrandName(site))}新闻动态" href="/feed.xml">` : ""}<meta property="og:title" content="${escapeHtml(pageTitle(site, title))}"><meta property="og:description" content="${escapeHtml(description || site.description || DEFAULT_DESCRIPTION)}"><meta property="og:type" content="${escapeHtml(openGraphType)}"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:site_name" content="${escapeHtml(publicBrandName(site))}"><meta property="og:locale" content="zh_CN">${socialImage ? `<meta property="og:image" content="${escapeHtml(socialImage)}"><meta property="og:image:alt" content="${escapeHtml(publicBrandName(site) || "企业官网")}">` : ""}<meta name="twitter:card" content="${socialImage ? "summary_large_image" : "summary"}"><meta name="twitter:title" content="${escapeHtml(pageTitle(site, title))}"><meta name="twitter:description" content="${escapeHtml(description || site.description || DEFAULT_DESCRIPTION)}">${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}">` : ""}${extraMeta}<meta name="theme-color" content="${escapeHtml(activeTemplate.accent)}"><link rel="stylesheet" href="${cssHref}"><link rel="stylesheet" href="${sharedFixesHref}"><link rel="stylesheet" href="${redesignHref}"><script type="application/ld+json">${safeJsonLd(schema)}</script></head><body class="template-source template-source-${templateNumber}${preview ? " is-preview" : ""}" data-site-template="${escapeHtml(activeTemplate.key)}"><a class="template-skip" href="#template-main">跳到正文</a>${sourceNavigation(site, active, activeTemplate, imageRoot)}${sourceBody}${sourceFooter(site, activeTemplate, imageRoot)}<script src="${runtimeHref}" defer></script></body></html>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(pageTitle(site, effectiveTitle))}</title><meta name="description" content="${escapeHtml(effectiveDescription)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive" : robots)}"><meta name="author" content="${escapeHtml(publicCompanyName(site))}"><link rel="icon" type="image/png" href="${escapeHtml(brandMark)}"><link rel="canonical" href="${escapeHtml(canonical)}">${extraLinks}${feed && !preview ? `<link rel="alternate" type="application/rss+xml" title="${escapeHtml(publicBrandName(site))}新闻动态" href="/feed.xml">` : ""}<meta property="og:title" content="${escapeHtml(pageTitle(site, effectiveTitle))}"><meta property="og:description" content="${escapeHtml(effectiveDescription)}"><meta property="og:type" content="${escapeHtml(openGraphType)}"><meta property="og:url" content="${escapeHtml(canonical)}"><meta property="og:site_name" content="${escapeHtml(publicBrandName(site))}"><meta property="og:locale" content="zh_CN">${socialImage ? `<meta property="og:image" content="${escapeHtml(socialImage)}"><meta property="og:image:alt" content="${escapeHtml(publicBrandName(site) || "企业官网")}">` : ""}<meta name="twitter:card" content="${socialImage ? "summary_large_image" : "summary"}"><meta name="twitter:title" content="${escapeHtml(pageTitle(site, effectiveTitle))}"><meta name="twitter:description" content="${escapeHtml(effectiveDescription)}">${socialImage ? `<meta name="twitter:image" content="${escapeHtml(socialImage)}">` : ""}${extraMeta}<meta name="theme-color" content="${escapeHtml(activeTemplate.accent)}"><link rel="stylesheet" href="${cssHref}"><link rel="stylesheet" href="${sharedFixesHref}"><link rel="stylesheet" href="${redesignHref}"><script type="application/ld+json">${safeJsonLd(schema)}</script></head><body class="template-source template-source-${templateNumber}${preview ? " is-preview" : ""}" data-site-template="${escapeHtml(activeTemplate.key)}"><a class="template-skip" href="#template-main">跳到正文</a>${sourceNavigation(site, active, activeTemplate, imageRoot)}${sourceBody}${sourceFooter(site, activeTemplate, imageRoot)}<script src="${runtimeHref}" defer></script></body></html>`;
 }
 
 function documentShell({ site, origin, pathname, title, description, active, schemaExtra = [], body, robots = "index,follow,max-image-preview:large,max-snippet:-1", feed = true, preview = false, assetBase = "/site-assets-r6", headLinks = [], openGraphType = "website", headMeta = [], bodyClass = "" }) {
@@ -1716,7 +1821,9 @@ function frontendCases(site, preview = false) {
 
 function frontendProblemGroups(site, preview = false) {
   if (!Array.isArray(site.problemGroups)) return site.frontendDemo ? FRONTEND_PROBLEM_GROUPS : [];
-  return visibleCmsRecords(site.problemGroups, preview).map((group) => ({
+  const groups = visibleCmsRecords(site.problemGroups, preview);
+  const scopedGroups = isXinShuojieSite(site) ? groups.filter((group) => group.id === "xinshuojie-ups") : groups;
+  return scopedGroups.map((group) => ({
     ...group,
     questions: visibleCmsRecords(Array.isArray(group.questions) ? group.questions : [], preview)
   })).filter((group) => group.questions.length);
@@ -2652,20 +2759,21 @@ function renderBespokeArticlePage({ site, article, origin, relatedArticles, cont
   const body = `<header class="article-hero"><div class="shell"><span class="kicker">${escapeHtml(article.categoryName || "行业观点")}</span><h1>${escapeHtml(article.title)}</h1>${article.excerpt ? `<p>${escapeHtml(article.excerpt)}</p>` : ""}<div class="article-meta"><span>作者：${escapeHtml(article.author || site.siteName)}</span>${publishedMeta}${modifiedMeta}<span>预计阅读：${Math.max(1, Math.ceil(plainText(article.contentText || article.contentHtml).length / 500))}分钟</span></div></div></header><article class="shell article-layout" id="article" data-content-article-id="${escapeHtml(article.id)}">${tableOfContents}<div class="prose">${article.excerpt ? `<div class="answer-box"><strong>内容摘要</strong><p>${escapeHtml(article.excerpt)}</p></div>` : ""}${contentHtml}${article.tags?.length ? `<div class="source-note">主题：${escapeHtml(article.tags.join("、"))}</div>` : ""}<div class="source-note">${provenance}${modified ? `最后更新：${escapeHtml(dateLabel(modified))}。` : ""}</div></div></article>${related}<section class="contact-band"><div class="shell contact-grid"><div class="contact-copy"><span class="eyebrow">Build Your Source</span><h2>让企业知识成为客户和 AI 可以理解的可信信源</h2><p>${escapeHtml(site.description || DEFAULT_DESCRIPTION)}</p></div><div class="contact-form"><strong style="font-size:24px">了解桐灼服务</strong><p style="color:var(--muted)">查看服务详情，或提交与本文相关的业务问题。</p><a class="button ink" href="/contact.html">联系我们 <span class="arrow">→</span></a></div></div></section>`;
   const canonical = absoluteUrl(origin, pathname);
   const schema = pageSchema(site, origin, pathname, schemaExtra, { pageEnabled: true, name: article.title, description: article.excerpt || site.description || DEFAULT_DESCRIPTION });
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(article.title)}｜桐灼科技</title><meta name="description" content="${escapeHtml(article.excerpt || site.description || DEFAULT_DESCRIPTION)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive" : "index,follow,max-image-preview:large,max-snippet:-1")}"><link rel="canonical" href="${escapeHtml(canonical)}"><meta name="theme-color" content="#fbfbfa"><link rel="stylesheet" href="/assets/styles.css?v=20260827-bespoke-article-v1"><link rel="stylesheet" href="/assets/wukong-overrides.css?v=20260827-4"><script type="application/ld+json">${safeJsonLd(schema)}</script></head><body><a class="skip-link" href="#article">跳到正文</a>${nav}<main>${body}</main>${footer}<script src="/assets/site.js?v=20260827-article-v1"></script></body></html>`;
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(article.title)}｜桐灼科技</title><meta name="description" content="${escapeHtml(article.excerpt || site.description || DEFAULT_DESCRIPTION)}"><meta name="robots" content="${escapeHtml(preview ? "noindex,nofollow,noarchive" : "index,follow,max-image-preview:large,max-snippet:-1")}"><link rel="canonical" href="${escapeHtml(canonical)}"><meta name="theme-color" content="#fbfbfa"><link rel="stylesheet" href="/assets/styles.css?v=20260829-inner-hero-v1"><link rel="stylesheet" href="/assets/wukong-overrides.css?v=20260827-4"><script type="application/ld+json">${safeJsonLd(schema)}</script></head><body><a class="skip-link" href="#article">跳到正文</a>${nav}<main>${body}</main>${footer}<script src="/assets/site.js?v=20260827-article-v1"></script></body></html>`;
 }
 
 export function renderArticlePage({ site, article, origin, relatedArticles = [], compatibility = false, preview = false, assetBase = "/site-assets-r6", bespoke = false }) {
   const sanitized = sanitizeArticleHtml(applyPublicCitationVisibility(article.contentHtml || "", article.metadata));
   const rawBody = sanitized || plainText(article.contentText || "").split(/\n{2,}/).filter(Boolean).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
-  const { html: contentHtml, headings } = ensureArticleHeadings(rawBody);
+  const useUpsEditorial = isXinShuojieSite(site);
+  const { html: contentHtml, headings } = ensureArticleHeadings(useUpsEditorial ? upsArticleStructuredContent(article) : rawBody);
   const pathname = articleLink(article);
   const canonical = absoluteUrl(origin, pathname);
   const published = isoDate(article.publishedAt);
   const modified = isoDate(article.updatedAt || article.publishedAt);
   const organizationId = entityId(origin, "organization");
   const citations = articleCitations(article);
-  const articleImage = absoluteResourceUrl(origin, article.image || article.coverImage || article.metadata?.image);
+  const articleImage = absoluteResourceUrl(origin, useUpsEditorial ? upsArticleImage(article) : (article.image || article.coverImage || article.metadata?.image));
   const topics = [...new Set([article.categoryName, ...(Array.isArray(article.tags) ? article.tags : [])].map((item) => String(item || "").trim()).filter(Boolean))];
   const schemaExtra = [{
     "@type": "Article", "@id": `${canonical}#article`, headline: article.title, description: article.excerpt,
@@ -2748,8 +2856,20 @@ export function renderSitemap({ site, articles, categories, origin }) {
   }
   const insightsPage = publicPages.find((page) => page.id === "insights" || pagePathKey(page.path) === "/insights") || null;
   if (insightsPage) {
-    for (const category of visibleCmsRecords(Array.isArray(categories) ? categories : [], false)) add(categoryLink(category), category.updatedAt || site.updatedAt, "weekly", "0.7");
-    for (const article of Array.isArray(articles) ? articles : []) add(articleLink(article), article.updatedAt || article.publishedAt, "monthly", "0.8");
+    const publicCategories = visibleCmsRecords(Array.isArray(categories) ? categories : [], false).filter((category) => !(isXinShuojieSite(site) && /^(insights|行业资讯)$/i.test(String(category.slug || category.name || "").trim())));
+    for (const category of publicCategories) add(categoryLink(category), category.updatedAt || site.updatedAt, "weekly", "0.7");
+    const publicArticles = isXinShuojieSite(site) ? XINSHUOJIE_ARTICLES : (Array.isArray(articles) ? articles : []);
+    for (const article of publicArticles) add(articleLink(article), article.updatedAt || article.publishedAt, "monthly", "0.8");
+    // Publishing an article changes the freshness of the index page even when
+    // the CMS page record itself was not edited. Keep /insights/ lastmod in
+    // sync with the newest public article so crawlers can discover the update.
+    const latestArticleDate = publicArticles.reduce((latest, article) => {
+      const candidate = article?.updatedAt || article?.publishedAt;
+      if (!candidate) return latest;
+      if (!latest) return candidate;
+      return new Date(candidate).getTime() > new Date(latest).getTime() ? candidate : latest;
+    }, insightsPage.updatedAt || insightsPage.publishedAt || site.updatedAt);
+    if (latestArticleDate) add(insightsPage.path, latestArticleDate, "daily", "0.9");
   }
   const problemMapPage = publicPages.find((page) => page.id === "problem-map" || pagePathKey(page.path) === "/problem-map") || null;
   const problemMapAvailable = Boolean(problemMapPage) || publicFixedPageAvailable(site, "/problem-map/");
@@ -2767,7 +2887,7 @@ export function renderSitemap({ site, articles, categories, origin }) {
 
 export function renderFeed({ site, articles, origin }) {
   const insightsPage = publishedPage(site, "insights", "/insights/");
-  const publicArticles = insightsPage ? (Array.isArray(articles) ? articles : []) : [];
+  const publicArticles = insightsPage ? (isXinShuojieSite(site) ? XINSHUOJIE_ARTICLES : (Array.isArray(articles) ? articles : [])) : [];
   const channelUrl = absoluteUrl(origin, insightsPage ? "/insights/" : "/");
   const selfUrl = absoluteUrl(origin, "/feed.xml");
   const entries = publicArticles.slice(0, 50).map((article) => {
@@ -2848,7 +2968,11 @@ export function injectStaticSeo(html, { site, origin, pathname }) {
   // an alias such as /about/, but without normalising these anchors the
   // browser resolves them against / and sends the user to the homepage.
   const withPageAnchors = String(html || "").replace(/(href=["'])#([^"']+)(["'])/gi, `$1${pathname}#$2$3`);
-  const withoutCanonical = withPageAnchors.replace(/<link\b(?=[^>]*\brel=["']canonical["'])[^>]*>/gi, "");
+  // Static pages are also served through aliases such as /insights/ and
+  // receive a root <base>. Normalize authored assets so CSS/JS never resolves
+  // relative to an alias directory (which produces an unstyled HTML page).
+  const withRootAssets = withPageAnchors.replace(/(\b(?:href|src)=["'])\.?\/?assets\//gi, "$1/assets/");
+  const withoutCanonical = withRootAssets.replace(/<link\b(?=[^>]*\brel=["']canonical["'])[^>]*>/gi, "");
   // Keep page-authored JSON-LD (for example FAQPage and Article nodes) intact.
   // Replacing every script with a generic WebPage graph silently discarded
   // those signals on the bespoke static site. Pages without authored JSON-LD

@@ -130,8 +130,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const publicFeed = document.querySelector('[data-geoflow-feed="published"]');
   const publicArticleSeed = document.querySelector('[data-geoflow-article]');
   const publicProblemMap = document.querySelector('[data-geoflow-problem-map]');
+  const publicServices = document.querySelector('[data-geoflow-services]');
 
-  if (publicFeed || publicArticleSeed || publicProblemMap) {
+  if (publicFeed || publicArticleSeed || publicProblemMap || publicServices) {
     const escapeHtml = (value = '') => String(value)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -157,12 +158,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }).join('');
       return `<section class="tz-problem-group"><header><span>${escapeHtml(group.service || '客户问题')}</span><h2>${escapeHtml(group.title || '问题分组')}</h2>${group.description ? `<p>${escapeHtml(group.description)}</p>` : ''}</header><div class="tz-problem-grid">${cards}</div></section>`;
     };
+    const serviceMarkup = (service, index) => {
+      const themes = ['geo', 'video', 'ai'];
+      const fallbackHref = ['product-website.html', 'product-content-platform.html', 'product-distribution.html'][index] || 'contact.html';
+      const title = escapeHtml(service.title || '企业服务');
+      const description = escapeHtml(service.description || '查看服务范围与适用对象。');
+      const href = escapeHtml(service.href || fallbackHref);
+      const audience = escapeHtml(service.audience || '企业客户');
+      const focus = escapeHtml(service.focus || '按企业实际业务场景推进。');
+      return `<article class="portfolio-card ${themes[index] || 'geo'}"><a href="${href}"><div class="portfolio-top"><span class="portfolio-index">${String(index + 1).padStart(2, '0')}</span><span class="portfolio-arrow" aria-hidden="true">↗</span></div><span class="portfolio-label">${escapeHtml(service.eyebrow || 'SERVICE')}</span><h3>${title}</h3><p>${description}</p><ul><li>${audience}</li><li>${focus}</li></ul><div class="portfolio-action">查看服务详情 <span>→</span></div></a></article>`;
+    };
 
-    fetch('/api/v1/site-public/content', { headers: { Accept: 'application/json' }, cache: 'no-store' })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error('PUBLIC_CONTENT_UNAVAILABLE')))
-      .then((payload) => {
+    const applyPublicContent = (payload) => {
         const articles = Array.isArray(payload?.articles) ? payload.articles : [];
         const problemGroups = Array.isArray(payload?.problemGroups) ? payload.problemGroups : [];
+        const services = Array.isArray(payload?.services) ? payload.services : [];
+        const serviceGrid = document.querySelector('[data-geoflow-services]');
+        if (serviceGrid && services.length) serviceGrid.innerHTML = services.slice(0, 3).map(serviceMarkup).join('');
         const insightsSidebar = publicFeed?.closest('main')?.querySelector('.blog-sidebar');
         if (insightsSidebar && !insightsSidebar.querySelector('[data-tz-problem-map-link]')) {
           insightsSidebar.insertAdjacentHTML('afterbegin', '<section class="blog-panel" data-tz-problem-map-link><span class="blog-panel-label">客户问题</span><a href="problem-map.html"><strong>问题地图</strong><small>按服务方向查看已公开问题与直接回答</small></a></section>');
@@ -184,7 +196,14 @@ document.addEventListener('DOMContentLoaded', () => {
             ? problemGroups.map(problemMarkup).join('')
             : '<p class="tz-public-empty">暂未公开问题。后台将问题分组和问题设为“公开”后，会自动展示在这里。</p>';
         }
-      })
+    };
+    const bootstrap = document.querySelector('#tz-public-content-bootstrap');
+    if (bootstrap?.textContent) {
+      try { applyPublicContent(JSON.parse(bootstrap.textContent)); } catch (_error) { /* fall back to fetch */ }
+    }
+    fetch('/api/v1/site-public/content', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('PUBLIC_CONTENT_UNAVAILABLE')))
+      .then(applyPublicContent)
       .catch(() => {});
   }
 });

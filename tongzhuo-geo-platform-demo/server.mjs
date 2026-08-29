@@ -875,6 +875,16 @@ async function handleSiteCmsApi(request, response, parts) {
     database.connection.prepare("UPDATE site_contact_leads SET status = ?, metadata_json = ?, updated_at = ? WHERE id = ? AND workspace_id = ?").run(status, nextMetadata, now, leadId, "default");
     return jsonResponse(response, 200, { ok: true, data: { lead: siteLeadRows().find((item) => item.id === leadId) } });
   }
+  if (operation === "leads" && parts.length === 5 && method === "DELETE") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_WRITE);
+    const leadId = decodeURIComponent(parts[4]);
+    const body = await requestJson(request, 20_000);
+    if (body?.confirm !== true) return jsonResponse(response, 422, { ok: false, code: "SITE_LEAD_DELETE_CONFIRMATION_REQUIRED", message: "删除线索前需要明确确认。" });
+    const result = database.connection.prepare("DELETE FROM site_contact_leads WHERE id = ? AND workspace_id = ?").run(leadId, "default");
+    if (!result.changes) return jsonResponse(response, 404, { ok: false, code: "SITE_LEAD_NOT_FOUND", message: "线索不存在。" });
+    database.connection.prepare("INSERT INTO audit_logs (actor_user_id, action, entity_type, entity_id, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(principal.userId || principal.id || null, "site.lead.delete", "site_contact_lead", leadId, JSON.stringify({ workspaceId: "default" }), new Date().toISOString());
+    return jsonResponse(response, 200, { ok: true, data: { id: leadId, deleted: true } });
+  }
   if (operation === "preview" && parts.length === 4 && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const query = new URL(request.url || "/", "http://localhost").searchParams;
@@ -1169,6 +1179,13 @@ async function handleKnowledgeApi(request, response, parts) {
     const asset = knowledgeStore.createAsset({ workspaceId, ...body, actor: principal, request });
     return jsonResponse(response, 201, { ok: true, data: { asset } });
   }
+  if (parts.length === 5 && parts[3] === "assets" && method === "DELETE") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.KNOWLEDGE_MANAGE);
+    const body = await requestJson(request, 20_000);
+    if (body?.confirm !== true) return jsonResponse(response, 422, { ok: false, code: "KNOWLEDGE_DELETE_CONFIRMATION_REQUIRED", message: "删除素材前需要明确确认。" });
+    const asset = knowledgeStore.archiveAsset({ workspaceId, assetId: decodeURIComponent(parts[4]), actor: principal, request });
+    return jsonResponse(response, 200, { ok: true, data: { asset } });
+  }
   if (((parts.length === 4 && parts[3] === "assets-batch") || (parts.length === 5 && parts[3] === "assets" && parts[4] === "batch")) && method === "POST") {
     const principal = await authService.requirePermission(request, PERMISSIONS.KNOWLEDGE_MANAGE);
     const body = await requestJson(request, Math.max(configured.requestBodyLimit, 140_000_000));
@@ -1238,6 +1255,13 @@ async function handleKnowledgeApi(request, response, parts) {
     const library = knowledgeStore.createLibrary({ workspaceId, ...(await requestJson(request, 100_000)), actor: principal, request });
     return jsonResponse(response, 201, { ok: true, data: { library: knowledgeStore.libraryRow(library) } });
   }
+  if (parts.length === 5 && parts[3] === "libraries" && method === "DELETE") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.KNOWLEDGE_MANAGE);
+    const body = await requestJson(request, 20_000);
+    if (body?.confirm !== true) return jsonResponse(response, 422, { ok: false, code: "KNOWLEDGE_DELETE_CONFIRMATION_REQUIRED", message: "删除知识库前需要明确确认。" });
+    const library = knowledgeStore.archiveLibrary({ workspaceId, libraryId: decodeURIComponent(parts[4]), actor: principal, request });
+    return jsonResponse(response, 200, { ok: true, data: { library, archived: true } });
+  }
   if (parts.length === 5 && parts[3] === "libraries" && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const library = knowledgeStore.library(workspaceId, decodeURIComponent(parts[4]), true);
@@ -1268,6 +1292,13 @@ async function handleKnowledgeApi(request, response, parts) {
     const body = await requestJson(request, Math.max(configured.requestBodyLimit, 30_000_000));
     const version = await knowledgeStore.createVersion({ workspaceId, documentId: decodeURIComponent(parts[4]), ...body, actor: principal, request });
     return jsonResponse(response, 201, { ok: true, data: { version: knowledgeStore.publicVersion(version) } });
+  }
+  if (parts.length === 5 && parts[3] === "documents" && method === "DELETE") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.KNOWLEDGE_MANAGE);
+    const body = await requestJson(request, 20_000);
+    if (body?.confirm !== true) return jsonResponse(response, 422, { ok: false, code: "KNOWLEDGE_DELETE_CONFIRMATION_REQUIRED", message: "删除知识条目前需要明确确认。" });
+    const document = knowledgeStore.archiveDocument({ workspaceId, documentId: decodeURIComponent(parts[4]), actor: principal, request });
+    return jsonResponse(response, 200, { ok: true, data: { document, archived: true } });
   }
   if (parts.length === 5 && parts[3] === "versions" && method === "GET") {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
@@ -1354,6 +1385,16 @@ async function handlePublisherApi(request, response, parts, principal = null) {
   }
   if (request.method === "POST" && parts.length === 4 && parts[1] === "jobs" && parts[3] === "cancel") {
     return jsonResponse(response, 200, { ok: true, job: await publisherStore.cancelJob(parts[2]) });
+  }
+  if (request.method === "DELETE" && parts.length === 3 && parts[1] === "jobs") {
+    const result = await publisherStore.removeJob(parts[2]);
+    return jsonResponse(response, 200, { ok: true, data: result });
+  }
+  if (request.method === "DELETE" && parts.length === 3 && parts[1] === "account-groups") {
+    const body = await requestJson(request, 20_000);
+    if (body.confirm !== true) return jsonResponse(response, 422, { ok: false, code: "CONFIRM_REQUIRED", message: "删除账号组需要明确确认。" });
+    const result = await publisherStore.removeAccountGroup(decodeURIComponent(parts[2]));
+    return jsonResponse(response, 200, { ok: true, data: result });
   }
   if (request.method === "POST" && parts.length === 4 && parts[1] === "jobs" && parts[3] === "verify") {
     const body = await requestJson(request, 20_000);
@@ -1509,36 +1550,49 @@ async function persistGeneratedArticle(payload, generated, ragResult, principal,
   const workspaceId = "default";
   const requestedArticleId = String(payload.contentArticleId || payload.articleId || payload.article?.id || "").trim();
   const requestedTaskId = String(payload.contentTaskId || payload.taskId || "").trim();
+  const requestedTopicId = Object.prototype.hasOwnProperty.call(payload, "topicId")
+    ? (String(payload.topicId || "").trim() || null)
+    : (String(payload.topic?.id || "").trim() || null);
+  // Resolve idempotency before provisioning any requested task/article IDs.
+  // A browser retry can generate fresh local IDs after the first response was
+  // interrupted; those IDs must never be paired with the old job's version.
+  const existingJob = payload.idempotencyKey ? contentStore.generationJobByIdempotency(workspaceId, payload.idempotencyKey) : null;
+  if (existingJob?.status === "succeeded" && existingJob.result?.versionId) {
+    const existingVersion = contentStore.version(workspaceId, existingJob.result.versionId, { includeContent: true, includeEvidence: true });
+    const existingArticle = contentStore.article(workspaceId, existingVersion.articleId, { includeVersion: true, includeEvidence: true });
+    const existingTask = existingArticle.taskId
+      ? contentStore.task(workspaceId, existingArticle.taskId)
+      : existingJob.taskId
+        ? contentStore.task(workspaceId, existingJob.taskId)
+        : null;
+    return { task: existingTask, article: existingArticle, version: existingVersion, generationJob: existingJob };
+  }
+  if (existingJob && ["running", "queued"].includes(existingJob.status)) {
+    throw new ContentStateError("An identical article generation is already running.", "CONTENT_GENERATION_IN_PROGRESS");
+  }
+  if (existingJob?.status === "failed") {
+    throw new ContentStateError("The previous identical article generation failed; use a new idempotency key to retry.", "CONTENT_GENERATION_RETRY_KEY_REQUIRED");
+  }
   const title = String(generated.article?.title || payload.topic?.coreQuestion || payload.topic?.title || "未命名文章").trim();
   let task = null;
   if (requestedTaskId) {
     try { task = contentStore.task(workspaceId, requestedTaskId); } catch (error) { if (!(error instanceof ContentError) || error.status !== 404) throw error; }
   }
   if (!task) {
-    task = contentStore.upsertTask({ workspaceId, id: requestedTaskId || undefined, planId: payload.planId || payload.contentPlanId || null, topicId: payload.topic?.id || payload.topicId || null, businessLineId: payload.businessLine?.id || payload.businessLineId || null, title, dueAt: payload.dueAt || payload.expectedCompletionAt || null, status: "generating", metadata: { source: "ai-generation", localArticleId: requestedArticleId || null }, actor: principal, request });
+    task = contentStore.upsertTask({ workspaceId, id: requestedTaskId || undefined, planId: payload.planId || payload.contentPlanId || null, topicId: requestedTopicId, businessLineId: payload.businessLine?.id || payload.businessLineId || null, title, dueAt: payload.dueAt || payload.expectedCompletionAt || null, status: "generating", metadata: { source: "ai-generation", localArticleId: requestedArticleId || null }, actor: principal, request });
   } else {
-    task = contentStore.upsertTask({ workspaceId, id: task.id, planId: payload.planId || payload.contentPlanId || undefined, topicId: payload.topic?.id || payload.topicId || undefined, businessLineId: payload.businessLine?.id || payload.businessLineId || undefined, title, dueAt: payload.dueAt || payload.expectedCompletionAt || undefined, metadata: { ...task.metadata, source: "ai-generation", localArticleId: task.metadata?.localArticleId || requestedArticleId || null }, actor: principal, request });
+    task = contentStore.upsertTask({ workspaceId, id: task.id, planId: payload.planId || payload.contentPlanId || undefined, topicId: Object.prototype.hasOwnProperty.call(payload, "topicId") ? requestedTopicId : undefined, businessLineId: payload.businessLine?.id || payload.businessLineId || undefined, title, dueAt: payload.dueAt || payload.expectedCompletionAt || undefined, metadata: { ...task.metadata, source: "ai-generation", localArticleId: task.metadata?.localArticleId || requestedArticleId || null }, actor: principal, request });
   }
   let article = task.articleId ? contentStore.article(workspaceId, task.articleId, { includeVersion: true }) : null;
   if (!article) {
     const articleId = requestedArticleId || `ART-${task.id}`;
     try { article = contentStore.article(workspaceId, articleId, { includeVersion: true }); } catch (error) { if (!(error instanceof ContentError) || error.status !== 404) throw error; }
-    if (!article) article = contentStore.upsertArticle({ workspaceId, id: articleId, taskId: task.id, planId: payload.planId || payload.contentPlanId || null, topicId: payload.topic?.id || payload.topicId || null, businessLineId: payload.businessLine?.id || payload.businessLineId || null, title, metadata: { source: "ai-generation", localArticleId: requestedArticleId || articleId }, actor: principal, request });
-    else article = contentStore.upsertArticle({ workspaceId, id: article.id, taskId: task.id, planId: payload.planId || payload.contentPlanId || undefined, topicId: payload.topic?.id || payload.topicId || undefined, businessLineId: payload.businessLine?.id || payload.businessLineId || undefined, title, actor: principal, request });
+    if (!article) article = contentStore.upsertArticle({ workspaceId, id: articleId, taskId: task.id, planId: payload.planId || payload.contentPlanId || null, topicId: requestedTopicId, businessLineId: payload.businessLine?.id || payload.businessLineId || null, title, metadata: { source: "ai-generation", localArticleId: requestedArticleId || articleId }, actor: principal, request });
+    else article = contentStore.upsertArticle({ workspaceId, id: article.id, taskId: task.id, planId: payload.planId || payload.contentPlanId || undefined, topicId: Object.prototype.hasOwnProperty.call(payload, "topicId") ? requestedTopicId : undefined, businessLineId: payload.businessLine?.id || payload.businessLineId || undefined, title, actor: principal, request });
   }
-  const existingJob = payload.idempotencyKey ? contentStore.generationJobByIdempotency(workspaceId, payload.idempotencyKey) : null;
   const job = existingJob || contentStore.createGenerationJob({ workspaceId, articleId: article.id, taskId: task.id, operation: "article", idempotencyKey: payload.idempotencyKey || null, providerId: payload.providerId || null, model: payload.model || null, promptVersion: "geo-article-v1", retrievalRunId: ragResult?.runId || null, requestPayload: { topic: payload.topic || null, contentType: payload.contentType || "", agentId: payload.agentId || payload.writerAgentId || null, useRag: payload.useRag === true || payload.rag?.enabled === true }, actor: principal, request });
   // A browser retry can receive the same idempotent job after the response was
   // interrupted. Do not append another immutable article version in that case.
-  if (job.status === "succeeded" && job.result?.versionId) {
-    const existingVersion = contentStore.version(workspaceId, job.result.versionId, { includeContent: true, includeEvidence: true });
-    const existingArticle = contentStore.article(workspaceId, article.id, { includeVersion: true, includeEvidence: true });
-    return { task: contentStore.task(workspaceId, task.id), article: existingArticle, version: existingVersion, generationJob: job };
-  }
-  if (existingJob && ["running", "queued"].includes(job.status)) {
-    throw new ContentStateError("An identical article generation is already running.", "CONTENT_GENERATION_IN_PROGRESS");
-  }
-  if (existingJob?.status === "failed") throw new ContentStateError("The previous identical article generation failed; use a new idempotency key to retry.", "CONTENT_GENERATION_RETRY_KEY_REQUIRED");
   contentStore.updateGenerationJob({ workspaceId, jobId: job.id, status: "running", actor: principal, request });
   try {
     const generatedResult = generated;
@@ -1608,6 +1662,9 @@ async function handleAiGenerationApi(request, response, parts, principal) {
     const taskHint = String(payload.contentTaskId || payload.taskId || "").trim();
     const generated = await aiGenerationService.generateArticle(payload);
     if (ragResult) generated.rag = { runId: ragResult.runId, embeddingModel: ragResult.embeddingModel, embeddingSource: ragResult.embeddingSource, resultCount: ragResult.results.length, knowledgeGap: ragResult.knowledgeGap };
+    // Collaboration requests are previews. They must not create a second
+    // formal task/article/version until the user explicitly applies the proposal.
+    if (payload.persist === false) return jsonResponse(response, 200, { ok: true, data: generated });
     const persisted = await persistGeneratedArticle({ ...payload, contentArticleId: articleHint, contentTaskId: taskHint }, generated, ragResult, principal, request);
     const data = { ...generated, contentTaskId: persisted.task.id, contentArticleId: persisted.article.id, articleVersionId: persisted.version.id, revision: persisted.article.revision, contentArticle: persisted.article, contentVersion: persisted.version, generationJob: persisted.generationJob };
     data.article = { ...(generated.article || {}), contentTaskId: data.contentTaskId, contentArticleId: data.contentArticleId, articleVersionId: data.articleVersionId, revision: data.revision };

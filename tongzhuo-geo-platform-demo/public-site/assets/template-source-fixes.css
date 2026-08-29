@@ -34,7 +34,7 @@ body.template-source .section { padding-block: var(--source-section); }
 body.template-source .header { position: sticky; top: 0; z-index: 50; background: color-mix(in srgb, var(--source-paper) 94%, transparent); border-bottom: 1px solid var(--source-line); backdrop-filter: blur(14px); }
 body.template-source .header .nav { min-height: 72px; display: flex; align-items: center; gap: 28px; }
 body.template-source .logo { min-width: 0; display: inline-flex; align-items: center; gap: 10px; color: var(--source-ink); font-weight: 760; }
-body.template-source .logo > span:last-child { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.template-source .logo > span:last-child { max-width: 300px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 body.template-source .logo-image { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; overflow: hidden; border-radius: 9px; background: var(--source-soft); }
 body.template-source .logo-image img { width: 100%; height: 100%; object-fit: contain; }
 body.template-source .nav-menu { display: flex; flex: 1 1 auto; justify-content: center; gap: clamp(14px, 2.5vw, 32px); margin: 0; padding: 0; list-style: none; }
@@ -100,12 +100,14 @@ body.template-source :focus-visible { outline: 3px solid color-mix(in srgb, var(
 body.template-source .reveal { transition-duration: .45s; }
 
 @media (max-width: 900px) {
+  body.template-source .logo > span:last-child { max-width: 260px; }
   body.template-source .hero .container { grid-template-columns: 1fr; min-height: auto; }
   body.template-source .hero .visual, body.template-source .hero .quick, body.template-source .hero .appt { max-width: 680px; }
   body.template-source .products-grid, body.template-source .services-grid, body.template-source .cards, body.template-source .cases-grid, body.template-source .news-grid, body.template-source .legacy-card-grid, body.template-source .legacy-article-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body.template-source .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 680px) {
+  body.template-source .logo > span:last-child { max-width: calc(100vw - 118px); }
   body.template-source .header .nav { min-height: 64px; }
   body.template-source .nav-menu, body.template-source .nav-phone { display: none; }
   body.template-source .nav-contact { margin-left: auto; }

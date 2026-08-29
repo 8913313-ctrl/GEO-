@@ -9,6 +9,7 @@ import { PublicSiteStore } from "./public-site/site-store.mjs";
 import { KnowledgeStore } from "./knowledge-store.mjs";
 import {
   injectStaticSeo,
+  escapeHtml,
   findFrontendArticle,
   findSiteProblem,
   renderArticlePage,
@@ -94,6 +95,16 @@ function refreshSiteAssetVersion(body) {
     .replaceAll("site-v8.js?v=20260811-passport28", "site-v8.js?v=20260811-passport29")
     .replaceAll("site-v8.css?v=20260811-passport29", "site-v8.css?v=20260811-passport30")
     .replaceAll("site-v8.js?v=20260811-passport29", "site-v8.js?v=20260811-passport30");
+}
+
+function injectStaticPublicContent(body, { site, articles, problemGroups }) {
+  const services = (Array.isArray(site?.services) ? site.services : [])
+    .filter((item) => item?.status === "published")
+    .slice(0, 12)
+    .map((item) => ({ title: item.title, eyebrow: item.eyebrow, description: item.description, audience: item.audience, focus: item.focus, image: item.image, imageAlt: item.imageAlt, href: item.href }));
+  const payload = JSON.stringify({ articles: articles.map(publicArticleSummary), problemGroups, services, site: { companyName: site?.companyName, description: site?.description, cta: site?.cta } }).replace(/</g, "\\u003c");
+  const script = `<script id="tz-public-content-bootstrap" type="application/json">${payload}</script>`;
+  return String(body || "").includes("tz-public-content-bootstrap") ? body : String(body || "").replace("</head>", `${script}</head>`);
 }
 
 const BUILT_IN_SITE_ASSETS = Object.freeze({
@@ -638,7 +649,28 @@ export function createSiteRuntime(options = {}) {
         cacheControl: "no-store",
         body: JSON.stringify({
           articles: machineArticles.map(publicArticleSummary),
-          problemGroups: problemMapPublished ? publishedProblemGroups(site) : []
+          problemGroups: problemMapPublished ? publishedProblemGroups(site) : [],
+          // The bespoke static shell consumes this read-only projection when
+          // a customer has published service records in CMS. Keep the
+          // hand-authored copy as the fallback when the collection is empty.
+          services: (Array.isArray(site.services) ? site.services : [])
+            .filter((item) => item?.status === "published")
+            .slice(0, 12)
+            .map((item) => ({
+              title: item.title,
+              eyebrow: item.eyebrow,
+              description: item.description,
+              audience: item.audience,
+              focus: item.focus,
+              image: item.image,
+              imageAlt: item.imageAlt,
+              href: item.href
+            })),
+          site: {
+            companyName: site.companyName,
+            description: site.description,
+            cta: site.cta
+          }
         })
       }, { pathname, track: false });
     }
@@ -725,7 +757,11 @@ export function createSiteRuntime(options = {}) {
   }
 
   async function serveBuiltInAsset(request, responseObject, pathname) {
-    const relativePath = BUILT_IN_SITE_ASSETS[pathname];
+    // Built-in customer assets (for example the imported Xinshuojie image
+    // library) live below public-site/assets and are resolved only after the
+    // fixed allow-list lookup. readStaticFile() still enforces containment and
+    // the per-file size limit.
+    const relativePath = BUILT_IN_SITE_ASSETS[pathname] || (pathname.startsWith("/assets/") ? pathname.slice("/assets/".length) : "");
     if (!relativePath) return false;
     const file = await readStaticFile(BUILT_IN_SITE_ASSET_ROOT, relativePath);
     if (!file) return false;
@@ -744,7 +780,13 @@ export function createSiteRuntime(options = {}) {
     const file = await readStaticFile(config.staticRoot, relativePath);
     if (!file) return false;
     const isHtml = path.extname(relativePath).toLocaleLowerCase("en-US") === ".html";
-    const body = isHtml ? injectStaticSeo(file.body.toString("utf8"), { site: snapshot.site, origin, pathname }) : file.body;
+    const body = isHtml
+      ? injectStaticPublicContent(injectStaticSeo(file.body.toString("utf8"), { site: snapshot.site, origin, pathname }), {
+        site: snapshot.site,
+        articles: displayedArticles(snapshot.site, snapshot.articles),
+        problemGroups: publishedProblemGroups(snapshot.site)
+      })
+      : file.body;
     return response(request, responseObject, {
       status: 200, body, contentType: contentType(relativePath),
       cacheControl: isHtml ? "no-cache" : "public, max-age=604800, immutable",

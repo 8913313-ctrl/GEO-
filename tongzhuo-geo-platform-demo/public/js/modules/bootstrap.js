@@ -1785,8 +1785,9 @@ document.addEventListener("input", (event) => {
     const workspace = studioWorkspaceById(ui.studioWorkspaceId);
     const article = workspace && studioArticleForWorkspace(workspace);
     if (article) {
-      const synced = syncStudioArticleEditor({ silent: true }) || article;
-      refreshArticleRiskInlineNotice(synced, "studio", {
+      // Keep typing local to the editor. Creating an immutable content version
+      // is an explicit save/review action, not one operation per keystroke.
+      refreshArticleRiskInlineNotice(article, "studio", {
         title: event.target.id === "studio-title-editor" ? event.target.value : document.getElementById("studio-title-editor")?.value,
         content: event.target.id === "studio-content-editor" ? event.target.innerHTML : document.getElementById("studio-content-editor")?.innerHTML
       });

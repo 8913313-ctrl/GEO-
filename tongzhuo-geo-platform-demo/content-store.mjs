@@ -238,6 +238,15 @@ export class ContentStore {
     return this.connection.prepare(query).all(...params).map((row) => this.articleRow(row));
   }
 
+  archiveArticle(workspaceId = this.workspaceId, articleId, actor = null, request = null) {
+    const article = this.article(workspaceId, articleId, { includeArchived: true });
+    if (article.status === "archived") return article;
+    const timestamp = now();
+    this.connection.prepare("UPDATE content_articles SET status = 'archived', revision = revision + 1, updated_at = ?, updated_by = ? WHERE workspace_id = ? AND id = ?").run(timestamp, actorId(actor), workspaceId, articleId);
+    appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "content.article.archive", entityType: "content_article", entityId: articleId, details: { workspaceId }, request, createdAt: timestamp });
+    return this.article(workspaceId, articleId, { includeArchived: true });
+  }
+
   listVersions({ workspaceId = this.workspaceId, articleId, limit = 100, includeContent = false } = {}) {
     if (!articleId) throw new ContentError("articleId is required.", 422, "CONTENT_INVALID_INPUT");
     const rows = this.connection.prepare(`
@@ -313,6 +322,19 @@ export class ContentStore {
     if (status) { query += " AND status = ?"; params.push(status); }
     query += " ORDER BY updated_at DESC LIMIT ?"; params.push(Math.max(1, Math.min(1_000, Number(limit) || 100)));
     return this.connection.prepare(query).all(...params).map((row) => this.planRow(row));
+  }
+
+  archivePlan(workspaceId = this.workspaceId, planId, actor = null, request = null) {
+    const plan = this.plan(workspaceId, planId);
+    if (plan.status === "archived") return plan;
+    const timestamp = now();
+    this.database.transaction(() => {
+      this.connection.prepare("UPDATE content_plans SET status = 'archived', revision = revision + 1, updated_at = ? WHERE workspace_id = ? AND id = ?").run(timestamp, workspaceId, planId);
+      this.connection.prepare("UPDATE content_tasks SET plan_id = NULL, updated_at = ? WHERE workspace_id = ? AND plan_id = ?").run(timestamp, workspaceId, planId);
+      this.connection.prepare("UPDATE content_articles SET plan_id = NULL, updated_at = ?, updated_by = ? WHERE workspace_id = ? AND plan_id = ?").run(timestamp, actorId(actor), workspaceId, planId);
+      appendAuditLog(this.connection, { actorUserId: actorId(actor), action: "content.plan.archive", entityType: "content_plan", entityId: planId, details: { workspaceId }, request, createdAt: timestamp });
+    });
+    return this.plan(workspaceId, planId);
   }
 
   createTask({ workspaceId = this.workspaceId, id: requestedId, planId = null, topicId = null, businessLineId = null, title, assigneeUserId = null, dueAt = null, status = "planned", metadata = {}, actor = null, request = null } = {}) {

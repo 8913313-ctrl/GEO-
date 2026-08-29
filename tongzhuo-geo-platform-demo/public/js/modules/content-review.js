@@ -3034,7 +3034,7 @@ function setDefaultWritingAgent(agentId) {
   showToast("业务线默认智能体已更新", "「" + line.name + "」以后新建计划默认选择「" + agent.name + "」；历史计划保持不变。");
 }
 
-function deleteBusinessLine(lineId) {
+async function deleteBusinessLine(lineId) {
   const line = state.businessLines.find((item) => item.id === lineId && item.status === "active");
   const activeLines = state.businessLines.filter((item) => item.status === "active");
   if (!line) return showToast("业务线不存在", "请刷新页面后重试。", "error");
@@ -3066,6 +3066,7 @@ function deleteBusinessLine(lineId) {
   ui.seedInput = "";
   ui.planningCategory = "all";
   saveState();
+  await persistWorkspaceMutation("business-line-delete");
   render();
   ui.modal = { type: "businessLineManager" };
   renderModal();
@@ -3138,7 +3139,7 @@ function submitBusinessLine() {
   window.setTimeout(() => document.getElementById("business-keyword-input")?.focus(), 30);
 }
 
-function archivePlanningQuestion(questionId) {
+async function archivePlanningQuestion(questionId) {
   const question = state.questionLibrary.find((item) => item.id === questionId);
   if (!question || question.status === "archived") return;
   question.archivedFromStatus = question.status || "active";
@@ -3148,11 +3149,12 @@ function archivePlanningQuestion(questionId) {
   question.archivedReason = "运营人员归档";
   question.selected = false;
   saveState();
+  await persistWorkspaceMutation("planning-question-archive");
   render();
   showToast("问题已归档", "历史选题、计划和文章仍然保留，可在归档管理中恢复。");
 }
 
-function archivePlanningTopic(topicId) {
+async function archivePlanningTopic(topicId) {
   const topic = state.topics.find((item) => item.id === topicId);
   if (!topic || topic.status === "archived") return;
   topic.archivedFromStatus = topic.status || "active";
@@ -3162,6 +3164,7 @@ function archivePlanningTopic(topicId) {
   topic.archivedReason = "运营人员归档";
   topic.selected = false;
   saveState();
+  await persistWorkspaceMutation("planning-topic-archive");
   render();
   showToast("选题已归档", "不会影响已经创建的内容计划和历史文章。");
 }
@@ -3246,7 +3249,7 @@ function submitTopicEdit() {
   showToast("选题已更新", refs.plans.length || refs.articles.length ? `已创建 v${topic.version}；历史计划和文章继续使用原选题版本。` : `已保存选题 v${topic.version}。`);
 }
 
-function permanentlyDeletePlanningRecord(kind, recordId) {
+async function permanentlyDeletePlanningRecord(kind, recordId) {
   const list = kind === "topic" ? state.topics : state.questionLibrary;
   const record = list.find((item) => item.id === recordId);
   if (!record || record.status !== "archived") return showToast("只能删除归档记录", "请先将问题或选题归档，再执行永久删除。", "error");
@@ -3257,6 +3260,7 @@ function permanentlyDeletePlanningRecord(kind, recordId) {
   if (index >= 0) list.splice(index, 1);
   if (kind === "topic") state.questionLibrary.filter((question) => question.topicId === recordId).forEach((question) => { question.topicId = null; });
   saveState();
+  await persistWorkspaceMutation("planning-record-delete");
   closeModal();
   render();
   showToast(kind === "topic" ? "选题已永久删除" : "问题已永久删除", "这条记录没有任何下游引用，已从当前客户空间移除。");
@@ -3789,6 +3793,35 @@ function buildStudioProposal(article, prompt, agentSnapshot) {
   return { kind: "structure", label: "文章结构调整建议", html: studioReplaceHeadings(article.content, headings), before: before.join(" → ") || "当前正文结构", after: headings.join(" → "), baseArticleVersion: article.version, baseContentHash: currentHash, status: "pending" };
 }
 
+function mapRemoteProposalCitations(article, remoteGeneration, html) {
+  const localCitations = articleCitations(article);
+  const hasRemoteCitations = Array.isArray(remoteGeneration?.citations);
+  if (!hasRemoteCitations) return { html: String(html || ""), citationIds: null };
+  const remoteCitations = remoteGeneration.citations;
+  const usedLocalIds = [];
+  const resolveLocalCitation = (remote, index) => {
+    const remoteVersionId = remote?.knowledgeVersionId || remote?.versionId;
+    const remoteDocumentId = remote?.knowledgeDocumentId || remote?.documentId;
+    const remoteChunkId = remote?.knowledgeChunkId || remote?.chunkId;
+    return localCitations.find((citation) => remoteVersionId && (citation.versionId || citation.knowledgeVersionId) === remoteVersionId)
+      || localCitations.find((citation) => remoteDocumentId && (citation.itemId || citation.documentId || citation.knowledgeDocumentId) === remoteDocumentId)
+      || localCitations.find((citation) => remoteChunkId && (citation.chunkId || citation.knowledgeChunkId) === remoteChunkId)
+      || localCitations[Number(String(remote?.id || "").replace(/\D/g, "")) - 1]
+      || localCitations[index]
+      || null;
+  };
+  const mappedHtml = String(html || "").replace(/<sup\b([^>]*?)data-evidence-id=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/sup>/gi, (match, before, evidenceId, after, label) => {
+    const remoteIndex = remoteCitations.findIndex((remote) => String(remote?.id || "") === String(evidenceId));
+    const numericIndex = Number(String(evidenceId).replace(/\D/g, "")) - 1;
+    const resolvedIndex = remoteIndex >= 0 ? remoteIndex : (numericIndex >= 0 ? numericIndex : 0);
+    const citation = resolveLocalCitation(remoteCitations[resolvedIndex], resolvedIndex);
+    if (!citation) return String(label || "");
+    if (!usedLocalIds.includes(citation.id)) usedLocalIds.push(citation.id);
+    return citationMarkerHtml(citation);
+  });
+  return { html: mappedHtml, citationIds: usedLocalIds };
+}
+
 function studioMessageSources(workspace, conversation) {
   const selectedIds = new Set(conversation?.selectedKnowledgeItemIds || []);
   const knowledgeSources = studioApprovedKnowledgeEntries(workspace).filter((entry) => selectedIds.has(entry.item.id)).map((entry) => ({
@@ -3861,7 +3894,7 @@ async function sendStudioChat() {
           ? "我已基于你刚才的正文补出一节落地核验清单，点击应用后才会写入正文。"
           : "我已基于你刚才的正文整理出结构差异，点击应用后才会写入正文。";
       conversation.messages = conversation.messages.filter((m) => !m.thinking);
-    conversation.messages.push({ id: uid("MSG"), role: "assistant", text: responseText, createdAt: Date.now(), agentSnapshot, contextSnapshot: generatedContext, sources, attachments, proposal });
+      conversation.messages.push({ id: uid("MSG"), role: "assistant", text: responseText, createdAt: Date.now(), agentSnapshot, contextSnapshot: generatedContext, sources, attachments, proposal });
       conversation.updatedAt = Date.now();
       workspace.updatedAt = conversation.updatedAt;
       saveState();
@@ -3877,14 +3910,16 @@ async function sendStudioChat() {
   render();
   const providerId = await ensureSelectedTextProviderId();
   const line = state.businessLines.find((item) => item.id === workspace.businessLineId && item.status === "active");
-  const evidence = articleCitations(article).map((citation) => ({
-    item: { title: citation.claim || citation.title || "已审核企业事实" },
-    quote: citation.quote || citation.excerpt || "",
-    base: { name: citation.source || citation.sourceName || "企业知识库" },
-    version: { id: citation.versionId || citation.knowledgeVersionId || "", content: citation.quote || "" }
-  }));
-  if (!providerId || !line || !evidence.length) {
-    const failureText = !providerId ? "尚未配置文本模型，无法生成 AI 修改建议。" : !line ? "当前业务线不可用，无法生成 AI 修改建议。" : "当前文章没有冻结的已审核证据，无法安全重写。";
+  const citationEvidence = articleCitations(article).map(studioEvidenceFromCitation);
+  const evidence = citationEvidence.filter((entry) => entry.referenceComplete);
+  if (!providerId || !line || !evidence.length || evidence.length !== citationEvidence.length) {
+    const failureText = !providerId
+      ? "尚未配置文本模型，无法生成 AI 修改建议。"
+      : !line
+        ? "当前业务线不可用，无法生成 AI 修改建议。"
+        : evidence.length !== citationEvidence.length
+          ? "当前文章的知识引用快照不完整（缺少知识库、文档、版本或片段定位），请重新检索或生成文章后再协作。"
+          : "当前文章没有冻结的已审核证据，无法安全重写。";
     conversation.messages = conversation.messages.filter((m) => !m.thinking);
     conversation.messages.push({ id: uid("MSG"), role: "assistant", text: failureText, createdAt: Date.now(), agentSnapshot, contextSnapshot, sources, attachments, proposal: null });
     conversation.updatedAt = Date.now();
@@ -3904,7 +3939,8 @@ async function sendStudioChat() {
       agentSnapshot,
       evidence,
       expectedPlatforms: planExpectedPlatformGuidance(contentPlanForArticle(article)).map((item) => item.name),
-      userInstruction: `${prompt}\n当前文章标题：${article.title}\n当前文章正文：${studioPlainText(article.content).slice(0, 12000)}`
+      userInstruction: `${prompt}\n当前文章标题：${article.title}\n当前文章正文：${studioPlainText(article.content).slice(0, 12000)}`,
+      persist: false
     });
   } catch (error) {
     const failureText = `模型没有生成可用的修改建议：${error.message || "请检查模型与知识配置后重试。"}`;
@@ -3917,11 +3953,14 @@ async function sendStudioChat() {
     return showToast("AI 协作失败", failureText, "error");
   }
   const titleOnly = (prompt.includes("标题") || String(prompt).toLowerCase().includes("headline")) && !prompt.includes("结构");
+  const proposalCitationState = mapRemoteProposalCitations(article, remoteRevision, remoteRevision.html || remoteRevision.content || "");
   const proposal = {
     kind: titleOnly ? "title" : "rewrite",
     label: titleOnly ? "AI 标题建议" : "AI 正文修改建议",
     title: String(remoteRevision.title || article.title).slice(0, 240),
-    html: titleOnly ? null : String(remoteRevision.html || remoteRevision.content || ""),
+    html: titleOnly ? null : proposalCitationState.html,
+    citationIds: titleOnly ? null : proposalCitationState.citationIds,
+    hasRemoteCitations: Array.isArray(remoteRevision.citations),
     before: titleOnly ? article.title : `当前 ${article.version}`,
     after: String(remoteRevision.summary || "已按本次要求重写，并保留证据边界。").slice(0, 300),
     baseArticleVersion: article.version,
@@ -3958,7 +3997,16 @@ function applyStudioProposal(messageId) {
   if (proposal.baseArticleVersion !== article.version || proposal.baseContentHash !== studioContentHash(article.content)) return showToast("建议已过期", "正文或版本在建议生成后发生了变化，请重新让 AI 生成建议。", "error");
   const citationClone = studioBumpArticleVersion(article, "ai_collaboration", "应用 AI 建议前");
   if (proposal.kind === "title") article.title = proposal.title;
-  else article.content = sanitizeStudioHtml(studioRemapCitationIds(proposal.html, citationClone?.idMap));
+  else {
+    article.content = sanitizeStudioHtml(studioRemapCitationIds(proposal.html, citationClone?.idMap));
+    if (proposal.hasRemoteCitations && Array.isArray(proposal.citationIds)) {
+      const allowedIds = new Set(proposal.citationIds.map((id) => citationClone?.idMap?.get(id) || id));
+      const retained = articleCitations(article).filter((citation) => allowedIds.has(citation.id));
+      article.citations = retained.map((citation) => citation.id);
+      article.sources = retained.length;
+      if (article.knowledgeSnapshot) article.knowledgeSnapshot.citationIds = article.citations.slice();
+    }
+  }
   studioResetArticleReview(article, "unscanned");
   article.updatedAt = Date.now();
   article.editEvents = Array.isArray(article.editEvents) ? article.editEvents : [];
@@ -4021,7 +4069,6 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   const context = { id: null, name: "AI 创作台 · 直接创作", businessLineId: line.id, contentType, articleIds: [], writingAgentId: agent.id, writingAgentSnapshot: agentSnapshot, knowledgeBaseIds: cloneData(scope.resolvedBaseIds), knowledgeScope: cloneData(scope), selectedKnowledgeItemIds: cloneData(workspace.selectedKnowledgeItemIds || []), createdAt: Date.now() };
   const requestedArticleId = uid("ART");
   const evidence = generationEvidenceForPlan(context);
-  if (!evidence.length && !options.manualOnly) return showToast("没有可用企业知识", "请先为当前业务线配置知识库，并审核至少一条知识。", "error");
   const firstLine = topicText.split(/\n/).map((item) => item.trim()).find(Boolean) || topicText;
   const title = (draftTitle || firstLine).length > 70 ? (draftTitle || firstLine).slice(0, 68) + "…" : (draftTitle || firstLine);
   const topic = { id: uid("DIRECT-TOPIC"), source: "custom", title, keyword: title.slice(0, 32), intent: "直接创作", prompt: topicText, userInstruction: topicOverride || null };
@@ -4041,33 +4088,24 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
       render();
       return showToast("尚未配置文本模型", "请先在系统设置 → 模型与 API 中绑定默认文本模型。", "error");
     }
-    const approvedEvidence = aiEvidencePayload(evidence);
     try {
-      const modelQuestion = /[？?]/.test(topic.geoBrief.coreQuestion || "")
-        ? topic.geoBrief.coreQuestion
-        : `${topic.geoBrief.coreQuestion}应该如何判断和实施？`;
-      const payload = await aiApi("/api/ai/generate/article", {
-        method: "POST",
-        body: {
-          providerId,
-          model: selectedTextModelName(),
-          contentArticleId: requestedArticleId,
-          contentTaskId: `TASK-${requestedArticleId}`,
-          idempotencyKey: `article:workspace:${workspace.id}:${studioContentHash(topicText)}`,
-          businessLine: aiBusinessLinePayload(line),
-          contentType,
-          topic: { id: topic.id, title: topic.title, coreQuestion: modelQuestion, dimension: topic.dimension || "question", intent: topic.intent, stage: topic.stage, geoBrief: { ...topic.geoBrief, coreQuestion: modelQuestion } },
-          topicBrief: { ...topic.geoBrief, coreQuestion: modelQuestion },
-          agentSnapshot,
-          writingAgent: agentSnapshot,
-          approvedEvidence,
-          outputContract: buildGeoOutputContract(topic, [], agentSnapshot, { contentType })
-        }
+      remoteGeneration = await requestAiArticle({
+        providerId,
+        line,
+        contentType,
+        topic,
+        agentSnapshot,
+        evidence,
+        userInstruction: topicText,
+        contentArticleId: requestedArticleId,
+        contentTaskId: `TASK-${requestedArticleId}`,
+        topicId: sourceTopicId || topic.id,
+        idempotencyKey: `article:workspace:${workspace.id}:${studioContentHash(topicText)}`,
+        knowledgeBaseIds: scope.resolvedBaseIds
       });
-      remoteGeneration = payload.data?.article || payload.article || payload.data || payload;
       const remoteHtml = remoteGeneration?.html || remoteGeneration?.content;
       if (!remoteHtml || typeof remoteHtml !== "string") throw new Error("模型没有返回可编辑的 HTML 文章");
-      remoteGeneration = { ...remoteGeneration, html: remoteHtml, approvedEvidence };
+      remoteGeneration = { ...remoteGeneration, html: remoteHtml };
     } catch (error) {
       ui.studioGenerating = false;
       saveState();
@@ -4078,7 +4116,9 @@ async function generateStudioArticle(topicOverride = "", options = {}) {
   }
   const article = articleFromTopic(topic, context, 0, requestedArticleId);
   article.showPublicCitationMarkers = workspace.showPublicCitationMarkers === true;
-  article.topicId = null;
+  // Keep the formal topic relationship when this workspace was opened from
+  // the topic library; free-form direct creation remains unlinked.
+  article.topicId = sourceTopicId || null;
   article.planId = null;
   article.workspaceId = workspace.id;
   article.sourceType = workspace.sourceType === "topic_direct" ? "topic_direct" : "quick_create";
@@ -4278,7 +4318,7 @@ function removeArticleAssetMarkup(html, assetId) {
   return template.innerHTML;
 }
 
-function removeArticleAsset(articleId, assetId) {
+async function removeArticleAsset(articleId, assetId) {
   const article = state.articles.find((item) => item.id === articleId);
   const asset = (state.contentAssets || []).find((item) => item.id === assetId);
   if (!article || !asset || !(article.assetIds || []).includes(assetId)) return showToast("素材不存在", "请刷新文章后重试。", "error");
@@ -4294,7 +4334,22 @@ function removeArticleAsset(articleId, assetId) {
     if (conversation) conversation.imageIds = (conversation.imageIds || []).filter((id) => id !== assetId);
   });
   addOperationLog("素材审核", `已从文章《${article.title}》移出素材「${asset.name}」，并创建 ${article.version} 新版本`);
+  article.contentSyncPending = true;
+  markContentArticleEditPending(article);
   saveState();
+  try {
+    await queueContentArticleSync(article, { createVersion: true });
+    article.contentSyncPending = false;
+    article.contentSyncError = "";
+    await persistWorkspaceMutation("article-asset-remove");
+  } catch (error) {
+    article.contentSyncPending = false;
+    article.contentSyncError = error.message || "移出素材后的内容版本同步失败";
+    updateContentArticleEditGuard(article, { pending: true });
+    saveState();
+    render();
+    return showToast("素材移出后同步失败", `${article.contentSyncError}；本地修改已保留，可稍后重试。`, "error");
+  }
   render();
   ui.modal = { type: "article", articleId: article.id };
   renderModal();
@@ -4375,6 +4430,38 @@ function startNewStudioConversation() {
   render();
 }
 
+function studioEvidenceFromCitation(citation) {
+  const libraryId = citation?.knowledgeBaseId || citation?.knowledgeLibraryId || citation?.libraryId || "";
+  const documentId = citation?.itemId || citation?.knowledgeDocumentId || citation?.documentId || "";
+  const versionId = citation?.versionId || citation?.knowledgeVersionId || "";
+  const version = knowledgeVersionById(versionId) || { id: versionId, content: citation?.quote || citation?.excerpt || "" };
+  const quote = citation?.quote || citation?.excerpt || version.content || "";
+  const chunks = Array.isArray(version.chunks) ? version.chunks : [];
+  const matchedChunk = citation?.chunkId
+    ? chunks.find((chunk) => chunk?.id === citation.chunkId)
+    : chunks.length === 1
+      ? chunks[0]
+      : chunks.find((chunk) => {
+        const text = String(chunk?.text || chunk?.content || "").trim();
+        return text && quote && (text.includes(quote) || quote.includes(text));
+      });
+  const chunkId = citation?.chunkId || citation?.knowledgeChunkId || matchedChunk?.id || "";
+  const base = knowledgeBaseById(libraryId) || { id: libraryId, name: citation?.source || citation?.sourceName || "企业知识库" };
+  const item = knowledgeItemById(documentId) || { id: documentId, title: citation?.claim || citation?.title || "已审核企业事实" };
+  return {
+    item,
+    quote,
+    base,
+    version: { ...version, id: versionId || version.id, content: version.content || quote },
+    chunk: matchedChunk || (chunkId ? { id: chunkId, text: quote } : null),
+    libraryId,
+    documentId,
+    versionId: versionId || version.id || "",
+    chunkId,
+    referenceComplete: Boolean(libraryId && documentId && (versionId || version.id) && chunkId)
+  };
+}
+
 function aiEvidencePayload(evidence) {
   return (evidence || []).map((entry, index) => ({
     id: `EVID-${index + 1}`,
@@ -4383,11 +4470,11 @@ function aiEvidencePayload(evidence) {
     quote: entry.quote || entry.version?.content || "",
     source: entry.base?.name || "企业知识库",
     locator: knowledgeLocator(entry.item || {}, entry.version || {}),
-    knowledgeLibraryId: entry.base?.id || entry.libraryId || null,
-    knowledgeDocumentId: entry.item?.id || entry.documentId || null,
-    versionId: entry.version?.id || null,
-    knowledgeVersionId: entry.version?.id || entry.versionId || null,
-    knowledgeChunkId: entry.chunk?.id || entry.chunkId || null,
+    knowledgeLibraryId: entry.base?.id || entry.knowledgeLibraryId || entry.libraryId || null,
+    knowledgeDocumentId: entry.item?.id || entry.knowledgeDocumentId || entry.documentId || entry.itemId || null,
+    versionId: entry.version?.id || entry.knowledgeVersionId || entry.versionId || null,
+    knowledgeVersionId: entry.version?.id || entry.knowledgeVersionId || entry.versionId || null,
+    knowledgeChunkId: entry.chunk?.id || entry.knowledgeChunkId || entry.chunkId || null,
     status: "approved",
     supportStatus: "supported"
   }));
@@ -4396,14 +4483,55 @@ function aiEvidencePayload(evidence) {
 function applyRemoteArticleResult(article, remoteGeneration) {
   if (!article || !remoteGeneration) return article;
   article.title = String(remoteGeneration.title || article.title).slice(0, 240);
-  const citations = articleCitations(article);
-  article.content = String(remoteGeneration.html || remoteGeneration.content || "").replace(/<sup\b([^>]*?)data-evidence-id=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/sup>/gi, (match, before, evidenceId, after, label) => {
-    const index = Number(String(evidenceId).replace(/\D/g, "")) - 1;
-    const citation = citations[index];
+  const previousCitationIds = Array.isArray(article.citations) ? [...article.citations] : [];
+  const hasRemoteCitations = Array.isArray(remoteGeneration.citations);
+  const remoteCitations = hasRemoteCitations ? remoteGeneration.citations : [];
+  let citations = articleCitations(article);
+  const localByRemoteId = new Map();
+  if (hasRemoteCitations) {
+    state.knowledgeCitations = (state.knowledgeCitations || []).filter((citation) => !previousCitationIds.includes(citation.id));
+    citations = remoteCitations.map((remote, index) => {
+      const marker = remote.marker || `K${index + 1}`;
+      const local = {
+        id: uid("CIT") + "-" + marker,
+        articleId: article.id,
+        articleVersion: article.version || "v1",
+        marker,
+        paragraphId: remote.paragraphId || "p-knowledge",
+        articleSection: remote.articleSection || "关键判断与事实依据",
+        knowledgeBaseId: remote.knowledgeLibraryId || remote.libraryId || null,
+        itemId: remote.knowledgeDocumentId || remote.documentId || null,
+        versionId: remote.knowledgeVersionId || remote.versionId || null,
+        chunkId: remote.knowledgeChunkId || remote.chunkId || null,
+        claim: remote.claim || "已审核企业事实",
+        quote: remote.quote || remote.excerpt || "",
+        excerpt: remote.quote || remote.excerpt || "",
+        locator: remote.locator || "",
+        supportStatus: remote.supportStatus || "supported",
+        status: "verified"
+      };
+      state.knowledgeCitations.push(local);
+      if (remote.id) localByRemoteId.set(String(remote.id), local);
+      return local;
+    });
+    article.citations = citations.map((citation) => citation.id);
+    article.knowledgeSnapshot = {
+      ...(article.knowledgeSnapshot || {}),
+      citationIds: [...article.citations],
+      lockedVersionIds: [...new Set(citations.map((citation) => citation.versionId).filter(Boolean))]
+    };
+  }
+  const remoteHtml = String(remoteGeneration.html || remoteGeneration.content || "");
+  article.content = remoteHtml.replace(/<sup\b([^>]*?)data-evidence-id=["']([^"']+)["']([^>]*)>([\s\S]*?)<\/sup>/gi, (match, before, evidenceId, after, label) => {
+    const citation = localByRemoteId.get(String(evidenceId)) || citations[Number(String(evidenceId).replace(/\D/g, "")) - 1];
     return citation ? citationMarkerHtml(citation) : String(label || "");
   });
   article.excerpt = String(remoteGeneration.summary || studioPlainText(article.content)).slice(0, 180);
   article.sources = citations.length;
+  if (article.knowledgeStatus && hasRemoteCitations) {
+    article.knowledgeStatus.evidenceCount = citations.length;
+    article.knowledgeStatus.supportedClaims = citations.filter((citation) => citation.supportStatus === "supported").length;
+  }
   // The article generation endpoint may already have committed the formal
   // content task/version.  Keep those identifiers so review and publishing use
   // the same server-side record instead of creating a duplicate draft.
@@ -4416,7 +4544,7 @@ function applyRemoteArticleResult(article, remoteGeneration) {
   return article;
 }
 
-async function requestAiArticle({ providerId, line, contentType, topic, agentSnapshot, evidence, expectedPlatforms = [], userInstruction = "", planId = "", contentPlanId = "", contentArticleId = "", contentTaskId = "", topicId = "", idempotencyKey = "", dueAt = "", expectedCompletionAt = "", knowledgeBaseIds = [] }) {
+async function requestAiArticle({ providerId, line, contentType, topic, agentSnapshot, evidence, expectedPlatforms = [], userInstruction = "", planId = "", contentPlanId = "", contentArticleId = "", contentTaskId = "", topicId = "", idempotencyKey = "", dueAt = "", expectedCompletionAt = "", knowledgeBaseIds = [], persist = true }) {
   const coreQuestion = /[？?]/.test(topic?.geoBrief?.coreQuestion || topic?.title || "")
     ? (topic?.geoBrief?.coreQuestion || topic?.title)
     : `${topic?.geoBrief?.coreQuestion || topic?.title}应该如何判断和实施？`;
@@ -4446,13 +4574,14 @@ async function requestAiArticle({ providerId, line, contentType, topic, agentSna
       },
       businessLine: aiBusinessLinePayload(line),
       contentType,
-      topic: { id: topic.id, title: topic.title, coreQuestion, dimension: topic.dimension || "question", intent: topic.intent, stage: topic.stage, geoBrief: brief },
+      topic: { id: topicId || topic.id, title: topic.title, coreQuestion, dimension: topic.dimension || "question", intent: topic.intent, stage: topic.stage, geoBrief: brief },
       topicBrief: brief,
       userInstruction: String(userInstruction || "").slice(0, 4000),
       agentSnapshot,
       writingAgent: agentSnapshot,
       approvedEvidence: aiEvidencePayload(evidence),
       expectedPlatforms,
+      ...(persist === false ? { persist: false } : {}),
       outputContract: buildGeoOutputContract({ ...topic, geoBrief: brief }, [], agentSnapshot, { contentType })
     }
   });
@@ -4897,7 +5026,7 @@ function updateKeywordPackTotal(pack) {
   pack.total = state.questionLibrary.filter((question) => question.packId === pack.id && question.status === "candidate").length;
 }
 
-function removeKeywordCandidates(questionIds, options = {}) {
+async function removeKeywordCandidates(questionIds, options = {}) {
   const line = activeBusinessLine();
   const ids = new Set((questionIds || []).filter(Boolean));
   const pack = state.keywordPacks.find((item) => item.id === options.packId && item.businessLineId === line?.id);
@@ -4928,6 +5057,7 @@ function removeKeywordCandidates(questionIds, options = {}) {
   const currentLinePacks = state.keywordPacks.filter((item) => item.businessLineId === line.id);
   if (!currentLinePacks.some((item) => item.id === ui.selectedPackId)) ui.selectedPackId = currentLinePacks[0]?.id || null;
   saveState();
+  await persistWorkspaceMutation("keyword-candidates-delete");
   render();
   const suffix = blocked.length ? `，另有 ${blocked.length} 条因存在引用而保留` : "";
   showToast(options.bulk ? "候选问题已批量删除" : "候选问题已删除", `已从当前词包移除 ${removable.length} 条候选${suffix}。`, blocked.length ? "warning" : "success");
@@ -4970,6 +5100,7 @@ async function deleteKeywordPack(packId) {
   ui.selectedPackId = nextPack?.id || null;
   ui.planningCategory = "all";
   saveState();
+  await persistWorkspaceMutation("keyword-pack-delete");
   render();
   showToast("历史词包已删除", linkedOrSaved.length ? `已删除 ${removableIds.size} 个未入库候选；${linkedOrSaved.length} 个正式问题及引用关系已保留。` : "词包及未入库候选问题已删除。");
 }

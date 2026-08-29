@@ -4,6 +4,7 @@ import { ProductionDatabase } from "../production-database.mjs";
 import { SiteCmsStore } from "../site-cms-store.mjs";
 import { slugify, truncateText } from "./site-renderer.mjs";
 import { applyPublicCitationVisibility } from "../citation-visibility.mjs";
+import { XINSHUOJIE_IMPORTED_ARTICLES } from "./xinshuojie-content.mjs";
 
 const moduleRoot = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DATABASE_PATH = path.resolve(moduleRoot, "..", "data", "tongzhuo-production.sqlite");
@@ -224,7 +225,7 @@ export class PublicSiteStore {
       .filter((item) => item && typeof item === "object" && item.id)
       .map((item) => [String(item.id), item]));
     const usedSlugs = new Set();
-    return this.publishedRows().map((row) => {
+    const published = this.publishedRows().map((row) => {
       const articleMetadata = parseJson(row.article_metadata_json, {});
       const versionMetadata = parseJson(row.version_metadata_json, {});
       const presentation = presentations.get(String(row.id)) || {};
@@ -274,6 +275,11 @@ export class PublicSiteStore {
         reviewStatus: row.review_status, riskStatus: row.risk_status, frozenAt: row.frozen_at, metadata
       };
     });
+    const site = this.siteConfig(workspace);
+    const customerText = [site.companyName, site.siteName, site.officialDomain, site.contact?.phone, site.contact?.address].join(" ");
+    if (!customerText.includes("新硕捷") && !customerText.includes("shuojiepower.com") && !customerText.includes("18678123345")) return published;
+    const existing = new Set(published.map((article) => String(article.id)));
+    return [...XINSHUOJIE_IMPORTED_ARTICLES.filter((article) => !existing.has(String(article.id))), ...published];
   }
 
   snapshot(options = {}) {

@@ -477,6 +477,7 @@ async function deleteSiteModule(pageId, moduleId) {
   siteCms().modules[pageId] = modules.filter((item) => item.id !== moduleId);
   if (page) { page.savedAt = siteNow(); page.version = (Number(page.version) || 1) + 1; }
   saveState();
+  await commitSiteCmsDraft();
   closeModal();
   render();
   showToast("模块已删除", "页面其余模块不会受到影响。", "success");
@@ -570,7 +571,7 @@ async function archiveSiteCmsRecord(kind, recordId, groupId = "") {
   else if (kind === "group") item = (siteCms().problemGroups || []).find((entry) => entry.id === recordId);
   else if (kind === "question") item = (siteCms().problemGroups || []).find((entry) => entry.id === groupId)?.questions?.find((entry) => entry.id === recordId);
   if (!item) return showToast("内容不存在", "请刷新页面后重试。", "error");
-  item.status = "archived"; item.updatedAt = siteNow(); saveState(); closeModal(); render();
+  item.status = "archived"; item.updatedAt = siteNow(); saveState(); await commitSiteCmsDraft(); closeModal(); render();
   showToast("内容已归档", "正式官网将在下一次发布后隐藏该内容，历史版本仍然保留。", "success");
 }
 
@@ -679,6 +680,7 @@ async function deleteSiteFooterColumn(columnId) {
   const footer = siteCmsFooter();
   footer.columns = footer.columns.filter((item) => item.id !== columnId);
   saveState();
+  await commitSiteCmsDraft();
   closeModal();
   render();
   showToast("页脚栏目已删除", "官网会恢复使用模板默认栏目。", "success");
@@ -712,6 +714,7 @@ async function deleteSiteFooterSocial(socialId) {
   const footer = siteCmsFooter();
   footer.socialLinks = footer.socialLinks.filter((item) => item.id !== socialId);
   saveState();
+  await commitSiteCmsDraft();
   closeModal();
   render();
   showToast("页脚入口已删除", "官网会恢复使用模板默认入口。", "success");
@@ -736,6 +739,7 @@ async function deleteSiteNav(navId) {
   if (!(await uiConfirm("确认删除该导航项？对应页面和内容不会被删除。"))) return;
   siteCms().navItems = siteCms().navItems.filter((item) => item.id !== navId);
   saveState();
+  await commitSiteCmsDraft();
   closeModal();
   render();
   showToast("导航项已删除", "对应页面和内容不会被删除。", "success");
@@ -873,6 +877,7 @@ async function deleteSiteRedirect(redirectId) {
   if (!(await uiConfirm("确认删除该重定向规则？原地址将不再自动跳转。"))) return;
   siteCms().redirects = siteCms().redirects.filter((item) => item.id !== redirectId);
   saveState();
+  await commitSiteCmsDraft();
   renderModal();
   showToast("重定向已删除", "该原地址将不再自动跳转。", "success");
 }

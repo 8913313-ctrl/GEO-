@@ -68,6 +68,12 @@ export function createContentApi({ contentStore, requestJson, configured, onArti
       const plan = contentStore.upsertPlan({ workspaceId, ...body, actor: principal, request });
       return response.json(201, { ok: true, data: { plan } });
     }
+    if (parts.length === 5 && parts[3] === "plans" && method === "DELETE") {
+      const body = jsonBody(await requestJson(request, 20_000));
+      if (body.confirm !== true) throw new ContentError("删除计划前需要明确确认。", 422, "CONTENT_DELETE_CONFIRMATION_REQUIRED");
+      const plan = contentStore.archivePlan(workspaceId, decodeURIComponent(parts[4]), principal, request);
+      return response.json(200, { ok: true, data: { plan, archived: true } });
+    }
     if (parts.length === 4 && parts[3] === "tasks" && method === "GET") {
       const query = new URL(request.url || "/", "http://localhost").searchParams;
       return response.json(200, { ok: true, data: { items: contentStore.listTasks({ workspaceId, planId: query.get("planId") || "", status: query.get("status") || "", businessLineId: query.get("businessLineId") || "", limit: query.get("limit") || 100 }) } });
@@ -149,6 +155,12 @@ export function createContentApi({ contentStore, requestJson, configured, onArti
     if (parts.length === 5 && parts[3] === "articles" && method === "GET") {
       const article = contentStore.article(workspaceId, decodeURIComponent(parts[4]), { includeVersion: true, includeEvidence: true, includeReviews: true });
       return response.json(200, { ok: true, data: { article, versions: contentStore.listVersions({ workspaceId, articleId: article.id, includeContent: true }) } });
+    }
+    if (parts.length === 5 && parts[3] === "articles" && method === "DELETE") {
+      const body = jsonBody(await requestJson(request, 20_000));
+      if (body.confirm !== true) throw new ContentError("删除文章前需要明确确认。", 422, "CONTENT_DELETE_CONFIRMATION_REQUIRED");
+      const article = contentStore.archiveArticle(workspaceId, decodeURIComponent(parts[4]), principal, request);
+      return response.json(200, { ok: true, data: { article, archived: true } });
     }
     if (parts.length === 6 && parts[3] === "articles" && parts[5] === "can-publish" && method === "GET") {
       const query = new URL(request.url || "/", "http://localhost").searchParams; return response.json(200, { ok: true, data: contentStore.canPublish(decodeURIComponent(parts[4]), query.get("versionId") || null, { workspaceId }) });

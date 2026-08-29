@@ -924,6 +924,19 @@ export class KnowledgeStore {
     return rows.map((row) => this.libraryRow(row));
   }
 
+  archiveLibrary({ workspaceId = this.workspaceId, libraryId, actor = null, request = null } = {}) {
+    const library = this.library(workspaceId, libraryId, true);
+    if (library.status === "archived") return this.libraryRow(library);
+    const timestamp = now();
+    this.database.transaction(() => {
+      this.connection.prepare("UPDATE knowledge_libraries SET status = 'archived', updated_at = ? WHERE workspace_id = ? AND id = ?").run(timestamp, workspaceId, libraryId);
+      this.connection.prepare("UPDATE knowledge_documents SET status = 'archived', updated_at = ? WHERE library_id = ?").run(timestamp, libraryId);
+      this.connection.prepare("UPDATE knowledge_assets SET review_status = 'archived', updated_at = ? WHERE workspace_id = ? AND library_id = ?").run(timestamp, workspaceId, libraryId);
+      appendAuditLog(this.connection, { actorUserId: actor?.userId || null, action: "knowledge.library.archive", entityType: "knowledge_library", entityId: libraryId, details: { workspaceId }, request, createdAt: timestamp });
+    });
+    return this.libraryRow(this.library(workspaceId, libraryId, true));
+  }
+
   createLibrary({ workspaceId = this.workspaceId, businessLineId = null, name, kind = "document", scope = "business_line", description = "", actor = null, request = null } = {}) {
     const normalizedName = text(name, "知识库名称", 120, true);
     const normalizedKind = ["document", "qa"].includes(kind) ? kind : "document";
@@ -988,6 +1001,18 @@ export class KnowledgeStore {
       updatedAt: row.version_updated_at || row.updated_at,
       createdAt: row.created_at
     }));
+  }
+
+  archiveDocument({ workspaceId = this.workspaceId, documentId, actor = null, request = null } = {}) {
+    const row = this.connection.prepare("SELECT d.id, d.library_id, l.workspace_id FROM knowledge_documents d JOIN knowledge_libraries l ON l.id = d.library_id WHERE d.id = ? AND l.workspace_id = ?").get(documentId, workspaceId);
+    if (!row) throw new KnowledgeError("知识文档不存在。", 404, "KNOWLEDGE_DOCUMENT_NOT_FOUND");
+    const timestamp = now();
+    this.database.transaction(() => {
+      this.connection.prepare("UPDATE knowledge_documents SET status = 'archived', updated_at = ? WHERE id = ?").run(timestamp, documentId);
+      this.connection.prepare("UPDATE knowledge_assets SET review_status = 'archived', updated_at = ? WHERE workspace_id = ? AND document_id = ?").run(timestamp, workspaceId, documentId);
+      appendAuditLog(this.connection, { actorUserId: actor?.userId || null, action: "knowledge.document.archive", entityType: "knowledge_document", entityId: documentId, details: { workspaceId, libraryId: row.library_id }, request, createdAt: timestamp });
+    });
+    return this.listDocuments({ workspaceId, libraryId: row.library_id, includeArchived: true, limit: 1000 }).find((item) => item.id === documentId);
   }
 
   documentVersion(workspaceId, versionId) {
@@ -1170,6 +1195,15 @@ export class KnowledgeStore {
     return this.connection.prepare(query).all(...params).map((row) => ({
       id: row.id, workspaceId: row.workspace_id, libraryId: row.library_id || null, documentId: row.document_id || null, versionId: row.version_id || null, assetType: row.asset_type, sourceName: row.source_name, mimeType: row.mime_type, contentHash: row.content_hash, dataBase64: includeData ? this.assetBuffer(row).toString("base64") : undefined, extractedText: row.extracted_text, altText: row.alt_text, ocrStatus: row.ocr_status, reviewStatus: row.review_status, metadata: json(row.metadata_json), createdAt: row.created_at, updatedAt: row.updated_at
     }));
+  }
+
+  archiveAsset({ workspaceId = this.workspaceId, assetId, actor = null, request = null } = {}) {
+    const row = this.connection.prepare("SELECT id FROM knowledge_assets WHERE workspace_id = ? AND id = ?").get(workspaceId, assetId);
+    if (!row) throw new KnowledgeError("图片或文件不存在。", 404, "KNOWLEDGE_ASSET_NOT_FOUND");
+    const timestamp = now();
+    this.connection.prepare("UPDATE knowledge_assets SET review_status = 'archived', updated_at = ? WHERE workspace_id = ? AND id = ?").run(timestamp, workspaceId, assetId);
+    appendAuditLog(this.connection, { actorUserId: actor?.userId || null, action: "knowledge.asset.archive", entityType: "knowledge_asset", entityId: assetId, details: { workspaceId }, request, createdAt: timestamp });
+    return { id: assetId, archived: true };
   }
 
   assetContent({ workspaceId = this.workspaceId, assetId } = {}) {

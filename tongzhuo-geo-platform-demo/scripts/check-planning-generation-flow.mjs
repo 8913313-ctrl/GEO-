@@ -341,6 +341,40 @@ try {
   assert.equal(articleResult.generationJob.status, "succeeded");
   assert.deepEqual(articleResult.article.citations.map((item) => item.id), [retrievedEvidence.id]);
 
+  const tasksBeforePreview = await expectRequest(baseUrl, `/api/v1/content/tasks?planId=${encodeURIComponent(plan.id)}`, { headers: { Cookie: sessionCookie } }, 200, "content tasks before collaboration preview");
+  body = await expectRequest(baseUrl, "/api/ai/generate/article", {
+    method: "POST", headers: auth,
+    body: JSON.stringify({
+      providerId: PROVIDER_ID, businessLine: BUSINESS_LINE, topic: articleTopic, contentType: "深度文章",
+      contentPlanId: plan.id, planId: plan.id, contentTaskId: "TASK-OFFLINE-PREVIEW", contentArticleId: "ART-OFFLINE-PREVIEW",
+      useRag: true, persist: false,
+      rag: { enabled: true, query: articleTopic.coreQuestion, businessLineId: BUSINESS_LINE_ID, libraryIds: [libraryId], topK: 4, minScore: 0 },
+      writingAgent: { id: "AGENT-OFFLINE-FICTIONAL", name: "虚构知识编辑", strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", minWords: 300, maxWords: 900 }
+    })
+  }, 200, "article collaboration preview");
+  assert.equal(body.data.contentTaskId, undefined);
+  assert.equal(body.data.contentArticleId, undefined);
+  assert.equal(body.data.article.citations[0].id, retrievedEvidence.id);
+  const tasksAfterPreview = await expectRequest(baseUrl, `/api/v1/content/tasks?planId=${encodeURIComponent(plan.id)}`, { headers: { Cookie: sessionCookie } }, 200, "content tasks after collaboration preview");
+  assert.deepEqual(tasksAfterPreview.data.items.map((item) => item.id), tasksBeforePreview.data.items.map((item) => item.id));
+
+  // A browser retry may arrive with fresh local IDs after the first response
+  // was interrupted. The idempotency key must still return the original
+  // formal records instead of pairing the old version with new records.
+  body = await expectRequest(baseUrl, "/api/ai/generate/article", {
+    method: "POST", headers: auth,
+    body: JSON.stringify({
+      providerId: PROVIDER_ID, businessLine: BUSINESS_LINE, topic: articleTopic, contentType: "深度文章",
+      contentPlanId: plan.id, planId: plan.id, contentTaskId: "TASK-OFFLINE-FLOW-RETRY", contentArticleId: "ART-OFFLINE-FLOW-RETRY",
+      expectedCompletionAt, idempotencyKey: "offline-fictional-article-v1", useRag: true,
+      rag: { enabled: true, query: articleTopic.coreQuestion, businessLineId: BUSINESS_LINE_ID, libraryIds: [libraryId], topK: 4, minScore: 0 },
+      writingAgent: { id: "AGENT-OFFLINE-FICTIONAL", name: "虚构知识编辑", strictKnowledge: true, citationsRequired: true, missingEvidenceAction: "omit", minWords: 300, maxWords: 900 }
+    })
+  }, 200, "article generation idempotent retry");
+  assert.equal(body.data.contentTaskId, taskId);
+  assert.equal(body.data.contentArticleId, articleId);
+  assert.equal(body.data.articleVersionId, articleResult.articleVersionId);
+
   body = await expectRequest(baseUrl, `/api/v1/content/tasks/${encodeURIComponent(taskId)}`, { headers: { Cookie: sessionCookie } }, 200, "content task detail");
   assert.equal(body.data.task.planId, plan.id);
   assert.equal(body.data.task.topicId, articleTopic.id || articleTopic.questionId);
@@ -361,7 +395,7 @@ try {
   assert.equal(body.data.plan.metadata.localStatus, "produced");
   assert.ok(body.data.plan.revision > plan.revision);
 
-  assert.deepEqual(callCounts, { seeds: 1, questions: 8, topics: 2, article: 1 });
+  assert.deepEqual(callCounts, { seeds: 1, questions: 8, topics: 2, article: 3 });
   for (const call of modelCalls.filter((item) => ["questions", "topics", "article"].includes(item.operation))) {
     assert.equal(call.body.enable_thinking, false, `${call.operation} must disable provider thinking`);
     assert.deepEqual(call.body.thinking, { type: "disabled" }, `${call.operation} thinking contract mismatch`);

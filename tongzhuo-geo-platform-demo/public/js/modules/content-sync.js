@@ -20,6 +20,21 @@ async function productionApi(path, options = {}) {
   return body;
 }
 
+async function deleteRemoteIfPresent(path, body = { confirm: true }) {
+  try {
+    return await productionApi(path, { method: "DELETE", body });
+  } catch (error) {
+    // Legacy/local-only records have no authoritative row yet; deleting their
+    // workspace projection is still valid. Any other failure must be visible.
+    if (error?.status === 404) return null;
+    throw error;
+  }
+}
+
+async function persistWorkspaceMutation(source = "browser-delete") {
+  return flushWorkspaceSyncNow(source);
+}
+
 function siteCmsApiPayload(payload = {}) {
   const data = payload?.data || payload || {};
   const draft = data.draft || data.siteCms?.draft || null;

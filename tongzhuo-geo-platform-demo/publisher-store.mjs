@@ -270,6 +270,10 @@ function migratePublisherState(rawState) {
   let changed = state.version !== 2;
   state.devices.forEach((device) => {
     if (migrateDeviceCredentials(device)) changed = true;
+    if (!Array.isArray(device.deletedAccountGroupIds)) {
+      device.deletedAccountGroupIds = [];
+      changed = true;
+    }
   });
   state.version = 2;
   return { state, changed };
@@ -462,6 +466,7 @@ export class PublisherStore {
     const deviceId = String(body.device_id || `DEV-${crypto.randomBytes(4).toString("hex").toUpperCase()}`);
     const existing = this.state.devices.find((item) => item.id === deviceId);
     const device = existing || { id: deviceId, sessions: {}, accountGroups: [] };
+    device.deletedAccountGroupIds = [];
     device.name = String(body.name || device.name || "未命名发布器");
     device.status = "online";
     device.capabilities = Array.isArray(body.capabilities)
@@ -505,12 +510,20 @@ export class PublisherStore {
       ? body.capabilities.map(canonicalPlatformId).filter((id) => selectablePlatformIds.has(id) && id !== "web")
       : device.capabilities;
     device.connectionMode = String(body.connection_mode || device.connectionMode || "paired");
+    const deletedGroupIds = new Set((device.deletedAccountGroupIds || []).map((id) => String(id)));
     if (body.meta?.account_groups) {
-      device.accountGroups = effectiveAccountGroups(device, cleanAccountGroups(body.meta.account_groups, device.id));
+      device.accountGroups = effectiveAccountGroups(device, cleanAccountGroups(body.meta.account_groups, device.id)
+        .filter((group) => !deletedGroupIds.has(String(group.id))));
     } else {
-      device.accountGroups = effectiveAccountGroups(device, cleanAccountGroups(device.accountGroups, device.id));
+      device.accountGroups = effectiveAccountGroups(device, cleanAccountGroups(device.accountGroups, device.id)
+        .filter((group) => !deletedGroupIds.has(String(group.id))));
     }
-    if (body.meta?.active_group_id) device.activeGroupId = scopedAccountGroupId(device.id, body.meta.active_group_id);
+    if (body.meta?.active_group_id) {
+      const requestedActiveGroupId = scopedAccountGroupId(device.id, body.meta.active_group_id);
+      device.activeGroupId = deletedGroupIds.has(requestedActiveGroupId)
+        ? (device.accountGroups[0]?.id || defaultAccountGroupId(device.id))
+        : requestedActiveGroupId;
+    }
     await this.save();
     return publicDevice(device);
   }
@@ -554,7 +567,8 @@ export class PublisherStore {
     const groupId = scopedAccountGroupId(device.id, session.meta.group_id || String(session.profile_key).split("--")[0]);
     session.meta = { ...session.meta, group_id: groupId };
     const groups = cleanAccountGroups(device.accountGroups, device.id);
-    const group = groups.find((item) => item.id === groupId) || groups[0];
+    const deletedGroupIds = new Set((device.deletedAccountGroupIds || []).map((id) => String(id)));
+    const group = deletedGroupIds.has(String(groupId)) ? null : (groups.find((item) => item.id === groupId) || groups[0]);
     if (group && platformId !== "web") {
       group.accounts[platformId] = {
         ...(group.accounts[platformId] || { platformId, profileKey: session.profile_key }),
@@ -842,6 +856,43 @@ export class PublisherStore {
     job.results = results;
     await this.save();
     return publicJob(job);
+  }
+
+  async removeJob(id) {
+    await this.load();
+    const index = this.state.jobs.findIndex((item) => Number(item.id) === Number(id));
+    if (index < 0) throw new PublisherError("发布任务不存在。", 404, "PUBLISHER_JOB_NOT_FOUND");
+    const job = this.state.jobs[index];
+    if (["running", "processing"].includes(job.status)) throw new PublisherError("正在执行的发布任务不能删除，请先等待完成或取消。", 409, "PUBLISHER_JOB_BUSY");
+    this.state.jobs.splice(index, 1);
+    await this.save();
+    return { id: String(id), deleted: true };
+  }
+
+  async removeAccountGroup(id) {
+    await this.load();
+    const requestedId = String(id || "").trim();
+    if (!requestedId) throw new PublisherError("账号组标识不能为空。", 422, "PUBLISHER_ACCOUNT_GROUP_ID_REQUIRED");
+    for (const device of this.state.devices) {
+      const groups = cleanAccountGroups(device.accountGroups, device.id);
+      const group = groups.find((item) => item.id === requestedId
+        || scopedAccountGroupId(device.id, requestedId) === item.id);
+      if (!group) continue;
+      const isDefault = group.id === defaultAccountGroupId(device.id);
+      if (isDefault && groups.length <= 1) {
+        throw new PublisherError("默认账号组不能删除，请先在本地发布器中新增其他账号组。", 409, "PUBLISHER_DEFAULT_ACCOUNT_GROUP_REQUIRED");
+      }
+      device.deletedAccountGroupIds = [...new Set([...(device.deletedAccountGroupIds || []), group.id])];
+      device.accountGroups = groups.filter((item) => item.id !== group.id);
+      device.sessions = Object.fromEntries(Object.entries(device.sessions || {}).filter(([, session]) => {
+        const sessionGroup = scopedAccountGroupId(device.id, sessionGroupId(session));
+        return sessionGroup !== group.id;
+      }));
+      if (device.activeGroupId === group.id) device.activeGroupId = device.accountGroups[0]?.id || defaultAccountGroupId(device.id);
+      await this.save();
+      return { id: group.id, deviceId: device.id, deleted: true };
+    }
+    throw new PublisherError("账号组不存在。", 404, "PUBLISHER_ACCOUNT_GROUP_NOT_FOUND");
   }
 
   async claimJob(device, id) {
