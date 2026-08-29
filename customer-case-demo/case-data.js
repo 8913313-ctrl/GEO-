@@ -25,6 +25,17 @@ window.CASE_DATA = {
     { name: "百度 AI", terminal: "网页", color: "#2563eb", base: 14, count: 16 },
     { name: "文心", terminal: "网页", color: "#0f766e", base: 12, count: 12 }
   ],
+  competitors: [
+    { name: "淄博达因特电源公司", mentionRate: 28, mentionCount: 19, rank: 1.8 },
+    { name: "山东新硕捷电子科技有限公司", mentionRate: 23, mentionCount: 18, rank: 1.9, current: true },
+    { name: "施耐德", mentionRate: 18, mentionCount: 18, rank: 2.4 },
+    { name: "科士达", mentionRate: 17, mentionCount: 25, rank: 1.9 },
+    { name: "伊顿", mentionRate: 17, mentionCount: 26, rank: 1.3 },
+    { name: "科华", mentionRate: 17, mentionCount: 20, rank: 2.9 },
+    { name: "山特", mentionRate: 14, mentionCount: 18, rank: 3.0 },
+    { name: "华为", mentionRate: 14, mentionCount: 12, rank: 3.2 },
+    { name: "巨佰鹿电源", mentionRate: 12, mentionCount: 12, rank: 2.9 }
+  ],
   questions: [
     { id: "Q-001", text: "潍博工业级 UPS 电源供应商推荐前五的有哪些？", platform: "豆包 · 网页", type: "咨询查询", heat: 26, mention: "提及", rank: "1.8", answer: "回答中将山东新硕捷列入山东区域工业级 UPS 供应商，并说明其项目服务与交付能力。", sources: 7, articles: 18 },
     { id: "Q-002", text: "山东 UPS 不间断电源厂家哪家更适合工厂？", platform: "DeepSeek · 网页", type: "方案选择", heat: 24, mention: "提及", rank: "2.1", answer: "回答覆盖工业现场、备用时长和售后响应等选择条件，新硕捷出现在区域服务商名单中。", sources: 5, articles: 12 },

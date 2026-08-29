@@ -33,6 +33,24 @@
     platformList.lastElementChild.setAttribute("title", `${platform.name} · ${count} 次提及记录`);
   });
 
+  const competitors = (data.competitors || []).map((brand) => ({
+    ...brand,
+    rate: clamp(brand.mentionRate + (brand.current ? Math.round(day * .55) : Math.round(day * .2)), 0, 100),
+    count: brand.mentionCount + Math.floor(day * (brand.current ? 1.45 : .8)),
+    averageRank: Number(clamp(brand.rank - (brand.current ? day * .025 : day * .008), 1, 9).toFixed(1))
+  }));
+  const rateMax = Math.max(...competitors.map((brand) => brand.rate), 1);
+  const countMax = Math.max(...competitors.map((brand) => brand.count), 1);
+  const renderBenchmarkList = (targetId, values, valueKey, suffix, max) => {
+    const target = $(targetId);
+    if (!target) return;
+    target.innerHTML = values.map((brand, index) => `<div class="benchmark-row ${brand.current ? "is-current" : ""}"><span class="benchmark-rank">${index + 1}</span><span class="benchmark-name" title="${brand.name}">${brand.name}</span><span class="benchmark-bar-track"><i style="width:${Math.round(brand[valueKey] / max * 100)}%"></i></span><b class="benchmark-value">${brand[valueKey]}${suffix}</b></div>`).join("");
+  };
+  renderBenchmarkList("benchmark-rate", [...competitors].sort((a, b) => b.rate - a.rate), "rate", "%", rateMax);
+  renderBenchmarkList("benchmark-count", [...competitors].sort((a, b) => b.count - a.count), "count", "", countMax);
+  const rankTarget = $("benchmark-rank");
+  if (rankTarget) rankTarget.innerHTML = [...competitors].sort((a, b) => a.averageRank - b.averageRank).map((brand, index) => `<tr class="${brand.current ? "is-current" : ""}"><td>${index + 1}</td><th scope="row" title="${brand.name}">${brand.name}</th><td>${brand.rate}%</td><td>${brand.averageRank} 位</td></tr>`).join("");
+
   const trend = Array.from({ length: 14 }, (_, index) => { const offset = Math.max(0, day - 13 + index); return { rate: clamp(data.baseline.mentionRate + Math.round(offset * .55 + Math.sin(offset * 1.7) * 1.2), 0, 100), citation: clamp(38 + offset * 2.2 + Math.cos(offset) * 2, 0, 100), date: new Date(baseline.getTime() + offset * 86400000) }; });
   const svg = $("trend-chart"); const W = 900, H = 250, left = 18, right = 14, top = 15, bottom = 28, chartW = W - left - right, chartH = H - top - bottom;
   const point = (value, index) => ({ x: left + index * chartW / (trend.length - 1), y: top + (100 - value) * chartH / 100 });
