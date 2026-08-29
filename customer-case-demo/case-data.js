@@ -18,12 +18,12 @@ window.CASE_DATA = {
     heat: 26
   },
   platforms: [
-    { name: "豆包", terminal: "网页", color: "#246bfe", base: 28, count: 26 },
-    { name: "DeepSeek", terminal: "网页", color: "#3b82f6", base: 23, count: 25 },
-    { name: "元宝", terminal: "网页", color: "#7c3aed", base: 18, count: 20 },
-    { name: "千问", terminal: "网页", color: "#0f9f8a", base: 17, count: 19 },
-    { name: "百度 AI", terminal: "网页", color: "#2563eb", base: 14, count: 16 },
-    { name: "文心", terminal: "网页", color: "#0f766e", base: 12, count: 12 }
+    { name: "豆包", terminal: "网页", icon: "doubao.png", color: "#246bfe", base: 28, count: 26 },
+    { name: "DeepSeek", terminal: "网页", icon: "deepseek.ico", color: "#3b82f6", base: 23, count: 25 },
+    { name: "元宝", terminal: "网页", icon: "yuanbao.png", color: "#7c3aed", base: 18, count: 20 },
+    { name: "千问", terminal: "网页", icon: "qwen.png", color: "#0f9f8a", base: 17, count: 19 },
+    { name: "百度 AI", terminal: "网页", icon: "baidu-ai.png", color: "#2563eb", base: 14, count: 16 },
+    { name: "文心", terminal: "网页", icon: "baidu-ai.png", color: "#0f766e", base: 12, count: 12 }
   ],
   competitors: [
     { name: "淄博达因特电源公司", mentionRate: 28, mentionCount: 19, rank: 1.8 },

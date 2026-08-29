@@ -29,7 +29,7 @@
   data.platforms.forEach((platform, index) => {
     const rate = clamp(platform.base + Math.round(day * .35 + Math.sin(day + index) * 1.5), 0, 99);
     const count = platform.count + Math.floor(day * (index % 3 === 0 ? 1.2 : .8));
-    platformList.insertAdjacentHTML("beforeend", `<div class="platform-row"><div class="platform-name"><span class="platform-badge" style="background:${platform.color}">${platform.name.slice(0,1)}</span><span><b>${platform.name}</b><small class="platform-terminal">${platform.terminal}</small></span></div><div class="bar-track"><div class="bar-fill" style="width:${rate}%"></div></div><span class="platform-value">${rate}%</span></div>`);
+    platformList.insertAdjacentHTML("beforeend", `<div class="platform-row"><div class="platform-name"><span class="platform-badge" style="--platform-color:${platform.color}"><img src="./assets/platform-icons/${platform.icon}" alt="${platform.name} 图标" /></span><span><b>${platform.name}</b><small class="platform-terminal">${platform.terminal}</small></span></div><div class="bar-track"><div class="bar-fill" style="width:${rate}%"></div></div><span class="platform-value">${rate}%</span></div>`);
     platformList.lastElementChild.setAttribute("title", `${platform.name} · ${count} 次提及记录`);
   });
 
@@ -67,4 +67,29 @@
   renderQuestions(); renderDialogue();
   $("question-search").addEventListener("input", event => renderQuestions(event.target.value.trim()));
   $("copy-case-link").addEventListener("click", async () => { try { await navigator.clipboard.writeText(window.location.href); set("copy-case-link", "已复制"); setTimeout(() => set("copy-case-link", "复制案例链接"), 1600); } catch { set("copy-case-link", "请手动复制地址"); } });
+
+  const setupTechMotion = () => {
+    if (!window.gsap) return;
+    const mm = window.gsap.matchMedia();
+    mm.add({ reduceMotion: "(prefers-reduced-motion: reduce)" }, ({ conditions }) => {
+      if (conditions.reduceMotion) return;
+      const intro = window.gsap.timeline({ defaults: { ease: "power3.out" } });
+      intro.fromTo(".site-header", { y: -18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .55 })
+        .fromTo(".hero-copy > *", { y: 18, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .55, stagger: .07 }, "-=.2")
+        .fromTo(".hero-note", { x: 18, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: .65 }, "-=.35")
+        .fromTo(".metric-card", { y: 22, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: .5, stagger: .08 }, "-=.25");
+      window.gsap.to(".pulse-bars i", { scaleY: () => .5 + Math.random() * .45, transformOrigin: "bottom", duration: 1.15, ease: "sine.inOut", repeat: -1, yoyo: true, stagger: { each: .08, from: "random" } });
+      window.gsap.to(".brand-mark", { rotation: 360, transformOrigin: "50% 50%", duration: 18, ease: "none", repeat: -1 });
+      const revealTargets = document.querySelectorAll(".section-block, .method-note");
+      const reveal = (entry) => {
+        if (!entry.isIntersecting || entry.target.dataset.motionReady) return;
+        entry.target.dataset.motionReady = "1";
+        window.gsap.fromTo(entry.target, { y: 24 }, { y: 0, duration: .65, ease: "power2.out" });
+      };
+      const observer = new IntersectionObserver((entries) => entries.forEach(reveal), { threshold: .14 });
+      revealTargets.forEach((target) => observer.observe(target));
+      return () => { observer.disconnect(); window.gsap.killTweensOf(".pulse-bars i"); window.gsap.killTweensOf(".brand-mark"); };
+    });
+  };
+  setupTechMotion();
 })();
