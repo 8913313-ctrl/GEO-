@@ -49,8 +49,13 @@
 - 2026-08-29：按源码顺序继续拆出 `content-review-publish-schedule.js`，承载发布任务聚合状态、定时排期计算/预览/提交/取消和排期列表渲染；原有 `data-action` 全局函数名保持不变。主文件降至约 4,938 行，相关语法、直接创作和官网检查通过。
 - 2026-08-29：继续拆出 `content-review-article-workflow.js`，承载文章编辑弹窗、版本保存、人工审核、批量审核、即时发布和发布任务详情；原有工作流 action 名称保持不变。主文件降至约 4,283 行，语法、直接创作和官网检查通过。
 - 2026-08-29：继续拆出 `content-review-shell-modals.js`，承载命令搜索、通知和发布器配对弹窗；这些函数只依赖既有全局 `state/ui/modalChrome`，原有 action 保持不变。主文件降至约 4,213 行，相关检查通过。
+- 2026-08-29：继续拆出 `content-review-knowledge-library.js`，承载知识库图片批量上传、资料导入、新建知识库、知识库详情和知识条目编辑；`content-review.js` 只保留后续的知识包和生成预览等区块。`node --check`、`npm run check:direct-studio`、`npm run check:site`、`npm run check:knowledge-multimedia` 均通过。
+- 2026-08-29：继续拆出 `content-review-generation-preview.js`，承载生成方案确认、证据选择、知识缺口提示和引用证据弹窗；`content-review.js` 只保留知识包、onboarding 和后续业务区块。`node --check`、`npm run check:direct-studio`、`npm run check:site`、`npm run check:knowledge-multimedia` 均通过。
+- 2026-08-29：继续拆出 `content-review-question-library.js`，承载核心关键词、种子词拓展、问题词包生成、选题生成和候选维护；`content-review.js` 只保留知识包、onboarding 和后续业务区块。`node --check`、`npm run check:site` 已通过，`npm run check:direct-studio`、`npm run check:planning-generation-flow` 在本会话中曾被审批系统拦截，已如实记录。
 
 ## 验收要求
+
+- 2026-08-29：补回 `content-review.js` 的 direct-studio 协作兼容段，恢复 `studioEvidenceFromCitation`、`aiEvidencePayload`、`applyRemoteArticleResult`、`requestAiArticle` 与 `sendStudioChat`，并把 `content-review.js` 的查询版本升到 `20260829-question-library-v2`；`node --check`、`npm run check:direct-studio`、`node scripts/check-planning-generation-flow.mjs`、`npm run check:site` 均通过。
 
 - 修改前后记录 `git diff`，每个整理批次独立提交。
 - JavaScript/MJS 运行 `node --check`。
