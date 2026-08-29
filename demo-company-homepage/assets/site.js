@@ -66,15 +66,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  const observer = 'IntersectionObserver' in window
+  const revealObserver = 'IntersectionObserver' in window
     ? new IntersectionObserver((entries) => entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-          observer.unobserve(entry.target);
+          entry.target.classList.add('revealed');
+          revealObserver.unobserve(entry.target);
         }
       }), { threshold: 0.08 })
     : null;
-  document.querySelectorAll('.reveal').forEach((el) => observer ? observer.observe(el) : el.classList.add('visible'));
+  document.querySelectorAll('.reveal').forEach((el) => revealObserver ? revealObserver.observe(el) : el.classList.add('revealed'));
+  const markRevealed = () => {
+    const vh = window.innerHeight || document.documentElement.clientHeight;
+    document.querySelectorAll('.reveal:not(.revealed)').forEach((el) => {
+      const r = el.getBoundingClientRect();
+      if (r.top < vh * 0.95) el.classList.add('revealed');
+    });
+  };
+  window.addEventListener('scroll', markRevealed, { passive: true });
+  window.addEventListener('resize', markRevealed);
+  window.addEventListener('load', markRevealed);
+  markRevealed();
+  setInterval(markRevealed, 400);
 
   const scene = document.querySelector('.signal-scene');
   if (scene && window.matchMedia('(pointer: fine)').matches) {
@@ -205,5 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
       .then((response) => response.ok ? response.json() : Promise.reject(new Error('PUBLIC_CONTENT_UNAVAILABLE')))
       .then(applyPublicContent)
       .catch(() => {});
+
   }
 });

@@ -219,7 +219,7 @@
     let observer = null;
     const reveal = (target) => {
       if (target.classList.contains("is-revealed")) return;
-      target.classList.add("is-revealed");
+      target.classList.add("is-revealed", "visible");
       observer?.unobserve(target);
     };
     const revealVisible = () => {
@@ -256,6 +256,7 @@
   }
 
   installHeroVisualCarousel();
-  installInnerHeroVisuals();
+  // 2026-08-29 临时禁用：内页 page-hero 不该有 mock 卡覆盖标题
+  // installInnerHeroVisuals();
   installScrollReveal();
 })();

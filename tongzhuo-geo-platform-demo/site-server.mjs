@@ -757,6 +757,10 @@ export function createSiteRuntime(options = {}) {
   }
 
   async function serveBuiltInAsset(request, responseObject, pathname) {
+    // In static-only mode the customer website owns /assets/*, including
+    // its own site.js. Let serveStatic() handle those files so the built-in
+    // CMS runtime cannot inject template visuals into the bespoke shell.
+    if (config.staticOnly && pathname.startsWith("/assets/")) return false;
     // Built-in customer assets (for example the imported Xinshuojie image
     // library) live below public-site/assets and are resolved only after the
     // fixed allow-list lookup. readStaticFile() still enforces containment and
