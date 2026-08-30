@@ -152,5 +152,42 @@ h1 span,h2,h3,.metric-card strong,.platform-name b,.benchmark-name,.benchmark-ta
 .platform-badge img { width:18px; height:18px; object-fit:contain; display:block; }
 .demo-pill { color:var(--amber); background:var(--amber-soft); border-color:rgba(255,197,104,.4); }
 .reveal { animation:none; }
+.platform-row { appearance:none; width:100%; padding:0; border:0; color:inherit; background:transparent; text-align:left; cursor:pointer; }
+.platform-row:hover .platform-name b,.platform-row.is-selected .platform-name b { color:var(--blue-strong); }
+.platform-row.is-selected { filter:drop-shadow(0 3px 7px rgba(111,44,255,.16)); }
+.platform-empty { padding:20px 0; color:var(--subtle); text-align:center; font-size:12px; }
+.panel-actions { display:inline-flex; align-items:center; gap:4px; padding:3px; background:#f5f3fc; border:1px solid #e6e2f3; border-radius:7px; }
+.filter-button { min-height:30px; padding:4px 9px; color:var(--muted); background:transparent; border:0; border-radius:5px; cursor:pointer; font-size:11px; }
+.filter-button:hover,.filter-button.is-active { color:var(--blue-strong); background:#fff; box-shadow:0 2px 5px rgba(74,48,151,.1); }
 .pulse-bars i { box-shadow:0 0 12px rgba(156,192,255,.5); }
 @media (max-width:560px){.hero:before{background-size:46px 46px}.platform-badge img{width:17px;height:17px}}
+
+/* Real-report palette: AIDSO-inspired lavender workspace */
+:root { --ink:#1e1b2e; --muted:#69708a; --subtle:#9aa1b5; --paper:#ffffff; --canvas:#eef1ff; --panel:#ffffff; --line:#e5e7f1; --blue:#6f2cff; --blue-strong:#5520dc; --blue-soft:#f0eaff; --amber:#d77b00; --amber-soft:#fff4df; --green:#148b68; --green-soft:#e3f8f0; --shadow:0 12px 30px rgba(77,59,157,.1); }
+body { background:linear-gradient(135deg,#e8ecff 0%,#f7f8ff 46%,#edf0ff 100%); background-image:radial-gradient(circle at 12% -8%,rgba(126,93,255,.16),transparent 34%),radial-gradient(circle at 100% 18%,rgba(105,160,255,.12),transparent 30%); }
+.site-header { background:rgba(255,255,255,.94); border-color:#e5e7f1; box-shadow:0 2px 12px rgba(53,42,119,.08); }
+.brand-mark { background:#f0eaff; box-shadow:none; }
+.brand b,.brand small,h1 span,h2,h3,.metric-card strong,.platform-name b,.benchmark-name,.benchmark-table th,.source-row strong { color:var(--ink); }
+.hero,.metric-card,.panel,.method-note { background:rgba(255,255,255,.96); border-color:#e3e5ef; box-shadow:var(--shadow); }
+.hero:before { opacity:.4; background:linear-gradient(90deg,transparent 0 49.8%,rgba(111,44,255,.1) 50%,transparent 50.2%),linear-gradient(0deg,transparent 0 49.8%,rgba(111,44,255,.08) 50%,transparent 50.2%); }
+.hero:after { border-color:#d7cdfd; box-shadow:0 0 0 35px #f7f4ff,0 0 0 70px #fbfaff; }
+.hero-lead,.section-heading p,.metric-top,.panel-title,.dialogue-body p { color:var(--muted); }
+.hero-tags span,.dialogue-meta span { color:var(--muted); background:#fafaff; border-color:#e7e8f1; }
+.hero-tags span:first-child,.dialogue-meta span.accent { color:var(--blue-strong); background:var(--blue-soft); border-color:#d9ccff; }
+.metric-card:after { background:radial-gradient(ellipse,rgba(111,44,255,.13),transparent 65%); }
+.bar-track,.benchmark-bar-track { background:#eef0f6; }
+.question-item { background:#fff; border-color:#e5e7f1; }
+.question-item:hover,.question-item.active { border-color:#bba7fa; background:#f7f4ff; }
+.dialogue-body,.source-row { background:#fafaff; border-color:#e8e9f2; }
+.source-row small,.dialogue-label,.rank-note { color:var(--subtle); }
+.source-heading,.benchmark-table thead th { border-color:#e7e8f1; background:#fafaff; color:var(--muted); }
+.benchmark-table th,.benchmark-table td { border-color:#e7e8f1; }
+.benchmark-table tbody tr.is-current { background:#f4efff; }
+.outline-button { color:var(--blue-strong); background:#fff; border-color:#c8b8fb; }
+.outline-button:hover { background:var(--blue-soft); }
+.method-note { color:var(--muted); }
+.site-footer { color:var(--subtle); }
+.platform-badge { background:#fff!important; box-shadow:0 2px 8px rgba(61,53,129,.12); }
+.demo-pill { color:#6d28d9; background:#f0eaff; border-color:#d9ccff; }
+.pulse-panel { background:linear-gradient(145deg,#6632df,#8256ff); border-color:#6a35e5; }
+.reveal { animation:none; }

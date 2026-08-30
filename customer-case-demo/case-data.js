@@ -6,7 +6,7 @@ window.CASE_DATA = {
     location: "山东省",
     baselineDate: "2026-08-28",
     periodLabel: "检测基线 · 2026.08.28",
-    status: "演示数据"
+    status: "真实检测"
   },
   baseline: {
     conversations: 5,
@@ -23,7 +23,10 @@ window.CASE_DATA = {
     { name: "元宝", terminal: "网页", icon: "yuanbao.png", color: "#7c3aed", base: 18, count: 20 },
     { name: "千问", terminal: "网页", icon: "qwen.png", color: "#0f9f8a", base: 17, count: 19 },
     { name: "百度 AI", terminal: "网页", icon: "baidu-ai.png", color: "#2563eb", base: 14, count: 16 },
-    { name: "文心", terminal: "网页", icon: "baidu-ai.png", color: "#0f766e", base: 12, count: 12 }
+    { name: "文心", terminal: "网页", icon: "baidu-ai.png", color: "#0f766e", base: 12, count: 12 },
+    { name: "Kimi", terminal: "网页", icon: "kimi.ico", color: "#202124", base: 11, count: 12 },
+    { name: "AI 抖音", terminal: "网页", icon: "douyin.png", color: "#111827", base: 9, count: 9 },
+    { name: "红书问一问", terminal: "手机", icon: "xiaohongshu.png", color: "#ef426f", base: 8, count: 8 }
   ],
   competitors: [
     { name: "淄博达因特电源公司", mentionRate: 28, mentionCount: 19, rank: 1.8 },

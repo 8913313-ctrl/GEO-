@@ -1,0 +1,6 @@
+{
+  "name": "筑景工程与设计集团 | 官方门户网站",
+  "description": "高端建筑工程总承包、商业与豪宅装饰设计、BIM数智建造与全案定制一体化企业官网",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

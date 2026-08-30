@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #F9F9F8;
+    color: #1A1A1A;
+  }
+
+  h1, h2, h3, .font-serif {
+    font-family: 'Playfair Display', 'Noto Serif SC', Georgia, serif;
+  }
+}
+
+.bg-minimal-canvas {
+  background-color: #F9F9F8;
+}
+
+.bg-minimal-card {
+  background-color: #FFFFFF;
+}
+
+.bg-minimal-subtle {
+  background-color: #F3F3EF;
+}
+
+.text-minimal-primary {
+  color: #1A1A1A;
+}
+
+.text-minimal-secondary {
+  color: #555555;
+}
+
+.text-minimal-accent {
+  color: #C5A27D;
+}
+
+.border-minimal-light {
+  border-color: rgba(26, 26, 26, 0.08);
+}
+
+.border-minimal-accent {
+  border-color: rgba(197, 162, 125, 0.4);
+}
+

@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  /* Default Theme: 琥珀金与工业白 (Industrial Amber Gold & Crisp Light Theme) */
+  --primary-accent: #d97706; /* amber-600 */
+  --primary-accent-light: #f59e0b; /* amber-500 */
+  --primary-accent-dark: #b45309; /* amber-700 */
+  --secondary-accent: #059669; /* emerald-600 */
+  --secondary-accent-light: #10b981; /* emerald-500 */
+  --bg-main: #f8fafc; /* slate-50 */
+  --bg-card: #ffffff;
+  --text-main: #0f172a; /* slate-900 */
+  --text-muted: #475569; /* slate-600 */
+  --border-color: #e2e8f0; /* slate-200 */
+}
+
+/* Theme Variant 1: 琥珀金 / 工业高压防线 (Amber / Gold) - Eaton / Caterpillar Style */
+[data-theme="amber"] {
+  --primary-accent: #d97706;
+  --primary-accent-light: #f59e0b;
+  --primary-accent-dark: #b45309;
+  --secondary-accent: #059669;
+  --secondary-accent-light: #10b981;
+}
+
+/* Theme Variant 2: 绿能极光 / 99.1%高能效 (Emerald Green) - Schneider Electric Style */
+[data-theme="emerald"] {
+  --primary-accent: #059669;
+  --primary-accent-light: #10b981;
+  --primary-accent-dark: #047857;
+  --secondary-accent: #2563eb;
+  --secondary-accent-light: #3b82f6;
+}
+
+/* Theme Variant 3: 皇家钴蓝 / 数据中心算力 (Royal Blue) - Vertiv / Delta Style */
+[data-theme="blue"] {
+  --primary-accent: #2563eb;
+  --primary-accent-light: #3b82f6;
+  --primary-accent-dark: #1d4ed8;
+  --secondary-accent: #059669;
+  --secondary-accent-light: #10b981;
+}
+
+/* Theme Variant 4: 强电电弧橙 / 重工业电源 (Volt Orange) */
+[data-theme="orange"] {
+  --primary-accent: #ea580c;
+  --primary-accent-light: #f97316;
+  --primary-accent-dark: #c2410c;
+  --secondary-accent: #0284c7;
+  --secondary-accent-light: #0369a1;
+}
+
+body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* Custom selection styling */
+::selection {
+  background-color: #f59e0b;
+  color: #020617;
+}
