@@ -10,11 +10,22 @@ import { CompanyStrength } from './components/CompanyStrength';
 import { ConsultationModal } from './components/ConsultationModal';
 import { Footer } from './components/Footer';
 import { Calculator, Calendar } from 'lucide-react';
+import { fetchSiteBootstrap } from './api/siteClient';
+import { applyConstructionBootstrap } from './data/siteAdapter';
 
 export default function App() {
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [, setSiteRevision] = useState(0);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    fetchSiteBootstrap(controller.signal)
+      .then((bootstrap) => { applyConstructionBootstrap(bootstrap); setSiteRevision((value) => value + 1); })
+      .catch(() => { /* Local AI Studio preview may not have the central CMS yet. Keep the authored fallback. */ });
+    return () => controller.abort();
+  }, []);
 
   const handleOpenCalculator = () => {
     // Scroll to section or open calculator directly

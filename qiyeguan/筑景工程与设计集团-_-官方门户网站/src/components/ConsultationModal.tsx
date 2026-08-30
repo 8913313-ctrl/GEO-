@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Phone, User, Building, MapPin, CheckCircle, X, Loader2, ShieldCheck } from 'lucide-react';
+import { submitPublicLead } from '../api/leadClient';
 
 interface ConsultationModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({ isOpen, on
 
   const [loading, setLoading] = useState(false);
   const [submittedResult, setSubmittedResult] = useState<{ leadId: string; message: string } | null>(null);
+  const [error, setError] = useState('');
 
   if (!isOpen) return null;
 
@@ -25,19 +27,21 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({ isOpen, on
     e.preventDefault();
     if (!formData.name || !formData.phone) return;
     setLoading(true);
+    setError('');
 
     try {
-      const res = await fetch('/api/consultation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+      const data = await submitPublicLead({
+        name: formData.name,
+        phone: formData.phone,
+        company: '',
+        service: formData.projectType,
+        website: window.location.href,
+        message: `面积：${formData.area || '未提供'}；城市/地址：${formData.city}；备注：${formData.notes}`,
+        source_url: window.location.href
       });
-      const data = await res.json();
-      if (data.success) {
-        setSubmittedResult({ leadId: data.leadId, message: data.message });
-      }
-    } catch (e) {
-      console.error(e);
+      setSubmittedResult({ leadId: data.id || data.leadId || '已受理', message: data.message || '提交成功，项目顾问会尽快与您联系。' });
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : '提交失败，请稍后重试。');
     } finally {
       setLoading(false);
     }
@@ -100,6 +104,7 @@ export const ConsultationModal: React.FC<ConsultationModalProps> = ({ isOpen, on
             >
               完成并返回
             </button>
+            {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 font-sans">

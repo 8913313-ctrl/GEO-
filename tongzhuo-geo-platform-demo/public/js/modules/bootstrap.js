@@ -1244,6 +1244,14 @@ ${plainText(article.contentHtml || article.content || "")}`;
     ui.siteCatalogTab = actionElement.dataset.tab || "services";
     return render();
   }
+  if (action === "site-content-filter") {
+    ui.siteContentKind = actionElement.dataset.kind || "all";
+    return render();
+  }
+  if (action === "site-add-content-item") { ui.modal = { type: "siteContentItem" }; return renderModal(); }
+  if (action === "site-edit-content-item") { ui.modal = { type: "siteContentItem", contentItemId: actionElement.dataset.contentItemId }; return renderModal(); }
+  if (action === "site-save-content-item") return saveSiteContentItem(actionElement.dataset.contentItemId);
+  if (action === "site-archive-content-item") return archiveSiteContentItem(actionElement.dataset.contentItemId);
   if (action === "site-add-service") { ui.modal = { type: "siteService" }; return renderModal(); }
   if (action === "site-edit-service") { ui.modal = { type: "siteService", serviceId: actionElement.dataset.serviceId }; return renderModal(); }
   if (action === "site-save-service") return saveSiteService(actionElement.dataset.serviceId);
@@ -1846,6 +1854,14 @@ document.addEventListener("input", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches("[data-site-content-kind]")) {
+    ui.siteContentKind = event.target.value || "all";
+    return render();
+  }
+  if (event.target.matches("[data-site-content-search]")) {
+    ui.siteContentSearch = event.target.value || "";
+    return render();
+  }
   if (event.target.matches("#article-show-public-citations")) {
     const article = saveArticleEditor({ silent: true });
     if (article) {

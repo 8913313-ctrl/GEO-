@@ -14,6 +14,8 @@ import { AiConsultantModal } from './components/AiConsultantModal';
 import { QuoteRequestModal } from './components/QuoteRequestModal';
 import { InitialPageBootSkeleton } from './components/SkeletonLoader';
 import { Bot, Calculator, PhoneCall } from 'lucide-react';
+import { fetchSiteBootstrap } from './api/siteClient';
+import { applyUpsBootstrap } from './data/siteAdapter';
 
 export default function App() {
   const [activeSection, setActiveSection] = useState('hero');
@@ -22,6 +24,15 @@ export default function App() {
   const [initialData, setInitialData] = useState<any>(null);
   const [bootProgress, setBootProgress] = useState(10);
   const [isBooting, setIsBooting] = useState(true);
+  const [, setSiteRevision] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchSiteBootstrap(controller.signal)
+      .then((bootstrap) => { applyUpsBootstrap(bootstrap); setSiteRevision((value) => value + 1); })
+      .catch(() => { /* Local AI Studio preview may not have the central CMS yet. Keep the authored fallback. */ });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {

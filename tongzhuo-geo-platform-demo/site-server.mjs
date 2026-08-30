@@ -7,6 +7,7 @@ import { MonitoringStore } from "./monitoring-store.mjs";
 import { PublicLeadError, PublicLeadStore } from "./public-site/lead-store.mjs";
 import { PublicSiteStore } from "./public-site/site-store.mjs";
 import { KnowledgeStore } from "./knowledge-store.mjs";
+import { CONTENT_FIELD_DEFINITIONS, CONTENT_KINDS, PAGE_BLOCK_TYPES } from "./site-content-schema.mjs";
 import {
   injectStaticSeo,
   escapeHtml,
@@ -131,28 +132,6 @@ const BUILT_IN_SITE_ASSETS = Object.freeze({
   "/site-assets-r8/site-v8.css": "site-v8.css",
   "/site-assets-r8/site-v8.js": "site-v8.js",
   "/site-assets-r9/site-v8.css": "site-v8.css",
-  "/site-assets-r9/template-01-industry.css": "template-01-industry.css",
-  "/site-assets-r9/template-02-construction.css": "template-02-construction.css",
-  "/site-assets-r9/template-03-software-ai.css": "03-software-ai.css",
-  "/site-assets-r9/template-04-logistics.css": "04-logistics.css",
-  "/site-assets-r9/template-05-business-services.css": "05-business-services.css",
-  "/site-assets-r9/template-06-finance.css": "06-finance.css",
-  "/site-assets-r9/template-07-healthcare.css": "07-healthcare.css",
-  "/site-assets-r9/template-08-education.css": "08-education.css",
-  "/site-assets-r9/template-09-travel-hotel.css": "09-travel-hotel.css",
-  "/site-assets-r9/template-10-food-consumer.css": "10-food-consumer.css",
-  "/site-assets-r9/template-11-ups.css": "template-11-ups.css",
-  "/site-assets-r9/template-source-fixes.css": "template-source-fixes.css",
-  "/site-assets-r9/template-source-redesign.css": "template-source-redesign.css",
-  "/site-assets-r9/03-software-ai.css": "03-software-ai.css",
-  "/site-assets-r9/04-logistics.css": "04-logistics.css",
-  "/site-assets-r9/05-business-services.css": "05-business-services.css",
-  "/site-assets-r9/06-finance.css": "06-finance.css",
-  "/site-assets-r9/07-healthcare.css": "07-healthcare.css",
-  "/site-assets-r9/08-education.css": "08-education.css",
-  "/site-assets-r9/09-travel-hotel.css": "09-travel-hotel.css",
-  "/site-assets-r9/10-food-consumer.css": "10-food-consumer.css",
-  "/site-assets-r9/template-runtime.js": "template-runtime.js",
   "/site-assets-r9/site-v8.js": "site-v8.js",
   "/site-assets-r9/gsap.min.js": "gsap.min.js",
   "/site-assets-r9/tz-display.woff2": "fonts/tz-display.woff2",
@@ -164,16 +143,6 @@ const BUILT_IN_SITE_ASSETS = Object.freeze({
   "/assets/zhuojian-ai-official-logo.png": "zhuojian-ai-official-logo.png",
   "/assets/zhuojian-ai-lockup-gold.png": "zhuojian-ai-lockup-gold.png",
   "/assets/zhuojian-ai-brand.png": "zhuojian-ai-brand.png",
-  "/assets/template-01-default.png": "template-01-default.png",
-  "/assets/template-02-default.png": "template-02-default.png",
-  "/assets/template-03-default.png": "template-03-default.png",
-  "/assets/template-04-default.png": "template-04-default.png",
-  "/assets/template-05-default.png": "template-05-default.png",
-  "/assets/template-06-default.png": "template-06-default.png",
-  "/assets/template-07-default.png": "template-07-default.png",
-  "/assets/template-08-default.png": "template-08-default.png",
-  "/assets/template-09-default.png": "template-09-default.png",
-  "/assets/template-10-default.png": "template-10-default.png"
 });
 
 const LEGACY_REDIRECTS = Object.freeze({
@@ -509,6 +478,12 @@ function staticRelativePath(pathname) {
   return "";
 }
 
+function acceptsHtmlDocument(request, pathname = "") {
+  const accept = String(request?.headers?.accept || "").toLocaleLowerCase("en-US");
+  if (!accept || accept.includes("text/html") || accept.includes("application/xhtml+xml")) return true;
+  return accept.includes("*/*") && !/[.][a-z0-9]{1,8}$/i.test(pathname);
+}
+
 async function readStaticFile(staticRoot, relativePath) {
   let decoded;
   try { decoded = decodeURIComponent(relativePath); } catch { return null; }
@@ -589,6 +564,7 @@ export function createSiteRuntime(options = {}) {
     host: String(options.host || process.env.TZ_SITE_BIND_HOST || "127.0.0.1").trim(),
     port: positiveInteger(options.port ?? process.env.TZ_SITE_PORT, DEFAULT_PORT, 1, 65_535),
     staticRoot: path.resolve(options.staticRoot || process.env.TZ_SITE_STATIC_ROOT || DEFAULT_STATIC_ROOT),
+    spaFallback: options.spaFallback ?? booleanValue(process.env.TZ_SITE_SPA_FALLBACK),
     baseUrl: configuredOrigin(options.baseUrl || process.env.TZ_SITE_BASE_URL),
     workspaceId: options.workspaceId || process.env.TZ_SITE_WORKSPACE_ID || "default",
     trustProxy: options.trustProxy ?? booleanValue(process.env.TZ_TRUST_PROXY),
@@ -666,11 +642,54 @@ export function createSiteRuntime(options = {}) {
               imageAlt: item.imageAlt,
               href: item.href
             })),
+          contentItems: (Array.isArray(site.contentItems) ? site.contentItems : [])
+            .filter((item) => item?.status === "published")
+            .slice(0, 500),
           site: {
             companyName: site.companyName,
             description: site.description,
             cta: site.cta
           }
+        })
+      }, { pathname, track: false });
+    }
+    if (pathname === "/api/v1/site-public/bootstrap") {
+      const publishedPages = (Array.isArray(site.pages) ? site.pages : [])
+        .filter((page) => page?.status === "published")
+        .map((page) => ({ id: page.id, type: page.type, title: page.title, path: page.path, description: page.description, seoDescription: page.seoDescription }));
+      const publishedPageIds = new Set(publishedPages.map((page) => page.id));
+      const blocks = [];
+      for (const page of publishedPages) {
+        for (const block of (Array.isArray(site.modules?.[page.id]) ? site.modules[page.id] : [])) {
+          if (block?.status === "published" && (!block.pageId || publishedPageIds.has(page.id))) blocks.push({ ...block, pageId: page.id });
+        }
+      }
+      const publicItems = (Array.isArray(site.contentItems) ? site.contentItems : [])
+        .filter((item) => item?.status === "published").slice(0, 500);
+      return response(request, responseObject, {
+        status: 200,
+        contentType: "application/json; charset=utf-8",
+        cacheControl: "no-store",
+        body: JSON.stringify({
+          site: {
+            siteName: site.siteName,
+            companyName: site.companyName,
+            description: site.description,
+            cta: site.cta,
+            settings: site.settings || {},
+            assets: site.assets || {},
+            footer: site.footer || {},
+            navItems: (site.navItems || []).filter((item) => item.visible !== false)
+          },
+          templateKey: site.templateKey,
+          theme: site.theme || {},
+          pages: publishedPages,
+          blocks,
+          contentItems: publicItems,
+          assets: site.assets || {},
+          contentSchema: { kinds: CONTENT_KINDS, fields: CONTENT_FIELD_DEFINITIONS, blockTypes: PAGE_BLOCK_TYPES },
+          articles: machineArticles.map(publicArticleSummary),
+          problemGroups: cmsPageById(site, "problem-map")?.status === "published" ? publishedProblemGroups(site) : []
         })
       }, { pathname, track: false });
     }
@@ -779,9 +798,19 @@ export function createSiteRuntime(options = {}) {
 
   async function serveStatic(request, responseObject, pathname, snapshot, origin) {
     if (!config.staticOnly && staticPathOwnedByCms(snapshot.site, pathname)) return false;
-    const relativePath = staticRelativePath(pathname);
+    let relativePath = staticRelativePath(pathname);
+    // A React/Vite customer site is a single-page app. Its authored visual
+    // shell still owns the public route, while the CMS API remains same-origin
+    // and publication-gated. Only document requests may fall back to the
+    // built index; missing assets must remain 404s.
+    const spaFallback = config.spaFallback && acceptsHtmlDocument(request, pathname) && !pathname.startsWith("/api/") && !pathname.startsWith("/assets/") && !pathname.startsWith("/site-assets/") && !pathname.startsWith("/site-assets-r");
+    if (!relativePath && spaFallback) relativePath = "index.html";
     if (!relativePath) return false;
-    const file = await readStaticFile(config.staticRoot, relativePath);
+    let file = await readStaticFile(config.staticRoot, relativePath);
+    if (!file && spaFallback && relativePath !== "index.html") {
+      relativePath = "index.html";
+      file = await readStaticFile(config.staticRoot, relativePath);
+    }
     if (!file) return false;
     const isHtml = path.extname(relativePath).toLocaleLowerCase("en-US") === ".html";
     const body = isHtml

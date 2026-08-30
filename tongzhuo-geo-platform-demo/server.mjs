@@ -36,6 +36,7 @@ import { AnalysisWorkbenchError, AnalysisWorkbenchStore } from "./analysis-workb
 import { AnalysisWorkbenchEngine } from "./analysis-workbench-engine.mjs";
 import { createAnalysisWorkbenchApi } from "./analysis-workbench-api.mjs";
 import { SiteCmsError, SiteCmsStore } from "./site-cms-store.mjs";
+import { CONTENT_FIELD_DEFINITIONS, CONTENT_KINDS, PAGE_BLOCK_TYPES } from "./site-content-schema.mjs";
 import { PublicSiteStore } from "./public-site/site-store.mjs";
 import { renderFixedPage, renderNotFound } from "./public-site/site-renderer.mjs";
 import { createSiteRuntime } from "./site-server.mjs";
@@ -844,6 +845,22 @@ async function handleSiteCmsApi(request, response, parts) {
     const draft = siteCmsStore.saveDraft({ expectedRevision: body.expectedRevision, cms: body.cms || body.snapshot }, principal, request, "default");
     return jsonResponse(response, 200, { ok: true, data: { draft } });
   }
+  if (operation === "content-items" && method === "GET") {
+    await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
+    const draft = siteCmsStore.draft("default");
+    return jsonResponse(response, 200, { ok: true, data: {
+      revision: draft.revision, items: draft.snapshot.contentItems || [],
+      schema: { kinds: CONTENT_KINDS, fields: CONTENT_FIELD_DEFINITIONS, blockTypes: PAGE_BLOCK_TYPES }
+    } });
+  }
+  if (operation === "content-items" && method === "PUT") {
+    const principal = await authService.requirePermission(request, PERMISSIONS.WORKSPACE_WRITE);
+    const body = await requestJson(request, Math.max(configured.requestBodyLimit, 4_000_000));
+    const current = siteCmsStore.draft("default");
+    const cms = { ...current.snapshot, contentItems: Array.isArray(body.items) ? body.items : [] };
+    const draft = siteCmsStore.saveDraft({ expectedRevision: body.expectedRevision, cms }, principal, request, "default");
+    return jsonResponse(response, 200, { ok: true, data: { draft, items: draft.snapshot.contentItems || [] } });
+  }
   if (operation === "publish" && method === "POST") {
     const principal = await authService.requirePermission(request, PERMISSIONS.CONTENT_PUBLISH);
     const body = await requestJson(request, 100_000);
@@ -911,27 +928,12 @@ async function handleSiteCmsApi(request, response, parts) {
     await authService.requirePermission(request, PERMISSIONS.WORKSPACE_READ, { requireCsrf: false });
     const fileName = path.basename(decodeURIComponent(parts[5]));
     const previewAssetBase = "/api/v1/site-cms/preview/assets";
-    const previewAssetFiles = Object.freeze({
-      "template-03-software-ai.css": "03-software-ai.css",
-      "template-04-logistics.css": "04-logistics.css",
-      "template-05-business-services.css": "05-business-services.css",
-      "template-06-finance.css": "06-finance.css",
-      "template-07-healthcare.css": "07-healthcare.css",
-      "template-08-education.css": "08-education.css",
-      "template-09-travel-hotel.css": "09-travel-hotel.css",
-      "template-10-food-consumer.css": "10-food-consumer.css",
-      "template-11-ups.css": "template-11-ups.css",
-      "template-source-fixes.css": "template-source-fixes.css",
-      "template-source-redesign.css": "template-source-redesign.css"
-    });
+    const previewAssetFiles = Object.freeze({});
     const previewAssets = new Set([
       "site.css",
       "site.js",
       "site-v8.css",
-      "template-01-industry.css",
-      "template-02-construction.css",
       ...Object.keys(previewAssetFiles),
-      "template-runtime.js",
       "site-v8.js",
       "gsap.min.js",
       "tz-display.woff2",
@@ -945,19 +947,7 @@ async function handleSiteCmsApi(request, response, parts) {
       "tongzhuo-official-mark.png",
       "zhuojian-ai-brand.png",
       "zhuojian-ai-lockup-gold.png",
-      "zhuojian-ai-official-logo.png",
-      "template-01-default.png",
-      "template-02-default.png",
-      "template-03-default.png",
-      "template-04-default.png",
-      "template-05-default.png",
-      "template-06-default.png",
-      "template-07-default.png",
-      "template-08-default.png",
-      "template-09-default.png",
-      "template-10-default.png",
-      "template-11-ups.css",
-      "template-11-default.png"
+      "zhuojian-ai-official-logo.png"
     ]);
     if (!previewAssets.has(fileName)) return jsonResponse(response, 404, { ok: false, code: "SITE_CMS_ASSET_NOT_FOUND", message: "预览资源不存在。" });
     const relativeFile = previewAssetFiles[fileName] || fileName;

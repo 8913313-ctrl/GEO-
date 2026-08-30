@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { appendAuditLog } from "./production-audit.mjs";
 import { DEFAULT_SITE_TEMPLATE_KEY, isSiteTemplateKey, SITE_TEMPLATES } from "./site-template-registry.mjs";
+import { CONTENT_KINDS, PAGE_BLOCK_TYPES, isContentKind } from "./site-content-schema.mjs";
 
 const CORE_PAGE_IDS = new Set(["home", "services", "about", "contact", "insights", "cases", "problem-map"]);
 const OPTIONAL_PATHS = new Set(["/cases/", "/faq/", "/team/", "/honors/", "/jobs/"]);
@@ -86,7 +87,7 @@ function normalizeTemplateConfigs(value = {}) {
   return Object.fromEntries(SITE_TEMPLATES.map((template) => {
     const current = source[template.key] && typeof source[template.key] === "object" ? source[template.key] : {};
     return [template.key, {
-      defaultImageUrl: cleanOptionalImage(current.defaultImageUrl || (template.defaultImage ? `/assets/${template.defaultImage}` : "")),
+      defaultImageUrl: cleanOptionalImage(current.defaultImageUrl || ""),
       defaultImageAlt: cleanText(current.defaultImageAlt, `${template.shortName}默认图片`, 180),
       logoUrl: cleanOptionalImage(current.logoUrl),
       faviconUrl: cleanOptionalImage(current.faviconUrl),
@@ -103,6 +104,65 @@ function cleanPublicUrlList(value, maximum = 12) {
 function cleanId(value, fallback) {
   const id = cleanText(value, fallback, 160).replace(/[^A-Za-z0-9._:-]/g, "-");
   return id || fallback;
+}
+
+function cleanScalarMap(value, maximum = 30) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const result = {};
+  for (const [rawKey, rawValue] of Object.entries(source).slice(0, maximum)) {
+    const key = cleanText(rawKey, "", 80).replace(/[^A-Za-z0-9_.:-]/g, "-");
+    if (!key) continue;
+    if (Array.isArray(rawValue)) {
+      result[key] = rawValue.slice(0, 20).map((item) => cleanText(item, "", 500)).filter(Boolean);
+    } else if (["string", "number", "boolean"].includes(typeof rawValue)) {
+      result[key] = typeof rawValue === "string" ? cleanText(rawValue, "", 1_000) : rawValue;
+    }
+  }
+  return result;
+}
+
+function normalizeContentItem(item = {}, index = 0) {
+  const source = item && typeof item === "object" && !Array.isArray(item) ? item : {};
+  const kind = isContentKind(source.kind) ? source.kind : "media";
+  const title = cleanText(source.title || source.name, `内容条目 ${index + 1}`, 240);
+  return {
+    id: cleanId(source.id, `content-${kind}-${index + 1}`), kind, title,
+    subtitle: cleanText(source.subtitle, "", 240), label: cleanText(source.label || source.eyebrow, "", 120),
+    summary: cleanText(source.summary || source.excerpt, "", 1_500),
+    description: cleanText(source.description, "", 4_000), content: cleanText(source.content, "", 10_000),
+    image: cleanOptionalImage(source.image || source.coverImage),
+    imageAlt: cleanText(source.imageAlt, title, 180),
+    gallery: (Array.isArray(source.gallery) ? source.gallery : Array.isArray(source.galleryImages) ? source.galleryImages : []).slice(0, 20).map(cleanOptionalImage).filter(Boolean),
+    tags: cleanList(source.tags, 20), facts: cleanScalarMap(source.facts), metadata: cleanScalarMap(source.metadata),
+    status: normalizePublishedStatus(source.status, "draft"),
+    order: Math.max(1, Number.parseInt(source.order, 10) || index + 1), slug: slugify(source.slug || title, `content-${index + 1}`),
+    updatedAt: source.updatedAt || null
+  };
+}
+
+function derivedContentItems(services, cases, problemGroups) {
+  const items = [];
+  for (const [index, item] of (services || []).entries()) items.push(normalizeContentItem({
+    id: item.id, kind: "offering", title: item.title, label: item.eyebrow, description: item.description,
+    facts: { audience: item.audience, focus: item.focus, href: item.href }, image: item.image, imageAlt: item.imageAlt,
+    status: item.status, order: index + 1
+  }, items.length));
+  for (const [index, item] of (cases || []).entries()) items.push(normalizeContentItem({
+    id: item.id, kind: "proof", title: item.title, summary: item.summary, description: item.result,
+    facts: { service: item.service, industry: item.industry, result: item.result, href: item.href }, image: item.image, imageAlt: item.imageAlt,
+    status: item.status, order: index + 1
+  }, items.length));
+  for (const group of problemGroups || []) for (const [index, question] of (group.questions || []).entries()) items.push(normalizeContentItem({
+    id: question.id, kind: "faq", title: question.title, summary: question.answer,
+    facts: { answer: question.answer, group: group.title, service: group.service, industries: question.industries },
+    tags: question.industries, status: question.status, order: index + 1
+  }, items.length));
+  return items;
+}
+
+function normalizeContentItems(value, services, cases, problemGroups) {
+  if (Array.isArray(value)) return value.filter((item) => item && typeof item === "object").slice(0, 500).map(normalizeContentItem);
+  return derivedContentItems(services, cases, problemGroups);
 }
 
 export function normalizeCmsPath(value, fallback = "/") {
@@ -376,7 +436,7 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   const assets = {
     logoUrl: cleanOptionalImage(assetsSource.logoUrl || settings.logoUrl),
     faviconUrl: cleanOptionalImage(assetsSource.faviconUrl),
-    defaultImageUrl: cleanOptionalImage(assetsSource.defaultImageUrl || "/assets/template-01-default.png"),
+    defaultImageUrl: cleanOptionalImage(assetsSource.defaultImageUrl),
     defaultImageAlt: cleanText(assetsSource.defaultImageAlt, "企业默认图片", 180)
   };
   const rawPages = Array.isArray(cms.pages) && cms.pages.length ? cms.pages : defaultPages();
@@ -446,9 +506,14 @@ export function normalizeSiteCmsSnapshot(source = {}, state = {}) {
   })).filter((item) => item.from !== item.to);
   const standardRedirects = [["/index.html", "/"], ["/products.html", "/services/"], ["/products/", "/services/"], ["/about.html", "/about/"], ["/contact.html", "/contact/"], ["/insights.html", "/insights/"]];
   for (const [from, to] of standardRedirects) if (!redirects.some((item) => item.from === from)) redirects.push({ id: `standard-${slugify(from, "redirect")}`, from, to, status: "active", reason: "统一官网规范地址", updatedAt: null });
+  const services = normalizeServices(cms.services);
+  const cases = normalizeCases(cms.cases);
+  const problemGroups = normalizeProblemGroups(cms.problemGroups);
+  const contentItems = normalizeContentItems(cms.contentItems, services, cases, problemGroups);
   return {
-    schemaVersion: 4, templateKey, settings, assets, templateConfigs: normalizeTemplateConfigs(cms.templateConfigs), footer: normalizeFooter(cms.footer), theme: { ...theme, templateKey }, pages, modules, categories, navItems, redirects,
-    services: normalizeServices(cms.services), cases: normalizeCases(cms.cases), problemGroups: normalizeProblemGroups(cms.problemGroups),
+    schemaVersion: 5, templateKey, settings, assets, templateConfigs: normalizeTemplateConfigs(cms.templateConfigs), footer: normalizeFooter(cms.footer), theme: { ...theme, templateKey }, pages, modules, categories, navItems, redirects,
+    contentKinds: CONTENT_KINDS, pageBlockTypes: PAGE_BLOCK_TYPES, contentItems,
+    services, cases, problemGroups,
     businessLines: normalizeBusinessLines(state), generatedAt: cleanText(cms.generatedAt, new Date().toISOString(), 80)
   };
 }
@@ -493,8 +558,9 @@ export class SiteCmsStore {
     const state = this.workspaceState(workspaceId);
     if (existing && publication) {
       const stored = parseSnapshot(existing.snapshot_json);
-      const needsContentMigration = Number(stored.schemaVersion || 0) < 2
-        || !Array.isArray(stored.services) || !Array.isArray(stored.cases) || !Array.isArray(stored.problemGroups);
+      const needsContentMigration = Number(stored.schemaVersion || 0) < 5
+        || !Array.isArray(stored.services) || !Array.isArray(stored.cases) || !Array.isArray(stored.problemGroups)
+        || !Array.isArray(stored.contentItems) || !Array.isArray(stored.contentKinds) || !Array.isArray(stored.pageBlockTypes);
       if (needsContentMigration) {
         const migrated = normalizeSiteCmsSnapshot(stored, state);
         const serialized = serializeSnapshot(migrated);
@@ -505,7 +571,7 @@ export class SiteCmsStore {
               .run(Number(existing.revision) + 1, serialized.json, serialized.checksum, now, workspaceId, Number(existing.revision), existing.checksum);
             if (Number(result.changes) === 1) appendAuditLog(this.connection, {
               actorUserId: null, action: "site.cms.draft.migrate", entityType: "site_cms_draft", entityId: workspaceId,
-              details: { fromSchemaVersion: Number(stored.schemaVersion || 0), toSchemaVersion: 2, revision: Number(existing.revision) + 1 },
+              details: { fromSchemaVersion: Number(stored.schemaVersion || 0), toSchemaVersion: 5, revision: Number(existing.revision) + 1 },
               request: null, trustProxy: this.trustProxy, createdAt: now
             });
           });

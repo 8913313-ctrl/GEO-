@@ -85,8 +85,9 @@ try {
   assert.equal(bootstrapPublication.sourceDraftRevision, 1);
   assert.equal(bootstrapPublication.checksum, bootstrapDraft.checksum);
   assert.deepEqual(bootstrapPublication.snapshot, bootstrapDraft.snapshot);
-  assert.equal(bootstrapDraft.snapshot.schemaVersion, 4);
-  assert.equal(bootstrapDraft.snapshot.assets.defaultImageUrl, "/assets/template-01-default.png");
+  assert.equal(bootstrapDraft.snapshot.schemaVersion, 5);
+  assert.equal(bootstrapDraft.snapshot.assets.defaultImageUrl, "");
+  assert.ok(Array.isArray(bootstrapDraft.snapshot.contentItems));
   assert.equal(Object.keys(bootstrapDraft.snapshot.templateConfigs).length, SITE_TEMPLATES.length);
   assert.equal(bootstrapDraft.snapshot.footer.showIcp, true);
   const bootstrapReleases = cmsStore.releases(workspaceId);
@@ -112,6 +113,12 @@ try {
   const address = await runtime.listen(0, "127.0.0.1");
   const base = `http://127.0.0.1:${address.port}`;
 
+  const bootstrapResponse = await request(base, "/api/v1/site-public/bootstrap");
+  assert.equal(bootstrapResponse.response.status, 200);
+  const bootstrapPayload = JSON.parse(bootstrapResponse.text);
+  assert.ok(Array.isArray(bootstrapPayload.contentItems));
+  assert.ok(bootstrapPayload.contentSchema.kinds.includes("credential"));
+
   let redirected = await request(base, "/products.html?source=legacy");
   assert.equal(redirected.response.status, 301);
   assert.equal(redirected.response.headers.get("location"), "/services/?source=legacy");
@@ -128,6 +135,7 @@ try {
     defaultImageUrl: "/assets/default-cover.webp"
   };
   draftCms.templateConfigs["01-industry"].defaultImageUrl = "/assets/industry-default.webp";
+  draftCms.contentItems.push({ id: "generic-content-check", kind: "proof", title: "通用内容接口验收项目", summary: "案例摘要", facts: { client: "待确认客户", area: "待确认面积", amount: "待确认金额", duration: "待确认周期", constructionLog: "待确认施工日志" }, status: "published", order: 1 });
   draftCms.footer = {
     ...draftCms.footer,
     icpNumber: "京ICP备00000000号",
@@ -184,6 +192,8 @@ try {
   assert.equal(published.snapshot.assets.logoUrl, "/assets/company-logo.png");
   assert.equal(published.snapshot.assets.defaultImageUrl, "/assets/default-cover.webp");
   assert.equal(published.snapshot.templateConfigs["01-industry"].defaultImageUrl, "/assets/industry-default.webp");
+  const publishedBootstrap = JSON.parse((await request(base, "/api/v1/site-public/bootstrap")).text);
+  assert.ok(publishedBootstrap.contentItems.some((item) => item.id === "generic-content-check"));
   assert.equal(published.snapshot.footer.icpNumber, "京ICP备00000000号");
   assert.equal(published.snapshot.footer.columns[0].links[1].href, "tel:400-000-0000");
   assert.equal(published.snapshot.footer.socialLinks[0].href, "https://example.com/company");

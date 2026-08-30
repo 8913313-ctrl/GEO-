@@ -583,7 +583,9 @@ function renderDirectionalIcons(html = "") {
     .replaceAll("→", directionIcon("right"));
 }
 
-const SOURCE_TEMPLATE_KEYS = new Set(["01-industry", "02-construction", "03-software-ai", "04-logistics", "05-business-services", "06-finance", "07-healthcare", "08-education", "09-travel-hotel", "10-food-consumer", "11-ups"]);
+// The old built-in visual templates have been retired. React template
+// bundles are mounted by the deployment layer and consume /site-public/bootstrap.
+const SOURCE_TEMPLATE_KEYS = new Set([]);
 const LEGACY_SOURCE_TEMPLATE_KEYS = new Set([]);
 
 function isXinShuojieSite(site = {}) {
@@ -1683,7 +1685,7 @@ function documentShell({ site, origin, pathname, title, description, active, sch
   const jsHref = `${cssRoot}/site-v8.js?v=20260818-template-source-css`;
   const brandMark = siteFavicon(site, imageRoot);
   const socialImage = absoluteResourceUrl(origin, configuredBrandLogo(site, imageRoot, activeTemplate)) || absoluteResourceUrl(origin, brandMark);
-  const templateLinks = activeTemplate.key === "02-construction" ? [{ rel: "stylesheet", href: `${cssRoot}/template-02-construction.css?v=20260818-source-adapter2` }] : [];
+  const templateLinks = [];
   const extraLinks = headLinks.filter((item) => item?.rel && item?.href).map((item) => `<link rel="${escapeHtml(item.rel)}" href="${escapeHtml(item.href)}">`).join("");
   const templateStyles = templateLinks.filter((item) => item?.rel && item?.href).map((item) => `<link rel="${escapeHtml(item.rel)}" href="${escapeHtml(item.href)}">`).join("");
   const extraMeta = headMeta.filter((item) => item?.content && (item?.name || item?.property)).map((item) => `<meta ${item.property ? `property="${escapeHtml(item.property)}"` : `name="${escapeHtml(item.name)}"`} content="${escapeHtml(item.content)}">`).join("");

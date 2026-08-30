@@ -11,6 +11,7 @@ import { injectStaticSeo } from "../public-site/site-renderer.mjs";
 
 const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "tongzhuo-site-runtime-"));
 const staticRoot = path.join(temporaryDirectory, "legacy-static");
+const spaRoot = path.join(temporaryDirectory, "react-site-dist");
 const databasePath = path.join(temporaryDirectory, "site.sqlite");
 let database;
 let runtime;
@@ -86,7 +87,7 @@ try {
   assert.match(normalizedStatic, /src="\/assets\/site\.js"/);
 
   result = await request(base, "/");
-  assert.equal(result.response.status, 200); assert.match(result.text, /data-site-template="01-industry"/); assert.match(result.text, /template-source-01/); assert.match(result.text, /template-01-industry\.css/); assert.doesNotMatch(result.text, /site-v8\.css/); assert.match(result.text, /测试企业有限公司/); assert.doesNotMatch(result.text, /旧官网首页|LegacyOrg/); assert.match(result.text, /https:\/\/www\.example\.test\//);
+  assert.equal(result.response.status, 200); assert.match(result.text, /data-site-template="01-industry"/); assert.doesNotMatch(result.text, /template-source-01|template-01-industry\.css|template-runtime\.js|LegacyOrg/); assert.match(result.text, /测试企业有限公司/); assert.doesNotMatch(result.text, /旧官网首页/); assert.match(result.text, /https:\/\/www\.example\.test\//);
 
   result = await request(base, "/about/");
   assert.equal(result.response.status, 200); assert.match(result.text, /关于我们/); assert.match(result.response.headers.get("link"), /https:\/\/www\.example\.test\/about\//);
@@ -101,14 +102,13 @@ try {
   result = await request(base, "/site-assets/site.css");
   assert.equal(result.response.status, 200); assert.match(result.response.headers.get("content-type"), /text\/css/);
   result = await request(base, "/site-assets-r9/template-source-fixes.css");
-  assert.equal(result.response.status, 200); assert.match(result.response.headers.get("content-type"), /text\/css/);
+  assert.equal(result.response.status, 404);
   result = await request(base, "/site-assets-r9/template-source-redesign.css");
-  assert.equal(result.response.status, 200); assert.match(result.response.headers.get("content-type"), /text\/css/);
+  assert.equal(result.response.status, 404);
   for (let templateNumber = 1; templateNumber <= 10; templateNumber += 1) {
     const defaultImagePath = `/assets/template-${String(templateNumber).padStart(2, "0")}-default.png`;
     result = await request(base, defaultImagePath);
-    assert.equal(result.response.status, 200, `${defaultImagePath} should be publicly readable`);
-    assert.match(result.response.headers.get("content-type"), /image\/png/, `${defaultImagePath} should be served as PNG`);
+    assert.equal(result.response.status, 404, `${defaultImagePath} should no longer be publicly readable`);
   }
 
   result = await request(base, "/insights");
@@ -158,6 +158,26 @@ try {
   assert.equal(result.response.status, 200); assert.equal(result.text, "");
   result = await request(base, "/insights", { method: "POST" });
   assert.equal(result.response.status, 405); assert.equal(result.response.headers.get("allow"), "GET, HEAD");
+
+  // A customer React/Vite build is mounted as the public shell. Document
+  // routes fall back to index.html, while asset typos remain 404s.
+  await mkdir(path.join(spaRoot, "assets"), { recursive: true });
+  await writeFile(path.join(spaRoot, "index.html"), "<!doctype html><html><head><title>React 官网</title></head><body><div id=\"root\">保留原站动画壳</div><script type=\"module\" src=\"/assets/main.js\"></script></body></html>");
+  await writeFile(path.join(spaRoot, "assets", "main.js"), "document.documentElement.dataset.reactSite = 'mounted';");
+  await runtime.close();
+  runtime = createSiteRuntime({ database, staticRoot: spaRoot, staticOnly: true, spaFallback: true, host: "127.0.0.1", port: 0, baseUrl: "https://www.example.test", workspaceId: "default", flushIntervalMs: 60_000, logger: { info() {}, warn() {}, error() {} } });
+  const spaAddress = await runtime.listen(0, "127.0.0.1");
+  const spaBase = `http://127.0.0.1:${spaAddress.port}`;
+  result = await request(spaBase, "/");
+  assert.equal(result.response.status, 200); assert.match(result.text, /保留原站动画壳/);
+  result = await request(spaBase, "/about/");
+  assert.equal(result.response.status, 200); assert.match(result.text, /保留原站动画壳/);
+  result = await request(spaBase, "/assets/main.js");
+  assert.equal(result.response.status, 200); assert.match(result.text, /reactSite/);
+  result = await request(spaBase, "/assets/missing.js");
+  assert.equal(result.response.status, 404);
+  result = await request(spaBase, "/api/v1/site-public/bootstrap");
+  assert.equal(result.response.status, 200); assert.equal(JSON.parse(result.text).templateKey, "01-industry");
 
   await runtime.flushAccessLogs();
   const publicLogs = database.connection.prepare("SELECT COUNT(*) AS count FROM monitoring_access_logs WHERE workspace_id = 'default' AND article_id = 'ART-PUBLIC'").get();

@@ -790,6 +790,7 @@ function renderModal() {
     sitePageEditor: renderSitePageEditorModal,
     siteModule: renderSiteModuleModal,
     siteService: renderSiteServiceModal,
+    siteContentItem: renderSiteContentItemModal,
     siteCase: renderSiteCaseModal,
     siteProblemGroup: renderSiteProblemGroupModal,
     siteQuestion: renderSiteQuestionModal,

@@ -39,45 +39,33 @@ for (const template of SITE_TEMPLATES) {
     ...sourceSite,
     templateKey: template.key,
     theme: { templateKey: template.key },
-    templateConfig: { defaultImageUrl: `/assets/${template.defaultImage}`, defaultImageAlt: `${template.shortName}默认图片` }
+  templateConfig: { defaultImageUrl: "", defaultImageAlt: `${template.shortName}默认图片` }
   };
   const html = renderFixedPage({ site, page: home, articles, categories: [], origin: "http://template-check.local", preview: true, assetBase: "/api/v1/site-cms/preview/assets" });
   assert.match(html, new RegExp(`data-site-template="${template.key}"`));
   assert.match(html, /带图服务内容/);
 
-  if (template.sourceReady === true) {
-    assert.match(html, new RegExp(`<link rel="stylesheet" href="/api/v1/site-cms/preview/assets/${template.stylesheet}\\?`));
-    assert.match(html, /template-source-redesign\.css\?v=/);
-    assert.doesNotMatch(html, /site-v8\.css/);
-    assert.match(html, /template-runtime\.js/);
-    assert.match(html, new RegExp(`class="template-source template-source-${template.key.slice(0, 2)}`));
-    assert.match(html, /<link rel="canonical" href="http:\/\/template-check\.local\//);
-    assert.match(html, /property="og:image"/);
-    assert.match(html, /name="twitter:image"/);
-    assert.match(html, /"@type":"Organization"/);
+  assert.doesNotMatch(html, /template-runtime\.js|template-source-(?:fixes|redesign)\.css/);
+  assert.doesNotMatch(html, /template-\d{2}-(?:default|industry|construction|ups)\./);
+  assert.match(html, /<main\b/);
+  assert.match(html, /<h1\b/);
+  assert.match(html, /<link rel="canonical" href="http:\/\/template-check\.local\//);
+  assert.match(html, /property="og:image"/);
+  assert.match(html, /"@type":"Organization"/);
 
-    assert.doesNotMatch(html, /[\u{1F000}-\u{1FAFF}]/u);
-    assert.match(html, /<main\b/);
-    assert.match(html, /<h1\b/);
+  const insights = renderInsightsPage({ site, articles, categories: [], origin: "http://template-check.local" });
+  assert.doesNotMatch(insights, /template-runtime\.js/);
+  assert.match(insights, /cms-article-image/);
+  assert.match(insights, /cms-article-no-image/);
 
-    const insights = renderInsightsPage({ site, articles, categories: [], origin: "http://template-check.local" });
-    assert.match(insights, new RegExp(template.stylesheet));
-    assert.doesNotMatch(insights, /site-v8\.css/);
-    // Templates intentionally use different collection class names. Assert the
-    // CMS records and links are present instead of pinning a historical class.
-    assert.match(insights, /cms-article-image/);
-    assert.match(insights, /cms-article-no-image/);
-
-    const article = renderArticlePage({
-      site,
-      article: { ...articles[0], contentHtml: "<h2>CMS 正文</h2><p>文章正文必须继续来自 CMS。</p>" },
-      origin: "http://template-check.local"
-    }).html;
-    assert.match(article, new RegExp(template.stylesheet));
-    assert.doesNotMatch(article, /site-v8\.css/);
-    assert.match(article, /CMS 正文/);
-    assert.match(article, /"@type":"Article"/);
-  }
+  const article = renderArticlePage({
+    site,
+    article: { ...articles[0], contentHtml: "<h2>CMS 正文</h2><p>文章正文必须继续来自 CMS。</p>" },
+    origin: "http://template-check.local"
+  }).html;
+  assert.doesNotMatch(article, /template-runtime\.js|template-source-(?:fixes|redesign)\.css/);
+  assert.match(article, /CMS 正文/);
+  assert.match(article, /"@type":"Article"/);
 }
 
 const businessLineSite = {
@@ -89,7 +77,7 @@ const businessLineSite = {
   ],
   templateKey: "04-logistics",
   theme: { templateKey: "04-logistics" },
-  templateConfig: { defaultImageUrl: "/assets/template-04-default.png", defaultImageAlt: "物流供应链默认图片" }
+  templateConfig: { defaultImageUrl: "", defaultImageAlt: "物流供应链默认图片" }
 };
 const businessLineHtml = renderFixedPage({
   site: businessLineSite,

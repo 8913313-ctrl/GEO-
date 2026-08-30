@@ -30,6 +30,87 @@ function renderSiteCatalog() {
   return `<div class="site-page-toolbar"><div><h2>服务与案例</h2><p>维护官网产品与服务、公开案例和实施结果。只有公开状态的数据进入正式官网。</p></div><button class="primary-button button-small" type="button" data-action="${isServices ? "site-add-service" : "site-add-case"}"><span data-icon="plus"></span>${isServices ? "新增服务" : "新增案例"}</button></div><section class="card site-source-note"><span class="site-source-note-icon" data-icon="info"></span><div><b>服务和案例属于官网正式信源</b><p>案例需要完成客户授权、脱敏与人工核对；归档只会从官网隐藏，不会丢失历史发布版本。</p></div><span class="small-tag blue">随整站发布</span></section><div class="site-content-tabs"><button class="site-content-tab ${isServices ? "active" : ""}" type="button" data-action="site-catalog-tab" data-tab="services">产品与服务 <small>${services.length}</small></button><button class="site-content-tab ${!isServices ? "active" : ""}" type="button" data-action="site-catalog-tab" data-tab="cases">服务案例 <small>${cases.length}</small></button></div><section class="card table-card"><div class="table-scroll"><table class="data-table"><thead><tr>${isServices ? "<th>排序</th><th>服务</th><th>适合对象</th><th>工作重点</th><th>状态</th><th></th>" : "<th>排序</th><th>案例</th><th>行业</th><th>服务方向</th><th>形成结果</th><th>状态</th><th></th>"}</tr></thead><tbody>${isServices ? serviceRows : caseRows}</tbody></table></div>${(isServices ? services : cases).length ? "" : '<div class="empty-state compact"><div><span data-icon="layout"></span><h3>还没有官网内容</h3><p>新增后先保存到草稿，预览确认后再统一发布官网。</p></div></div>'}</section>`;
 }
 
+const SITE_CONTENT_KIND_LABELS = Object.freeze({
+  offering: "产品 / 服务", proof: "案例 / 证据", credential: "资质 / 认证", partner: "客户 / 合作方",
+  testimonial: "客户评价", person: "团队成员", scene: "业务场景", faq: "常见问题", media: "媒体资料"
+});
+const SITE_CONTENT_KINDS = Object.freeze(Object.keys(SITE_CONTENT_KIND_LABELS));
+
+function siteContentItems(includeArchived = false) {
+  const items = Array.isArray(siteCms().contentItems) ? siteCms().contentItems : [];
+  return items.filter((item) => includeArchived || item.status !== "archived").sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
+}
+
+function siteContentJson(value) {
+  return JSON.stringify(value && typeof value === "object" && !Array.isArray(value) ? value : {}, null, 2);
+}
+
+function parseSiteContentJson(value) {
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function renderSiteContentCenter() {
+  const kind = ui.siteContentKind || "all";
+  const keyword = String(ui.siteContentSearch || "").trim().toLowerCase();
+  const items = siteContentItems(true).filter((item) => {
+    if (kind !== "all" && item.kind !== kind) return false;
+    if (!keyword) return true;
+    return [item.title, item.summary, item.description, item.tags?.join(" "), JSON.stringify(item.facts || {})].join(" ").toLowerCase().includes(keyword);
+  });
+  const allItems = siteContentItems(true);
+  const rows = items.map((item, index) => `<tr><td><span class="site-module-order">${String(index + 1).padStart(2, "0")}</span></td><td class="article-title-cell"><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.summary || item.description || "暂无摘要")}</small></td><td><span class="source-tag">${escapeHtml(SITE_CONTENT_KIND_LABELS[item.kind] || item.kind || "未分类")}</span></td><td>${item.image ? "有图片" : "无图片"}<small class="table-subtext">${Object.keys(item.facts || {}).length} 个事实字段</small></td><td>${siteRecordStatus(item.status)}</td><td><button class="link-button" type="button" data-action="site-edit-content-item" data-content-item-id="${escapeHtml(item.id)}">编辑</button>${item.status !== "archived" ? `<button class="link-button danger-link" type="button" data-action="site-archive-content-item" data-content-item-id="${escapeHtml(item.id)}">归档</button>` : ""}</td></tr>`).join("");
+  const kindOptions = [["all", "全部类型"], ...SITE_CONTENT_KINDS.map((entry) => [entry, SITE_CONTENT_KIND_LABELS[entry]])].map(([value, label]) => `<option value="${escapeHtml(value)}" ${kind === value ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
+  return `<div class="site-page-toolbar"><div><h2>通用内容中心</h2><p>所有模板共用这一套内容数据。资质、客户、项目、评价和施工日志都作为内容条目的事实字段管理。</p></div><button class="primary-button button-small" type="button" data-action="site-add-content-item"><span data-icon="plus"></span>新增内容</button></div><section class="card site-source-note"><span class="site-source-note-icon" data-icon="layers"></span><div><b>展示层与内容层已分离</b><p>切换 11 套模板只改变页面结构和视觉表达，不会复制内容，也不需要为某个行业新增数据库字段。客户确认后再把状态改为公开并发布官网。</p></div><span class="small-tag blue">${allItems.length} 条通用内容</span></section><section class="card table-card"><div class="card-header"><div><h3>内容条目</h3><p>用“类型 + 通用字段 + facts 扩展字段”覆盖不同企业，不把 UPS、建筑等行业写死在数据库里。</p></div><div class="card-header-tools"><select class="select" data-site-content-kind>${kindOptions}</select><input class="input" placeholder="搜索标题 / 摘要 / 事实字段" value="${escapeHtml(ui.siteContentSearch || "")}" data-site-content-search /></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>排序</th><th>内容</th><th>类型</th><th>媒体 / 事实</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows || '<tr><td class="empty-cell" colspan="6">暂无匹配内容，点击“新增内容”开始建立企业事实。</td></tr>'}</tbody></table></div></section>`;
+}
+
+function renderSiteContentItemModal() {
+  const item = ui.modal?.contentItemId ? siteContentItems(true).find((entry) => entry.id === ui.modal.contentItemId) : null;
+  const isNew = !item;
+  const kind = item?.kind || "offering";
+  const kindOptions = SITE_CONTENT_KINDS.map((entry) => `<option value="${escapeHtml(entry)}" ${kind === entry ? "selected" : ""}>${escapeHtml(SITE_CONTENT_KIND_LABELS[entry])}</option>`).join("");
+  return modalChrome(`<div class="modal-head"><div><h2 id="modal-title">${isNew ? "新增通用内容" : "编辑通用内容"}</h2><p>字段属于所有企业官网模板共享的数据契约。</p></div><button class="icon-button" type="button" data-action="close-modal" aria-label="关闭"><span data-icon="x"></span></button></div><div class="modal-body planning-editor-form"><div class="field-row"><div class="field"><label for="site-content-title">标题 *</label><input class="input" id="site-content-title" value="${escapeHtml(item?.title || "")}" placeholder="例如：数据中心 UPS 供电项目" /></div><div class="field"><label for="site-content-kind">内容类型</label><select class="select" id="site-content-kind">${kindOptions}</select></div></div><div class="field"><label for="site-content-summary">摘要</label><textarea class="textarea" id="site-content-summary" rows="3" placeholder="用于卡片、列表和搜索摘要">${escapeHtml(item?.summary || "")}</textarea></div><div class="field"><label for="site-content-description">详细说明 / 正文</label><textarea class="textarea" id="site-content-description" rows="5" placeholder="填写客户确认后的公开说明，不要把未确认的演示数据标为公开。">${escapeHtml(item?.description || item?.content || "")}</textarea></div><div class="field-row"><div class="field"><label for="site-content-image">主图地址</label><input class="input" id="site-content-image" value="${escapeHtml(item?.image || "")}" placeholder="/assets/... 或 https://..." /></div><div class="field"><label for="site-content-image-alt">图片说明</label><input class="input" id="site-content-image-alt" value="${escapeHtml(item?.imageAlt || "")}" /></div></div><div class="field"><label for="site-content-gallery">图集地址（每行一个）</label><textarea class="textarea" id="site-content-gallery" rows="3">${escapeHtml((item?.gallery || []).join("\n"))}</textarea></div><div class="field"><label for="site-content-tags">标签（逗号分隔）</label><input class="input" id="site-content-tags" value="${escapeHtml((item?.tags || []).join("、"))}" placeholder="例如：国家一级资质、LEED、数据中心" /></div><div class="field-row"><div class="field"><label for="site-content-order">排序</label><input class="input" id="site-content-order" type="number" min="1" value="${escapeHtml(item?.order || siteContentItems(true).length + 1)}" /></div><div class="field"><label for="site-content-status">公开状态</label><select class="select" id="site-content-status"><option value="published" ${item?.status === "published" ? "selected" : ""}>公开</option><option value="draft" ${!item || item?.status === "draft" ? "selected" : ""}>草稿</option><option value="archived" ${item?.status === "archived" ? "selected" : ""}>归档</option></select></div></div><div class="field-row"><div class="field"><label for="site-content-facts">事实字段 facts（JSON）</label><textarea class="textarea" id="site-content-facts" rows="9" spellcheck="false" placeholder="{\n  &quot;client&quot;: &quot;客户名称&quot;,\n  &quot;area&quot;: &quot;工程面积&quot;,\n  &quot;amount&quot;: &quot;项目金额&quot;,\n  &quot;duration&quot;: &quot;项目周期&quot;\n}">${escapeHtml(siteContentJson(item?.facts))}</textarea><small class="field-help">这里承载行业差异信息，例如客户名称、工程面积、项目金额、施工日志、证书编号；不用改数据库结构。</small></div><div class="field"><label for="site-content-metadata">扩展 metadata（JSON）</label><textarea class="textarea" id="site-content-metadata" rows="9" spellcheck="false">${escapeHtml(siteContentJson(item?.metadata))}</textarea><small class="field-help">仅填写可公开的辅助信息，例如来源、确认人、更新时间。</small></div></div></div><div class="modal-foot"><span>保存进入官网草稿；只有发布后才会影响正式官网。</span><div class="modal-foot-right">${item && item.status !== "archived" ? `<button class="danger-button" type="button" data-action="site-archive-content-item" data-content-item-id="${escapeHtml(item.id)}">归档</button>` : ""}<button class="secondary-button" type="button" data-action="close-modal">取消</button><button class="primary-button" type="button" data-action="site-save-content-item" data-content-item-id="${escapeHtml(item?.id || "")}"><span data-icon="check"></span>保存内容</button></div></div>`, { wide: true });
+}
+
+async function saveSiteContentItem(itemId) {
+  const title = siteValue("site-content-title");
+  const kindValue = siteValue("site-content-kind");
+  const kind = SITE_CONTENT_KINDS.includes(kindValue) ? kindValue : "media";
+  if (!title) return showToast("请填写内容标题", "标题不能为空。", "error");
+  const facts = parseSiteContentJson(siteValue("site-content-facts"));
+  const metadata = parseSiteContentJson(siteValue("site-content-metadata"));
+  if (!facts || !metadata) return showToast("JSON 格式不正确", "请检查 facts 和 metadata 是否为合法 JSON 对象。", "error");
+  const cms = siteCms();
+  if (!Array.isArray(cms.contentItems)) cms.contentItems = [];
+  const existing = cms.contentItems.find((entry) => entry.id === itemId);
+  const titleValue = title.slice(0, 240);
+  const values = { id: itemId || uid("CONTENT"), kind, title: titleValue, summary: siteValue("site-content-summary"), description: siteValue("site-content-description"), content: siteValue("site-content-description"), image: siteValue("site-content-image"), imageAlt: siteValue("site-content-image-alt") || titleValue, gallery: siteValue("site-content-gallery").split(/\r?\n|[,，、;；|]/).map((entry) => entry.trim()).filter(Boolean), tags: siteValue("site-content-tags").split(/[,，、;；|]/).map((entry) => entry.trim()).filter(Boolean), facts, metadata, order: Math.max(1, Number.parseInt(siteValue("site-content-order"), 10) || cms.contentItems.length + 1), status: siteValue("site-content-status") || "draft", updatedAt: siteNow() };
+  if (existing) Object.assign(existing, values); else cms.contentItems.push(values);
+  saveState();
+  try { await commitSiteCmsDraft(); } catch { return; }
+  closeModal();
+  render();
+  showToast(existing ? "通用内容已更新" : "通用内容已新增", "内容已进入官网草稿，发布后才会对外显示。", "success");
+}
+
+async function archiveSiteContentItem(itemId) {
+  if (!(await uiConfirm("确认归档该通用内容？归档后不会出现在正式官网。"))) return;
+  const item = siteContentItems(true).find((entry) => entry.id === itemId);
+  if (!item) return showToast("内容不存在", "请刷新页面后重试。", "error");
+  item.status = "archived";
+  item.updatedAt = siteNow();
+  saveState();
+  try { await commitSiteCmsDraft(); } catch { return; }
+  closeModal();
+  render();
+  showToast("通用内容已归档", "历史发布版本仍然保留，下一次发布后正式官网会隐藏该内容。", "success");
+}
+
 function renderSiteProblems() {
   const groups = siteProblemGroups();
   const questionCount = groups.reduce((sum, group) => sum + (group.questions || []).length, 0);
@@ -128,6 +209,7 @@ function renderSitePanel() {
   let body = "";
   if (ui.siteTab === "pages") body = renderSitePages();
   else if (ui.siteTab === "catalog") body = renderSiteCatalog();
+  else if (ui.siteTab === "content") body = renderSiteContentCenter();
   else if (ui.siteTab === "problems") body = renderSiteProblems();
   else if (ui.siteTab === "insights") body = renderSiteInsights();
   else if (ui.siteTab === "navigation") body = renderSiteNavigation();

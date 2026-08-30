@@ -127,6 +127,15 @@ export class PublicSiteStore {
       allowAiCrawl: settings.allowAiCrawl !== false,
       cta: text(theme.cta, defaults.cta, 80),
       templateKey,
+      settings: {
+        siteName: text(settings.siteName, defaults.siteName, 160),
+        companyName: text(settings.companyName, defaults.companyName, 300),
+        description: text(settings.description, defaults.description, 500),
+        officialDomain: text(settings.officialDomain, "", 300),
+        phone: text(settings.phone, "", 80), email: text(settings.email, "", 160),
+        address: text(settings.address, "", 300), serviceArea: text(settings.serviceArea, "", 200),
+        industryRegion: text(settings.industryRegion, "", 200)
+      },
       // Local front-end walkthroughs may show clearly marked presentation
       // fallbacks. Production deployments disable them by default; the CMS
       // publication remains the only official content source.
@@ -147,6 +156,10 @@ export class PublicSiteStore {
       services: Array.isArray(cms.services) ? cms.services : null,
       cases: Array.isArray(cms.cases) ? cms.cases : null,
       problemGroups: Array.isArray(cms.problemGroups) ? cms.problemGroups : null,
+      // Generic content is the stable contract consumed by all React site
+      // templates. Keep the published snapshot shape intact and let the
+      // public API apply its status gate before returning these records.
+      contentItems: Array.isArray(cms.contentItems) ? cms.contentItems.filter((item) => item && typeof item === "object").slice(0, 500) : null,
       businessLines: Array.isArray(cms.businessLines) ? cms.businessLines : [],
       redirects: Array.isArray(cms.redirects) ? cms.redirects : [],
       contact: {

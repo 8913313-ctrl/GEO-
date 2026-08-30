@@ -2246,6 +2246,7 @@ function siteTabs() {
     ["overview", "官网概览"],
     ["pages", "页面管理"],
     ["catalog", "服务与案例"],
+    ["content", "通用内容中心"],
     ["problems", "问题地图"],
     ["insights", "行业资讯"],
     ["navigation", "导航与外观"],
@@ -2275,10 +2276,12 @@ function renderSiteTemplates() {
     const ready = template.sourceReady !== false;
     const supports = (template.supports || []).slice(0, 4).join(" · ");
     const layout = String(template.layout || "industrial-grid").replace(/[^a-z0-9-]/gi, "-");
-    const thumbSrc = template.defaultImage || `template-${String(index + 1).padStart(2, "0")}-default.png`;
+    const preview = template.defaultImage
+      ? `<img src="/assets/${escapeHtml(template.defaultImage)}" alt="${escapeHtml(template.name)}官网模板缩略图" />`
+      : `<div class="site-template-generic-preview" aria-label="${escapeHtml(template.name)}通用模板预览"><span>${String(index + 1).padStart(2, "0")}</span><b>${escapeHtml(template.shortName)}</b><small>CMS 通用展示层</small></div>`;
     const status = active ? '<span class="status-badge status-approved">当前使用</span>' : ready ? '<span class="status-badge status-draft">可切换</span>' : '<span class="status-badge status-pending">待适配</span>';
     const action = active ? `<button class="secondary-button button-small" type="button" disabled>当前模板</button>` : ready ? `<button class="primary-button button-small" type="button" data-action="site-select-template" data-template-key="${escapeHtml(template.key)}">应用到草稿</button>` : `<button class="secondary-button button-small" type="button" disabled>正在适配原始页面</button>`;
-    return `<article class="site-template-card ${active ? "active" : ""} ${ready ? "" : "is-pending"}" style="--template-accent:${escapeHtml(template.accent)}"><div class="site-template-preview"><img src="/assets/${escapeHtml(thumbSrc)}" alt="${escapeHtml(template.name)}官网模板缩略图" /></div><div class="site-template-card-body"><div class="site-template-card-head"><span class="small-tag">${String(index + 1).padStart(2, "0")}</span>${status}</div><h3>${escapeHtml(template.name)}</h3><p>${escapeHtml(template.description)}</p><small class="site-template-support">${escapeHtml(supports)}</small>${action}</div></article>`;
+    return `<article class="site-template-card ${active ? "active" : ""} ${ready ? "" : "is-pending"}" style="--template-accent:${escapeHtml(template.accent)}"><div class="site-template-preview">${preview}</div><div class="site-template-card-body"><div class="site-template-card-head"><span class="small-tag">${String(index + 1).padStart(2, "0")}</span>${status}</div><h3>${escapeHtml(template.name)}</h3><p>${escapeHtml(template.description)}</p><small class="site-template-support">${escapeHtml(supports)}</small>${action}</div></article>`;
   }).join("");
   return `<section class="site-template-section" aria-labelledby="site-template-section-title"><div class="site-template-section-head"><div><span class="small-tag blue">展示结构</span><h3 id="site-template-section-title">官网模板</h3><p>模板只负责页面结构和视觉表达；企业内容、图片、Logo、联系方式和公共信息都由下方的 CMS 配置。</p></div><div class="site-template-current-label"><span class="site-template-current-dot" style="background:${escapeHtml(current.accent)}"></span><span>当前使用：<b>${escapeHtml(current.shortName)}</b></span></div></div><div class="site-template-notice"><span class="site-source-note-icon" data-icon="layers"></span><div><b>模板是展示层，CMS 内容是数据层</b><p>切换模板不会删除文章、服务或案例；有配置图片就展示真实资源，没有图片时由模板使用统一的默认图片策略。</p></div><button class="secondary-button button-small" type="button" data-action="site-page-preview" data-page-id="home"><span data-icon="eye"></span>预览当前模板</button></div><div class="site-template-grid">${cards}</div></section>`;
 }

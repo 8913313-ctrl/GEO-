@@ -93,6 +93,9 @@ services:
       # Customer's original static website remains authoritative. CMS stays
       # available in admin but cannot replace the public site template.
       TZ_SITE_STATIC_ONLY: "true"
+      # React/Vite customer builds use history fallback for document routes;
+      # missing assets continue to return 404.
+      TZ_SITE_SPA_FALLBACK: "true"
       TZ_SITE_BASE_URL: ${TZ_PRODUCTION_SITE_BASE_URL:?Set TZ_PRODUCTION_SITE_BASE_URL in deploy/cutover.env}
       TZ_SITE_WORKSPACE_ID: ${TZ_SITE_WORKSPACE_ID:-default}
     volumes:

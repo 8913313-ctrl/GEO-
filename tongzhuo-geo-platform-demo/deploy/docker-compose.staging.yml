@@ -61,6 +61,8 @@ services:
       TZ_SITE_BIND_HOST: 0.0.0.0
       TZ_SITE_PORT: 19080
       TZ_SITE_STATIC_ROOT: /site
+      TZ_SITE_STATIC_ONLY: "true"
+      TZ_SITE_SPA_FALLBACK: "true"
       TZ_SITE_BASE_URL: ${TZ_STAGING_SITE_BASE_URL:-http://127.0.0.1:18182}
       TZ_SITE_WORKSPACE_ID: ${TZ_SITE_WORKSPACE_ID:-default}
     volumes:

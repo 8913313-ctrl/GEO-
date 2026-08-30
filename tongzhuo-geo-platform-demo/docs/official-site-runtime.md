@@ -19,11 +19,33 @@
 ```powershell
 $env:TZ_DATABASE_PATH='G:\path\tongzhuo-production.sqlite'
 $env:TZ_SITE_STATIC_ROOT='G:\path\demo-company-homepage'
+$env:TZ_SITE_STATIC_ONLY='true'
+$env:TZ_SITE_SPA_FALLBACK='true'
 $env:TZ_SITE_BASE_URL='https://www.example.com'
 $env:TZ_SITE_BIND_HOST='127.0.0.1'
 $env:TZ_SITE_PORT='19080'
 npm run start:site
 ```
+
+## 挂载 React 企业官网
+
+保留 React 官网的样式、动画和交互时，把官网构建产物的 `dist` 目录作为
+`TZ_SITE_STATIC_ROOT`。官网服务直接返回该目录的 `index.html` 和 `assets`，React
+代码通过同源 `/api/v1/site-public/bootstrap` 读取已发布的通用内容，通过同源
+`/api/v1/leads` 写入公开咨询线索；后台和官网共享同一份正式数据库，因此不需要
+把行业字段复制进后台表结构。
+
+```powershell
+$env:TZ_SITE_STATIC_ROOT='D:\path\to\qiyeguan\dist'
+$env:TZ_SITE_STATIC_ONLY='true'
+$env:TZ_SITE_SPA_FALLBACK='true'
+npm run start:site
+```
+
+`TZ_SITE_SPA_FALLBACK=true` 只对 HTML 文档请求将不存在的路径回退到 `index.html`，
+用于支持 React 单页路由；不存在的 JS、CSS、图片仍然返回 404。11 套模板共用这
+套挂载协议，切换模板只需替换构建产物目录和正式模板 key，不新增行业专用数据库列。
+生产容器中的 `/site` 仍然是只读挂载点，部署时将对应模板的 `dist` 挂载到 `/site`。
 
 生产环境通常由 Nginx 或容器向外暴露端口。公开 origin 的优先级为：`TZ_SITE_BASE_URL` → CMS 正式版本中的 `officialDomain`（自动使用 HTTPS）→ 经过校验的请求域名。建议生产部署仍显式配置 `TZ_SITE_BASE_URL`，并在 CMS 中填写同一个主域名，避免 canonical、Schema、Sitemap、RSS 和 llms 使用内部地址。
 

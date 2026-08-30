@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Send, X, CheckCircle2, Phone, Building, Mail, User, ShieldCheck } from 'lucide-react';
+import { submitPublicLead } from '../api/leadClient';
 
 interface QuoteRequestModalProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({
   initialData,
 }) => {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     companyName: '',
     contactName: '',
@@ -26,9 +29,26 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setLoading(true);
+    setError('');
+    try {
+      await submitPublicLead({
+        name: formData.contactName,
+        phone: formData.phone,
+        company: formData.companyName,
+        service: 'UPS电源选型与工程服务',
+        website: window.location.href,
+        message: `行业：${formData.industry}；负载功率：${formData.powerKw}；后备时间：${formData.backupTime}；邮箱：${formData.email}；备注：${formData.notes}`,
+        source_url: window.location.href
+      });
+      setSubmitted(true);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : '提交失败，请稍后重试。');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -128,10 +148,12 @@ export const QuoteRequestModal: React.FC<QuoteRequestModalProps> = ({
 
             <button
               type="submit"
+              disabled={loading}
               className="w-full py-3 rounded-none font-bold text-slate-950 bg-amber-500 hover:bg-amber-400 shadow-sm transition-all text-xs"
             >
-              提交申请，获取专属报价及配电图纸
+              {loading ? '正在提交…' : '提交申请，获取专属报价及配电图纸'}
             </button>
+            {error && <p className="text-xs text-red-600" role="alert">{error}</p>}
           </form>
         ) : (
           <div className="text-center py-8 space-y-4">
