@@ -18,6 +18,7 @@
 **/public/downloads/*.zip
 
 # Local caches and temporary profiles
+tmp/
 tmp-electron-profile-final/
 tmp-electron-userdata/
 **/.cache/
